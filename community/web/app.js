@@ -5,6 +5,17 @@ const PACE_WORKERS = {
   medium: Math.max(1, Math.floor((navigator.hardwareConcurrency || 2) / 2)),
   max: navigator.hardwareConcurrency || 2,
 };
+const ERRORS = {
+  no_available_work: "No locations left in this lane. Process the other lane, or wait for a new catalog.",
+  insufficient_credit: "Not enough units for a search. Process another batch first.",
+  verification_failed: "A location failed verification and was not credited.",
+  expired_lease: "That batch expired. Claim a new one.",
+  unauthorized: "Session missing. Create or restore an account.",
+  invalid_mma_map: "That file is not a map-making.app JSON with customCoordinates.",
+  invalid_pano_id: "A panorama ID in the JSON is missing or invalid.",
+  invalid_json: "The server could not read that request.",
+  paused: "Paused. The current location finished.",
+};
 
 let signedIn = false;
 let state = null;
@@ -13,6 +24,10 @@ let lastMap = null;
 let queryMap = null;
 let jobs = [{ id: crypto.randomUUID(), name: "New search", lane: "scene" }];
 let selectedJob = jobs[0].id;
+
+function explain(error) {
+  return ERRORS[error.message] || error.message;
+}
 
 async function api(path, method = "GET", body = null) {
   const headers = {};
@@ -35,9 +50,16 @@ function renderJobs() {
   list.replaceChildren();
   for (const job of jobs) {
     const item = document.createElement("li");
-    item.className = job.id === selectedJob ? "selected" : "";
+    if (job.id === selectedJob) item.classList.add("selected");
     if (queryMap && job.id === selectedJob) item.classList.add("ready");
-    item.innerHTML = `<span class="dot"></span><span>${job.name}<small>${job.lane} search</small></span>`;
+    const dot = document.createElement("span");
+    dot.className = "dot";
+    const title = document.createElement("span");
+    title.append(job.name);
+    const meta = document.createElement("small");
+    meta.textContent = `${job.lane} search`;
+    title.append(meta);
+    item.append(dot, title);
     item.addEventListener("click", () => {
       selectedJob = job.id;
       $("output-name").value = job.name;
@@ -56,6 +78,21 @@ function updateReady() {
   $("ready-badge").classList.toggle("ok", ready);
   $("run-search").disabled = !ready;
   $("job-title").textContent = $("output-name").value.trim() || "New search";
+}
+
+function useQueryMap(documentMap, label) {
+  if (!documentMap || !Array.isArray(documentMap.customCoordinates) || !documentMap.customCoordinates.length) {
+    throw new Error("invalid_mma_map");
+  }
+  queryMap = documentMap;
+  $("file-name").textContent = label;
+  if (documentMap.name) {
+    $("output-name").value = documentMap.name;
+    const job = jobs.find((item) => item.id === selectedJob);
+    if (job) job.name = documentMap.name;
+    renderJobs();
+  }
+  updateReady();
 }
 
 async function refresh() {
@@ -127,13 +164,18 @@ $("create-account").addEventListener("click", async () => {
   try {
     const created = await api("/api/accounts", "POST", {});
     $("recovery-once").hidden = false;
-    $("recovery-once").textContent = `Save this recovery code now. It will not be shown again: ${created.recoveryCode}`;
+    $("recovery-once-text").textContent = `Save this recovery code now. It will not be shown again: ${created.recoveryCode}`;
     await refresh();
     $("process-status").textContent = "Ready for an exclusive batch.";
   } catch (error) {
-    $("process-status").textContent = `Account error: ${error.message}`;
+    $("process-status").textContent = `Account error: ${explain(error)}`;
     button.disabled = false;
   }
+});
+
+$("dismiss-recovery").addEventListener("click", () => {
+  $("recovery-once").hidden = true;
+  $("recovery-once-text").textContent = "";
 });
 
 $("recover-form").addEventListener("submit", async (event) => {
@@ -144,7 +186,7 @@ $("recover-form").addEventListener("submit", async (event) => {
     await refresh();
     $("process-status").textContent = "Session restored.";
   } catch (error) {
-    $("process-status").textContent = `Recovery stopped: ${error.message}`;
+    $("process-status").textContent = `Recovery stopped: ${explain(error)}`;
   }
 });
 
@@ -170,35 +212,36 @@ $("process").addEventListener("click", async () => {
     $("process-status").textContent = `${accepted.accepted} locations verified and published. +${accepted.unitsEarned} units.`;
     await refresh();
   } catch (error) {
-    $("process-status").textContent = `Processing stopped: ${error.message}`;
+    $("process-status").textContent = `Processing stopped: ${explain(error)}`;
   } finally {
     button.disabled = !signedIn;
   }
 });
 
+$("choose-json").addEventListener("click", () => $("query-map").click());
+
 $("query-map").addEventListener("change", async () => {
   const file = $("query-map").files[0];
   if (!file) return;
-  queryMap = JSON.parse(await file.text());
-  $("file-name").textContent = file.name;
-  if (queryMap.name) {
-    $("output-name").value = queryMap.name;
-    const job = jobs.find((item) => item.id === selectedJob);
-    if (job) job.name = queryMap.name;
-    renderJobs();
+  try {
+    useQueryMap(JSON.parse(await file.text()), file.name);
+  } catch (error) {
+    queryMap = null;
+    $("file-name").textContent = "That file is not valid map JSON.";
+    updateReady();
   }
-  updateReady();
 });
 
 $("load-sample").addEventListener("click", async () => {
-  const sample = await fetch("/sample-query.json", { cache: "no-store" }).then((response) => response.json());
-  queryMap = sample;
-  $("file-name").textContent = "sample-query.json";
-  $("output-name").value = sample.name;
-  const job = jobs.find((item) => item.id === selectedJob);
-  if (job) job.name = sample.name;
-  renderJobs();
-  updateReady();
+  try {
+    const sample = await fetch("/sample-query.json", { cache: "no-store" }).then((response) => {
+      if (!response.ok) throw new Error("invalid_mma_map");
+      return response.json();
+    });
+    useQueryMap(sample, "sample-query.json");
+  } catch (error) {
+    $("search-status").textContent = `Sample JSON failed: ${explain(error)}`;
+  }
 });
 
 function downloadMap() {
@@ -231,7 +274,11 @@ $("run-search").addEventListener("click", async () => {
     for (const hit of lastMap?.customCoordinates || []) {
       const item = document.createElement("li");
       const extra = hit.extra || {};
-      item.innerHTML = `<span>${hit.panoId}</span><small>${hit.lat}, ${hit.lng} · rank ${extra.visionRank} · ${extra.visionScore} · ${(extra.tags || []).join(" · ")}</small>`;
+      const title = document.createElement("span");
+      title.textContent = hit.panoId || "";
+      const detail = document.createElement("small");
+      detail.textContent = `${hit.lat}, ${hit.lng} · rank ${extra.visionRank} · ${extra.visionScore} · ${(extra.tags || []).join(" · ")}`;
+      item.append(title, detail);
       list.append(item);
     }
     $("search-status").textContent = lastMap
@@ -239,7 +286,7 @@ $("run-search").addEventListener("click", async () => {
       : "No matches.";
     await refresh();
   } catch (error) {
-    $("search-status").textContent = `Search stopped: ${error.message}`;
+    $("search-status").textContent = `Search stopped: ${explain(error)}`;
   } finally {
     updateReady();
   }
@@ -249,5 +296,5 @@ $("download-map").addEventListener("click", downloadMap);
 
 renderJobs();
 refresh().catch((error) => {
-  $("process-status").textContent = `Unable to reach the service: ${error.message}`;
+  $("process-status").textContent = `Unable to reach the service: ${explain(error)}`;
 });

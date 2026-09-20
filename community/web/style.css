@@ -31,7 +31,9 @@ button,input,select{font:inherit;color:inherit}button{cursor:pointer}button:disa
 .cmd{border:0;background:#2A3336;color:var(--text)}.cmd.gold{background:var(--gold);color:var(--ink)}
 .ghost{border:1px solid var(--line);background:transparent}
 .status{font-size:11px;color:var(--muted);min-height:32px;margin:8px 0 0;line-height:1.4}
-.status.warn{color:var(--gold)}
+.status.warn{color:var(--gold);display:flex;gap:10px;align-items:flex-start}
+#recovery-once-text{flex:1}
+#dismiss-recovery{width:auto;margin:0;padding:4px 8px}
 .balance{margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
 .balance span{font-size:11px;color:var(--muted)}.balance strong{display:block;font-size:28px;margin:4px 0}
 .balance small{color:var(--muted);font-size:11px}

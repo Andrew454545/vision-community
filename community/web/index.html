@@ -90,7 +90,8 @@
         <h2>Search input</h2>
         <label class="field-label" for="query-map">Location JSON</label>
         <div class="file-row">
-          <input id="query-map" type="file" accept="application/json,.json">
+          <input id="query-map" type="file" accept="application/json,.json" hidden>
+          <button id="choose-json" class="ghost" type="button">Choose JSON</button>
           <button id="load-sample" class="ghost" type="button">Load sample JSON</button>
         </div>
         <p class="file-name" id="file-name">No JSON selected</p>
@@ -105,7 +106,10 @@
         <input id="recovery-code" maxlength="80" autocomplete="off" placeholder="Recovery code">
         <button type="submit" class="ghost">Restore</button>
       </form>
-      <p class="status warn" id="recovery-once" hidden></p>
+      <p class="status warn" id="recovery-once" hidden>
+        <span id="recovery-once-text"></span>
+        <button id="dismiss-recovery" class="ghost" type="button">Got it</button>
+      </p>
       <p class="status" id="search-status">Earn units to unlock a search.</p>
       <ol class="results" id="results"></ol>
       <button id="download-map" class="ghost" type="button" hidden>Download JSON for map-making.app</button>
