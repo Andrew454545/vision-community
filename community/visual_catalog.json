@@ -1,0 +1,18 @@
+{
+  "source": "synthetic",
+  "rights": "synthetic-test-data",
+  "locations": [
+    {"assetId":"synthetic:visual:001","capture":"2026-01","lane":"scene","model":"community-visual-v1","lat":10.0,"lon":10.0},
+    {"assetId":"synthetic:visual:002","capture":"2026-01","lane":"scene","model":"community-visual-v1","lat":20.0,"lon":20.0},
+    {"assetId":"synthetic:visual:003","capture":"2026-01","lane":"scene","model":"community-visual-v1","lat":-15.0,"lon":40.0},
+    {"assetId":"synthetic:visual:004","capture":"2026-01","lane":"scene","model":"community-visual-v1","lat":-40.0,"lon":-80.0},
+    {"assetId":"synthetic:visual:005","capture":"2026-01","lane":"scene","model":"community-visual-v1","lat":50.0,"lon":-10.0},
+    {"assetId":"synthetic:visual:006","capture":"2026-01","lane":"scene","model":"community-visual-v1","lat":5.0,"lon":100.0},
+    {"assetId":"synthetic:visual:007","capture":"2026-01","lane":"scene","model":"community-visual-v1","lat":-55.0,"lon":120.0},
+    {"assetId":"synthetic:visual:008","capture":"2026-01","lane":"scene","model":"community-visual-v1","lat":33.0,"lon":-140.0},
+    {"assetId":"synthetic:visual:101","capture":"2026-01","lane":"object","model":"community-visual-v1","lat":12.0,"lon":12.0},
+    {"assetId":"synthetic:visual:102","capture":"2026-01","lane":"object","model":"community-visual-v1","lat":-22.0,"lon":88.0},
+    {"assetId":"synthetic:visual:103","capture":"2026-01","lane":"object","model":"community-visual-v1","lat":48.0,"lon":-60.0},
+    {"assetId":"synthetic:visual:104","capture":"2026-01","lane":"object","model":"community-visual-v1","lat":-8.0,"lon":-170.0}
+  ]
+}

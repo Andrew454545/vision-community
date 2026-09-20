@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#111d1d">
+    <title>VISION Community</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/visual.js" defer></script>
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="/" aria-label="VISION Community home"><span class="brand-mark">V</span><span>VISION <b>COMMUNITY</b></span></a>
+    <div class="header-right"><span class="live-dot" aria-hidden="true"></span><span id="build-label">Local service</span></div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">A shared visual search index</p>
+        <h1>Find more places,<br><em>together.</em></h1>
+        <p class="hero-description">Contribute processing to a common location index. Once your work is verified, you earn searches across every published location.</p>
+        <div class="notice"><strong id="notice-title">Not a public corpus</strong><span id="notice-body">This build is a contribution-gated community index. Google Street View is not connected. Slow, medium, and max change how many locations your device processes at once.</span></div>
+      </div>
+      <div class="hero-graphic" aria-hidden="true">
+        <div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><div class="orbit orbit-three"></div>
+        <span class="geo-pin pin-one"></span><span class="geo-pin pin-two"></span><span class="geo-pin pin-three"></span>
+        <div class="graphic-center"><span class="graphic-glyph">◇</span><small>ONE SHARED INDEX</small></div>
+      </div>
+    </section>
+
+    <section class="dashboard" aria-label="Community dashboard">
+      <div class="section-heading"><div><p class="eyebrow">Live state</p><h2>Community index</h2></div><span class="shared-pill">Shared by all accounts</span></div>
+      <div class="stat-grid">
+        <article class="stat"><span>Published scene locations</span><strong id="scene-published">—</strong><small>Searchable by everyone with credit</small></article>
+        <article class="stat"><span>Published object locations</span><strong id="object-published">—</strong><small>Searchable by everyone with credit</small></article>
+        <article class="stat"><span>Work remaining</span><strong id="work-remaining">—</strong><small>Assigned once per lane and model</small></article>
+      </div>
+    </section>
+
+    <section class="workspace" aria-label="Contribute and search">
+      <article class="panel account-panel">
+        <div class="panel-number">01</div><p class="eyebrow">Your access</p><h2>Start contributing</h2>
+        <p class="panel-description">Create an anonymous account. A private browser cookie keeps you signed in. Save the recovery code; it is shown once. All accepted contributions appear in the same community index.</p>
+        <button id="create-account" class="button button-dark" type="button">Create anonymous account <span aria-hidden="true">↗</span></button>
+        <form id="recover-form" class="recover-form"><label for="recovery-code">Recovery code</label><div class="search-input"><input id="recovery-code" maxlength="80" autocomplete="off" placeholder="Paste recovery code"><button type="submit" id="recover">Restore</button></div></form>
+        <p class="activity" id="recovery-once" hidden></p>
+        <div class="account-state" id="account-state" hidden><span class="success-dot"></span><span>Account ready</span><code id="account-id"></code></div>
+        <div class="balance"><span>Your verified units</span><strong id="units">0</strong><small><span id="searches-available">0</span> searches available</small></div>
+      </article>
+
+      <article class="panel processing-panel">
+        <div class="panel-number">02</div><p class="eyebrow">Give your device a task</p><h2>Process locations</h2>
+        <p class="panel-description">Choose a lane and pace. Pace controls real concurrent work on this device. The server assigns an exclusive batch and credits only independently recomputed embeddings.</p>
+        <div class="form-row"><label for="lane">Type of work</label><select id="lane"><option value="scene">Scene locations · 1 unit each</option><option value="object">Object locations · 10 units each</option></select></div>
+        <fieldset class="pace"><legend>Processing pace</legend><label><input type="radio" name="pace" value="slow"><span>Slow</span></label><label><input type="radio" name="pace" value="medium" checked><span>Medium</span></label><label><input type="radio" name="pace" value="max"><span>Max</span></label></fieldset>
+        <button id="process" class="button button-accent" type="button" disabled>Process a batch <span aria-hidden="true">→</span></button>
+        <button id="pause" class="button" type="button" disabled>Pause</button>
+        <p class="activity" id="process-status" role="status">Create an account to begin.</p>
+      </article>
+
+      <article class="panel search-panel">
+        <div class="panel-number">03</div><p class="eyebrow">Explore the shared work</p><h2>Search locations</h2>
+        <p class="panel-description">One search costs <span id="search-cost">—</span> verified units. Scene search ranks visual descriptors from a query image. Label matching is only used by the synthetic fixture demo.</p>
+        <form id="search-form"><label for="query">Text query (fixture demo only)</label><div class="search-input"><input id="query" name="query" maxlength="200" placeholder="Fixture demo: pine, bridge…"><button type="submit" aria-label="Search" disabled>↗</button></div>
+        <label for="query-image">Visual query image</label><input id="query-image" type="file" accept="image/*,.bin"></form>
+        <p class="activity" id="search-status" role="status">Earn units to unlock a search.</p>
+        <ol class="results" id="results" aria-label="Search results"></ol>
+      </article>
+    </section>
+  </main>
+
+  <footer><span>VISION Community</span><span>Anonymous accounts · No owner identity in this app · R2 bucket not created</span></footer>
+</body>
+</html>

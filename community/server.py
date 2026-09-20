@@ -1,0 +1,207 @@
+"""Loopback-only HTTP demo. Never expose this prototype to the public internet."""
+
+from __future__ import annotations
+
+import argparse
+import base64
+import json
+from http.cookies import SimpleCookie
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+from urllib.parse import urlsplit
+
+from .service import CommunityService, ServiceError
+from .source import SourceError
+
+
+ROOT = Path(__file__).resolve().parent
+WEB = ROOT / "web"
+STATIC = {
+    "/": (WEB / "index.html", "text/html; charset=utf-8"),
+    "/app.js": (WEB / "app.js", "text/javascript; charset=utf-8"),
+    "/visual.js": (WEB / "visual.js", "text/javascript; charset=utf-8"),
+    "/style.css": (WEB / "style.css", "text/css; charset=utf-8"),
+}
+
+
+def handler_for(service: CommunityService):
+    class Handler(BaseHTTPRequestHandler):
+        server_version = "VisionCommunityDemo/0.1"
+
+        def log_message(self, format, *args):
+            # Do not log bearer tokens or query strings.
+            pass
+
+        def _send(self, status: int, body: bytes, content_type: str, *, cookie: str | None = None):
+            self.send_response(status)
+            self.send_header("Content-Type", content_type)
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("Referrer-Policy", "no-referrer")
+            self.send_header("X-Frame-Options", "DENY")
+            if cookie is not None:
+                self.send_header("Set-Cookie", cookie)
+            self.send_header(
+                "Content-Security-Policy",
+                "default-src 'self'; script-src 'self'; style-src 'self'; "
+                "connect-src 'self'; img-src 'self'; base-uri 'none'; frame-ancestors 'none'",
+            )
+            self.end_headers()
+            self.wfile.write(body)
+
+        def _json(self, status: int, value: dict, *, cookie: str | None = None):
+            self._send(
+                status, json.dumps(value, separators=(",", ":")).encode(),
+                "application/json", cookie=cookie,
+            )
+
+        def _account(self) -> str:
+            header = self.headers.get("Authorization", "")
+            if header.startswith("Bearer "):
+                return service.account_for_token(header[7:])
+            cookies = SimpleCookie()
+            try:
+                cookies.load(self.headers.get("Cookie", ""))
+            except Exception:
+                raise ServiceError("unauthorized", 401)
+            session = cookies.get("vision_session")
+            if session is None:
+                raise ServiceError("unauthorized", 401)
+            return service.account_for_token(session.value)
+
+        def _same_origin(self):
+            origin = self.headers.get("Origin")
+            if origin is not None:
+                parsed = urlsplit(origin)
+                if parsed.scheme not in ("http", "https") or parsed.netloc != self.headers.get("Host"):
+                    raise ServiceError("cross_origin_request", 403)
+
+        def _input(self) -> dict:
+            if self.headers.get_content_type() != "application/json":
+                raise ServiceError("json_required", 415)
+            raw_length = self.headers.get("Content-Length", "")
+            try:
+                length = int(raw_length)
+            except ValueError:
+                raise ServiceError("invalid_json")
+            if not 0 <= length <= 1_000_000:
+                raise ServiceError("request_too_large", 413)
+            try:
+                data = json.loads(self.rfile.read(length))
+            except (UnicodeError, json.JSONDecodeError):
+                raise ServiceError("invalid_json")
+            if not isinstance(data, dict):
+                raise ServiceError("invalid_json")
+            return data
+
+        def do_GET(self):
+            route = urlsplit(self.path).path
+            try:
+                if route == "/api/status":
+                    return self._json(200, service.status())
+                if route == "/api/me":
+                    return self._json(200, service.status(self._account()))
+                static = STATIC.get(route)
+                if static is None:
+                    raise ServiceError("not_found", 404)
+                return self._send(200, static[0].read_bytes(), static[1])
+            except ServiceError as error:
+                self._json(error.status, {"error": error.code})
+
+        def do_POST(self):
+            route = urlsplit(self.path).path
+            try:
+                self._same_origin()
+                data = self._input()
+                if route == "/api/accounts":
+                    account = service.create_account()
+                    session_cookie = (
+                        f"vision_session={account['token']}; HttpOnly; SameSite=Strict; Path=/"
+                    )
+                    return self._json(
+                        201,
+                        {"accountId": account["accountId"], "recoveryCode": account["recoveryCode"]},
+                        cookie=session_cookie,
+                    )
+                if route == "/api/recovery":
+                    account = service.recover_account(data.get("recoveryCode"))
+                    session_cookie = (
+                        f"vision_session={account['token']}; HttpOnly; SameSite=Strict; Path=/"
+                    )
+                    return self._json(200, {"accountId": account["accountId"]}, cookie=session_cookie)
+                account_id = self._account()
+                if route == "/api/leases":
+                    return self._json(
+                        200,
+                        service.lease(
+                            account_id,
+                            data.get("lane"),
+                            data.get("count"),
+                            pace=data.get("pace"),
+                        ),
+                    )
+                if route == "/api/submissions":
+                    return self._json(
+                        200, service.submit(account_id, data.get("leaseId"), data.get("outputs"))
+                    )
+                if route == "/api/searches":
+                    query_image = data.get("queryImage")
+                    query_faces = None
+                    if isinstance(query_image, str):
+                        try:
+                            query_faces = base64.b64decode(query_image)
+                        except (ValueError, TypeError):
+                            raise ServiceError("invalid_query")
+                    return self._json(
+                        200,
+                        service.search(
+                            account_id,
+                            data.get("query"),
+                            data.get("idempotencyKey"),
+                            query_faces=query_faces,
+                            lane=data.get("lane") or "scene",
+                        ),
+                    )
+                raise ServiceError("not_found", 404)
+            except ServiceError as error:
+                self._json(error.status, {"error": error.code})
+
+    return Handler
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--demo", action="store_true", help="synthetic fixture demo")
+    parser.add_argument("--visual", action="store_true", help="local visual self-test; not a public corpus")
+    parser.add_argument("--db", type=Path, default=ROOT / ".data" / "demo.sqlite")
+    parser.add_argument("--port", type=int, default=8765)
+    args = parser.parse_args()
+    if args.demo == args.visual:
+        parser.error("choose exactly one of --demo or --visual")
+    service = CommunityService(args.db, artifacts=args.db.parent / "artifacts", segment_capacity=1_000)
+    if args.demo:
+        fixture = json.loads((ROOT / "demo_catalog.json").read_text(encoding="utf-8"))
+        if fixture.get("rights") != "synthetic-test-data":
+            parser.error("demo fixture rights marker is missing")
+        service.import_synthetic(fixture["locations"])
+        label = "synthetic demo"
+    else:
+        catalog = json.loads((ROOT / "visual_catalog.json").read_text(encoding="utf-8"))
+        try:
+            service.import_jobs(catalog)
+        except (ServiceError, SourceError) as error:
+            parser.error(str(error))
+        label = "visual self-test (not a public VISION corpus)"
+    server = ThreadingHTTPServer(("127.0.0.1", args.port), handler_for(service))
+    print(f"VISION community {label}: http://127.0.0.1:{args.port}", flush=True)
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        server.server_close()
+
+
+if __name__ == "__main__":
+    main()

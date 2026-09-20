@@ -1,0 +1,17 @@
+{
+  "rights": "synthetic-test-data",
+  "locations": [
+    {"assetId":"synthetic:001","capture":"2026-01","lane":"scene","model":"fixture-v1","label":"Pine forest beside a narrow road"},
+    {"assetId":"synthetic:002","capture":"2026-01","lane":"scene","model":"fixture-v1","label":"Stone bridge over a river"},
+    {"assetId":"synthetic:003","capture":"2026-01","lane":"scene","model":"fixture-v1","label":"Sunny plaza with trees"},
+    {"assetId":"synthetic:004","capture":"2026-01","lane":"scene","model":"fixture-v1","label":"Mountain road and pine forest"},
+    {"assetId":"synthetic:005","capture":"2026-01","lane":"scene","model":"fixture-v1","label":"Quiet village street"},
+    {"assetId":"synthetic:006","capture":"2026-01","lane":"scene","model":"fixture-v1","label":"A river beside an old bridge"},
+    {"assetId":"synthetic:007","capture":"2026-01","lane":"scene","model":"fixture-v1","label":"Coastal road at sunset"},
+    {"assetId":"synthetic:008","capture":"2026-01","lane":"scene","model":"fixture-v1","label":"Pine trees on a hillside"},
+    {"assetId":"synthetic:009","capture":"2026-01","lane":"object","model":"fixture-v1","label":"A red bicycle"},
+    {"assetId":"synthetic:010","capture":"2026-01","lane":"object","model":"fixture-v1","label":"A blue bicycle near a bridge"},
+    {"assetId":"synthetic:011","capture":"2026-01","lane":"object","model":"fixture-v1","label":"A clock above the street"},
+    {"assetId":"synthetic:012","capture":"2026-01","lane":"object","model":"fixture-v1","label":"A bird on a pine branch"}
+  ]
+}
