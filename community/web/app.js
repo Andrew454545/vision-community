@@ -40,11 +40,9 @@ async function refresh() {
   $("process").disabled = !signedIn;
   $("pause").disabled = !signedIn;
   $("search-form").querySelector("button").disabled = !signedIn || Number(state.units || 0) < state.searchCost;
-  $("build-label").textContent = state.operational ? "Public service" : "Not operational";
-  if (state.r2 === "not_created") {
-    $("notice-title").textContent = "Not a public VISION corpus";
-    $("notice-body").textContent = "Google Street View is not connected. Credits and searches are enforced on the server. The R2 bucket has not been created. Slow, medium, and max change concurrent device work.";
-  }
+  $("build-label").textContent = state.operational ? "Public service" : "Index + JSON only";
+  $("notice-title").textContent = "Index and JSON only";
+  $("notice-body").textContent = "Panorama IDs, pose, and derived embeddings are stored. Street View imagery is not. Download search JSON and open it on map-making.app. Slow, medium, and max change concurrent device work.";
   if (!signedIn) $("process-status").textContent = "Create an account to begin.";
   else if ($("process-status").textContent === "Create an account to begin.")
     $("process-status").textContent = "Ready for an exclusive batch.";
@@ -136,38 +134,54 @@ $("process").addEventListener("click", async () => {
   }
 });
 
+let lastMap = null;
+
+function downloadMap() {
+  if (!lastMap) return;
+  const blob = new Blob([JSON.stringify(lastMap, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${(lastMap.name || "vision-community").replace(/\s+/g, "-")}.json`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 $("search-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const button = $("search-form").querySelector("button");
   button.disabled = true;
   const query = $("query").value.trim();
-  const file = $("query-image").files[0];
+  const file = $("query-map").files[0];
   try {
     const body = { idempotencyKey: crypto.randomUUID(), lane: $("lane").value };
     if (file) {
-      const bytes = new Uint8Array(await file.arrayBuffer());
-      let binary = "";
-      bytes.forEach((value) => { binary += String.fromCharCode(value); });
-      body.queryImage = btoa(binary);
+      body.queryMap = JSON.parse(await file.text());
     } else {
       body.query = query;
     }
     const result = await api("/api/searches", "POST", body);
+    lastMap = result.map || null;
+    $("download-map").hidden = !lastMap;
     const list = $("results");
     list.replaceChildren();
-    for (const hit of result.results) {
+    const hits = lastMap ? lastMap.customCoordinates : result.results;
+    for (const hit of hits || []) {
       const item = document.createElement("li");
       const content = document.createElement("span");
-      content.textContent = hit.label || `score ${hit.score}`;
+      content.textContent = hit.panoId || hit.label || `score ${hit.score}`;
       const detail = document.createElement("small");
-      detail.textContent = `${hit.lane} · location ${hit.locationId}`;
+      const extra = hit.extra || {};
+      detail.textContent = extra.visionScore != null
+        ? `${hit.lat}, ${hit.lng} · rank ${extra.visionRank} · ${extra.visionScore}`
+        : `${hit.lane || ""} · location ${hit.locationId || ""}`;
       content.append(detail);
       item.append(content);
       list.append(item);
     }
-    $("search-status").textContent = result.demo
-      ? (result.results.length ? `${result.results.length} fixture matches. One search used.` : "No fixture matches. One search used.")
-      : (result.results.length ? `${result.results.length} ranked visual matches. One search used.` : "No visual matches. One search used.");
+    $("search-status").textContent = lastMap
+      ? `${lastMap.customCoordinates.length} locations. Download JSON and open it on map-making.app. One search used.`
+      : (result.results.length ? `${result.results.length} fixture matches. One search used.` : "No matches. One search used.");
     await refresh();
   } catch (error) {
     $("search-status").textContent = `Search stopped: ${error.message}`;
@@ -175,6 +189,8 @@ $("search-form").addEventListener("submit", async (event) => {
     button.disabled = !signedIn || Number(state?.units || 0) < Number(state?.searchCost || Infinity);
   }
 });
+
+$("download-map").addEventListener("click", downloadMap);
 
 refresh().catch((error) => {
   $("process-status").textContent = `Unable to reach the local service: ${error.message}`;

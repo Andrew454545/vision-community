@@ -219,5 +219,20 @@ def output_digest(asset_id: str, capture: str, lane: str, model: str, embedding:
     )
 
 
+def mean_embeddings(vectors: list[bytes]) -> bytes:
+    if not vectors:
+        raise ValueError("empty_query")
+    width = len(vectors[0])
+    totals = [0] * width
+    for vector in vectors:
+        if len(vector) != width:
+            raise ValueError("query_width")
+        for index, value in enumerate(signed_int8(vector)):
+            totals[index] += value
+    count = len(vectors)
+    dims = [max(-127, min(127, total // count)) for total in totals]
+    return bytes((d + 256) % 256 if d < 0 else d for d in dims)
+
+
 def pack_ids(ids: Iterable[int]) -> bytes:
     return b"".join(struct.pack("<Q", int(location_id)) for location_id in ids)

@@ -1,13 +1,10 @@
 # VISION Community: production design
 
-The running code now includes a rights-aware importer, exclusive leases,
-independent `community-visual-v1` verification, checksummed sealed segments,
-ranked visual search, recovery codes, and backup/restore. That stack is a
-**local** service. It is not a public Street View index and does not claim
-VISION Mac-app ranking parity. Cloudflare Workers Free is only a public shell.
-R2 is not created until the owner approves a rights-cleared corpus and a
-search host. See [ARCHITECTURE.md](ARCHITECTURE.md) and
-[MEASUREMENTS.md](MEASUREMENTS.md).
+The running code imports panorama **metadata** (IDs and pose), never imagery.
+Search queries and results use map-making.app `customCoordinates` JSON. Credits,
+leases, and verification stay on trusted server code. A 200M index-only corpus
+fits R2 storage under $20/month; ranked search still needs a dedicated host.
+See [ARCHITECTURE.md](ARCHITECTURE.md) and [MEASUREMENTS.md](MEASUREMENTS.md).
 
 ## Updated owner constraints (2026-09-19)
 

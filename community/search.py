@@ -15,12 +15,11 @@ def query_vector(lane: str, faces: bytes) -> bytes:
     return embedding_for("object", faces)
 
 
-def ranked_search(registry: SegmentRegistry, lane: str, faces: bytes, *, limit: int = 25) -> list[dict]:
-    query = query_vector(lane, faces)
+def ranked_search_embedding(registry: SegmentRegistry, lane: str, query: bytes, *, limit: int = 25) -> list[dict]:
     scored = []
     for record in registry.iter_records(lane):
         if lane == "object":
-            score = max_region_cosine(query[:OBJECT_DIM], record["embedding"])
+            score = max_region_cosine(query[:OBJECT_DIM] if len(query) >= OBJECT_DIM else query, record["embedding"])
         else:
             score = cosine(query, record["embedding"])
         scored.append((score, record))
@@ -36,3 +35,7 @@ def ranked_search(registry: SegmentRegistry, lane: str, faces: bytes, *, limit: 
             }
         )
     return results
+
+
+def ranked_search(registry: SegmentRegistry, lane: str, faces: bytes, *, limit: int = 25) -> list[dict]:
+    return ranked_search_embedding(registry, lane, query_vector(lane, faces), limit=limit)

@@ -12,10 +12,12 @@ import time
 from contextlib import contextmanager
 from pathlib import Path
 
-from .features import MODEL_ID, render_faces, sha256_hex
-from .search import ranked_search
+from .catalog import load_jobs
+from .features import MODEL_ID, embedding_for, mean_embeddings, render_faces, sha256_hex
+from .mma import MMAError, build_map, location_record, parse_map
+from .search import ranked_search, ranked_search_embedding
 from .segments import SegmentRegistry
-from .source import apply_spatial_duplicates, parse_catalog
+from .source import apply_spatial_duplicates
 from .verify import VerificationError, verify_output
 
 
@@ -135,6 +137,11 @@ class CommunityService:
             "lon": "REAL",
             "generation": "INTEGER NOT NULL DEFAULT 0",
             "queue_state": "TEXT NOT NULL DEFAULT 'pending'",
+            "heading": "REAL NOT NULL DEFAULT 0",
+            "pitch": "REAL NOT NULL DEFAULT 0",
+            "zoom": "REAL NOT NULL DEFAULT 0",
+            "country": "TEXT",
+            "camera_generation": "TEXT",
         }
         for name, decl in additions.items():
             if name not in location_cols:
@@ -258,7 +265,7 @@ class CommunityService:
             result = {
                 "counts": counts,
                 "searchCost": self.search_cost,
-                "demo": True,
+                "demo": False,
                 "operational": False,
                 "ownerBypass": False,
                 "searchBackend": "local-sealed-segments",
@@ -266,6 +273,9 @@ class CommunityService:
                 "model": MODEL_ID,
                 "visualPublished": visual_published,
                 "publicCorpus": False,
+                "persistImagery": False,
+                "output": "map-making.app JSON",
+                "corpusTarget": 200_000_000,
             }
             if account_id is not None:
                 row = connection.execute(
@@ -279,7 +289,7 @@ class CommunityService:
             return result
 
     def import_jobs(self, document: dict, *, grant: dict | None = None, ingest: bool = False) -> int:
-        rows = parse_catalog(document, grant=grant)
+        rows = load_jobs(document, grant=grant)
         if document.get("source") == "wikimedia" and not ingest:
             raise ServiceError("ingest_not_started")
         with self._connection() as connection:
@@ -301,8 +311,9 @@ class CommunityService:
             before = connection.total_changes
             connection.executemany(
                 """INSERT OR IGNORE INTO locations
-                   (asset_id, capture, lane, model, label, source, rights, attribution, lat, lon, queue_state)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                   (asset_id, capture, lane, model, label, source, rights, attribution,
+                    lat, lon, heading, pitch, zoom, country, camera_generation, queue_state)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 [
                     (
                         row["assetId"],
@@ -315,6 +326,11 @@ class CommunityService:
                         row["attribution"],
                         row["lat"],
                         row["lon"],
+                        row.get("heading") or 0,
+                        row.get("pitch") or 0,
+                        row.get("zoom") or 0,
+                        row.get("country") or "",
+                        row.get("cameraGeneration") or "",
                         row["queueState"],
                     )
                     for row in prepared
@@ -323,8 +339,9 @@ class CommunityService:
             )
             connection.executemany(
                 """INSERT OR IGNORE INTO locations
-                   (asset_id, capture, lane, model, label, source, rights, attribution, lat, lon, queue_state, state)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'deferred', 'pending')""",
+                   (asset_id, capture, lane, model, label, source, rights, attribution,
+                    lat, lon, heading, pitch, zoom, country, camera_generation, queue_state, state)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'deferred', 'pending')""",
                 [
                     (
                         row["assetId"],
@@ -337,6 +354,11 @@ class CommunityService:
                         row["attribution"],
                         row["lat"],
                         row["lon"],
+                        row.get("heading") or 0,
+                        row.get("pitch") or 0,
+                        row.get("zoom") or 0,
+                        row.get("country") or "",
+                        row.get("cameraGeneration") or "",
                     )
                     for row in prepared
                     if row["queueState"] == "deferred"
@@ -367,7 +389,8 @@ class CommunityService:
                 "UPDATE leases SET state='expired' WHERE state='active' AND expires_at<=?", (now,)
             )
             rows = connection.execute(
-                """SELECT id, asset_id, capture, lane, model, label, generation, source, rights, attribution
+                """SELECT id, asset_id, capture, lane, model, label, generation, source, rights, attribution,
+                          lat, lon, heading, pitch, zoom, country, camera_generation
                    FROM locations WHERE lane=? AND COALESCE(queue_state, 'pending')='pending' AND
                      (state='pending' OR (state='leased' AND lease_until<=?))
                    ORDER BY id LIMIT ?""",
@@ -398,14 +421,24 @@ class CommunityService:
             item = {
                 "locationId": row["id"],
                 "assetId": row["asset_id"],
+                "panoId": row["asset_id"],
                 "capture": row["capture"],
                 "lane": row["lane"],
                 "model": row["model"],
                 "label": row["label"],
                 "generation": generation_by_id[row["id"]],
                 "attribution": row["attribution"],
+                "lat": row["lat"],
+                "lng": row["lon"],
+                "heading": row["heading"] or 0,
+                "pitch": row["pitch"] or 0,
+                "zoom": row["zoom"] or 0,
+                "country": row["country"] or "",
+                "cameraGeneration": row["camera_generation"] or "",
+                "persistImagery": False,
             }
             if row["model"] == MODEL_ID:
+                # Ephemeral pixels for processing only. Never written to the ledger or object store.
                 faces = render_faces(row["asset_id"], row["capture"], row["lane"], row["model"])
                 item["facesSha256"] = sha256_hex(faces)
                 item["faces"] = base64.b64encode(faces).decode("ascii")
@@ -543,6 +576,40 @@ class CommunityService:
                 )
         return {"accepted": len(items), "unitsEarned": earned, "replayed": False, "segments": sealed}
 
+    def _mma_map(self, connection, hits: list[dict], *, query_name: str, lane: str) -> dict:
+        processed = connection.execute(
+            "SELECT COUNT(*) FROM published_index WHERE embedding IS NOT NULL"
+        ).fetchone()[0]
+        coordinates = []
+        min_score = hits[-1]["score"] if hits else 0.0
+        for rank, hit in enumerate(hits, start=1):
+            row = connection.execute(
+                """SELECT asset_id, lat, lon, heading, pitch, zoom, country, camera_generation
+                   FROM locations WHERE id=?""",
+                (hit["locationId"],),
+            ).fetchone()
+            if row is None:
+                continue
+            coordinates.append(
+                location_record(
+                    lat=row["lat"] or 0,
+                    lng=row["lon"] or 0,
+                    heading=row["heading"] or 0,
+                    pitch=row["pitch"] or 0,
+                    zoom=row["zoom"] or 0,
+                    pano_id=row["asset_id"],
+                    rank=rank,
+                    score=hit["score"],
+                    query_name=query_name,
+                    lane=lane,
+                    country=row["country"] or "",
+                    camera_generation=row["camera_generation"] or "",
+                    processed_locations=processed,
+                    min_score=min_score,
+                )
+            )
+        return build_map(query_name, coordinates)
+
     def search(
         self,
         account_id: str,
@@ -550,12 +617,30 @@ class CommunityService:
         idempotency_key: str,
         *,
         query_faces: bytes | None = None,
+        query_map: dict | None = None,
         lane: str = "scene",
     ) -> dict:
         if not isinstance(idempotency_key, str) or not 8 <= len(idempotency_key) <= 100:
             raise ServiceError("invalid_idempotency_key")
-        visual = query_faces is not None
-        if visual:
+        visual = query_faces is not None or query_map is not None
+        query_name = "VISION Community"
+        query_embedding = None
+        if query_map is not None:
+            try:
+                parsed = parse_map(query_map)
+            except MMAError as error:
+                raise ServiceError(error.code) from error
+            query_name = parsed["name"]
+            vectors = [
+                embedding_for(
+                    lane,
+                    render_faces(example["panoId"], example["capture"], lane, MODEL_ID),
+                )
+                for example in parsed["examples"]
+            ]
+            query_embedding = mean_embeddings(vectors)
+            query_key = "mma:" + sha256_hex(query_embedding) + ":" + lane
+        elif query_faces is not None:
             if not isinstance(query_faces, (bytes, bytearray)):
                 raise ServiceError("invalid_query")
             query_key = "visual:" + sha256_hex(bytes(query_faces)) + ":" + lane
@@ -581,10 +666,13 @@ class CommunityService:
             if account["units"] < self.search_cost:
                 raise ServiceError("insufficient_credit", 402)
             if visual:
-                matches = ranked_search(self.registry, lane, bytes(query_faces), limit=25)
+                if query_embedding is not None:
+                    matches = ranked_search_embedding(self.registry, lane, query_embedding, limit=25)
+                else:
+                    matches = ranked_search(self.registry, lane, bytes(query_faces), limit=25)
+                mma = self._mma_map(connection, matches, query_name=query_name, lane=lane)
                 result_demo = False
             else:
-                # Fixture label search remains available only for the synthetic demo index.
                 matches = [
                     {"locationId": row["id"], "label": row["label"], "lane": row["lane"]}
                     for row in connection.execute(
@@ -596,13 +684,16 @@ class CommunityService:
                         (fixture_index_text(query_key),),
                     )
                 ]
+                mma = None
                 result_demo = True
             search_id = secrets.token_hex(16)
             result = {
                 "searchId": search_id,
-                "query": query_key if not visual else lane,
+                "query": query_name if visual else query_key,
                 "results": matches,
                 "demo": result_demo,
+                "persistImagery": False,
+                "map": mma,
             }
             connection.execute(
                 "UPDATE accounts SET units=units-? WHERE id=? AND units>=?",

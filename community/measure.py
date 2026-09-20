@@ -30,6 +30,8 @@ R2_FREE_CLASS_A = 1_000_000
 R2_FREE_CLASS_B = 10_000_000
 VISION_SCENE_BYTES_PER_LOCATION = 3080
 VISION_SCENE_CORPUS = 20_955_444
+TARGET_CORPUS = 200_000_000
+METADATA_BYTES_PER_LOCATION = 80
 LOCAL_SEALED_SEGMENT_GB = 20
 LOCAL_APP_SUPPORT_GB = 76
 
@@ -84,7 +86,9 @@ def measure(location_counts: tuple[int, ...] = (200, 2_000, 10_000)) -> dict:
             )
     vision_index_gb = VISION_SCENE_CORPUS * VISION_SCENE_BYTES_PER_LOCATION / (1024**3)
     community_index_gb = VISION_SCENE_CORPUS * scene_bytes / (1024**3)
-    imagery_500kb_gb = VISION_SCENE_CORPUS * 500 * 1024 / (1024**3)
+    community_200m_gb = TARGET_CORPUS * (scene_bytes + METADATA_BYTES_PER_LOCATION) / (1024**3)
+    vision_200m_gb = TARGET_CORPUS * (VISION_SCENE_BYTES_PER_LOCATION + METADATA_BYTES_PER_LOCATION) / (1024**3)
+    imagery_500kb_gb = TARGET_CORPUS * 500 * 1024 / (1024**3)
 
     def r2_storage_cost(gb: float) -> float:
         billable = max(0.0, gb - R2_FREE_GB)
@@ -96,24 +100,29 @@ def measure(location_counts: tuple[int, ...] = (200, 2_000, 10_000)) -> dict:
         "bytes": {
             "communityScenePerLocation": scene_bytes,
             "communityObjectPerLocation": object_bytes,
-            "communityFacesRawPerLocation": FACES_BYTES,
+            "metadataPerLocation": METADATA_BYTES_PER_LOCATION,
+            "ephemeralFacesBytesNotStored": FACES_BYTES,
             "visionScenePerLocation": VISION_SCENE_BYTES_PER_LOCATION,
-            "syntheticSourceImageNotStored": True,
+            "imageryPersisted": False,
         },
         "projections": {
-            "visionCorpusLocations": VISION_SCENE_CORPUS,
+            "currentIndexedLocations": VISION_SCENE_CORPUS,
+            "targetCorpusLocations": TARGET_CORPUS,
             "localSealedSegmentDirGiB": LOCAL_SEALED_SEGMENT_GB,
             "localApplicationSupportGiB": LOCAL_APP_SUPPORT_GB,
-            "visionInt8IndexGiB": round(vision_index_gb, 2),
-            "communityVisualIndexGiB": round(community_index_gb, 3),
-            "rawImageryIf500KiBEachGiB": round(imagery_500kb_gb, 1),
-            "r2StorageUsdIfCommunityIndexOnly": r2_storage_cost(community_index_gb),
-            "r2StorageUsdIfVisionIndexCopied": r2_storage_cost(vision_index_gb),
-            "r2StorageUsdIfRawImageryStored": r2_storage_cost(imagery_500kb_gb),
-            "r2ClassAUsdAfterFree": 0.0,
+            "communityIndexAtCurrentGiB": round(community_index_gb, 3),
+            "communityIndexPlusMetadataAt200MGiB": round(community_200m_gb, 2),
+            "visionInt8IndexAtCurrentGiB": round(vision_index_gb, 2),
+            "visionInt8PlusMetadataAt200MGiB": round(vision_200m_gb, 1),
+            "r2StorageUsdCommunity200M": r2_storage_cost(community_200m_gb),
+            "r2StorageUsdVisionScale200M": r2_storage_cost(vision_200m_gb),
+            "rawImageryIfStoredGiB": round(imagery_500kb_gb, 1),
+            "r2StorageUsdIfImageryStored": r2_storage_cost(imagery_500kb_gb),
             "notes": (
-                "Copying the local VISION index or Google imagery is forbidden. "
-                "Community index size assumes the same location count with community-visual-v1."
+                "Imagery is not stored. 200M locations of community-visual-v1 embeddings "
+                "plus pano/pose metadata fit well under a $20 R2 storage budget. "
+                "VISION-scale 3080-byte embeddings at 200M are about $9/month storage. "
+                "Search CPU still needs a dedicated host; Workers Free cannot scan 200M vectors."
             ),
         },
         "cloudflareFreeTier": {
@@ -131,12 +140,10 @@ def measure(location_counts: tuple[int, ...] = (200, 2_000, 10_000)) -> dict:
         "verdict": {
             "fastSearchAndStrictGateAndOnlyR2": False,
             "smallestTradeoff": (
-                "Keep leases, credits, and search authorization on trusted server code. "
-                "Store sealed segments durably (R2 later, local disk now). Run ranked search "
-                "on a dedicated process with the index in RAM or on local NVMe. Workers Free "
-                "cannot hold or scan a multi-million-location index within 10 ms and 128 MB. "
-                "Vectorize Free stores under 10,000 512-d vectors. Do not create an R2 bucket "
-                "until a rights-cleared corpus and a search host are approved."
+                "Store only embeddings and panorama metadata (no imagery). R2 storage for a "
+                "200M community-visual-v1 index is a few dollars or less. Fast gated search "
+                "still needs a dedicated process with the index on local disk or RAM. "
+                "Workers Free cannot do that scan."
             ),
             "verificationGuarantee": (
                 "Every credited community-visual-v1 embedding is independently recomputed. "

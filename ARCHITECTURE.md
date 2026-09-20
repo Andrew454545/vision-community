@@ -1,42 +1,57 @@
 # Architecture decision (2026-09-19)
 
-This project cannot simultaneously provide **fast search**, a **strict credit
-gate**, and **only R2 as a recurring expense**. The smallest honest tradeoff is:
+The public product stores **panorama metadata and derived embeddings**, then
+outputs **map-making.app JSON**. It does not persist Street View imagery.
+Users open the JSON on map-making.app, which loads Street View live.
 
-1. Keep exclusive leases, verification, credits, and search *authorization* in
-   trusted server code. There is no owner role, trial search, or client-side
-   index.
-2. Publish verified outputs as checksummed, versioned segments with atomic
-   registry replacement, following VISION's sealed-segment idea (500,000-location
-   capacity, SHA-256 per file, fail-closed loads).
-3. Run ranked visual search on a dedicated process that holds sealed segments
-   on local disk or RAM. R2, when the owner later approves a bucket, is the
-   durable artifact store, not the query engine.
-4. Use Cloudflare Workers Free only as a public shell. Official Workers Free
-   limits (10 ms CPU/request, 128 MB, 100,000 requests/day) cannot scan a
-   multi-million-location visual index. Vectorize Free stores 5 million
-   dimensions (~9,765 vectors at 512-d). D1 Free (5 GB, 5 million rows read/day,
-   100,000 rows written/day) can hold a small ledger, not the VISION corpus.
+## What is stored
+
+- Canonical panorama ID, lat/lng, heading/pitch/zoom, capture, country, camera
+  generation, and a versioned embedding.
+- Sealed, checksummed segments with atomic registry publication.
+- Credits, leases, and search authorization in trusted server code.
+
+Pixels exist only in RAM while a volunteer (or the verifier) processes a
+location. JPEG/PNG bytes, tile URLs, and API keys are rejected by the importer.
+
+## Search output
+
+A credited search returns a VISION-compatible map:
+
+```json
+{
+  "name": "Reference",
+  "customCoordinates": [
+    {
+      "lat": 41.9,
+      "lng": 12.5,
+      "heading": 90,
+      "pitch": 0,
+      "zoom": 0,
+      "panoId": "…",
+      "extra": { "visionRank": 1, "visionScore": 1.0, "tags": ["Italy"] }
+    }
+  ]
+}
+```
+
+Query input is the same document (up to 100 reference panoramas), matching the
+local VISION reference JSON.
+
+## Cost at 200 million locations
+
+Imagery is not the storage problem. Community-visual-v1 embeddings (96 bytes)
+plus ~80 bytes of pose metadata at 200M is about **33 GiB** (~$0.34/month R2
+after the 10 GB free tier). VISION-scale 3,080-byte embeddings at 200M are
+about **590 GiB** (~$9/month storage). Both sit under a $20 storage-only
+budget.
+
+Fast gated search still cannot run on Workers Free (10 ms, 128 MB). The
+smallest remaining tradeoff is a dedicated search host with the sealed index
+on local disk or RAM. R2 remains the durable copy of segments, not the query
+engine.
 
 ## Verification
 
-Every credited `community-visual-v1` embedding is independently recomputed from
-the canonical source identity. That is a true guarantee **for this extractor
-only**. It is not RF-DETR, YOLOE, or OWLv2. Sampling an expensive model is not
-an absolute guarantee. Full trusted recomputation of those models would erase
-most volunteer compute savings and would not fit Workers Free.
-
-## Imagery rights
-
-Google Street View Static API policy generally prohibits prefetching, indexing,
-storing, or caching imagery. This project does not import Google sources, copy
-existing VISION indexes, or use owner API keys. A Wikimedia importer exists as a
-rights contract only; ingest stays blocked until written evidence covers fetch,
-volunteer redistribution, derived indexes, and result display, and until volume
-fits the measured budget.
-
-## What is deployed
-
-The local Python service is the working control plane and search backend. The
-Cloudflare Worker, if deployed, serves the anonymous UI and an honest
-`operational: false` status. No R2 bucket is created by this work.
+Every credited `community-visual-v1` embedding is recomputed from the canonical
+pano identity without writing imagery to disk. That is not RF-DETR/OWLv2.

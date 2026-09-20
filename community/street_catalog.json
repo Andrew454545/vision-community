@@ -1,0 +1,11 @@
+{
+  "source": "street-metadata",
+  "persistImagery": false,
+  "locations": [
+    {"panoId":"CommunityPano000000000001","capture":"2020-06","lane":"scene","model":"community-visual-v1","lat":41.9,"lng":12.5,"heading":90,"pitch":0,"zoom":0,"country":"Italy","cameraGeneration":"gen4"},
+    {"panoId":"CommunityPano000000000002","capture":"2021-03","lane":"scene","model":"community-visual-v1","lat":-33.9,"lng":18.4,"heading":12,"pitch":-2,"zoom":0,"country":"South Africa","cameraGeneration":"gen3"},
+    {"panoId":"CommunityPano000000000003","capture":"2019-11","lane":"scene","model":"community-visual-v1","lat":35.7,"lng":139.7,"heading":200,"pitch":1,"zoom":0,"country":"Japan","cameraGeneration":"gen4"},
+    {"panoId":"CommunityPano000000000004","capture":"2022-01","lane":"scene","model":"community-visual-v1","lat":48.2,"lng":16.4,"heading":45,"pitch":0,"zoom":0,"country":"Austria","cameraGeneration":"gen4"},
+    {"panoId":"CommunityPano000000000101","capture":"2020-06","lane":"object","model":"community-visual-v1","lat":59.3,"lng":18.1,"heading":310,"pitch":4,"zoom":1,"country":"Sweden","cameraGeneration":"gen4"}
+  ]
+}

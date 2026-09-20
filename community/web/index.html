@@ -21,7 +21,7 @@
         <p class="eyebrow">A shared visual search index</p>
         <h1>Find more places,<br><em>together.</em></h1>
         <p class="hero-description">Contribute processing to a common location index. Once your work is verified, you earn searches across every published location.</p>
-        <div class="notice"><strong id="notice-title">Not a public corpus</strong><span id="notice-body">This build is a contribution-gated community index. Google Street View is not connected. Slow, medium, and max change how many locations your device processes at once.</span></div>
+        <div class="notice"><strong id="notice-title">Index and JSON only</strong><span id="notice-body">This service stores panorama metadata and derived embeddings, then outputs map-making.app JSON. Street View imagery is not saved. Open the downloaded JSON on map-making.app to view locations.</span></div>
       </div>
       <div class="hero-graphic" aria-hidden="true">
         <div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><div class="orbit orbit-three"></div>
@@ -62,15 +62,16 @@
 
       <article class="panel search-panel">
         <div class="panel-number">03</div><p class="eyebrow">Explore the shared work</p><h2>Search locations</h2>
-        <p class="panel-description">One search costs <span id="search-cost">—</span> verified units. Scene search ranks visual descriptors from a query image. Label matching is only used by the synthetic fixture demo.</p>
-        <form id="search-form"><label for="query">Text query (fixture demo only)</label><div class="search-input"><input id="query" name="query" maxlength="200" placeholder="Fixture demo: pine, bridge…"><button type="submit" aria-label="Search" disabled>↗</button></div>
-        <label for="query-image">Visual query image</label><input id="query-image" type="file" accept="image/*,.bin"></form>
+        <p class="panel-description">One search costs <span id="search-cost">—</span> verified units. Upload a map-making.app JSON (the same <code>customCoordinates</code> format VISION exports). Results download as JSON you can open on map-making.app. Imagery is not stored here.</p>
+        <form id="search-form"><label for="query-map">Query JSON</label><input id="query-map" type="file" accept="application/json,.json">
+        <label for="query">Text query (fixture demo only)</label><div class="search-input"><input id="query" name="query" maxlength="200" placeholder="Fixture demo only"><button type="submit" aria-label="Search" disabled>↗</button></div></form>
+        <button id="download-map" class="button" type="button" hidden>Download JSON for map-making.app</button>
         <p class="activity" id="search-status" role="status">Earn units to unlock a search.</p>
         <ol class="results" id="results" aria-label="Search results"></ol>
       </article>
     </section>
   </main>
 
-  <footer><span>VISION Community</span><span>Anonymous accounts · No owner identity in this app · R2 bucket not created</span></footer>
+  <footer><span>VISION Community</span><span>Anonymous accounts · JSON for map-making.app · Imagery is not stored</span></footer>
 </body>
 </html>

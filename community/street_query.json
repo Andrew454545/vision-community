@@ -1,0 +1,14 @@
+{
+  "name": "Community reference",
+  "customCoordinates": [
+    {
+      "lat": 41.9,
+      "lng": 12.5,
+      "heading": 90,
+      "pitch": 0,
+      "zoom": 0,
+      "panoId": "CommunityPano000000000001",
+      "extra": { "panoDate": "2020-06", "tags": ["Italy"] }
+    }
+  ]
+}

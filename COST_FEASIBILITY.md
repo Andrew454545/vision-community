@@ -8,10 +8,10 @@ Official Cloudflare prices were rechecked on this date: [R2](https://developers.
 [Street View policy](https://developers.google.com/maps/documentation/streetview/policies)
 still generally prohibits prefetching, indexing, storing, or caching imagery.
 
-Measured numbers for the Community extractor and the three-way cost/security
-tradeoff are in [MEASUREMENTS.md](MEASUREMENTS.md) and
-[ARCHITECTURE.md](ARCHITECTURE.md). **Fast gated search and only-R2 spend
-cannot all be achieved.** The R2 bucket has not been created.
+Measured numbers for index-only storage (no imagery) at 20.96M and 200M
+locations are in [MEASUREMENTS.md](MEASUREMENTS.md). **Imagery is not stored.**
+A 200M community embedding index fits a $20 R2 storage budget. Fast gated
+search still cannot run on Workers Free.
 
 The local VISION scene sealed-segment directory occupies about 20 GB; the full
 Application Support directory occupies about 76 GB. Those measurements are not

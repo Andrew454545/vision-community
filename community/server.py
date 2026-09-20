@@ -153,6 +153,7 @@ def handler_for(service: CommunityService):
                             query_faces = base64.b64decode(query_image)
                         except (ValueError, TypeError):
                             raise ServiceError("invalid_query")
+                    query_map = data.get("queryMap") if isinstance(data.get("queryMap"), dict) else None
                     return self._json(
                         200,
                         service.search(
@@ -160,6 +161,7 @@ def handler_for(service: CommunityService):
                             data.get("query"),
                             data.get("idempotencyKey"),
                             query_faces=query_faces,
+                            query_map=query_map,
                             lane=data.get("lane") or "scene",
                         ),
                     )
@@ -173,12 +175,14 @@ def handler_for(service: CommunityService):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--demo", action="store_true", help="synthetic fixture demo")
-    parser.add_argument("--visual", action="store_true", help="local visual self-test; not a public corpus")
+    parser.add_argument("--visual", action="store_true", help="local visual self-test; invented imagery")
+    parser.add_argument("--metadata", action="store_true", help="pano-metadata catalog; no imagery stored")
     parser.add_argument("--db", type=Path, default=ROOT / ".data" / "demo.sqlite")
     parser.add_argument("--port", type=int, default=8765)
     args = parser.parse_args()
-    if args.demo == args.visual:
-        parser.error("choose exactly one of --demo or --visual")
+    chosen = sum(bool(flag) for flag in (args.demo, args.visual, args.metadata))
+    if chosen != 1:
+        parser.error("choose exactly one of --demo, --visual, or --metadata")
     service = CommunityService(args.db, artifacts=args.db.parent / "artifacts", segment_capacity=1_000)
     if args.demo:
         fixture = json.loads((ROOT / "demo_catalog.json").read_text(encoding="utf-8"))
@@ -186,13 +190,20 @@ def main():
             parser.error("demo fixture rights marker is missing")
         service.import_synthetic(fixture["locations"])
         label = "synthetic demo"
-    else:
+    elif args.visual:
         catalog = json.loads((ROOT / "visual_catalog.json").read_text(encoding="utf-8"))
         try:
             service.import_jobs(catalog)
         except (ServiceError, SourceError) as error:
             parser.error(str(error))
-        label = "visual self-test (not a public VISION corpus)"
+        label = "visual self-test (invented pixels, not stored)"
+    else:
+        catalog = json.loads((ROOT / "street_catalog.json").read_text(encoding="utf-8"))
+        try:
+            service.import_jobs(catalog)
+        except (ServiceError, SourceError) as error:
+            parser.error(str(error))
+        label = "metadata catalog (pano IDs + pose; no imagery stored)"
     server = ThreadingHTTPServer(("127.0.0.1", args.port), handler_for(service))
     print(f"VISION community {label}: http://127.0.0.1:{args.port}", flush=True)
     try:

@@ -8,8 +8,8 @@ const STATUS = {
   counts: {},
   searchBackend: "unprovisioned",
   reason:
-    "Workers Free cannot run gated VISION-scale ranked search (10 ms CPU, 128 MB). " +
-    "The R2 bucket has not been created. No Google imagery is connected.",
+    "This Worker is a public shell. Search JSON is produced by the local control plane. " +
+    "Imagery is not stored. R2 is for index metadata only and has not been attached.",
 };
 
 function json(value, status = 200) {
