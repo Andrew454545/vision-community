@@ -136,12 +136,10 @@ function bytesToBase64(bytes) {
 }
 
 async function processItem(item) {
-  let faces;
-  if (item.faces) {
-    const raw = atob(item.faces);
-    faces = Uint8Array.from(raw, (ch) => ch.charCodeAt(0));
-  } else {
-    faces = renderFacesFromSeed(await seedBytes(item.assetId, item.capture, item.lane, item.model));
+  const faces = renderFacesFromSeed(await seedBytes(item.assetId, item.capture, item.lane, item.model));
+  if (item.facesSha256) {
+    const digest = await sha256Hex(faces);
+    if (digest !== item.facesSha256) throw new Error("faces_identity_mismatch");
   }
   const embedding = embeddingFor(item.lane, faces);
   const prefix = encodeUtf8(`${MODEL_ID}\n${item.assetId}\n${item.capture}\n${item.lane}\n${item.model}\n`);

@@ -60,6 +60,8 @@ class MMASearchOutputTest(unittest.TestCase):
             lease = service.lease(account["accountId"], "scene", 4)
             self.assertFalse(lease["items"][0].get("persistImagery", True))
             self.assertEqual(lease["items"][0]["panoId"], "CommunityPano000000000001")
+            self.assertNotIn("faces", lease["items"][0])
+            self.assertIn("facesSha256", lease["items"][0])
             service.submit(account["accountId"], lease["leaseId"], ProcessingWorker().process_lease(lease))
             query_map = {
                 "name": "Reference",
@@ -90,6 +92,90 @@ class MMASearchOutputTest(unittest.TestCase):
             self.assertEqual(first["extra"]["visionRank"], 1)
             self.assertGreater(first["extra"]["visionScore"], 0.99)
             self.assertEqual(service.status()["persistImagery"], False)
+            pose = result["results"][0]["pose"]
+            self.assertEqual(pose["panoId"], "CommunityPano000000000001")
+            self.assertAlmostEqual(pose["lat"], 41.9, places=4)
+
+
+class ShardImportAndHttpTest(unittest.TestCase):
+    def test_streaming_tsv_shard_is_idempotent(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            tsv = root / "shard.tsv"
+            header = "lat\tlng\tpano_id\tcapture_year\tcapture_month\tcountry\tcamera_generation\theading\tpitch\tzoom\n"
+            rows = [
+                f"{10 + index * 0.01}\t{20 + index * 0.01}\tShardPano{index:012d}\t2020\t06\tItaly\tgen4\t90\t0\t0\n"
+                for index in range(250)
+            ]
+            rows.append("10.0\t20.0\tShardPanoNearFirst000\t2020\t06\tItaly\tgen4\t90\t0\t0\n")
+            tsv.write_text(header + "".join(rows), encoding="utf-8")
+            service = CommunityService(root / "db.sqlite", artifacts=root / "artifacts", search_cost=4)
+            first = service.import_shard(tsv, batch_size=40)
+            self.assertEqual(first["imported"], 251)
+            self.assertFalse(first["skipped"])
+            second = service.import_shard(tsv)
+            self.assertTrue(second["skipped"])
+            self.assertEqual(second["imported"], 0)
+            import sqlite3
+
+            with sqlite3.connect(service.database) as connection:
+                pending = connection.execute(
+                    "SELECT COUNT(*) FROM locations WHERE queue_state='pending'"
+                ).fetchone()[0]
+                deferred = connection.execute(
+                    "SELECT COUNT(*) FROM locations WHERE queue_state='deferred'"
+                ).fetchone()[0]
+            self.assertEqual(pending, 250)
+            self.assertEqual(deferred, 1)
+
+    def test_http_lease_omits_image_bytes(self):
+        import http.client
+        import json as json_lib
+        import threading
+        from http.server import ThreadingHTTPServer
+
+        from community.server import handler_for
+
+        with tempfile.TemporaryDirectory() as folder:
+            service = CommunityService(
+                Path(folder) / "db.sqlite",
+                search_cost=4,
+                artifacts=Path(folder) / "artifacts",
+                segment_capacity=20,
+            )
+            service.import_jobs(json.loads(STREET.read_text(encoding="utf-8")))
+            server = ThreadingHTTPServer(("127.0.0.1", 0), handler_for(service))
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                host, port = server.server_address
+                origin = f"http://{host}:{port}"
+                conn = http.client.HTTPConnection(host, port, timeout=10)
+
+                def post(path, body, cookie=None):
+                    headers = {
+                        "Content-Type": "application/json",
+                        "Origin": origin,
+                        "Host": f"{host}:{port}",
+                    }
+                    if cookie:
+                        headers["Cookie"] = cookie
+                    conn.request("POST", path, json_lib.dumps(body), headers)
+                    response = conn.getresponse()
+                    payload = json_lib.loads(response.read().decode("utf-8"))
+                    return response, payload
+
+                created, payload = post("/api/accounts", {})
+                self.assertEqual(created.status, 201)
+                cookie = created.getheader("Set-Cookie").split(";")[0]
+                self.assertIn("vision_session=", cookie)
+                leased, lease = post("/api/leases", {"lane": "scene", "count": 1, "pace": "slow"}, cookie)
+                self.assertEqual(leased.status, 200)
+                self.assertNotIn("faces", lease["items"][0])
+                self.assertTrue(lease["items"][0]["facesSha256"])
+            finally:
+                server.shutdown()
+                server.server_close()
 
 
 if __name__ == "__main__":

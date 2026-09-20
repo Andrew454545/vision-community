@@ -29,12 +29,18 @@ map-making.app.
 ```sh
 PYTHONDONTWRITEBYTECODE=1 python3 -m community.admin check --db community/.data/demo.sqlite
 PYTHONDONTWRITEBYTECODE=1 python3 -m community.admin backup --db community/.data/demo.sqlite --to /tmp/vision-community-backup.sqlite
+PYTHONDONTWRITEBYTECODE=1 python3 -m community.admin import-shard --db community/.data/demo.sqlite --tsv /path/to/shard.tsv
 ```
+
+Leases send panorama identity and pose, not image bytes. The worker recomputes
+pixels from that identity in RAM. Published segments seal `embeddings.bin`,
+`ids.bin`, and `poses.bin` so search can emit map-making.app JSON without a
+SQLite round-trip per hit.
 
 ## Storage at 200 million locations
 
-A 200M corpus of community embeddings plus pano/pose metadata is about 33 GiB
-(~$0.34/month on R2 after the free 10 GB). VISION-scale 3,080-byte embeddings
+A 200M corpus of community embeddings plus sealed pose metadata is about 51 GiB
+(~$0.61/month on R2 after the free 10 GB). VISION-scale 3,080-byte embeddings
 at 200M are about 590 GiB (~$9/month storage). Neither stores imagery. Fast
 search still needs a dedicated host; Workers Free cannot scan 200M vectors.
 See [ARCHITECTURE.md](ARCHITECTURE.md) and [MEASUREMENTS.md](MEASUREMENTS.md).
@@ -46,3 +52,14 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) and [MEASUREMENTS.md](MEASUREMENTS.md).
   not credit.
 - Imagery bytes and tile URLs are rejected. Only metadata and embeddings persist.
 - Search debit and JSON emission happen in trusted server code.
+
+## Remaining owner-only steps
+
+These cannot be finished from this repo without you:
+
+1. A privacy-protected custom domain. The current Worker hostname identifies
+   the Cloudflare login.
+2. Approval to create the R2 bucket (last, after the measured budget).
+3. A dedicated search host. Workers Free cannot run 200M ranked search.
+4. The real ~200M metadata catalog path. Do not copy live VISION embeddings.
+5. VISION pixel-model parity (RF-DETR / YOLOE / OWLv2) if that is required.

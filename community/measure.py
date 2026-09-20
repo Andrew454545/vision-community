@@ -19,7 +19,7 @@ from .features import (
     render_faces,
 )
 from .search import ranked_search
-from .segments import SegmentRegistry
+from .segments import POSE_STRUCT, SegmentRegistry
 
 
 R2_STANDARD_GB_MONTH = 0.015
@@ -31,7 +31,7 @@ R2_FREE_CLASS_B = 10_000_000
 VISION_SCENE_BYTES_PER_LOCATION = 3080
 VISION_SCENE_CORPUS = 20_955_444
 TARGET_CORPUS = 200_000_000
-METADATA_BYTES_PER_LOCATION = 80
+METADATA_BYTES_PER_LOCATION = POSE_STRUCT.size
 LOCAL_SEALED_SEGMENT_GB = 20
 LOCAL_APP_SUPPORT_GB = 76
 
@@ -64,8 +64,23 @@ def measure(location_counts: tuple[int, ...] = (200, 2_000, 10_000)) -> dict:
                 blobs.append(embedding)
             embed_s = time.perf_counter() - t0
             packed = b"".join(blobs)
+            poses = [
+                {
+                    "locationId": location_id,
+                    "lat": index * 0.001,
+                    "lng": index * 0.002,
+                    "heading": 0,
+                    "pitch": 0,
+                    "zoom": 0,
+                    "panoId": f"MeasurePano{index:012d}",
+                    "capture": "2026-01",
+                    "country": "",
+                    "cameraGeneration": "",
+                }
+                for index, location_id in enumerate(ids)
+            ]
             t1 = time.perf_counter()
-            registry.publish(lane="scene", location_ids=ids, embeddings=packed)
+            registry.publish(lane="scene", location_ids=ids, embeddings=packed, poses=poses)
             publish_s = time.perf_counter() - t1
             query_faces = render_faces("synthetic:measure:000000", "2026-01", "scene", MODEL_ID)
             t2 = time.perf_counter()

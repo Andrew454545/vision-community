@@ -222,5 +222,40 @@ class SegmentSearchParityTest(unittest.TestCase):
             self.assertGreater(cosine(blobs[3], embedding_for("scene", query)), 0.99)
 
 
+class ScaleSearchTest(unittest.TestCase):
+    def test_topk_heap_scans_without_materializing_all_scores(self):
+        from community.search import ranked_search_embedding
+
+        count = 20_000
+        with tempfile.TemporaryDirectory() as folder:
+            registry = SegmentRegistry(Path(folder), capacity=count)
+            ids = list(range(1, count + 1))
+            blobs = [bytes([(index + dim) % 256 for dim in range(96)]) for index in range(count)]
+            special = bytes([127] * 96)
+            blobs[1233] = special
+            poses = [
+                {
+                    "locationId": location_id,
+                    "lat": 10.0,
+                    "lng": 20.0,
+                    "heading": 90,
+                    "pitch": 0,
+                    "zoom": 0,
+                    "panoId": f"ScalePano{location_id:012d}",
+                    "capture": "2020-06",
+                    "country": "Italy",
+                    "cameraGeneration": "gen4",
+                }
+                for location_id in ids
+            ]
+            registry.publish(lane="scene", location_ids=ids, embeddings=b"".join(blobs), poses=poses)
+            hits = ranked_search_embedding(registry, "scene", special, limit=5)
+            self.assertEqual(len(hits), 5)
+            self.assertEqual(hits[0]["locationId"], 1234)
+            self.assertEqual(hits[0]["scanned"], count)
+            self.assertEqual(hits[0]["pose"]["panoId"], "ScalePano000000001234")
+            self.assertGreater(hits[0]["score"], hits[-1]["score"])
+
+
 if __name__ == "__main__":
     unittest.main()

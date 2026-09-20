@@ -4,6 +4,7 @@ const STATUS = {
   publicCorpus: false,
   ownerBypass: false,
   r2: "not_created",
+  persistImagery: false,
   searchCost: 100000,
   counts: {},
   searchBackend: "unprovisioned",

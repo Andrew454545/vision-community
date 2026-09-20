@@ -6,18 +6,19 @@ import base64
 import hashlib
 import hmac
 import json
+import math
 import secrets
 import sqlite3
 import time
 from contextlib import contextmanager
 from pathlib import Path
 
-from .catalog import load_jobs
+from .catalog import file_sha256, iter_tsv, load_jobs
 from .features import MODEL_ID, embedding_for, mean_embeddings, render_faces, sha256_hex
 from .mma import MMAError, build_map, location_record, parse_map
 from .search import ranked_search, ranked_search_embedding
 from .segments import SegmentRegistry
-from .source import apply_spatial_duplicates
+from .source import haversine_meters
 from .verify import VerificationError, verify_output
 
 
@@ -122,6 +123,12 @@ class CommunityService:
                     result_json TEXT NOT NULL,
                     UNIQUE (account_id, idempotency_key)
                 );
+                CREATE TABLE IF NOT EXISTS catalog_shards (
+                    sha256 TEXT PRIMARY KEY,
+                    path TEXT NOT NULL,
+                    imported INTEGER NOT NULL,
+                    imported_at INTEGER NOT NULL
+                );
                 """
             )
             self._migrate(connection)
@@ -162,6 +169,18 @@ class CommunityService:
             connection.execute("ALTER TABLE leases ADD COLUMN generation INTEGER")
         if "pace" not in lease_cols:
             connection.execute("ALTER TABLE leases ADD COLUMN pace TEXT")
+        connection.execute(
+            """CREATE INDEX IF NOT EXISTS locations_spatial
+               ON locations (lane, capture, model, lat, lon)"""
+        )
+        connection.execute(
+            """CREATE TABLE IF NOT EXISTS catalog_shards (
+                    sha256 TEXT PRIMARY KEY,
+                    path TEXT NOT NULL,
+                    imported INTEGER NOT NULL,
+                    imported_at INTEGER NOT NULL
+               )"""
+        )
 
     @contextmanager
     def _connection(self):
@@ -288,26 +307,48 @@ class CommunityService:
                 result["searchesAvailable"] = row["units"] // self.search_cost
             return result
 
-    def import_jobs(self, document: dict, *, grant: dict | None = None, ingest: bool = False) -> int:
-        rows = load_jobs(document, grant=grant)
-        if document.get("source") == "wikimedia" and not ingest:
-            raise ServiceError("ingest_not_started")
+    def _nearby_duplicate(self, connection: sqlite3.Connection, row: dict, *, meters: float = 25.0) -> bool:
+        lat, lon = row["lat"], row["lon"]
+        dlat = meters / 111_320.0
+        cos_lat = math.cos(math.radians(lat))
+        dlng = meters / max(1.0, 111_320.0 * abs(cos_lat))
+        candidates = connection.execute(
+            """SELECT asset_id, lat, lon FROM locations
+               WHERE lane=? AND capture=? AND model=?
+                 AND lat BETWEEN ? AND ? AND lon BETWEEN ? AND ?""",
+            (row["lane"], row["capture"], row["model"], lat - dlat, lat + dlat, lon - dlng, lon + dlng),
+        )
+        for other in candidates:
+            if other["asset_id"] != row["assetId"] and haversine_meters(lat, lon, other["lat"], other["lon"]) <= meters:
+                return True
+        return False
+
+    def _queue_states(self, connection: sqlite3.Connection, rows: list[dict]) -> list[dict]:
+        prepared = []
+        indexed = []
+        for row in rows:
+            deferred = self._nearby_duplicate(connection, row)
+            if not deferred:
+                for other in indexed:
+                    if (
+                        other["lane"] == row["lane"]
+                        and other["capture"] == row["capture"]
+                        and other["model"] == row["model"]
+                        and other["assetId"] != row["assetId"]
+                        and haversine_meters(row["lat"], row["lon"], other["lat"], other["lon"]) <= 25.0
+                    ):
+                        deferred = True
+                        break
+            item = dict(row)
+            item["queueState"] = "deferred" if deferred else "pending"
+            prepared.append(item)
+            indexed.append(item)
+        return prepared
+
+    def _insert_jobs(self, rows: list[dict]) -> int:
         with self._connection() as connection:
             connection.execute("BEGIN IMMEDIATE")
-            existing = [
-                {
-                    "assetId": item["asset_id"],
-                    "capture": item["capture"],
-                    "lane": item["lane"],
-                    "model": item["model"],
-                    "lat": item["lat"],
-                    "lon": item["lon"],
-                }
-                for item in connection.execute(
-                    "SELECT asset_id, capture, lane, model, lat, lon FROM locations WHERE lat IS NOT NULL"
-                )
-            ]
-            prepared = apply_spatial_duplicates(rows, existing)
+            prepared = self._queue_states(connection, rows)
             before = connection.total_changes
             connection.executemany(
                 """INSERT OR IGNORE INTO locations
@@ -365,6 +406,46 @@ class CommunityService:
                 ],
             )
             return connection.total_changes - before
+
+    def import_jobs(self, document: dict, *, grant: dict | None = None, ingest: bool = False) -> int:
+        rows = load_jobs(document, grant=grant)
+        if document.get("source") == "wikimedia" and not ingest:
+            raise ServiceError("ingest_not_started")
+        return self._insert_jobs(rows)
+
+    def import_shard(self, path: Path, *, lane: str = "scene", batch_size: int = 500, limit: int | None = None) -> dict:
+        path = Path(path)
+        if batch_size < 1:
+            raise ServiceError("invalid_batch")
+        digest = file_sha256(path)
+        with self._connection() as connection:
+            existing = connection.execute(
+                "SELECT imported FROM catalog_shards WHERE sha256=?", (digest,)
+            ).fetchone()
+            if existing is not None:
+                return {"imported": 0, "sha256": digest, "skipped": True, "alreadyImported": existing["imported"]}
+        total = 0
+        batch: list[dict] = []
+        for job in iter_tsv(path, lane=lane):
+            batch.append(job)
+            if len(batch) >= batch_size:
+                total += self._insert_jobs(batch)
+                batch = []
+                if limit is not None and total >= limit:
+                    break
+        if batch and (limit is None or total < limit):
+            if limit is not None:
+                batch = batch[: max(0, limit - total)]
+            if batch:
+                total += self._insert_jobs(batch)
+        if limit is None:
+            with self._connection() as connection:
+                connection.execute(
+                    """INSERT OR IGNORE INTO catalog_shards (sha256, path, imported, imported_at)
+                       VALUES (?, ?, ?, ?)""",
+                    (digest, str(path), total, int(time.time())),
+                )
+        return {"imported": total, "sha256": digest, "skipped": False}
 
     def lease(
         self,
@@ -438,10 +519,9 @@ class CommunityService:
                 "persistImagery": False,
             }
             if row["model"] == MODEL_ID:
-                # Ephemeral pixels for processing only. Never written to the ledger or object store.
+                # Identity checksum only. Pixels stay on the worker; they are not sent or stored.
                 faces = render_faces(row["asset_id"], row["capture"], row["lane"], row["model"])
                 item["facesSha256"] = sha256_hex(faces)
-                item["faces"] = base64.b64encode(faces).decode("ascii")
             items.append(item)
         return {
             "leaseId": lease_id,
@@ -519,7 +599,24 @@ class CommunityService:
                         "index_text": "",
                         "embedding": embedding,
                     }
-                    embeddings_to_seal[row["lane"]].append((row["id"], embedding))
+                    embeddings_to_seal[row["lane"]].append(
+                        (
+                            row["id"],
+                            embedding,
+                            {
+                                "locationId": row["id"],
+                                "lat": row["lat"] or 0,
+                                "lng": row["lon"] or 0,
+                                "heading": row["heading"] or 0,
+                                "pitch": row["pitch"] or 0,
+                                "zoom": row["zoom"] or 0,
+                                "panoId": row["asset_id"],
+                                "capture": row["capture"],
+                                "country": row["country"] or "",
+                                "cameraGeneration": row["camera_generation"] or "",
+                            },
+                        )
+                    )
                 else:
                     expected_text = fixture_index_text(row["label"])
                     expected = fixture_output(
@@ -567,12 +664,13 @@ class CommunityService:
                 lane=lane,
                 location_ids=[item[0] for item in records],
                 embeddings=b"".join(item[1] for item in records),
+                poses=[item[2] for item in records],
             )
             sealed.append(published)
             with self._connection() as connection:
                 connection.executemany(
                     "UPDATE published_index SET segment_id=? WHERE location_id=?",
-                    [(published["id"], location_id) for location_id, _embed in records],
+                    [(published["id"], location_id) for location_id, _embed, _pose in records],
                 )
         return {"accepted": len(items), "unitsEarned": earned, "replayed": False, "segments": sealed}
 
@@ -583,27 +681,40 @@ class CommunityService:
         coordinates = []
         min_score = hits[-1]["score"] if hits else 0.0
         for rank, hit in enumerate(hits, start=1):
-            row = connection.execute(
-                """SELECT asset_id, lat, lon, heading, pitch, zoom, country, camera_generation
-                   FROM locations WHERE id=?""",
-                (hit["locationId"],),
-            ).fetchone()
-            if row is None:
-                continue
+            pose = hit.get("pose") or {}
+            if pose.get("panoId"):
+                lat, lng = pose.get("lat") or 0, pose.get("lng") or 0
+                heading, pitch, zoom = pose.get("heading") or 0, pose.get("pitch") or 0, pose.get("zoom") or 0
+                pano_id = pose["panoId"]
+                country = pose.get("country") or ""
+                camera = pose.get("cameraGeneration") or ""
+            else:
+                row = connection.execute(
+                    """SELECT asset_id, lat, lon, heading, pitch, zoom, country, camera_generation
+                       FROM locations WHERE id=?""",
+                    (hit["locationId"],),
+                ).fetchone()
+                if row is None:
+                    continue
+                lat, lng = row["lat"] or 0, row["lon"] or 0
+                heading, pitch, zoom = row["heading"] or 0, row["pitch"] or 0, row["zoom"] or 0
+                pano_id = row["asset_id"]
+                country = row["country"] or ""
+                camera = row["camera_generation"] or ""
             coordinates.append(
                 location_record(
-                    lat=row["lat"] or 0,
-                    lng=row["lon"] or 0,
-                    heading=row["heading"] or 0,
-                    pitch=row["pitch"] or 0,
-                    zoom=row["zoom"] or 0,
-                    pano_id=row["asset_id"],
+                    lat=lat,
+                    lng=lng,
+                    heading=heading,
+                    pitch=pitch,
+                    zoom=zoom,
+                    pano_id=pano_id,
                     rank=rank,
                     score=hit["score"],
                     query_name=query_name,
                     lane=lane,
-                    country=row["country"] or "",
-                    camera_generation=row["camera_generation"] or "",
+                    country=country,
+                    camera_generation=camera,
                     processed_locations=processed,
                     min_score=min_score,
                 )

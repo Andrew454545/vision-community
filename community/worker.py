@@ -6,7 +6,6 @@ change credits, model identity, or which locations are assigned.
 
 from __future__ import annotations
 
-import base64
 import os
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -51,11 +50,10 @@ class ProcessingWorker:
 
     def process_item(self, item: dict) -> dict:
         self._maybe_pause()
-        faces = item.get("faces")
-        if isinstance(faces, str):
-            faces = base64.b64decode(faces)
-        if not isinstance(faces, (bytes, bytearray)):
-            faces = render_faces(item["assetId"], item["capture"], item["lane"], item["model"])
+        faces = render_faces(item["assetId"], item["capture"], item["lane"], item["model"])
+        expected = item.get("facesSha256")
+        if expected and sha256_hex(faces) != expected:
+            raise ValueError("faces_identity_mismatch")
         embedding = embedding_for(item["lane"], bytes(faces))
         return {
             "locationId": item["locationId"],

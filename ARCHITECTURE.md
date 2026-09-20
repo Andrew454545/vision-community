@@ -41,7 +41,7 @@ local VISION reference JSON.
 ## Cost at 200 million locations
 
 Imagery is not the storage problem. Community-visual-v1 embeddings (96 bytes)
-plus ~80 bytes of pose metadata at 200M is about **33 GiB** (~$0.34/month R2
+plus ~176 bytes of sealed pose metadata at 200M is about **51 GiB** (~$0.61/month R2
 after the 10 GB free tier). VISION-scale 3,080-byte embeddings at 200M are
 about **590 GiB** (~$9/month storage). Both sit under a $20 storage-only
 budget.
