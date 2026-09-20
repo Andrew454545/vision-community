@@ -6,6 +6,7 @@ change credits, model identity, or which locations are assigned.
 
 from __future__ import annotations
 
+import base64
 import os
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -64,6 +65,16 @@ class ProcessingWorker:
             ),
             "embedding": embedding,
         }
+
+    def as_submission(self, outputs: list[dict]) -> list[dict]:
+        encoded = []
+        for item in outputs:
+            payload = dict(item)
+            embedding = payload.get("embedding")
+            if isinstance(embedding, (bytes, bytearray)):
+                payload["embedding"] = base64.b64encode(bytes(embedding)).decode("ascii")
+            encoded.append(payload)
+        return encoded
 
     def process_lease(self, lease: dict) -> list[dict]:
         items = lease["items"]

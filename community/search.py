@@ -25,13 +25,22 @@ def _score(lane: str, query: bytes, embedding: bytes) -> float:
     return cosine(query, embedding)
 
 
-def ranked_search_embedding(registry: SegmentRegistry, lane: str, query: bytes, *, limit: int = 25) -> list[dict]:
+def ranked_search_embedding(
+    registry: SegmentRegistry,
+    lane: str,
+    query: bytes,
+    *,
+    limit: int = 25,
+    accept=None,
+) -> list[dict]:
     if limit < 1:
         return []
     heap: list[tuple[float, int]] = []
     payloads: dict[int, dict] = {}
     scanned = 0
     for record in registry.iter_records(lane, verify=False):
+        if accept is not None and not accept(record):
+            continue
         score = _score(lane, query, record["embedding"])
         scanned += 1
         location_id = record["locationId"]
@@ -49,12 +58,12 @@ def ranked_search_embedding(registry: SegmentRegistry, lane: str, query: bytes, 
             _old_score, old_neg = heapq.heapreplace(heap, (score, -location_id))
             payloads.pop(-old_neg, None)
             payloads[location_id] = payload
-    ordered = sorted(heap, key=lambda item: item[0], reverse=True)
+    ordered = sorted(heap, key=lambda item: (-item[0], item[1]))
     results = [payloads[-neg_id] for _score, neg_id in ordered]
     if results:
         results[0] = {**results[0], "scanned": scanned}
     return results
 
 
-def ranked_search(registry: SegmentRegistry, lane: str, faces: bytes, *, limit: int = 25) -> list[dict]:
-    return ranked_search_embedding(registry, lane, query_vector(lane, faces), limit=limit)
+def ranked_search(registry: SegmentRegistry, lane: str, faces: bytes, *, limit: int = 25, accept=None) -> list[dict]:
+    return ranked_search_embedding(registry, lane, query_vector(lane, faces), limit=limit, accept=accept)

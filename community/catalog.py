@@ -17,6 +17,7 @@ import json
 from pathlib import Path
 
 from .features import MODEL_ID
+from .rank import canonicalize_country
 from .source import SourceError, canonical_job_id, parse_catalog
 
 
@@ -82,7 +83,7 @@ def _metadata_job(record: dict) -> dict | None:
         "heading": heading,
         "pitch": pitch,
         "zoom": zoom,
-        "country": record.get("country") if isinstance(record.get("country"), str) else "",
+        "country": canonicalize_country(record.get("country") if isinstance(record.get("country"), str) else ""),
         "cameraGeneration": record.get("cameraGeneration") or record.get("camera_generation") or "",
         "source": "street-metadata",
         "rights": "metadata-only-no-imagery",
@@ -117,7 +118,7 @@ def _tsv_record(row: dict, *, lane: str, model: str) -> dict:
         "heading": row.get("heading") or 0,
         "pitch": row.get("pitch") or 0,
         "zoom": row.get("zoom") or 0,
-        "country": row.get("country") or "",
+        "country": canonicalize_country(row.get("country") or ""),
         "cameraGeneration": row.get("camera_generation") or "",
         "capture": _capture(row.get("capture_year"), row.get("capture_month")),
         "lane": lane,
@@ -149,6 +150,57 @@ def iter_tsv(path: Path, *, lane: str = "scene", model: str = MODEL_ID):
             yield _metadata_job(_tsv_record(row, lane=lane, model=model))
 
 
+def _first_tsv_line(path: Path) -> str:
+    with path.open("r", encoding="utf-8") as handle:
+        for line in handle:
+            text = line.rstrip("\n\r")
+            if text.strip():
+                return text
+    return ""
+
+
+def iter_indexer_tsv(path: Path, *, lane: str = "scene", model: str = MODEL_ID):
+    """Yield jobs from VISION's headerless 11-column indexer TSV."""
+    with path.open("r", encoding="utf-8") as handle:
+        for line in handle:
+            text = line.rstrip("\n\r")
+            if not text.strip():
+                continue
+            parts = text.split("\t")
+            if len(parts) != 11:
+                raise SourceError("invalid_catalog")
+            if parts[0] == "map_id" and parts[7] == "pano_id":
+                continue
+            yield _metadata_job(
+                {
+                    "panoId": parts[7],
+                    "lat": parts[2],
+                    "lng": parts[3],
+                    "heading": parts[4],
+                    "pitch": parts[5],
+                    "zoom": parts[6],
+                    "country": parts[8],
+                    "cameraGeneration": parts[9],
+                    "capture": "unknown",
+                    "lane": lane,
+                    "model": model,
+                }
+            )
+
+
+def iter_jobs_from_path(path: Path, *, lane: str = "scene", model: str = MODEL_ID):
+    """Accept Community catalog TSV or VISION indexer TSV."""
+    first = _first_tsv_line(path)
+    parts = first.split("\t")
+    if "pano_id" in parts and "lat" in parts:
+        yield from iter_tsv(path, lane=lane, model=model)
+        return
+    if len(parts) == 11:
+        yield from iter_indexer_tsv(path, lane=lane, model=model)
+        return
+    raise SourceError("invalid_catalog")
+
+
 def file_sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
@@ -166,7 +218,7 @@ def load_jobs(document: dict, *, grant=None) -> list[dict]:
 
 def load_catalog_path(path: Path, *, grant=None) -> list[dict]:
     if path.suffix in {".tsv", ".txt"}:
-        return list(iter_tsv(path))
+        return list(iter_jobs_from_path(path))
     text = path.read_text(encoding="utf-8")
     document = json.loads(text)
     if not isinstance(document, dict):

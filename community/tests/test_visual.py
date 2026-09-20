@@ -148,7 +148,9 @@ class VisualPipelineTest(unittest.TestCase):
         status = self.service.status()
         self.assertFalse(status["operational"])
         self.assertFalse(status["ownerBypass"])
-        self.assertEqual(status["r2"], "not_created")
+        self.assertTrue(status["r2"]["provisioned"])
+        self.assertEqual(status["r2"]["bucket"], "vision-community")
+        self.assertFalse(status["r2"]["publicAccess"])
 
     def test_recovery_restores_same_account_and_units(self):
         account = self.first

@@ -19,7 +19,7 @@
       </div>
     </div>
     <div class="top-meta">
-      <span id="index-label">Checking local indexes</span>
+      <span id="index-label">Checking index</span>
       <a class="mma-link" href="https://map-making.app" target="_blank" rel="noopener">map-making.app ↗</a>
     </div>
   </header>
@@ -34,6 +34,11 @@
       <div class="contribute">
         <p class="rail-kicker">Contribute</p>
         <p class="rail-copy">Process locations on this device. Verified work unlocks searches of the shared index.</p>
+        <label class="field-label">Contribute lane</label>
+        <div class="pace" id="process-lane">
+          <label><input type="radio" name="process-lane" value="scene" checked><span>Scene</span></label>
+          <label><input type="radio" name="process-lane" value="object"><span>Objects</span></label>
+        </div>
         <label class="field-label" for="pace">Pace</label>
         <div class="pace" id="pace">
           <label><input type="radio" name="pace" value="slow"><span>Slow</span></label>
@@ -43,6 +48,7 @@
         <button id="process" class="cmd" type="button" disabled>Process a batch</button>
         <button id="pause" class="ghost" type="button" disabled>Pause</button>
         <p class="status" id="process-status">Create an account to begin.</p>
+        <p class="rail-copy" id="queue-label">Checking remaining work…</p>
         <div class="balance">
           <span>Verified units</span>
           <strong id="units">0</strong>
@@ -75,15 +81,43 @@
         <div class="split">
           <div>
             <label class="field-label" for="result-count">Locations</label>
-            <input id="result-count" type="number" min="1" max="200" value="25">
-            <small>1–200 · default 25</small>
+            <input id="result-count" type="number" min="1" max="10000" value="200">
+            <small>1–10,000 · default 200 · highest scores first</small>
           </div>
           <div>
             <label class="field-label" for="max-per-country">Max per country</label>
-            <input id="max-per-country" type="number" min="1" max="200" value="25">
-            <small>1–200 · default 25</small>
+            <input id="max-per-country" type="number" min="1" max="10000" value="25">
+            <small>1–10,000 · default 25</small>
           </div>
         </div>
+      </section>
+
+      <section>
+        <h2>Filters</h2>
+        <p class="filter-kicker">Camera generation</p>
+        <div class="gen-grid" id="generations">
+          <label><input type="checkbox" name="generation" value="badcam" checked><span>Badcam</span></label>
+          <label><input type="checkbox" name="generation" value="gen1" checked><span>Gen 1</span></label>
+          <label><input type="checkbox" name="generation" value="gen2" checked><span>Gen 2</span></label>
+          <label><input type="checkbox" name="generation" value="gen3" checked><span>Gen 3</span></label>
+          <label><input type="checkbox" name="generation" value="gen4" checked><span>Gen 4</span></label>
+          <label><input type="checkbox" name="generation" value="trekker" checked><span>Trekker</span></label>
+        </div>
+        <p class="hint" id="generation-help">All generations · no generation filter</p>
+
+        <p class="filter-kicker">Countries</p>
+        <div class="segmented wide" id="country-mode">
+          <label><input type="radio" name="country-mode" value="all" checked><span>All countries</span></label>
+          <label><input type="radio" name="country-mode" value="include"><span>Include selected</span></label>
+          <label><input type="radio" name="country-mode" value="exclude"><span>Exclude selected</span></label>
+        </div>
+        <div class="country-toolbar">
+          <input id="country-search" type="text" placeholder="Search countries" autocomplete="off" disabled>
+          <button id="select-visible-countries" class="ghost" type="button" disabled>Select visible</button>
+          <button id="clear-countries" class="ghost" type="button" disabled>Clear</button>
+        </div>
+        <div class="country-list disabled" id="country-list"></div>
+        <p class="hint" id="country-help">All indexed countries may be returned. Choose Include or Exclude to narrow the search.</p>
       </section>
 
       <section>
@@ -95,7 +129,7 @@
           <button id="load-sample" class="ghost" type="button">Load sample JSON</button>
         </div>
         <p class="file-name" id="file-name">No JSON selected</p>
-        <p class="hint">Same <code>customCoordinates</code> format the local VISION app exports. Sample is a Berkeley Street View pose from Google’s public docs.</p>
+        <p class="hint">Same <code>customCoordinates</code> format the local VISION app exports. Up to 100 unique views are used. Results are highest score first, unique panoramas, 100-meter spacing, then the per-country cap.</p>
       </section>
 
       <div class="run-row">
@@ -108,6 +142,7 @@
       </form>
       <p class="status warn" id="recovery-once" hidden>
         <span id="recovery-once-text"></span>
+        <button id="copy-recovery" class="ghost" type="button">Copy</button>
         <button id="dismiss-recovery" class="ghost" type="button">Got it</button>
       </p>
       <p class="status" id="search-status">Earn units to unlock a search.</p>

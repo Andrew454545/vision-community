@@ -8,9 +8,11 @@ embeddings only. It does not persist Street View imagery.
 from __future__ import annotations
 
 from .features import MODEL_ID
+from .rank import canonicalize_country
 
 
 MAX_REFERENCE_EXAMPLES = 100
+RESULT_PRUNE_METERS = 100
 
 
 class MMAError(Exception):
@@ -28,23 +30,54 @@ def _number(value, default=0.0) -> float:
         raise MMAError("invalid_mma_number") from error
 
 
+def _coordinates(document) -> list:
+    if isinstance(document, dict):
+        for key in ("customCoordinates", "locations", "coordinates"):
+            value = document.get(key)
+            if isinstance(value, list):
+                return value
+        return []
+    if isinstance(document, list):
+        return document
+    return []
+
+
+def evenly_sample(values: list, limit: int = MAX_REFERENCE_EXAMPLES) -> list:
+    if len(values) <= limit:
+        return values
+    if limit <= 1:
+        return values[:1]
+    last = len(values) - 1
+    return [values[int(round(index / (limit - 1) * last))] for index in range(limit)]
+
+
 def parse_map(document: dict) -> dict:
-    if not isinstance(document, dict) or not isinstance(document.get("customCoordinates"), list):
+    coordinates = _coordinates(document)
+    if not coordinates:
         raise MMAError("invalid_mma_map")
-    if len(document["customCoordinates"]) < 1:
-        raise MMAError("empty_mma_map")
-    if len(document["customCoordinates"]) > MAX_REFERENCE_EXAMPLES:
-        raise MMAError("too_many_references")
-    name = document.get("name") if isinstance(document.get("name"), str) and document["name"].strip() else "VISION Community"
+    name = (
+        document.get("name")
+        if isinstance(document, dict) and isinstance(document.get("name"), str) and document["name"].strip()
+        else "VISION Community"
+    )
     examples = []
-    for row in document["customCoordinates"]:
+    seen = set()
+    for row in coordinates:
         if not isinstance(row, dict):
-            raise MMAError("invalid_mma_location")
-        pano_id = row.get("panoId") or row.get("pano_id")
-        if not isinstance(pano_id, str) or not 4 <= len(pano_id) <= 80:
-            raise MMAError("invalid_pano_id")
+            continue
+        pano_id = row.get("panoId") or row.get("pano_id") or row.get("pano")
+        if not isinstance(pano_id, str) or not pano_id.strip():
+            continue
+        pano_id = pano_id.strip()
         if "maps.googleapis.com" in pano_id or pano_id.startswith("http"):
             raise MMAError("imagery_url_forbidden")
+        heading = _number(row.get("heading"))
+        pitch = _number(row.get("pitch"))
+        zoom = _number(row.get("zoom"))
+        key = f"{pano_id}|{heading}|{pitch}|{zoom}"
+        if key in seen:
+            continue
+        seen.add(key)
         extra = row.get("extra") if isinstance(row.get("extra"), dict) else {}
         capture = extra.get("panoDate") if isinstance(extra.get("panoDate"), str) else ""
         examples.append(
@@ -52,13 +85,16 @@ def parse_map(document: dict) -> dict:
                 "panoId": pano_id,
                 "lat": _number(row.get("lat")),
                 "lng": _number(row.get("lng", row.get("lon"))),
-                "heading": _number(row.get("heading")),
-                "pitch": _number(row.get("pitch")),
-                "zoom": _number(row.get("zoom")),
+                "heading": heading,
+                "pitch": pitch,
+                "zoom": zoom,
                 "capture": capture or "unknown",
                 "country": (extra.get("tags") or [""])[0] if isinstance(extra.get("tags"), list) else "",
             }
         )
+    examples = evenly_sample(examples)
+    if not examples:
+        raise MMAError("empty_mma_map")
     return {"name": name, "examples": examples}
 
 
@@ -79,24 +115,24 @@ def location_record(
     processed_locations: int = 0,
     min_score: float = 0.0,
 ) -> dict:
-    tags = [item for item in (country, lane) if item]
+    country = canonicalize_country(country)
     extra = {
-        "tags": tags,
+        "tags": [country] if country else [],
         "visionCameraGeneration": camera_generation or "unknown",
-        "visionScore": round(float(score), 6),
-        "visionMinScore": round(float(min_score), 6),
+        "visionScore": round(float(score), 7),
+        "visionMinScore": round(float(min_score), 7),
         "visionRank": int(rank),
         "visionQuery": query_name,
-        "visionQueryMode": lane,
+        "visionQueryMode": "objects" if lane == "object" else "scene",
         "visionHeadingOffset": 0,
         "visionSourceIndex": 0,
         "visionProcessedLocations": int(processed_locations),
         "visionModel": MODEL_ID,
-        "visionPruneMeters": 25,
+        "visionPruneMeters": RESULT_PRUNE_METERS,
         "visionObjectClass": None,
         "visionObjectClassId": None,
         "visionObjectLane": lane if lane == "object" else None,
-        "visionObjectConfidence": round(float(score), 6) if lane == "object" else None,
+        "visionObjectConfidence": round(float(score), 7) if lane == "object" else None,
         "visionObjectSupport": None,
         "visionObjectBoxArea": None,
     }

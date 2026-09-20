@@ -49,6 +49,8 @@ const HEADERS = {
   "x-content-type-options": "nosniff",
   "referrer-policy": "no-referrer",
   "x-frame-options": "DENY",
+  "x-robots-tag": "noindex, nofollow",
+  "permissions-policy": "camera=(), microphone=(), geolocation=()",
   "content-security-policy":
     "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; base-uri 'none'; frame-ancestors 'none'",
 };
@@ -118,17 +120,25 @@ async function status(env, account) {
   const counts = {};
   for (const row of rows.results || []) counts[row.lane] = { pending: row.pending || 0, published: row.published || 0 };
   const visual = await env.DB.prepare("SELECT COUNT(*) AS n FROM published_index WHERE embedding IS NOT NULL").first();
+  const countryRows = await env.DB.prepare(
+    "SELECT DISTINCT country FROM locations WHERE country IS NOT NULL AND country != '' ORDER BY country"
+  ).all();
+  const generationRows = await env.DB.prepare(
+    "SELECT DISTINCT camera_generation FROM locations WHERE camera_generation IS NOT NULL AND camera_generation != '' ORDER BY camera_generation"
+  ).all();
   const result = {
     operational: true,
     demo: false,
     publicCorpus: false,
     ownerBypass: false,
     persistImagery: false,
-    r2: "not_created",
+    r2: await r2Status(env),
     searchCost: SEARCH_COST,
     searchBackend: "d1-prototype",
     model: MODEL_ID,
     visualPublished: visual?.n || 0,
+    countries: [...new Set((countryRows.results || []).map((row) => canonicalizeCountry(row.country)).filter(Boolean))].sort(),
+    cameraGenerations: (generationRows.results || []).map((row) => row.camera_generation),
     output: "map-making.app JSON",
     prototype: true,
     counts,
@@ -140,6 +150,23 @@ async function status(env, account) {
     result.searchesAvailable = Math.floor(result.units / SEARCH_COST);
   }
   return result;
+}
+
+async function r2Status(env) {
+  const status = {
+    provisioned: Boolean(env.INDEX),
+    bucket: env.INDEX ? "vision-community" : null,
+    binding: "INDEX",
+    publicAccess: false,
+    role: "sealed-segments",
+    registry: false,
+    registryBytes: 0,
+  };
+  if (!env.INDEX) return status;
+  const head = await env.INDEX.head("registry.json");
+  status.registry = Boolean(head);
+  status.registryBytes = head ? head.size : 0;
+  return status;
 }
 
 async function createAccount(env, request) {
@@ -278,7 +305,103 @@ async function submit(env, account, body) {
   return json({ accepted: items.length, unitsEarned: earned, replayed: false, segments: [] });
 }
 
-function capCountries(hits, maxPerCountry) {
+function canonicalizeCountry(name) {
+  if (name === "United States" || name === "United States of America") return "USA";
+  return name;
+}
+
+function normalizeFilters(body) {
+  const allGenerations = ["badcam", "gen1", "gen2", "gen3", "gen4", "trekker"];
+  let mode = ["all", "include", "exclude"].includes(body.countryFilterMode) ? body.countryFilterMode : "all";
+  const countries = Array.isArray(body.countries)
+    ? [...new Set(body.countries.filter((item) => typeof item === "string" && item.trim()).map((item) => canonicalizeCountry(item.trim())))].sort()
+    : [];
+  let generations = Array.isArray(body.cameraGenerations)
+    ? [...new Set(body.cameraGenerations.filter((item) => allGenerations.includes(item)))]
+    : [];
+  if (!generations.length || generations.length === allGenerations.length) generations = [];
+  if (mode !== "include" && (mode === "all" || !countries.length)) {
+    mode = "all";
+  }
+  return { mode, countries, generations };
+}
+
+function acceptsHit(hit, filters) {
+  if (filters.generations.length && !filters.generations.includes(hit.cameraGeneration)) return false;
+  if (filters.mode === "include") return filters.countries.includes(hit.country);
+  if (filters.mode === "exclude") return !filters.countries.includes(hit.country);
+  return true;
+}
+
+function pruneNearby(hits) {
+  const out = [];
+  const seen = new Set();
+  for (const hit of hits) {
+    const pano = hit.panoId || "";
+    if (pano && seen.has(pano)) continue;
+    const tooClose = out.some((prior) => haversineMeters(hit.lat, hit.lng, prior.lat, prior.lng) < 100);
+    if (tooClose) continue;
+    if (pano) seen.add(pano);
+    out.push(hit);
+  }
+  return out;
+}
+
+function haversineMeters(lat1, lon1, lat2, lon2) {
+  const radius = 6371000;
+  const p1 = (lat1 * Math.PI) / 180;
+  const p2 = (lat2 * Math.PI) / 180;
+  const dphi = ((lat2 - lat1) * Math.PI) / 180;
+  const dlmb = ((lon2 - lon1) * Math.PI) / 180;
+  const a = Math.sin(dphi / 2) ** 2 + Math.cos(p1) * Math.cos(p2) * Math.sin(dlmb / 2) ** 2;
+  return 2 * radius * Math.asin(Math.min(1, Math.sqrt(a)));
+}
+
+function evenlySample(values, limit) {
+  if (values.length <= limit) return values;
+  if (limit <= 1) return values.slice(0, 1);
+  return Array.from({ length: limit }, (_, index) => {
+    const fraction = index / (limit - 1);
+    return values[Math.round(fraction * (values.length - 1))];
+  });
+}
+
+function parseQueryMap(map) {
+  const coordinates = Array.isArray(map?.customCoordinates)
+    ? map.customCoordinates
+    : Array.isArray(map?.locations)
+      ? map.locations
+      : Array.isArray(map?.coordinates)
+        ? map.coordinates
+        : Array.isArray(map)
+          ? map
+          : [];
+  if (!coordinates.length) return null;
+  const examples = [];
+  const seen = new Set();
+  for (const row of coordinates) {
+    if (!row || typeof row !== "object") continue;
+    const panoId = String(row.panoId || row.pano_id || row.pano || "").trim();
+    if (!panoId) continue;
+    if (panoId.includes("maps.googleapis.com") || panoId.startsWith("http")) return { error: "imagery_url_forbidden" };
+    const heading = Number(row.heading) || 0;
+    const pitch = Number(row.pitch) || 0;
+    const zoom = Number(row.zoom) || 0;
+    const key = `${panoId}|${heading}|${pitch}|${zoom}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const extra = row.extra && typeof row.extra === "object" ? row.extra : {};
+    examples.push({
+      panoId,
+      capture: typeof extra.panoDate === "string" && extra.panoDate ? extra.panoDate : "unknown",
+    });
+  }
+  const sampled = evenlySample(examples, 100);
+  if (!sampled.length) return null;
+  return sampled;
+}
+
+function capCountries(hits, resultCount, maxPerCountry) {
   const counts = {};
   const out = [];
   for (const hit of hits) {
@@ -286,6 +409,7 @@ function capCountries(hits, maxPerCountry) {
     if ((counts[country] || 0) >= maxPerCountry) continue;
     counts[country] = (counts[country] || 0) + 1;
     out.push(hit);
+    if (out.length >= resultCount) break;
   }
   return out;
 }
@@ -299,22 +423,22 @@ function locationRecord(hit, rank, queryName, lane, processed, minScore) {
     zoom: hit.zoom,
     panoId: hit.panoId,
     extra: {
-      tags: [hit.country, lane].filter(Boolean),
+      tags: hit.country ? [hit.country] : [],
       visionCameraGeneration: hit.cameraGeneration || "unknown",
-      visionScore: Number(hit.score.toFixed(6)),
-      visionMinScore: Number(minScore.toFixed(6)),
+      visionScore: Number(hit.score.toFixed(7)),
+      visionMinScore: Number(minScore.toFixed(7)),
       visionRank: rank,
       visionQuery: queryName,
-      visionQueryMode: lane,
+      visionQueryMode: lane === "object" ? "objects" : "scene",
       visionHeadingOffset: 0,
       visionSourceIndex: 0,
       visionProcessedLocations: processed,
       visionModel: MODEL_ID,
-      visionPruneMeters: 25,
+      visionPruneMeters: 100,
       visionObjectClass: null,
       visionObjectClassId: null,
       visionObjectLane: lane === "object" ? lane : null,
-      visionObjectConfidence: lane === "object" ? Number(hit.score.toFixed(6)) : null,
+      visionObjectConfidence: lane === "object" ? Number(hit.score.toFixed(7)) : null,
       visionObjectSupport: null,
       visionObjectBoxArea: null,
     },
@@ -325,22 +449,16 @@ async function search(env, account, body) {
   const key = body.idempotencyKey;
   if (typeof key !== "string" || key.length < 8 || key.length > 100) return error("invalid_idempotency_key");
   const lane = body.lane === "object" ? "object" : "scene";
-  const resultCount = Math.min(200, Math.max(1, Number(body.resultCount) || 25));
-  const maxPerCountry = Math.min(200, Math.max(1, Number(body.maxPerCountry) || 25));
+  const resultCount = Math.min(10000, Math.max(1, Number.isInteger(body.resultCount) ? body.resultCount : 200));
+  const maxPerCountry = Math.min(10000, Math.max(1, Number.isInteger(body.maxPerCountry) ? body.maxPerCountry : 25));
+  const filters = normalizeFilters(body);
+  if (filters.mode === "include" && !filters.countries.length) return error("invalid_country_filter");
   const map = body.queryMap;
-  if (!map || !Array.isArray(map.customCoordinates) || !map.customCoordinates.length) return error("invalid_mma_map");
-  if (map.customCoordinates.length > 100) return error("too_many_references");
-  const queryName = typeof map.name === "string" && map.name.trim() ? map.name.trim() : (body.outputName || "VISION Community");
-  const examples = [];
-  for (const row of map.customCoordinates) {
-    const panoId = row.panoId || row.pano_id;
-    if (typeof panoId !== "string" || panoId.length < 4 || panoId.length > 80) return error("invalid_pano_id");
-    const extra = row.extra && typeof row.extra === "object" ? row.extra : {};
-    examples.push({
-      panoId,
-      capture: typeof extra.panoDate === "string" && extra.panoDate ? extra.panoDate : "unknown",
-    });
-  }
+  const parsed = parseQueryMap(map);
+  if (parsed?.error) return error(parsed.error);
+  if (!parsed) return error("invalid_mma_map");
+  const examples = parsed;
+  const queryName = typeof map?.name === "string" && map.name.trim() ? map.name.trim() : (body.outputName || "VISION Community");
   const queryKey = `mma:${queryName}:${lane}:${examples.map((item) => item.panoId).join(",")}`;
   const existing = await env.DB.prepare(
     "SELECT query, result_json FROM searches WHERE account_id=? AND idempotency_key=?"
@@ -380,11 +498,11 @@ async function search(env, account, body) {
       heading: row.heading || 0,
       pitch: row.pitch || 0,
       zoom: row.zoom || 0,
-      country: row.country || "",
+      country: canonicalizeCountry(row.country || ""),
       cameraGeneration: row.camera_generation || "",
     };
-  }).sort((a, b) => b.score - a.score);
-  const capped = capCountries(scored, maxPerCountry).slice(0, resultCount);
+  }).filter((hit) => acceptsHit(hit, filters)).sort((a, b) => b.score - a.score || a.locationId - b.locationId);
+  const capped = capCountries(pruneNearby(scored), resultCount, maxPerCountry);
   const minScore = capped.length ? capped[capped.length - 1].score : 0;
   const coordinates = capped.map((hit, index) => locationRecord(hit, index + 1, queryName, lane, published.length, minScore));
   const searchId = randomHex(16);
@@ -418,7 +536,17 @@ function hexToQuery(hex) {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-    if (!url.pathname.startsWith("/api/")) return env.ASSETS.fetch(request);
+    if (!url.pathname.startsWith("/api/")) {
+      const response = await env.ASSETS.fetch(request);
+      const headers = new Headers(response.headers);
+      headers.set("x-content-type-options", "nosniff");
+      headers.set("referrer-policy", "no-referrer");
+      headers.set("x-frame-options", "DENY");
+      headers.set("x-robots-tag", "noindex, nofollow");
+      headers.set("permissions-policy", "camera=(), microphone=(), geolocation=()");
+      headers.set("content-security-policy", HEADERS["content-security-policy"]);
+      return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+    }
     if (!env.DB) return error("control_plane_unprovisioned", 503);
     try {
       await ready(env);
@@ -440,8 +568,8 @@ export default {
       if (url.pathname === "/api/submissions") return submit(env, account, body);
       if (url.pathname === "/api/searches") return search(env, account, body);
       return error("not_found", 404);
-    } catch (err) {
-      return error(err.message || "internal_error", 500);
+    } catch {
+      return error("internal_error", 500);
     }
   },
 };

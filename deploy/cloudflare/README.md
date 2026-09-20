@@ -1,7 +1,7 @@
 # Cloudflare deploy
 
 Public VISION-like prototype. D1 holds the ledger and prototype embeddings.
-R2 is not attached.
+R2 bucket `vision-community` is bound as `INDEX` for sealed segments.
 
 ```sh
 npx wrangler d1 execute vision-community --remote --file=schema.sql

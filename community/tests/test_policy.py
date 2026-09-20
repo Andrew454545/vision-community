@@ -14,6 +14,10 @@ class PublicCreditPolicyTest(unittest.TestCase):
             self.assertEqual(state["searchCost"], 100_000)
             self.assertEqual(state["units"], 0)
             self.assertEqual(state["searchesAvailable"], 0)
+            self.assertFalse(state["operational"])
+            self.assertFalse(state["ownerBypass"])
+            live = CommunityService(Path(folder) / "live.sqlite", operational=True)
+            self.assertTrue(live.status()["operational"])
             self.assertEqual(UNITS_PER_LOCATION, {"scene": 1, "object": 10})
             with self.assertRaisesRegex(ServiceError, "insufficient_credit"):
                 service.search(account, "pine", "first-search-001")
