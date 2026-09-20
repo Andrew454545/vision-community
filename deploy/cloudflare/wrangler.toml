@@ -3,8 +3,13 @@ main = "src/worker.js"
 compatibility_date = "2026-09-19"
 workers_dev = true
 
-# No r2_buckets. Do not create an R2 bucket from this project.
-# No d1_databases. The credit ledger is not hosted here.
+# D1 holds the prototype ledger and embeddings. R2 is still not created.
+# Production 200M search will not run in this Worker.
+
+[[d1_databases]]
+binding = "DB"
+database_name = "vision-community"
+database_id = "ed4705fa-1190-41fa-86a0-02d755db1b2a"
 
 [assets]
 directory = "../../community/web"

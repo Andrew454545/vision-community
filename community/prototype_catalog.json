@@ -1,0 +1,22 @@
+{
+  "source": "street-metadata",
+  "persistImagery": false,
+  "locations": [
+    {"panoId": "PrototypeBerkeleyCA000001", "capture": "2019-06", "lane": "scene", "model": "community-visual-v1", "lat": 37.869085, "lng": -122.254775, "heading": 270, "pitch": 0, "zoom": 0, "country": "United States", "cameraGeneration": "gen4"},
+    {"panoId": "PrototypeTimesSquare00002", "capture": "2021-04", "lane": "scene", "model": "community-visual-v1", "lat": 40.7580, "lng": -73.9855, "heading": 90, "pitch": 0, "zoom": 0, "country": "United States", "cameraGeneration": "gen4"},
+    {"panoId": "PrototypeColosseumIT00003", "capture": "2020-06", "lane": "scene", "model": "community-visual-v1", "lat": 41.8902, "lng": 12.4922, "heading": 45, "pitch": 0, "zoom": 0, "country": "Italy", "cameraGeneration": "gen4"},
+    {"panoId": "PrototypeShibuyaJP000004", "capture": "2021-03", "lane": "scene", "model": "community-visual-v1", "lat": 35.6595, "lng": 139.7004, "heading": 200, "pitch": 1, "zoom": 0, "country": "Japan", "cameraGeneration": "gen4"},
+    {"panoId": "PrototypeCapeTownZA00005", "capture": "2018-11", "lane": "scene", "model": "community-visual-v1", "lat": -33.9249, "lng": 18.4241, "heading": 12, "pitch": -2, "zoom": 0, "country": "South Africa", "cameraGeneration": "gen3"},
+    {"panoId": "PrototypeViennaAT000006", "capture": "2022-01", "lane": "scene", "model": "community-visual-v1", "lat": 48.2082, "lng": 16.3738, "heading": 45, "pitch": 0, "zoom": 0, "country": "Austria", "cameraGeneration": "gen4"},
+    {"panoId": "PrototypeParisFR0000007", "capture": "2020-09", "lane": "scene", "model": "community-visual-v1", "lat": 48.8584, "lng": 2.2945, "heading": 180, "pitch": 8, "zoom": 0, "country": "France", "cameraGeneration": "gen4"},
+    {"panoId": "PrototypeSydneyAU000008", "capture": "2019-12", "lane": "scene", "model": "community-visual-v1", "lat": -33.8568, "lng": 151.2153, "heading": 30, "pitch": 4, "zoom": 0, "country": "Australia", "cameraGeneration": "gen4"},
+    {"panoId": "PrototypeLondonUK000009", "capture": "2021-07", "lane": "scene", "model": "community-visual-v1", "lat": 51.5079, "lng": -0.0877, "heading": 250, "pitch": 0, "zoom": 0, "country": "United Kingdom", "cameraGeneration": "gen4"},
+    {"panoId": "PrototypeRioBR00000010", "capture": "2018-05", "lane": "scene", "model": "community-visual-v1", "lat": -22.9519, "lng": -43.2105, "heading": 140, "pitch": 6, "zoom": 0, "country": "Brazil", "cameraGeneration": "gen3"},
+    {"panoId": "PrototypeStockholmSE0011", "capture": "2020-06", "lane": "scene", "model": "community-visual-v1", "lat": 59.3293, "lng": 18.0686, "heading": 310, "pitch": 4, "zoom": 0, "country": "Sweden", "cameraGeneration": "gen4"},
+    {"panoId": "PrototypeMexicoMX000012", "capture": "2019-08", "lane": "scene", "model": "community-visual-v1", "lat": 19.4326, "lng": -99.1332, "heading": 20, "pitch": 0, "zoom": 0, "country": "Mexico", "cameraGeneration": "gen4"},
+    {"panoId": "PrototypeBerkeleyCA000101", "capture": "2019-06", "lane": "object", "model": "community-visual-v1", "lat": 37.8715, "lng": -122.2730, "heading": 10, "pitch": 0, "zoom": 1, "country": "United States", "cameraGeneration": "gen4"},
+    {"panoId": "PrototypeColosseumIT00102", "capture": "2020-06", "lane": "object", "model": "community-visual-v1", "lat": 41.8925, "lng": 12.4865, "heading": 200, "pitch": 2, "zoom": 1, "country": "Italy", "cameraGeneration": "gen4"},
+    {"panoId": "PrototypeShibuyaJP000103", "capture": "2021-03", "lane": "object", "model": "community-visual-v1", "lat": 35.6612, "lng": 139.7030, "heading": 80, "pitch": 0, "zoom": 1, "country": "Japan", "cameraGeneration": "gen4"},
+    {"panoId": "PrototypeParisFR00000104", "capture": "2020-09", "lane": "object", "model": "community-visual-v1", "lat": 48.8606, "lng": 2.3376, "heading": 90, "pitch": 0, "zoom": 1, "country": "France", "cameraGeneration": "gen4"}
+  ]
+}
