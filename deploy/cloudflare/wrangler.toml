@@ -1,6 +1,7 @@
 name = "vision-community"
 main = "src/worker.js"
 compatibility_date = "2026-09-19"
+compatibility_flags = ["nodejs_compat"]
 workers_dev = true
 
 # D1 holds the prototype ledger. INDEX is the durable sealed-segment copy.

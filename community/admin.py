@@ -5,7 +5,16 @@ from __future__ import annotations
 import argparse
 import json
 import sqlite3
+import subprocess
 from pathlib import Path
+
+DEPLOY_ROOT = Path(__file__).resolve().parents[1] / "deploy" / "cloudflare"
+PUBLISHED_SQL = (
+    "SELECT l.id, l.asset_id, l.capture, l.lane, l.lat, l.lon, l.heading, l.pitch, "
+    "l.zoom, l.country, l.camera_generation FROM locations l "
+    "JOIN published_index i ON i.location_id = l.id "
+    "WHERE l.state='published' ORDER BY l.id"
+)
 
 
 def audit(database: Path) -> dict:
@@ -111,6 +120,44 @@ def export_vision_d1(document_path: Path, destination: Path) -> dict:
     return write_handoff(records_from_d1_document(document), destination, source=str(document_path))
 
 
+def _parse_wrangler_json(stdout: str):
+    text = stdout.strip()
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        start = min((index for index in (text.find("["), text.find("{")) if index >= 0), default=-1)
+        if start < 0:
+            raise ValueError("invalid_d1_json")
+        return json.loads(text[start:])
+
+
+def export_vision_d1_remote(destination: Path) -> dict:
+    from .vision_handoff import export_vision as write_handoff, records_from_d1_document
+
+    completed = subprocess.run(
+        [
+            "npx",
+            "--yes",
+            "wrangler",
+            "d1",
+            "execute",
+            "vision-community",
+            "--remote",
+            "--json",
+            "--command",
+            PUBLISHED_SQL,
+        ],
+        cwd=DEPLOY_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if completed.returncode != 0:
+        raise RuntimeError((completed.stderr or completed.stdout or "d1_export_failed").strip())
+    document = _parse_wrangler_json(completed.stdout)
+    return write_handoff(records_from_d1_document(document), destination, source="d1:vision-community")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("command", choices=("check", "backup", "restore", "import-shard", "export-vision"))
@@ -118,14 +165,15 @@ def main():
     parser.add_argument("--to", type=Path)
     parser.add_argument("--from-backup", dest="from_backup", type=Path)
     parser.add_argument("--from-d1-json", dest="from_d1_json", type=Path)
+    parser.add_argument("--from-d1-remote", dest="from_d1_remote", action="store_true")
     parser.add_argument("--tsv", type=Path)
     parser.add_argument("--lane", default="scene")
     parser.add_argument("--artifacts", type=Path)
     parser.add_argument("--limit", type=int)
     args = parser.parse_args()
-    if args.command != "export-vision" or args.from_d1_json is None:
-        if args.db is None:
-            parser.error("--db is required")
+    export_without_db = args.command == "export-vision" and (args.from_d1_json is not None or args.from_d1_remote)
+    if not export_without_db and args.db is None:
+        parser.error("--db is required")
     if args.command == "backup" and args.to is None:
         parser.error("backup requires --to")
     if args.command == "restore" and args.from_backup is None:
@@ -134,8 +182,8 @@ def main():
         parser.error("import-shard requires --tsv")
     if args.command == "export-vision" and args.to is None:
         parser.error("export-vision requires --to")
-    if args.command == "export-vision" and args.db is None and args.from_d1_json is None:
-        parser.error("export-vision requires --db or --from-d1-json")
+    if args.command == "export-vision" and args.db is None and args.from_d1_json is None and not args.from_d1_remote:
+        parser.error("export-vision requires --db, --from-d1-json, or --from-d1-remote")
     if args.command == "check" and args.to is not None:
         parser.error("--to is only valid for backup and export-vision")
     try:
@@ -146,7 +194,9 @@ def main():
         elif args.command == "import-shard":
             report = import_shard(args.db, args.tsv, lane=args.lane, artifacts=args.artifacts, limit=args.limit)
         elif args.command == "export-vision":
-            if args.from_d1_json is not None:
+            if args.from_d1_remote:
+                report = export_vision_d1_remote(args.to)
+            elif args.from_d1_json is not None:
                 report = export_vision_d1(args.from_d1_json, args.to)
             else:
                 report = export_vision(args.db, args.to)

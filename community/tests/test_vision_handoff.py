@@ -104,5 +104,13 @@ class VisionHandoffTest(unittest.TestCase):
             self.assertIn("PrototypeBerkeleyCA000001", line)
 
 
+class AdminD1ExportTest(unittest.TestCase):
+    def test_wrangler_log_prefix_is_stripped(self):
+        from community.admin import _parse_wrangler_json
+
+        document = _parse_wrangler_json('wrangler 4.0\n[{"results":[{"id":1,"asset_id":"x"}]}]')
+        self.assertEqual(document[0]["results"][0]["id"], 1)
+
+
 if __name__ == "__main__":
     unittest.main()

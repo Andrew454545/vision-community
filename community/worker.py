@@ -11,7 +11,8 @@ import os
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from .features import embedding_for, output_digest, render_faces, sha256_hex
+from .features import embedding_for, output_digest, sha256_hex
+from .pano import ViewError, render_location_faces, uses_street_views
 
 
 PACE = {
@@ -26,10 +27,11 @@ class WorkerPaused(Exception):
 
 
 class ProcessingWorker:
-    def __init__(self, pace: str = "medium"):
+    def __init__(self, pace: str = "medium", *, views=None):
         if pace not in PACE:
             raise ValueError("invalid_pace")
         self.pace = pace
+        self.views = views
         self._pause = threading.Event()
         self._pause.set()
 
@@ -51,7 +53,14 @@ class ProcessingWorker:
 
     def process_item(self, item: dict) -> dict:
         self._maybe_pause()
-        faces = render_faces(item["assetId"], item["capture"], item["lane"], item["model"])
+        pano_id = item.get("panoId") or item["assetId"]
+        if uses_street_views(pano_id) and self.views is not None:
+            faces = self.views(item)
+        else:
+            try:
+                faces = render_location_faces(item)
+            except ViewError as error:
+                raise ValueError(error.code) from error
         expected = item.get("facesSha256")
         if expected and sha256_hex(faces) != expected:
             raise ValueError("faces_identity_mismatch")
@@ -76,14 +85,21 @@ class ProcessingWorker:
             encoded.append(payload)
         return encoded
 
-    def process_lease(self, lease: dict) -> list[dict]:
+    def process_lease(self, lease: dict, *, progress=None) -> list[dict]:
         items = lease["items"]
+        total = len(items)
+
+        def run(index: int, item: dict) -> dict:
+            if progress is not None:
+                progress(index + 1, total, item)
+            return self.process_item(item)
+
         workers = min(PACE[self.pace]["workers"], len(items) or 1)
         if workers <= 1:
-            return [self.process_item(item) for item in items]
+            return [run(index, item) for index, item in enumerate(items)]
         outputs = [None] * len(items)
         with ThreadPoolExecutor(max_workers=workers) as pool:
-            futures = {pool.submit(self.process_item, item): index for index, item in enumerate(items)}
+            futures = {pool.submit(run, index, item): index for index, item in enumerate(items)}
             for future in as_completed(futures):
                 outputs[futures[future]] = future.result()
         return outputs

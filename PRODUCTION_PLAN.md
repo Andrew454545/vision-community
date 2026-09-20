@@ -48,19 +48,19 @@ shown to fit an available free tier.
 
 ## Verification boundary
 
-The current synthetic hash is intentionally forgeable. A hash supplied by a
-volunteer does not prove that a model was run. Structural validation, content
-checks, duplicate detection, and random server recomputation lower abuse but
-cannot prove every volunteer result correct. If every credited result must be
-correct, the server has to recompute or otherwise independently verify every
-result with a trusted worker; that erases most of the compute savings from
-volunteers. Treat the verification standard as a product and cost decision,
-not a claim that client code can enforce it.
+Credited `community-visual-v1` work is checked two ways. Invented test panos
+are always recomputed. Street View batches are processed on volunteer machines;
+the server re-fetches one location in the lease as an audit and accepts the
+other embeddings only when their digests match. That guarantee applies to this
+Community extractor only. It does not prove RF-DETR, YOLOE, or OWLv2.
 
 Exclusive leases prevent two honest clients from being assigned the same
 unexpired item. A malicious client can retain input it received or do work
 outside the protocol. Keep batches small, expire leases, rate limit claims,
 and check a canonical server-side identity again at publication.
+
+Imagery bytes are never stored. Thumbnails exist only in RAM during process
+and verify.
 
 ## Privacy and public launch gates
 
@@ -72,7 +72,8 @@ and check a canonical server-side identity again at publication.
   and expire access logs. Protect or avoid location-sensitive search history.
 - Obtain written rights for public fetching, processing, storage of derived
   indexes, redistribution to volunteer workers, and display of search results
-  before connecting any real image source. Current Google paths are excluded.
+  before expanding beyond Street View thumbnails fetched ephemerally. Do not
+  persist JPEG/PNG bytes or tile URLs.
 - Port and verify the existing scene/object workers and ranked search to a
   deployable runtime, then compare outputs and ranking to the Mac app.
 - Add abuse limits, backups and restore tests, TLS, monitoring, key rotation,

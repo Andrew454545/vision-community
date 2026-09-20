@@ -135,8 +135,51 @@ function bytesToBase64(bytes) {
   return btoa(binary);
 }
 
+function base64ToBytes(value) {
+  const binary = atob(value);
+  const out = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) out[i] = binary.charCodeAt(i);
+  return out;
+}
+
+function usesStreetViews(panoId) {
+  if (typeof panoId !== "string" || !panoId.trim()) return false;
+  const identity = panoId.trim();
+  if (identity.includes("maps.googleapis.com") || identity.startsWith("http")) return false;
+  return !["synthetic:", "Prototype", "CommunityPano", "wikimedia:"].some((prefix) => identity.startsWith(prefix));
+}
+
+async function fetchLocationFaces(item) {
+  const params = new URLSearchParams({
+    pano: item.panoId || item.assetId,
+    capture: item.capture || "",
+    lane: item.lane,
+    heading: String(item.heading || 0),
+    pitch: String(item.pitch || 0),
+    zoom: String(item.zoom || 0),
+  });
+  let lastError = null;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      const response = await fetch(`/api/views?${params}`, { credentials: "same-origin", cache: "no-store" });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || typeof data.faces !== "string") {
+        throw new Error(data.error || "view_unavailable");
+      }
+      return base64ToBytes(data.faces);
+    } catch (error) {
+      lastError = error;
+      if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 400 * (attempt + 1)));
+    }
+  }
+  throw lastError || new Error("view_unavailable");
+}
+
 async function processItem(item) {
-  const faces = renderFacesFromSeed(await seedBytes(item.assetId, item.capture, item.lane, item.model));
+  const panoId = item.panoId || item.assetId;
+  const faces = usesStreetViews(panoId) || item.viewStrategy === "vision-pano-v1"
+    ? await fetchLocationFaces(item)
+    : renderFacesFromSeed(await seedBytes(item.assetId, item.capture, item.lane, item.model));
   if (item.facesSha256) {
     const digest = await sha256Hex(faces);
     if (digest !== item.facesSha256) throw new Error("faces_identity_mismatch");

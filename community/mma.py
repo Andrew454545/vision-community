@@ -114,6 +114,7 @@ def location_record(
     camera_generation: str = "",
     processed_locations: int = 0,
     min_score: float = 0.0,
+    heading_offset: int = 0,
 ) -> dict:
     country = canonicalize_country(country)
     extra = {
@@ -124,7 +125,7 @@ def location_record(
         "visionRank": int(rank),
         "visionQuery": query_name,
         "visionQueryMode": "objects" if lane == "object" else "scene",
-        "visionHeadingOffset": 0,
+        "visionHeadingOffset": int(heading_offset),
         "visionSourceIndex": 0,
         "visionProcessedLocations": int(processed_locations),
         "visionModel": MODEL_ID,

@@ -33,7 +33,12 @@
       <ol class="jobs" id="jobs"></ol>
       <div class="contribute">
         <p class="rail-kicker">Contribute</p>
-        <p class="rail-copy">Process locations on this device. Verified work unlocks searches of the shared index.</p>
+        <p class="rail-copy">Index on this computer the same way VISION.app looks at a location: four compass Street View for scenes, a six-face cube for objects. Imagery is not saved. One search costs 100,000 scene units (or 10,000 object units). No trial, no owner bypass. The CLI processes 16/64/128 scene locations per lease; this tab is limited to 1/4/8 because it still proxies thumbnails.</p>
+        <pre class="cli" id="cli-command">python3 -m community.contribute --url https://vision-community.visioncommunity.workers.dev --lane scene --pace medium --recovery-code YOUR_CODE</pre>
+        <button id="copy-cli" class="ghost" type="button">Copy CLI command</button>
+        <p class="rail-copy">After you are invited to the private repository, install Pillow and run that command. The recovery code is saved to <code>~/.config/vision-community/session.json</code> so later runs can omit it. Ctrl+C releases the exclusive lease.</p>
+        <p class="rail-kicker">Small browser batch</p>
+        <p class="rail-copy">Optional. Limited size because this tab still proxies thumbnails through the site.</p>
         <label class="field-label">Contribute lane</label>
         <div class="pace" id="process-lane">
           <label><input type="radio" name="process-lane" value="scene" checked><span>Scene</span></label>
@@ -45,14 +50,14 @@
           <label><input type="radio" name="pace" value="medium" checked><span>Medium</span></label>
           <label><input type="radio" name="pace" value="max"><span>Max</span></label>
         </div>
-        <button id="process" class="cmd" type="button" disabled>Process a batch</button>
+        <button id="process" class="cmd" type="button" disabled>Process locations</button>
         <button id="pause" class="ghost" type="button" disabled>Pause</button>
         <p class="status" id="process-status">Create an account to begin.</p>
         <p class="rail-copy" id="queue-label">Checking remaining work…</p>
         <div class="balance">
           <span>Verified units</span>
           <strong id="units">0</strong>
-          <small><span id="searches-available">0</span> searches · cost <span id="search-cost">4</span></small>
+          <small><span id="searches-available">0</span> searches · cost <span id="search-cost">100000</span> · <span id="units-need">100,000 more until a search</span></small>
         </div>
       </div>
     </aside>
@@ -72,6 +77,21 @@
           <label><input type="radio" name="mode" value="scene" checked><span>Scene</span></label>
           <label><input type="radio" name="mode" value="object"><span>Objects</span></label>
         </div>
+      </section>
+
+      <section id="view-direction-block">
+        <h2>View direction</h2>
+        <label class="field-label" for="view-direction">Quarter-turns from each map’s saved pan</label>
+        <select id="view-direction">
+          <option value="bestOfFour">Best of available views</option>
+          <option value="original">Saved pan (0°)</option>
+          <option value="opposite">Opposite saved pan (180°)</option>
+          <option value="right">Right of saved pan (+90°)</option>
+          <option value="left">Left of saved pan (+270°)</option>
+          <option value="originalAxis">Saved axis (0° / 180°)</option>
+          <option value="sideAxis">Cross-axis (+90° / +270°)</option>
+        </select>
+        <p class="hint">Same directions as VISION.app. Scene search scores the query’s saved pan against those compass views. The JSON heading is the winning view. Object search does not use view direction.</p>
       </section>
 
       <section>
@@ -130,6 +150,14 @@
         </div>
         <p class="file-name" id="file-name">No JSON selected</p>
         <p class="hint">Same <code>customCoordinates</code> format the local VISION app exports. Up to 100 unique views are used. Results are highest score first, unique panoramas, 100-meter spacing, then the per-country cap.</p>
+        <label class="field-label" for="exclude-map">Previous map JSON</label>
+        <div class="file-row">
+          <input id="exclude-map" type="file" accept="application/json,.json" hidden>
+          <button id="choose-exclude" class="ghost" type="button">Choose previous map</button>
+          <button id="clear-exclude" class="ghost" type="button">Clear</button>
+        </div>
+        <p class="file-name" id="exclude-file-name">No previous map</p>
+        <p class="hint">Optional. Removes results within 25 m of locations in that map, matching VISION’s Past Locations prune. Imagery is not stored.</p>
       </section>
 
       <div class="run-row">

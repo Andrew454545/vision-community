@@ -1,5 +1,8 @@
 {
   "name": "vision-community",
   "private": true,
-  "description": "Free-tier public shell. R2 holds sealed community segments only. Not an operational 200M corpus."
+  "description": "Free-tier public shell. R2 holds sealed community segments only. Not an operational 200M corpus.",
+  "dependencies": {
+    "jpeg-js": "^0.4.4"
+  }
 }

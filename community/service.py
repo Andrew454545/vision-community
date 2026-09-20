@@ -13,16 +13,19 @@ import time
 from contextlib import contextmanager
 from pathlib import Path
 
-from .catalog import file_sha256, iter_jobs_from_path, load_jobs
-from .features import MODEL_ID, embedding_for, mean_embeddings, render_faces, sha256_hex
+from .catalog import file_sha256, iter_jobs_from_path, load_jobs, parse_indexer_line
+from .features import MODEL_ID, embedding_for, mean_embeddings, normalize_view_direction, render_faces, sha256_hex, wrap_heading
+from .pano import QUERY_VIEW_CAP, ViewError, render_location_faces, uses_street_views
 from .mma import MMAError, build_map, location_record, parse_map
 from .rank import (
+    MAX_EXCLUDE_LOCATIONS,
     accepts,
     cap_by_country,
     candidate_result_count,
     canonicalize_country,
     clamp_max_per_country,
     clamp_result_count,
+    exclude_used,
     normalize_filters,
     prune_nearby,
 )
@@ -30,7 +33,7 @@ from .search import ranked_search, ranked_search_embedding
 from .segments import SegmentRegistry
 from .source import haversine_meters
 from .store import r2_public_status
-from .verify import VerificationError, verify_output
+from .verify import VerificationError, locations_to_recompute, verify_output
 
 
 DEFAULT_SEARCH_COST = 100_000
@@ -54,6 +57,47 @@ def fixture_index_text(label: str) -> str:
 def fixture_output(asset_id: str, capture: str, lane: str, model: str, index_text: str) -> str:
     message = f"VISION-FIXTURE-V2\n{asset_id}\n{capture}\n{lane}\n{model}\n{index_text}"
     return hashlib.sha256(message.encode("utf-8")).hexdigest()
+
+
+def _exclude_points(exclude_map) -> list[dict]:
+    if exclude_map is None:
+        return []
+    if isinstance(exclude_map, list):
+        rows = exclude_map
+    elif isinstance(exclude_map, dict):
+        if isinstance(exclude_map.get("customCoordinates"), list):
+            rows = exclude_map["customCoordinates"]
+        elif isinstance(exclude_map.get("locations"), list):
+            rows = exclude_map["locations"]
+        elif isinstance(exclude_map.get("coordinates"), list):
+            rows = exclude_map["coordinates"]
+        else:
+            rows = []
+    else:
+        raise ServiceError("invalid_mma_map")
+    points = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        pano = row.get("panoId") or row.get("pano_id") or row.get("pano") or ""
+        if isinstance(pano, str) and ("maps.googleapis.com" in pano or pano.startswith("http")):
+            raise ServiceError("imagery_url_forbidden")
+        try:
+            lat = float(row.get("lat") if row.get("lat") is not None else 0)
+            lng = float(row.get("lng") if row.get("lng") is not None else row.get("lon") or 0)
+        except (TypeError, ValueError):
+            continue
+        points.append({"lat": lat, "lng": lng, "panoId": pano if isinstance(pano, str) else ""})
+        if len(points) >= MAX_EXCLUDE_LOCATIONS:
+            break
+    return points
+
+
+def _exclude_key(excluded: list[dict]) -> str:
+    if not excluded:
+        return ""
+    payload = json.dumps(excluded, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    return ":exclude:" + sha256_hex(payload)[:16]
 
 
 class CommunityService:
@@ -166,6 +210,10 @@ class CommunityService:
         for name, decl in additions.items():
             if name not in location_cols:
                 connection.execute(f"ALTER TABLE locations ADD COLUMN {name} {decl}")
+        connection.execute(
+            """CREATE INDEX IF NOT EXISTS locations_nearby
+               ON locations (lane, capture, model, lat, lon)"""
+        )
         account_cols = {row[1] for row in connection.execute("PRAGMA table_info(accounts)")}
         if "recovery_hash" not in account_cols:
             connection.execute("ALTER TABLE accounts ADD COLUMN recovery_hash TEXT")
@@ -194,6 +242,35 @@ class CommunityService:
                     imported_at INTEGER NOT NULL
                )"""
         )
+        connection.execute(
+            """CREATE TABLE IF NOT EXISTS pose_catalog (
+                    lane TEXT NOT NULL,
+                    shard_id INTEGER NOT NULL,
+                    r2_key TEXT NOT NULL,
+                    row_start INTEGER NOT NULL,
+                    row_count INTEGER NOT NULL,
+                    bytes INTEGER NOT NULL,
+                    sha256 TEXT NOT NULL,
+                    next_byte INTEGER NOT NULL DEFAULT 0,
+                    next_row INTEGER NOT NULL DEFAULT 0,
+                    PRIMARY KEY (lane, shard_id)
+               )"""
+        )
+        catalog_sql = connection.execute(
+            "SELECT sql FROM sqlite_master WHERE name='pose_catalog'"
+        ).fetchone()
+        if catalog_sql and catalog_sql[0] and "r2_key TEXT NOT NULL UNIQUE" in catalog_sql[0]:
+            connection.execute(
+                """CREATE TABLE pose_catalog_v2 (
+                    lane TEXT NOT NULL, shard_id INTEGER NOT NULL, r2_key TEXT NOT NULL,
+                    row_start INTEGER NOT NULL, row_count INTEGER NOT NULL, bytes INTEGER NOT NULL,
+                    sha256 TEXT NOT NULL, next_byte INTEGER NOT NULL DEFAULT 0,
+                    next_row INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (lane, shard_id)
+                )"""
+            )
+            connection.execute("INSERT OR IGNORE INTO pose_catalog_v2 SELECT * FROM pose_catalog")
+            connection.execute("DROP TABLE pose_catalog")
+            connection.execute("ALTER TABLE pose_catalog_v2 RENAME TO pose_catalog")
 
     @contextmanager
     def _connection(self):
@@ -291,6 +368,14 @@ class CommunityService:
                        FROM locations GROUP BY lane"""
                 )
             }
+            for row in connection.execute(
+                """SELECT lane, SUM(row_count - next_row) AS remaining
+                   FROM pose_catalog GROUP BY lane"""
+            ):
+                lane_counts = counts.setdefault(row["lane"], {"pending": 0, "published": 0})
+                remaining = int(row["remaining"] or 0)
+                lane_counts["catalogRemaining"] = remaining
+                lane_counts["pending"] = int(lane_counts.get("pending") or 0) + remaining
             visual_published = connection.execute(
                 "SELECT COUNT(*) FROM published_index WHERE embedding IS NOT NULL"
             ).fetchone()[0]
@@ -478,6 +563,179 @@ class CommunityService:
                 )
         return {"imported": total, "sha256": digest, "skipped": False}
 
+    def install_pose_catalog(self, manifest: dict, *, source_dir: Path) -> dict:
+        """Register pose shards. Pending rows stay in the shard files, not SQLite."""
+        if not isinstance(manifest, dict) or manifest.get("contract") != "vision-community-pose-catalog-v1":
+            raise ServiceError("invalid_catalog")
+        lane = manifest.get("lane") or "scene"
+        if lane not in UNITS_PER_LOCATION:
+            raise ServiceError("invalid_lane")
+        source_dir = Path(source_dir)
+        shards = manifest.get("shards")
+        if not isinstance(shards, list) or not shards:
+            raise ServiceError("invalid_catalog")
+        installed = 0
+        with self._connection() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            connection.execute("DELETE FROM pose_catalog WHERE lane=?", (lane,))
+            for shard in shards:
+                name = shard["file"]
+                key = shard["key"]
+                src = source_dir / name
+                if not src.is_file():
+                    raise ServiceError("invalid_catalog")
+                dest = self.artifacts / key
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                dest.write_bytes(src.read_bytes())
+                connection.execute(
+                    """INSERT INTO pose_catalog
+                       (lane, shard_id, r2_key, row_start, row_count, bytes, sha256)
+                       VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                    (
+                        lane,
+                        int(shard["shardId"]),
+                        key,
+                        int(shard["rowStart"]),
+                        int(shard["rows"]),
+                        int(shard["bytes"]),
+                        shard["sha256"],
+                    ),
+                )
+                installed += 1
+        return {"lane": lane, "shards": installed, "rows": int(manifest.get("totalRows") or 0)}
+
+    def append_pose_catalog(self, manifest: dict, *, source_dir: Path, lanes: tuple[str, ...] | None = None) -> dict:
+        if not isinstance(manifest, dict) or manifest.get("contract") != "vision-community-pose-catalog-v1":
+            raise ServiceError("invalid_catalog")
+        lanes = lanes or (manifest.get("lane") or "scene",)
+        source_dir = Path(source_dir)
+        shards = manifest.get("shards")
+        if not isinstance(shards, list) or not shards:
+            raise ServiceError("invalid_catalog")
+        installed = 0
+        with self._connection() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            for lane in lanes:
+                if lane not in UNITS_PER_LOCATION:
+                    raise ServiceError("invalid_lane")
+                for shard in shards:
+                    name = shard["file"]
+                    key = shard["key"]
+                    src = source_dir / name
+                    if not src.is_file():
+                        raise ServiceError("invalid_catalog")
+                    dest = self.artifacts / key
+                    dest.parent.mkdir(parents=True, exist_ok=True)
+                    dest.write_bytes(src.read_bytes())
+                    connection.execute(
+                        """INSERT OR IGNORE INTO pose_catalog
+                           (lane, shard_id, r2_key, row_start, row_count, bytes, sha256)
+                           VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                        (
+                            lane,
+                            int(shard["shardId"]),
+                            key,
+                            int(shard["rowStart"]),
+                            int(shard["rows"]),
+                            int(shard["bytes"]),
+                            shard["sha256"],
+                        ),
+                    )
+                    installed += 1
+        return {"lanes": list(lanes), "shards": installed, "rows": int(manifest.get("totalRows") or 0)}
+
+    def _materialize_pose_catalog(
+        self,
+        connection: sqlite3.Connection,
+        lane: str,
+        count: int,
+        now: int,
+    ) -> list:
+        claimed = []
+        attempts = 0
+        while len(claimed) < count and attempts < 32:
+            attempts += 1
+            shard = connection.execute(
+                """SELECT * FROM pose_catalog
+                   WHERE lane=? AND next_row < row_count
+                   ORDER BY shard_id LIMIT 1""",
+                (lane,),
+            ).fetchone()
+            if shard is None:
+                break
+            path = self.artifacts / shard["r2_key"]
+            data = path.read_bytes() if path.is_file() else b""
+            start = int(shard["next_byte"])
+            if not data or start >= len(data):
+                connection.execute(
+                    "UPDATE pose_catalog SET next_byte=?, next_row=row_count WHERE lane=? AND shard_id=?",
+                    (len(data), lane, shard["shard_id"]),
+                )
+                continue
+            needed = count - len(claimed)
+            chunk = data[start : start + max(8192, needed * 256)]
+            text = chunk.decode("utf-8")
+            consumed = 0
+            jobs = []
+            while len(jobs) < needed:
+                newline = text.find("\n", consumed)
+                if newline < 0:
+                    break
+                raw = text[consumed:newline]
+                consumed = newline + 1
+                job = parse_indexer_line(raw, lane=lane)
+                if job is not None:
+                    jobs.append(job)
+            if consumed == 0:
+                connection.execute(
+                    "UPDATE pose_catalog SET next_row=row_count, next_byte=? WHERE lane=? AND shard_id=?",
+                    (len(data), lane, shard["shard_id"]),
+                )
+                continue
+            changed = connection.execute(
+                """UPDATE pose_catalog SET next_byte=next_byte+?, next_row=next_row+?
+                   WHERE lane=? AND shard_id=? AND next_byte=?""",
+                (consumed, len(jobs), lane, shard["shard_id"], start),
+            ).rowcount
+            if changed != 1:
+                continue
+            for job in jobs:
+                connection.execute(
+                    """INSERT OR IGNORE INTO locations
+                       (asset_id, capture, lane, model, label, source, rights, attribution,
+                        lat, lon, heading, pitch, zoom, country, camera_generation, queue_state)
+                       VALUES (?, ?, ?, ?, '', 'street-metadata', 'metadata-only-no-imagery',
+                               'Panorama metadata only. Imagery is not stored.',
+                               ?, ?, ?, ?, ?, ?, ?, 'pending')""",
+                    (
+                        job["assetId"],
+                        job["capture"],
+                        job["lane"],
+                        job["model"],
+                        job["lat"],
+                        job["lon"],
+                        job.get("heading") or 0,
+                        job.get("pitch") or 0,
+                        job.get("zoom") or 0,
+                        job.get("country") or "",
+                        job.get("cameraGeneration") or "",
+                    ),
+                )
+                row = connection.execute(
+                    """SELECT id, asset_id, capture, lane, model, label, generation, source, rights, attribution,
+                              lat, lon, heading, pitch, zoom, country, camera_generation, state, lease_until
+                       FROM locations WHERE asset_id=? AND capture=? AND lane=? AND model=?""",
+                    (job["assetId"], job["capture"], job["lane"], job["model"]),
+                ).fetchone()
+                if row is None or row["state"] == "published":
+                    continue
+                if row["state"] == "leased" and row["lease_until"] and int(row["lease_until"]) > now:
+                    continue
+                claimed.append(row)
+                if len(claimed) >= count:
+                    break
+        return claimed
+
     def lease(
         self,
         account_id: str,
@@ -493,13 +751,34 @@ class CommunityService:
             raise ServiceError("invalid_pace")
         now = int(time.time()) if now is None else now
         expires_at = now + LEASE_SECONDS
-        lease_id = secrets.token_hex(16)
         with self._connection() as connection:
             connection.execute("BEGIN IMMEDIATE")
             # An expired lease loses its claim before any task can be reassigned.
             connection.execute(
                 "UPDATE leases SET state='expired' WHERE state='active' AND expires_at<=?", (now,)
             )
+            existing = connection.execute(
+                """SELECT * FROM leases
+                   WHERE account_id=? AND lane=? AND state='active' AND expires_at>?
+                   ORDER BY expires_at DESC LIMIT 1""",
+                (account_id, lane, now),
+            ).fetchone()
+            if existing is not None:
+                rows = connection.execute(
+                    """SELECT l.* FROM locations l JOIN lease_items i ON i.location_id=l.id
+                       WHERE i.lease_id=? ORDER BY l.id""",
+                    (existing["id"],),
+                ).fetchall()
+                items = self._lease_items(rows, {row["id"]: int(row["generation"] or 0) for row in rows})
+                return {
+                    "leaseId": existing["id"],
+                    "expiresAt": existing["expires_at"],
+                    "pace": existing["pace"] or pace,
+                    "resourceBudget": {"slow": 1, "medium": "cpu/2", "max": "all-cores"}.get(existing["pace"] or pace or "medium"),
+                    "items": items,
+                    "resumed": True,
+                }
+            lease_id = secrets.token_hex(16)
             rows = connection.execute(
                 """SELECT id, asset_id, capture, lane, model, label, generation, source, rights, attribution,
                           lat, lon, heading, pitch, zoom, country, camera_generation
@@ -508,6 +787,10 @@ class CommunityService:
                    ORDER BY id LIMIT ?""",
                 (lane, now, count),
             ).fetchall()
+            if len(rows) < count:
+                extra = self._materialize_pose_catalog(connection, lane, count - len(rows), now)
+                seen = {row["id"] for row in rows}
+                rows = list(rows) + [row for row in extra if row["id"] not in seen][: count - len(rows)]
             if not rows:
                 raise ServiceError("no_available_work", 409)
             generations = []
@@ -528,6 +811,16 @@ class CommunityService:
                 [(lease_id, expires_at, generation, location_id) for generation, location_id in generations],
             )
             generation_by_id = {location_id: generation for generation, location_id in generations}
+        items = self._lease_items(rows, generation_by_id)
+        return {
+            "leaseId": lease_id,
+            "expiresAt": expires_at,
+            "pace": pace,
+            "resourceBudget": {"slow": 1, "medium": "cpu/2", "max": "all-cores"}.get(pace or "medium"),
+            "items": items,
+        }
+
+    def _lease_items(self, rows, generation_by_id: dict) -> list[dict]:
         items = []
         for row in rows:
             item = {
@@ -537,8 +830,8 @@ class CommunityService:
                 "capture": row["capture"],
                 "lane": row["lane"],
                 "model": row["model"],
-                "label": row["label"],
-                "generation": generation_by_id[row["id"]],
+                "label": row["label"] if "label" in row.keys() else "",
+                "generation": generation_by_id.get(row["id"], int(row["generation"] or 0)),
                 "attribution": row["attribution"],
                 "lat": row["lat"],
                 "lng": row["lon"],
@@ -549,17 +842,74 @@ class CommunityService:
                 "cameraGeneration": row["camera_generation"] or "",
                 "persistImagery": False,
             }
-            if row["model"] == MODEL_ID:
-                # Identity checksum only. Pixels stay on the worker; they are not sent or stored.
+            if row["model"] == MODEL_ID and uses_street_views(row["asset_id"]):
+                item["viewStrategy"] = "vision-pano-v1"
+            elif row["model"] == MODEL_ID:
                 faces = render_faces(row["asset_id"], row["capture"], row["lane"], row["model"])
                 item["facesSha256"] = sha256_hex(faces)
             items.append(item)
+        return items
+
+    def release_lease(self, account_id: str, lease_id: str, *, now: int | None = None) -> dict:
+        if not isinstance(lease_id, str) or not lease_id:
+            raise ServiceError("invalid_lease_request")
+        now = int(time.time()) if now is None else now
+        with self._connection() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            lease = connection.execute(
+                "SELECT * FROM leases WHERE id=? AND account_id=?", (lease_id, account_id)
+            ).fetchone()
+            if lease is None:
+                raise ServiceError("unknown_lease", 404)
+            if lease["state"] == "submitted":
+                return {"released": 0, "alreadySubmitted": True}
+            released = connection.execute(
+                """UPDATE locations SET state='pending', active_lease=NULL, lease_until=NULL
+                   WHERE active_lease=? AND state='leased'""",
+                (lease_id,),
+            ).rowcount
+            connection.execute(
+                "UPDATE leases SET state='expired' WHERE id=? AND state='active'", (lease_id,)
+            )
+        return {"released": int(released or 0), "leaseId": lease_id}
+
+    def views(self, account_id: str, params: dict) -> dict:
+        with self._connection() as connection:
+            if connection.execute("SELECT id FROM accounts WHERE id=?", (account_id,)).fetchone() is None:
+                raise ServiceError("unauthorized", 401)
+        pano = params.get("pano") or params.get("panoId")
+        if not isinstance(pano, str) or not 4 <= len(pano) <= 80:
+            raise ServiceError("invalid_pano_id")
+        if "maps.googleapis.com" in pano or pano.startswith("http"):
+            raise ServiceError("imagery_url_forbidden")
+        lane = params.get("lane") or "scene"
+        if lane not in UNITS_PER_LOCATION:
+            raise ServiceError("invalid_lane")
+        try:
+            heading = float(params.get("heading") or 0)
+            pitch = float(params.get("pitch") or 0)
+            zoom = float(params.get("zoom") or 0)
+        except (TypeError, ValueError) as error:
+            raise ServiceError("invalid_pose") from error
+        capture = params.get("capture") if isinstance(params.get("capture"), str) and params.get("capture") else "unknown"
+        try:
+            faces = render_location_faces(
+                {
+                    "panoId": pano,
+                    "capture": capture,
+                    "lane": lane,
+                    "model": MODEL_ID,
+                    "heading": heading,
+                    "pitch": pitch,
+                    "zoom": zoom,
+                }
+            )
+        except ViewError as error:
+            raise ServiceError(error.code, 422) from error
         return {
-            "leaseId": lease_id,
-            "expiresAt": expires_at,
-            "pace": pace,
-            "resourceBudget": {"slow": 1, "medium": "cpu/2", "max": "all-cores"}.get(pace or "medium"),
-            "items": items,
+            "faces": base64.b64encode(faces).decode("ascii"),
+            "persistImagery": False,
+            "viewStrategy": "vision-pano-v1" if uses_street_views(pano) else "identity-seed",
         }
 
     def submit(self, account_id: str, lease_id: str, outputs: list[dict], *, now: int | None = None) -> dict:
@@ -616,13 +966,18 @@ class CommunityService:
             if set(supplied) != {row["id"] for row in items}:
                 raise ServiceError("incomplete_submission")
             verified = {}
+            audit = locations_to_recompute(items)
             for row in items:
                 if row["state"] != "leased" or row["active_lease"] != lease_id:
                     raise ServiceError("lease_lost", 409)
                 payload = supplied[row["id"]]
                 if row["model"] == MODEL_ID:
                     try:
-                        embedding = verify_output({key: row[key] for key in row.keys()}, payload)
+                        embedding = verify_output(
+                            {key: row[key] for key in row.keys()},
+                            payload,
+                            recompute=row["id"] in audit,
+                        )
                     except VerificationError as error:
                         raise ServiceError(error.code, 422) from error
                     verified[row["id"]] = {
@@ -713,6 +1068,8 @@ class CommunityService:
         min_score = hits[-1]["score"] if hits else 0.0
         for rank, hit in enumerate(hits, start=1):
             pose = hit.get("pose") or {}
+            view_offset = int(hit.get("viewOffset") or 0) if lane == "scene" else 0
+            heading_offset = view_offset * 90
             if pose.get("panoId"):
                 lat, lng = pose.get("lat") or 0, pose.get("lng") or 0
                 heading, pitch, zoom = pose.get("heading") or 0, pose.get("pitch") or 0, pose.get("zoom") or 0
@@ -736,7 +1093,7 @@ class CommunityService:
                 location_record(
                     lat=lat,
                     lng=lng,
-                    heading=heading,
+                    heading=wrap_heading(heading + heading_offset),
                     pitch=pitch,
                     zoom=zoom,
                     pano_id=pano_id,
@@ -748,6 +1105,7 @@ class CommunityService:
                     camera_generation=camera,
                     processed_locations=processed,
                     min_score=min_score,
+                    heading_offset=heading_offset,
                 )
             )
         return build_map(query_name, coordinates)
@@ -767,6 +1125,8 @@ class CommunityService:
         country_filter_mode: str | None = None,
         countries=None,
         camera_generations=None,
+        view_direction: str | None = None,
+        exclude_map: dict | None = None,
     ) -> dict:
         if not isinstance(idempotency_key, str) or not 8 <= len(idempotency_key) <= 100:
             raise ServiceError("invalid_idempotency_key")
@@ -777,6 +1137,8 @@ class CommunityService:
         )
         if country_mode == "include" and not selected_countries:
             raise ServiceError("invalid_country_filter")
+        direction = normalize_view_direction(view_direction, lane)
+        excluded = _exclude_points(exclude_map)
         visual = query_faces is not None or query_map is not None
         query_name = output_name.strip() if isinstance(output_name, str) and output_name.strip() else "VISION Community"
         parsed = None
@@ -786,11 +1148,21 @@ class CommunityService:
             except MMAError as error:
                 raise ServiceError(error.code) from error
             query_name = output_name.strip() if isinstance(output_name, str) and output_name.strip() else parsed["name"]
-            query_key = "mma:" + query_name + ":" + lane + ":" + ",".join(example["panoId"] for example in parsed["examples"])
+            query_key = (
+                "mma:"
+                + query_name
+                + ":"
+                + lane
+                + ":"
+                + direction
+                + ":"
+                + ",".join(example["panoId"] for example in parsed["examples"])
+                + _exclude_key(excluded)
+            )
         elif query_faces is not None:
             if not isinstance(query_faces, (bytes, bytearray)):
                 raise ServiceError("invalid_query")
-            query_key = "visual:" + sha256_hex(bytes(query_faces)) + ":" + lane
+            query_key = "visual:" + sha256_hex(bytes(query_faces)) + ":" + lane + ":" + direction + _exclude_key(excluded)
         else:
             if not isinstance(query, str) or not 1 <= len(query.strip()) <= 200:
                 raise ServiceError("invalid_query")
@@ -816,8 +1188,11 @@ class CommunityService:
                 overfetch = candidate_result_count(result_count, max_per_country)
                 accept = lambda record: accepts(record, country_mode, selected_countries, selected_generations)
                 if parsed is not None:
+                    examples = parsed["examples"]
+                    if any(uses_street_views(example["panoId"]) for example in examples):
+                        examples = examples[:QUERY_VIEW_CAP]
                     vectors = []
-                    for example in parsed["examples"]:
+                    for example in examples:
                         row = connection.execute(
                             """SELECT capture FROM locations
                                WHERE asset_id=? AND lane=?
@@ -826,18 +1201,44 @@ class CommunityService:
                             (example["panoId"], lane),
                         ).fetchone()
                         capture = row["capture"] if row is not None else example["capture"]
-                        vectors.append(
-                            embedding_for(lane, render_faces(example["panoId"], capture, lane, MODEL_ID))
-                        )
+                        try:
+                            faces = render_location_faces(
+                                {
+                                    "panoId": example["panoId"],
+                                    "capture": capture,
+                                    "lane": lane,
+                                    "model": MODEL_ID,
+                                    "heading": example.get("heading") or 0,
+                                    "pitch": example.get("pitch") or 0,
+                                    "zoom": example.get("zoom") or 0,
+                                }
+                            )
+                        except ViewError as error:
+                            raise ServiceError(error.code, 422) from error
+                        vectors.append(embedding_for(lane, faces))
                     query_embedding = mean_embeddings(vectors)
                     matches = ranked_search_embedding(
-                        self.registry, lane, query_embedding, limit=overfetch, accept=accept
+                        self.registry,
+                        lane,
+                        query_embedding,
+                        limit=overfetch,
+                        accept=accept,
+                        view_direction=direction,
                     )
                 else:
                     matches = ranked_search(
-                        self.registry, lane, bytes(query_faces), limit=overfetch, accept=accept
+                        self.registry,
+                        lane,
+                        bytes(query_faces),
+                        limit=overfetch,
+                        accept=accept,
+                        view_direction=direction,
                     )
-                matches = cap_by_country(prune_nearby(matches), result_count, max_per_country)
+                matches = cap_by_country(
+                    prune_nearby(exclude_used(matches, excluded)),
+                    result_count,
+                    max_per_country,
+                )
                 mma = self._mma_map(connection, matches, query_name=query_name, lane=lane)
                 result_demo = False
             else:

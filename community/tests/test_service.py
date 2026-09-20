@@ -160,6 +160,70 @@ class CommunityServiceTest(unittest.TestCase):
             connection.execute("UPDATE accounts SET units=units+1 WHERE id=?", (self.first["accountId"],))
         self.assertIn("credit_ledger_mismatch", audit(self.service.database)["issues"])
 
+    def test_second_lease_resumes_the_active_batch(self):
+        first = self.service.lease(self.first["accountId"], "scene", 4)
+        second = self.service.lease(self.first["accountId"], "scene", 4)
+        self.assertEqual(first["leaseId"], second["leaseId"])
+        self.assertTrue(second.get("resumed"))
+        self.assertEqual(
+            {item["locationId"] for item in first["items"]},
+            {item["locationId"] for item in second["items"]},
+        )
+
+    def test_release_returns_unsubmitted_work(self):
+        lease = self.service.lease(self.first["accountId"], "scene", 4)
+        released = self.service.release_lease(self.first["accountId"], lease["leaseId"])
+        self.assertEqual(released["released"], 4)
+        again = self.service.lease(self.second["accountId"], "scene", 4)
+        self.assertEqual(
+            {item["locationId"] for item in lease["items"]},
+            {item["locationId"] for item in again["items"]},
+        )
+
+
+class PoseCatalogLeaseTest(unittest.TestCase):
+    def test_lease_reads_shards_instead_of_preloading_sqlite(self):
+        from community.all_locations_tail import split_shards
+
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            source = root / "tail.tsv"
+            lines = []
+            for index in range(4):
+                lines.append(
+                    "\t".join(
+                        (
+                            "map",
+                            str(index),
+                            "10.0",
+                            "20.0",
+                            "90",
+                            "0",
+                            "0",
+                            f"CatalogPano{index:016d}",
+                            "Italy",
+                            "gen4",
+                            "no road name",
+                        )
+                    )
+                )
+            source.write_text("\n".join(lines) + "\n", encoding="utf-8")
+            shards = root / "shards"
+            manifest = split_shards(source, shards, rows_per_shard=2, row_start=1000)
+            service = CommunityService(root / "db.sqlite", search_cost=4, artifacts=root / "artifacts")
+            report = service.install_pose_catalog(manifest, source_dir=shards)
+            self.assertEqual(report["rows"], 4)
+            status = service.status()
+            self.assertEqual(status["counts"]["scene"]["pending"], 4)
+            self.assertEqual(status["counts"]["scene"]["catalogRemaining"], 4)
+            account = service.create_account()
+            lease = service.lease(account["accountId"], "scene", 3)
+            self.assertEqual(len(lease["items"]), 3)
+            self.assertTrue(all(item["assetId"].startswith("CatalogPano") for item in lease["items"]))
+            after = service.status()
+            self.assertEqual(after["counts"]["scene"]["catalogRemaining"], 1)
+            self.assertEqual(after["counts"]["scene"]["pending"], 4)
+
 
 if __name__ == "__main__":
     unittest.main()

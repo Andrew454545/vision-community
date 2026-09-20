@@ -16,8 +16,11 @@ pose metadata only.
 - Sealed, checksummed segments with atomic registry publication.
 - Credits, leases, and search authorization in trusted server code.
 
-Pixels exist only in RAM while a volunteer (or the verifier) processes a
-location. JPEG/PNG bytes, tile URLs, and API keys are rejected by the importer.
+Pixels exist only in RAM while a volunteer processes a location. JPEG/PNG
+bytes, tile URLs, and API keys are rejected by the importer. The recommended
+indexer is `python3 -m community.contribute`, which fetches Street View on the
+volunteer machine. The Worker audits one Street View location per submitted
+batch.
 
 ## Search output
 
@@ -58,5 +61,6 @@ engine.
 
 ## Verification
 
-Every credited `community-visual-v1` embedding is recomputed from the canonical
-pano identity without writing imagery to disk. That is not RF-DETR/OWLv2.
+Invented test panos are always recomputed from the identity-seed extractor.
+Street View batches are processed on volunteer machines; the Worker re-fetches
+one location per lease as an audit. That is not RF-DETR/OWLv2.
