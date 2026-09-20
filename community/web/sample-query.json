@@ -1,14 +1,14 @@
 {
-  "name": "Berkeley reference",
+  "name": "Sri Lanka reference",
   "customCoordinates": [
     {
-      "lat": 37.869085,
-      "lng": -122.254775,
-      "heading": 270,
+      "lat": 8.467832846260496,
+      "lng": 80.17900048897894,
+      "heading": 195.83,
       "pitch": 0,
       "zoom": 0,
-      "panoId": "PrototypeBerkeleyCA000001",
-      "extra": { "panoDate": "2019-06", "tags": ["USA"] }
+      "panoId": "iCpOERm3I_1uyE8VFk40eA",
+      "extra": { "panoDate": "2021-07", "tags": ["Sri Lanka"] }
     }
   ]
 }

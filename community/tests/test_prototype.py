@@ -19,7 +19,7 @@ from community.worker import ProcessingWorker
 
 ROOT = Path(__file__).resolve().parents[1]
 PROTOTYPE = ROOT / "prototype_catalog.json"
-SAMPLE = ROOT / "web" / "sample-query.json"
+SAMPLE = ROOT / "web" / "prototype-query.json"
 
 
 class PrototypeLoopTest(unittest.TestCase):
@@ -216,7 +216,7 @@ class PrototypeHttpTest(unittest.TestCase):
                     data = json.loads(raw.decode("utf-8")) if raw else {}
                     return response, data
 
-                sample, body = request("GET", "/sample-query.json")
+                sample, body = request("GET", "/prototype-query.json")
                 self.assertEqual(sample.status, 200)
                 self.assertEqual(body["customCoordinates"][0]["panoId"], "PrototypeBerkeleyCA000001")
 

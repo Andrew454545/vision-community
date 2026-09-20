@@ -159,33 +159,40 @@ def _first_tsv_line(path: Path) -> str:
     return ""
 
 
+def parse_indexer_line(text: str, *, lane: str = "scene", model: str = MODEL_ID) -> dict | None:
+    """Parse one VISION 11-column indexer row. Empty or header lines are skipped."""
+    text = text.rstrip("\n\r")
+    if not text.strip():
+        return None
+    parts = text.split("\t")
+    if len(parts) != 11:
+        raise SourceError("invalid_catalog")
+    if parts[0] == "map_id" and parts[7] == "pano_id":
+        return None
+    return _metadata_job(
+        {
+            "panoId": parts[7],
+            "lat": parts[2],
+            "lng": parts[3],
+            "heading": parts[4],
+            "pitch": parts[5],
+            "zoom": parts[6],
+            "country": parts[8],
+            "cameraGeneration": parts[9],
+            "capture": "unknown",
+            "lane": lane,
+            "model": model,
+        }
+    )
+
+
 def iter_indexer_tsv(path: Path, *, lane: str = "scene", model: str = MODEL_ID):
     """Yield jobs from VISION's headerless 11-column indexer TSV."""
     with path.open("r", encoding="utf-8") as handle:
         for line in handle:
-            text = line.rstrip("\n\r")
-            if not text.strip():
-                continue
-            parts = text.split("\t")
-            if len(parts) != 11:
-                raise SourceError("invalid_catalog")
-            if parts[0] == "map_id" and parts[7] == "pano_id":
-                continue
-            yield _metadata_job(
-                {
-                    "panoId": parts[7],
-                    "lat": parts[2],
-                    "lng": parts[3],
-                    "heading": parts[4],
-                    "pitch": parts[5],
-                    "zoom": parts[6],
-                    "country": parts[8],
-                    "cameraGeneration": parts[9],
-                    "capture": "unknown",
-                    "lane": lane,
-                    "model": model,
-                }
-            )
+            job = parse_indexer_line(line, lane=lane, model=model)
+            if job is not None:
+                yield job
 
 
 def iter_jobs_from_path(path: Path, *, lane: str = "scene", model: str = MODEL_ID):

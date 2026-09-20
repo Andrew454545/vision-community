@@ -6,9 +6,20 @@ export const FACE_SIZE = 16;
 export const BYTES_PER_FACE = FACE_SIZE * FACE_SIZE * 3;
 export const FACES_BYTES = FACE_COUNT * BYTES_PER_FACE;
 export const SCENE_DIM = 96;
+export const SCENE_FACE_DIM = 16;
 export const OBJECT_PROPOSALS = 16;
 export const OBJECT_DIM = 8;
-export const SEARCH_COST = 4; // prototype: one verified scene batch. Production is 100000.
+export const VIEW_DIRECTION_OFFSETS = {
+  bestOfFour: [0, 1, 2, 3],
+  original: [0],
+  right: [1],
+  opposite: [2],
+  left: [3],
+  originalAxis: [0, 2],
+  sideAxis: [1, 3],
+};
+export const DEFAULT_VIEW_DIRECTION = "bestOfFour";
+export const SEARCH_COST = 100000;
 export const UNITS = { scene: 1, object: 10 };
 export const LEASE_SECONDS = 30 * 60;
 export const MAX_LEASE = 1000;
@@ -145,6 +156,44 @@ export function signedInt8(data) {
   const out = [];
   for (let i = 0; i < data.length; i += 1) out.push(data[i] > 127 ? data[i] - 256 : data[i]);
   return out;
+}
+
+export function normalizeViewDirection(value, lane = "scene") {
+  if (lane !== "scene") return DEFAULT_VIEW_DIRECTION;
+  return value in VIEW_DIRECTION_OFFSETS ? value : DEFAULT_VIEW_DIRECTION;
+}
+
+export function viewOffsetsFor(direction, lane = "scene") {
+  return VIEW_DIRECTION_OFFSETS[normalizeViewDirection(direction, lane)];
+}
+
+export function sceneFace(embedding, offset) {
+  const start = offset * SCENE_FACE_DIM;
+  return embedding.subarray(start, start + SCENE_FACE_DIM);
+}
+
+export function querySavedPan(embedding) {
+  return embedding.length >= SCENE_FACE_DIM ? embedding.subarray(0, SCENE_FACE_DIM) : embedding;
+}
+
+export function bestSceneView(query, embedding, offsets) {
+  const queryFace = querySavedPan(query);
+  const allowed = offsets && offsets.length ? offsets : VIEW_DIRECTION_OFFSETS[DEFAULT_VIEW_DIRECTION];
+  let bestScore = -1;
+  let bestOffset = allowed[0] || 0;
+  for (const offset of allowed) {
+    const score = cosine(queryFace, sceneFace(embedding, offset));
+    if (score > bestScore) {
+      bestScore = score;
+      bestOffset = offset;
+    }
+  }
+  return { score: bestScore, offset: bestOffset };
+}
+
+export function wrapHeading(heading) {
+  const value = Number(heading) % 360;
+  return value < 0 ? value + 360 : value;
 }
 
 export function cosine(a, b) {

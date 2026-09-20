@@ -69,3 +69,15 @@ CREATE TABLE IF NOT EXISTS searches (
   result_json TEXT NOT NULL,
   UNIQUE (account_id, idempotency_key)
 );
+CREATE TABLE IF NOT EXISTS pose_catalog (
+  lane TEXT NOT NULL,
+  shard_id INTEGER NOT NULL,
+  r2_key TEXT NOT NULL,
+  row_start INTEGER NOT NULL,
+  row_count INTEGER NOT NULL,
+  bytes INTEGER NOT NULL,
+  sha256 TEXT NOT NULL,
+  next_byte INTEGER NOT NULL DEFAULT 0,
+  next_row INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (lane, shard_id)
+);

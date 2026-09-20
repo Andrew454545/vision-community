@@ -20,8 +20,21 @@ FACE_SIZE = 16
 BYTES_PER_FACE = FACE_SIZE * FACE_SIZE * 3
 FACES_BYTES = FACE_COUNT * BYTES_PER_FACE
 SCENE_DIM = 96
+SCENE_FACE_DIM = 16
+COMPASS_FACE_COUNT = 4
 OBJECT_PROPOSALS = 16
 OBJECT_DIM = 8
+# Quarter-turns from each map's saved pan, matching VISION.app VisionViewDirection.
+VIEW_DIRECTION_OFFSETS = {
+    "bestOfFour": (0, 1, 2, 3),
+    "original": (0,),
+    "right": (1,),
+    "opposite": (2,),
+    "left": (3,),
+    "originalAxis": (0, 2),
+    "sideAxis": (1, 3),
+}
+DEFAULT_VIEW_DIRECTION = "bestOfFour"
 OBJECT_VECTOR_BYTES = OBJECT_PROPOSALS * OBJECT_DIM
 SCENE_RECORD_BYTES = SCENE_DIM
 OBJECT_RECORD_BYTES = OBJECT_VECTOR_BYTES
@@ -29,7 +42,7 @@ OBJECT_RECORD_BYTES = OBJECT_VECTOR_BYTES
 MODEL_MANIFEST = {
     "id": MODEL_ID,
     "version": MODEL_VERSION,
-    "architecture": "VISION Community: six-face integer descriptors",
+    "architecture": "VISION Community: six-face integer descriptors from Street View views",
     "faceCount": FACE_COUNT,
     "faceSize": FACE_SIZE,
     "sceneDimensions": SCENE_DIM,
@@ -37,9 +50,13 @@ MODEL_MANIFEST = {
     "objectDimensions": OBJECT_DIM,
     "codec": "int8",
     "viewsPerLocation": FACE_COUNT,
+    "sceneViewStrategy": "four-view-compass plus zenith/nadir",
+    "objectViewStrategy": "six-face-cube",
     "notes": (
-        "Independent recomputation of this extractor is a true guarantee for "
-        "this model only. It does not prove RF-DETR, YOLOE, or OWLv2 work."
+        "Scene compass views use heading+0/90/180/270 at the saved pitch and "
+        "thumbnail FOV from zoom. Object views use the six-face cube at 90°. "
+        "Each thumbnail is downsampled to 16×16. Independent recomputation "
+        "fetches the same views ephemerally. This is not RF-DETR, YOLOE, or OWLv2."
     ),
 }
 
@@ -183,6 +200,51 @@ def record_bytes(lane: str) -> int:
 
 def signed_int8(data: bytes) -> list[int]:
     return [b - 256 if b > 127 else b for b in data]
+
+
+def normalize_view_direction(value, lane: str = "scene") -> str:
+    if lane != "scene":
+        return DEFAULT_VIEW_DIRECTION
+    if value in VIEW_DIRECTION_OFFSETS:
+        return value
+    return DEFAULT_VIEW_DIRECTION
+
+
+def view_offsets_for(direction, lane: str = "scene") -> tuple[int, ...]:
+    return VIEW_DIRECTION_OFFSETS[normalize_view_direction(direction, lane)]
+
+
+def scene_face(embedding: bytes, offset: int) -> bytes:
+    start = int(offset) * SCENE_FACE_DIM
+    end = start + SCENE_FACE_DIM
+    if start < 0 or len(embedding) < end:
+        return b""
+    return embedding[start:end]
+
+
+def query_saved_pan(embedding: bytes) -> bytes:
+    """Face 0 is the query map's saved pan."""
+    if len(embedding) >= SCENE_FACE_DIM:
+        return embedding[:SCENE_FACE_DIM]
+    return embedding
+
+
+def best_scene_view(query: bytes, embedding: bytes, offsets) -> tuple[float, int]:
+    query_face = query_saved_pan(query)
+    allowed = tuple(offsets) if offsets else VIEW_DIRECTION_OFFSETS[DEFAULT_VIEW_DIRECTION]
+    best_score = -1.0
+    best_offset = allowed[0] if allowed else 0
+    for offset in allowed:
+        score = cosine(query_face, scene_face(embedding, offset))
+        if score > best_score:
+            best_score = score
+            best_offset = int(offset)
+    return best_score, best_offset
+
+
+def wrap_heading(heading: float) -> float:
+    value = float(heading) % 360.0
+    return value + 360.0 if value < 0 else value
 
 
 def cosine(a: bytes, b: bytes) -> float:

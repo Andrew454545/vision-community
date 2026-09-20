@@ -8,7 +8,7 @@ import json
 from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 
 from .service import CommunityService, ServiceError
 from .source import SourceError
@@ -22,6 +22,7 @@ STATIC = {
     "/visual.js": (WEB / "visual.js", "text/javascript; charset=utf-8"),
     "/style.css": (WEB / "style.css", "text/css; charset=utf-8"),
     "/sample-query.json": (WEB / "sample-query.json", "application/json"),
+    "/prototype-query.json": (WEB / "prototype-query.json", "application/json"),
     "/robots.txt": (WEB / "robots.txt", "text/plain; charset=utf-8"),
 }
 
@@ -100,12 +101,17 @@ def handler_for(service: CommunityService):
             return data
 
         def do_GET(self):
-            route = urlsplit(self.path).path
+            parsed = urlsplit(self.path)
+            route = parsed.path
             try:
                 if route == "/api/status":
                     return self._json(200, service.status())
                 if route == "/api/me":
                     return self._json(200, service.status(self._account()))
+                if route == "/api/views":
+                    self._same_origin()
+                    query = {key: values[-1] for key, values in parse_qs(parsed.query, keep_blank_values=True).items()}
+                    return self._json(200, service.views(self._account(), query))
                 static = STATIC.get(route)
                 if static is None:
                     raise ServiceError("not_found", 404)
@@ -135,6 +141,11 @@ def handler_for(service: CommunityService):
                     )
                     return self._json(200, {"accountId": account["accountId"]}, cookie=session_cookie)
                 account_id = self._account()
+                if route == "/api/leases/release":
+                    return self._json(
+                        200,
+                        service.release_lease(account_id, data.get("leaseId")),
+                    )
                 if route == "/api/leases":
                     return self._json(
                         200,
@@ -158,6 +169,7 @@ def handler_for(service: CommunityService):
                         except (ValueError, TypeError):
                             raise ServiceError("invalid_query")
                     query_map = data.get("queryMap") if isinstance(data.get("queryMap"), dict) else None
+                    exclude_map = data.get("excludeMap") if isinstance(data.get("excludeMap"), (dict, list)) else None
                     return self._json(
                         200,
                         service.search(
@@ -173,6 +185,8 @@ def handler_for(service: CommunityService):
                             country_filter_mode=data.get("countryFilterMode") if isinstance(data.get("countryFilterMode"), str) else "all",
                             countries=data.get("countries") if isinstance(data.get("countries"), list) else [],
                             camera_generations=data.get("cameraGenerations") if isinstance(data.get("cameraGenerations"), list) else [],
+                            view_direction=data.get("viewDirection") if isinstance(data.get("viewDirection"), str) else None,
+                            exclude_map=exclude_map,
                         ),
                     )
                 raise ServiceError("not_found", 404)
@@ -197,6 +211,7 @@ def main():
     search_cost = 4 if args.prototype else 100_000
     if args.demo:
         search_cost = 4
+    # --prototype and --demo are loopback-only. The public Worker is always 100,000.
     service = CommunityService(
         args.db,
         artifacts=args.db.parent / "artifacts",

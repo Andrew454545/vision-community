@@ -5,10 +5,15 @@ const PACE_WORKERS = {
   medium: Math.max(1, Math.floor((navigator.hardwareConcurrency || 2) / 2)),
   max: navigator.hardwareConcurrency || 2,
 };
+const PACE_LEASE = {
+  scene: { slow: 1, medium: 4, max: 8 },
+  object: { slow: 1, medium: 2, max: 4 },
+};
 const ERRORS = {
   no_available_work: "No locations left in this contribute lane. Switch Scene/Objects above Process, or wait for a new catalog.",
-  insufficient_credit: "Not enough units for a search. Process another batch first.",
+  insufficient_credit: "Not enough units for a search. One search costs 100,000 scene locations (or 10,000 object locations). There is no trial or owner bypass.",
   verification_failed: "A location failed verification and was not credited.",
+  view_unavailable: "Street View did not return those panorama views. That location was not credited.",
   expired_lease: "That batch expired. Claim a new one.",
   unauthorized: "Session missing. Create or restore an account.",
   invalid_mma_map: "That file is not a map-making.app JSON with customCoordinates.",
@@ -21,6 +26,15 @@ const ERRORS = {
 };
 
 const ALL_GENERATIONS = ["badcam", "gen1", "gen2", "gen3", "gen4", "trekker"];
+const VIEW_DIRECTION_LABELS = {
+  bestOfFour: "Best of available views",
+  original: "Saved pan (0°)",
+  opposite: "Opposite saved pan (180°)",
+  right: "Right of saved pan (+90°)",
+  left: "Left of saved pan (+270°)",
+  originalAxis: "Saved axis (0° / 180°)",
+  sideAxis: "Cross-axis (+90° / +270°)",
+};
 
 let signedIn = false;
 let state = null;
@@ -42,6 +56,9 @@ function newJob(name) {
     selectedCountries: [],
     generations: ALL_GENERATIONS.slice(),
     countrySearch: "",
+    viewDirection: "bestOfFour",
+    excludeMap: null,
+    excludeName: "",
   };
 }
 
@@ -76,6 +93,7 @@ function saveJobFromForm() {
   job.selectedCountries = selectedCountries();
   job.generations = selectedGenerations();
   job.countrySearch = $("country-search").value;
+  job.viewDirection = $("view-direction").value || "bestOfFour";
 }
 
 function applyJobToForm(job) {
@@ -89,6 +107,9 @@ function applyJobToForm(job) {
     input.checked = (job.generations || ALL_GENERATIONS).includes(input.value);
   });
   $("job-title").textContent = job.name;
+  $("view-direction").value = job.viewDirection || "bestOfFour";
+  $("exclude-file-name").textContent = job.excludeName || "No previous map";
+  updateViewDirection();
   renderCountries();
   updateFilterHelp();
 }
@@ -156,8 +177,42 @@ function updateFilterHelp() {
   }
 }
 
+function updateViewDirection() {
+  const scene = selectedLane() === "scene";
+  $("view-direction-block").hidden = !scene;
+  $("view-direction").disabled = !scene;
+}
+
 function explain(error) {
   return ERRORS[error.message] || error.message;
+}
+
+async function copyText(text, highlight) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    const area = document.createElement("textarea");
+    area.value = text;
+    area.setAttribute("readonly", "");
+    area.style.position = "fixed";
+    area.style.left = "-9999px";
+    document.body.appendChild(area);
+    area.select();
+    try {
+      if (document.execCommand("copy")) return true;
+    } finally {
+      area.remove();
+    }
+  }
+  if (highlight) {
+    const range = document.createRange();
+    range.selectNodeContents(highlight);
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }
+  return false;
 }
 
 async function api(path, method = "GET", body = null) {
@@ -184,6 +239,19 @@ function pendingFor(lane) {
   return Number((state?.counts && state.counts[lane] && state.counts[lane].pending) || 0);
 }
 
+function cliCommand() {
+  const origin = window.location.origin;
+  const lane = selectedProcessLane();
+  const pace = document.querySelector('input[name="pace"]:checked')?.value || "medium";
+  const code = lastRecovery || $("recovery-code")?.value.trim() || "YOUR_CODE";
+  return `python3 -m community.contribute --url ${origin} --lane ${lane} --pace ${pace} --recovery-code ${code}`;
+}
+
+function updateCliCommand() {
+  const node = $("cli-command");
+  if (node) node.textContent = cliCommand();
+}
+
 function updateQueue() {
   const scene = pendingFor("scene");
   const object = pendingFor("object");
@@ -205,7 +273,10 @@ function renderJobs() {
     const title = document.createElement("span");
     title.append(job.name);
     const meta = document.createElement("small");
-    meta.textContent = `${job.lane} search`;
+    const direction = job.lane === "scene"
+      ? VIEW_DIRECTION_LABELS[job.viewDirection || "bestOfFour"]
+      : "Objects";
+    meta.textContent = `${job.lane} · ${direction}`;
     title.append(meta);
     item.append(dot, title);
     item.addEventListener("click", () => {
@@ -282,10 +353,24 @@ async function refresh() {
   const scene = state.counts.scene || { pending: 0, published: 0 };
   const object = state.counts.object || { pending: 0, published: 0 };
   const indexed = (scene.published || 0) + (object.published || 0);
-  $("index-label").textContent = `${number(indexed)} indexed locations · prototype corpus`;
+  const pending = (scene.pending || 0) + (object.pending || 0);
+  $("index-label").textContent = `${number(indexed)} indexed · ${number(pending)} queued`;
   $("search-cost").textContent = number(state.searchCost);
   $("units").textContent = number(state.units || 0);
   $("searches-available").textContent = number(state.searchesAvailable || 0);
+  const need = Math.max(0, Number(state.searchCost || 0) - Number(state.units || 0));
+  if ($("units-need")) {
+    $("units-need").textContent = need === 0
+      ? "search unlocked"
+      : `${number(need)} more until a search`;
+  }
+  if (!signedIn) {
+    $("search-status").textContent = "Earn units to unlock a search.";
+  } else if (!lastMap) {
+    $("search-status").textContent = need === 0
+      ? `Search unlocked (${number(state.searchesAvailable || 0)} available).`
+      : `${number(need)} more units until a search.`;
+  }
   $("create-account").hidden = signedIn;
   $("pause").disabled = !signedIn;
   $("account-chip").textContent = signedIn ? `Account ${state.accountId.slice(0, 8)}` : "Not signed in";
@@ -298,6 +383,7 @@ async function refresh() {
   renderCountries();
   updateFilterHelp();
   updateReady();
+  updateCliCommand();
 }
 
 async function mapPool(items, limit, mapper) {
@@ -336,12 +422,20 @@ document.querySelectorAll('input[name="mode"]').forEach((input) => {
   input.addEventListener("change", () => {
     const job = jobs.find((item) => item.id === selectedJob);
     if (job) job.lane = selectedLane();
+    updateViewDirection();
     renderJobs();
   });
 });
 
 document.querySelectorAll('input[name="process-lane"]').forEach((input) => {
-  input.addEventListener("change", updateQueue);
+  input.addEventListener("change", () => {
+    updateQueue();
+    updateCliCommand();
+  });
+});
+
+document.querySelectorAll('input[name="pace"]').forEach((input) => {
+  input.addEventListener("change", updateCliCommand);
 });
 
 document.querySelectorAll('input[name="generation"]').forEach((input) => {
@@ -394,8 +488,11 @@ $("clear-countries").addEventListener("click", () => {
   updateReady();
 });
 
-["result-count", "max-per-country"].forEach((id) => {
-  $(id).addEventListener("change", saveJobFromForm);
+["result-count", "max-per-country", "view-direction"].forEach((id) => {
+  $(id).addEventListener("change", () => {
+    saveJobFromForm();
+    renderJobs();
+  });
 });
 
 $("create-account").addEventListener("click", async () => {
@@ -407,7 +504,8 @@ $("create-account").addEventListener("click", async () => {
     $("recovery-once").hidden = false;
     $("recovery-once-text").textContent = `Save this recovery code now. It will not be shown again: ${lastRecovery}`;
     await refresh();
-    $("process-status").textContent = "Ready for an exclusive batch.";
+    $("process-status").textContent = "Ready. Prefer the CLI on this computer for real volume.";
+    updateCliCommand();
   } catch (error) {
     $("process-status").textContent = `Account error: ${explain(error)}`;
     button.disabled = false;
@@ -422,13 +520,15 @@ $("dismiss-recovery").addEventListener("click", () => {
 
 $("copy-recovery").addEventListener("click", async () => {
   if (!lastRecovery) return;
-  try {
-    await navigator.clipboard.writeText(lastRecovery);
-    $("copy-recovery").textContent = "Copied";
-  } catch {
-    $("copy-recovery").textContent = "Copy failed";
-  }
+  $("copy-recovery").textContent = await copyText(lastRecovery, $("recovery-once-text")) ? "Copied" : "Selected — press ⌘C / Ctrl+C";
 });
+
+$("copy-cli").addEventListener("click", async () => {
+  updateCliCommand();
+  $("copy-cli").textContent = await copyText(cliCommand(), $("cli-command")) ? "Copied" : "Selected — press ⌘C / Ctrl+C";
+});
+
+$("recovery-code").addEventListener("input", updateCliCommand);
 
 $("recover-form").addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -437,6 +537,7 @@ $("recover-form").addEventListener("submit", async (event) => {
     $("recovery-once").hidden = true;
     await refresh();
     $("process-status").textContent = "Session restored.";
+    updateCliCommand();
   } catch (error) {
     $("process-status").textContent = `Recovery stopped: ${explain(error)}`;
   }
@@ -455,17 +556,40 @@ $("process").addEventListener("click", async () => {
   const lane = selectedProcessLane();
   const pace = document.querySelector('input[name="pace"]:checked').value;
   const workers = PACE_WORKERS[pace];
+  const count = PACE_LEASE[lane][pace];
+  let acceptedTotal = 0;
+  let unitsTotal = 0;
+  let currentLeaseId = null;
   try {
-    const lease = await api("/api/leases", "POST", { lane, count: lane === "scene" ? 4 : 1, pace });
-    const outputs = await mapPool(lease.items, workers, async (item, index) => {
-      $("process-status").textContent = `Processing ${index + 1} of ${lease.items.length} with ${workers} worker${workers === 1 ? "" : "s"}…`;
-      return window.VISIONVisual.processItem(item);
-    });
-    const accepted = await api("/api/submissions", "POST", { leaseId: lease.leaseId, outputs });
-    $("process-status").textContent = `${accepted.accepted} locations verified and published. +${accepted.unitsEarned} units.`;
-    await refresh();
+    while (!pauseRequested) {
+      const lease = await api("/api/leases", "POST", { lane, count, pace });
+      currentLeaseId = lease.leaseId;
+      let processed = 0;
+      const outputs = await mapPool(lease.items, workers, async (item) => {
+        processed += 1;
+        $("process-status").textContent = `Processing ${acceptedTotal + processed} (${processed} of ${lease.items.length} in this lease) with ${workers} worker${workers === 1 ? "" : "s"}…`;
+        return window.VISIONVisual.processItem(item);
+      });
+      const accepted = await api("/api/submissions", "POST", { leaseId: lease.leaseId, outputs });
+      currentLeaseId = null;
+      acceptedTotal += accepted.accepted;
+      unitsTotal += accepted.unitsEarned;
+      $("process-status").textContent = `${acceptedTotal} locations verified and published. +${unitsTotal} units.`;
+      await refresh();
+    }
+    $("process-status").textContent = `Paused after ${acceptedTotal} locations. +${unitsTotal} units.`;
   } catch (error) {
-    $("process-status").textContent = `Processing stopped: ${explain(error)}`;
+    if (currentLeaseId) {
+      await api("/api/leases/release", "POST", { leaseId: currentLeaseId }).catch(() => {});
+      currentLeaseId = null;
+    }
+    if (error.message === "paused") {
+      $("process-status").textContent = `Paused after ${acceptedTotal} locations. +${unitsTotal} units.`;
+    } else if (error.message === "no_available_work" && acceptedTotal) {
+      $("process-status").textContent = `Finished remaining work: ${acceptedTotal} locations verified. +${unitsTotal} units.`;
+    } else {
+      $("process-status").textContent = `Processing stopped: ${explain(error)}`;
+    }
   } finally {
     delete button.dataset.busy;
     updateQueue();
@@ -473,6 +597,43 @@ $("process").addEventListener("click", async () => {
 });
 
 $("choose-json").addEventListener("click", () => $("query-map").click());
+
+$("choose-exclude").addEventListener("click", () => $("exclude-map").click());
+
+$("clear-exclude").addEventListener("click", () => {
+  const job = currentJob();
+  if (job) {
+    job.excludeMap = null;
+    job.excludeName = "";
+  }
+  $("exclude-map").value = "";
+  $("exclude-file-name").textContent = "No previous map";
+});
+
+$("exclude-map").addEventListener("change", async () => {
+  const file = $("exclude-map").files[0];
+  if (!file) return;
+  try {
+    const documentMap = JSON.parse(await file.text());
+    const coordinates = coordinatesFrom(documentMap);
+    if (!coordinates.length) throw new Error("invalid_mma_map");
+    const job = currentJob();
+    if (job) {
+      job.excludeMap = Array.isArray(documentMap)
+        ? { name: "Previous map", customCoordinates: documentMap }
+        : documentMap;
+      job.excludeName = file.name;
+    }
+    $("exclude-file-name").textContent = file.name;
+  } catch (error) {
+    const job = currentJob();
+    if (job) {
+      job.excludeMap = null;
+      job.excludeName = "";
+    }
+    $("exclude-file-name").textContent = "That file is not valid map JSON.";
+  }
+});
 
 $("query-map").addEventListener("change", async () => {
   const file = $("query-map").files[0];
@@ -519,6 +680,8 @@ $("run-search").addEventListener("click", async () => {
       idempotencyKey: crypto.randomUUID(),
       lane: selectedLane(),
       queryMap,
+      excludeMap: currentJob()?.excludeMap || undefined,
+      viewDirection: selectedLane() === "scene" ? ($("view-direction").value || "bestOfFour") : undefined,
       outputName: $("output-name").value.trim(),
       resultCount: Number($("result-count").value),
       maxPerCountry: Number($("max-per-country").value),
@@ -537,7 +700,11 @@ $("run-search").addEventListener("click", async () => {
       const title = document.createElement("span");
       title.textContent = hit.panoId || "";
       const detail = document.createElement("small");
-      detail.textContent = `${hit.lat}, ${hit.lng} · rank ${extra.visionRank} · ${extra.visionScore} · ${(extra.tags || []).join(" · ")} · ${extra.visionCameraGeneration || ""}`;
+      const offset = extra.visionHeadingOffset;
+      const offsetLabel = selectedLane() === "scene" && Number.isFinite(offset)
+        ? ` · ${offset}° from saved pan`
+        : "";
+      detail.textContent = `${hit.lat}, ${hit.lng} · heading ${hit.heading}${offsetLabel} · rank ${extra.visionRank} · ${extra.visionScore} · ${(extra.tags || []).join(" · ")} · ${extra.visionCameraGeneration || ""}`;
       item.append(title, detail);
       list.append(item);
     }
@@ -555,6 +722,8 @@ $("run-search").addEventListener("click", async () => {
 $("download-map").addEventListener("click", downloadMap);
 
 renderJobs();
+updateViewDirection();
+updateCliCommand();
 refresh().catch((error) => {
   $("process-status").textContent = `Unable to reach the service: ${explain(error)}`;
 });

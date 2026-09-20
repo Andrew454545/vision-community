@@ -9,7 +9,14 @@ from __future__ import annotations
 
 import heapq
 
-from .features import OBJECT_DIM, cosine, embedding_for, max_region_cosine, scene_embedding
+from .features import (
+    OBJECT_DIM,
+    best_scene_view,
+    embedding_for,
+    max_region_cosine,
+    scene_embedding,
+    view_offsets_for,
+)
 from .segments import SegmentRegistry
 
 
@@ -19,10 +26,10 @@ def query_vector(lane: str, faces: bytes) -> bytes:
     return embedding_for("object", faces)
 
 
-def _score(lane: str, query: bytes, embedding: bytes) -> float:
+def _score(lane: str, query: bytes, embedding: bytes, offsets) -> tuple[float, int]:
     if lane == "object":
-        return max_region_cosine(query[:OBJECT_DIM] if len(query) >= OBJECT_DIM else query, embedding)
-    return cosine(query, embedding)
+        return max_region_cosine(query[:OBJECT_DIM] if len(query) >= OBJECT_DIM else query, embedding), 0
+    return best_scene_view(query, embedding, offsets)
 
 
 def ranked_search_embedding(
@@ -32,22 +39,25 @@ def ranked_search_embedding(
     *,
     limit: int = 25,
     accept=None,
+    view_direction: str | None = None,
 ) -> list[dict]:
     if limit < 1:
         return []
     heap: list[tuple[float, int]] = []
     payloads: dict[int, dict] = {}
     scanned = 0
+    offsets = view_offsets_for(view_direction, lane)
     for record in registry.iter_records(lane, verify=False):
         if accept is not None and not accept(record):
             continue
-        score = _score(lane, query, record["embedding"])
+        score, view_offset = _score(lane, query, record["embedding"], offsets)
         scanned += 1
         location_id = record["locationId"]
         payload = {
             "locationId": location_id,
             "lane": record["lane"],
             "score": round(float(score), 6),
+            "viewOffset": view_offset,
             "segmentId": record["segmentId"],
             "pose": record.get("pose"),
         }
@@ -65,5 +75,20 @@ def ranked_search_embedding(
     return results
 
 
-def ranked_search(registry: SegmentRegistry, lane: str, faces: bytes, *, limit: int = 25, accept=None) -> list[dict]:
-    return ranked_search_embedding(registry, lane, query_vector(lane, faces), limit=limit, accept=accept)
+def ranked_search(
+    registry: SegmentRegistry,
+    lane: str,
+    faces: bytes,
+    *,
+    limit: int = 25,
+    accept=None,
+    view_direction: str | None = None,
+) -> list[dict]:
+    return ranked_search_embedding(
+        registry,
+        lane,
+        query_vector(lane, faces),
+        limit=limit,
+        accept=accept,
+        view_direction=view_direction,
+    )

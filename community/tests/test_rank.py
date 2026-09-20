@@ -60,6 +60,21 @@ class RankHelpersTest(unittest.TestCase):
         pruned = prune_nearby(hits)
         self.assertEqual([hit["pose"]["panoId"] for hit in pruned], ["a", "c"])
 
+    def test_past_locations_are_dropped_within_25m(self):
+        from community.rank import exclude_used
+
+        hits = [
+            {"score": 1.0, "pose": {"panoId": "keep", "lat": 1, "lng": 1}},
+            {"score": 0.9, "pose": {"panoId": "near", "lat": 0, "lng": 0.0001}},
+            {"score": 0.8, "pose": {"panoId": "same", "lat": 10, "lng": 10}},
+        ]
+        excluded = [
+            {"panoId": "same", "lat": 10, "lng": 10},
+            {"panoId": "old", "lat": 0, "lng": 0},
+        ]
+        kept = exclude_used(hits, excluded)
+        self.assertEqual([hit["pose"]["panoId"] for hit in kept], ["keep"])
+
 
 if __name__ == "__main__":
     unittest.main()
