@@ -13,12 +13,23 @@ import time
 from contextlib import contextmanager
 from pathlib import Path
 
-from .catalog import file_sha256, iter_tsv, load_jobs
+from .catalog import file_sha256, iter_jobs_from_path, load_jobs
 from .features import MODEL_ID, embedding_for, mean_embeddings, render_faces, sha256_hex
 from .mma import MMAError, build_map, location_record, parse_map
+from .rank import (
+    accepts,
+    cap_by_country,
+    candidate_result_count,
+    canonicalize_country,
+    clamp_max_per_country,
+    clamp_result_count,
+    normalize_filters,
+    prune_nearby,
+)
 from .search import ranked_search, ranked_search_embedding
 from .segments import SegmentRegistry
 from .source import haversine_meters
+from .store import r2_public_status
 from .verify import VerificationError, verify_output
 
 
@@ -54,6 +65,7 @@ class CommunityService:
         artifacts: Path | None = None,
         segment_capacity: int = 500_000,
         owner_account_id: str | None = None,
+        operational: bool = False,
     ):
         if not isinstance(search_cost, int) or search_cost < 1:
             raise ValueError("search_cost must be a positive integer")
@@ -62,6 +74,7 @@ class CommunityService:
         self.database = Path(database)
         self.database.parent.mkdir(parents=True, exist_ok=True)
         self.search_cost = search_cost
+        self.operational = operational
         self.artifacts = Path(artifacts) if artifacts is not None else self.database.parent / "artifacts"
         self.registry = SegmentRegistry(self.artifacts / "index", capacity=segment_capacity)
         with self._connection() as connection:
@@ -281,14 +294,32 @@ class CommunityService:
             visual_published = connection.execute(
                 "SELECT COUNT(*) FROM published_index WHERE embedding IS NOT NULL"
             ).fetchone()[0]
+            countries = sorted({
+                canonicalize_country(row[0])
+                for row in connection.execute(
+                    """SELECT DISTINCT country FROM locations
+                       WHERE country IS NOT NULL AND country != ''"""
+                )
+                if row[0]
+            })
+            generations = [
+                row[0]
+                for row in connection.execute(
+                    """SELECT DISTINCT camera_generation FROM locations
+                       WHERE camera_generation IS NOT NULL AND camera_generation != ''
+                       ORDER BY camera_generation"""
+                )
+            ]
             result = {
                 "counts": counts,
+                "countries": countries,
+                "cameraGenerations": generations,
                 "searchCost": self.search_cost,
                 "demo": False,
-                "operational": False,
+                "operational": self.operational,
                 "ownerBypass": False,
                 "searchBackend": "local-sealed-segments",
-                "r2": "not_created",
+                "r2": r2_public_status(),
                 "model": MODEL_ID,
                 "visualPublished": visual_published,
                 "publicCorpus": False,
@@ -426,7 +457,7 @@ class CommunityService:
                 return {"imported": 0, "sha256": digest, "skipped": True, "alreadyImported": existing["imported"]}
         total = 0
         batch: list[dict] = []
-        for job in iter_tsv(path, lane=lane):
+        for job in iter_jobs_from_path(path, lane=lane):
             batch.append(job)
             if len(batch) >= batch_size:
                 total += self._insert_jobs(batch)
@@ -721,17 +752,6 @@ class CommunityService:
             )
         return build_map(query_name, coordinates)
 
-    def _cap_countries(self, matches: list[dict], max_per_country: int) -> list[dict]:
-        counts = {}
-        capped = []
-        for hit in matches:
-            country = ((hit.get("pose") or {}).get("country")) or ""
-            if counts.get(country, 0) >= max_per_country:
-                continue
-            counts[country] = counts.get(country, 0) + 1
-            capped.append(hit)
-        return capped
-
     def search(
         self,
         account_id: str,
@@ -741,16 +761,22 @@ class CommunityService:
         query_faces: bytes | None = None,
         query_map: dict | None = None,
         lane: str = "scene",
-        result_count: int = 25,
+        result_count: int = 200,
         max_per_country: int = 25,
         output_name: str | None = None,
+        country_filter_mode: str | None = None,
+        countries=None,
+        camera_generations=None,
     ) -> dict:
         if not isinstance(idempotency_key, str) or not 8 <= len(idempotency_key) <= 100:
             raise ServiceError("invalid_idempotency_key")
-        if type(result_count) is not int or not 1 <= result_count <= 200:
-            result_count = 25
-        if type(max_per_country) is not int or not 1 <= max_per_country <= 200:
-            max_per_country = 25
+        result_count = clamp_result_count(result_count)
+        max_per_country = clamp_max_per_country(max_per_country)
+        country_mode, selected_countries, selected_generations = normalize_filters(
+            country_filter_mode, countries, camera_generations
+        )
+        if country_mode == "include" and not selected_countries:
+            raise ServiceError("invalid_country_filter")
         visual = query_faces is not None or query_map is not None
         query_name = output_name.strip() if isinstance(output_name, str) and output_name.strip() else "VISION Community"
         parsed = None
@@ -787,7 +813,8 @@ class CommunityService:
             if account["units"] < self.search_cost:
                 raise ServiceError("insufficient_credit", 402)
             if visual:
-                overfetch = max(result_count * 8, 25)
+                overfetch = candidate_result_count(result_count, max_per_country)
+                accept = lambda record: accepts(record, country_mode, selected_countries, selected_generations)
                 if parsed is not None:
                     vectors = []
                     for example in parsed["examples"]:
@@ -803,10 +830,14 @@ class CommunityService:
                             embedding_for(lane, render_faces(example["panoId"], capture, lane, MODEL_ID))
                         )
                     query_embedding = mean_embeddings(vectors)
-                    matches = ranked_search_embedding(self.registry, lane, query_embedding, limit=overfetch)
+                    matches = ranked_search_embedding(
+                        self.registry, lane, query_embedding, limit=overfetch, accept=accept
+                    )
                 else:
-                    matches = ranked_search(self.registry, lane, bytes(query_faces), limit=overfetch)
-                matches = self._cap_countries(matches, max_per_country)[:result_count]
+                    matches = ranked_search(
+                        self.registry, lane, bytes(query_faces), limit=overfetch, accept=accept
+                    )
+                matches = cap_by_country(prune_nearby(matches), result_count, max_per_country)
                 mma = self._mma_map(connection, matches, query_name=query_name, lane=lane)
                 result_demo = False
             else:

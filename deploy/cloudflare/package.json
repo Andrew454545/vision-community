@@ -1,5 +1,5 @@
 {
   "name": "vision-community",
   "private": true,
-  "description": "Free-tier public shell. No R2 bucket. Not an operational search corpus."
+  "description": "Free-tier public shell. R2 holds sealed community segments only. Not an operational 200M corpus."
 }

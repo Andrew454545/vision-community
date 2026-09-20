@@ -1,8 +1,13 @@
 # Architecture decision (2026-09-19)
 
-The public product stores **panorama metadata and derived embeddings**, then
-outputs **map-making.app JSON**. It does not persist Street View imagery.
-Users open the JSON on map-making.app, which loads Street View live.
+The public site is a **shared indexing queue**. Volunteers process exclusive
+locations (browser or `python3 -m community.contribute`). Published poses export
+as the 11-column TSV the local VISION indexer already consumes. The owner then
+indexes those rows in VISION.app and searches them there. Browser
+`community-visual-v1` embeddings are a credit proof for the queue; they are not
+merged into the SigLIP / RF-DETR index. Community `import-shard` also accepts
+that same VISION indexer TSV so the established corpus can enter the queue as
+pose metadata only.
 
 ## What is stored
 

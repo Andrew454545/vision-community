@@ -22,6 +22,7 @@ STATIC = {
     "/visual.js": (WEB / "visual.js", "text/javascript; charset=utf-8"),
     "/style.css": (WEB / "style.css", "text/css; charset=utf-8"),
     "/sample-query.json": (WEB / "sample-query.json", "application/json"),
+    "/robots.txt": (WEB / "robots.txt", "text/plain; charset=utf-8"),
 }
 
 
@@ -41,6 +42,8 @@ def handler_for(service: CommunityService):
             self.send_header("X-Content-Type-Options", "nosniff")
             self.send_header("Referrer-Policy", "no-referrer")
             self.send_header("X-Frame-Options", "DENY")
+            self.send_header("X-Robots-Tag", "noindex, nofollow")
+            self.send_header("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
             if cookie is not None:
                 self.send_header("Set-Cookie", cookie)
             self.send_header(
@@ -164,9 +167,12 @@ def handler_for(service: CommunityService):
                             query_faces=query_faces,
                             query_map=query_map,
                             lane=data.get("lane") or "scene",
-                            result_count=data.get("resultCount") if type(data.get("resultCount")) is int else 25,
+                            result_count=data.get("resultCount") if type(data.get("resultCount")) is int else 200,
                             max_per_country=data.get("maxPerCountry") if type(data.get("maxPerCountry")) is int else 25,
                             output_name=data.get("outputName") if isinstance(data.get("outputName"), str) else None,
+                            country_filter_mode=data.get("countryFilterMode") if isinstance(data.get("countryFilterMode"), str) else "all",
+                            countries=data.get("countries") if isinstance(data.get("countries"), list) else [],
+                            camera_generations=data.get("cameraGenerations") if isinstance(data.get("cameraGenerations"), list) else [],
                         ),
                     )
                 raise ServiceError("not_found", 404)
@@ -196,6 +202,7 @@ def main():
         artifacts=args.db.parent / "artifacts",
         segment_capacity=1_000,
         search_cost=search_cost,
+        operational=args.prototype,
     )
     if args.demo:
         fixture = json.loads((ROOT / "demo_catalog.json").read_text(encoding="utf-8"))

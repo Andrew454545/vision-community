@@ -45,6 +45,28 @@ class MetadataCatalogTest(unittest.TestCase):
         self.assertEqual(jobs[0]["rights"], "metadata-only-no-imagery")
 
 
+class MMAMapParseTest(unittest.TestCase):
+    def test_samples_unique_views_like_local_vision(self):
+        rows = [
+            {"panoId": f"Pano{index:03d}", "heading": index, "pitch": 0, "zoom": 0, "lat": 0, "lng": 0}
+            for index in range(150)
+        ]
+        parsed = parse_map({"name": "Wide", "customCoordinates": rows})
+        self.assertEqual(len(parsed["examples"]), 100)
+        self.assertEqual(parsed["examples"][0]["panoId"], "Pano000")
+        self.assertEqual(parsed["examples"][-1]["panoId"], "Pano149")
+
+    def test_accepts_locations_key_and_skips_duplicate_views(self):
+        parsed = parse_map({
+            "locations": [
+                {"pano": "SamePano", "heading": 10, "pitch": 0, "zoom": 0},
+                {"panoId": "SamePano", "heading": 10, "pitch": 0, "zoom": 0},
+                {"pano_id": "OtherPano", "heading": 20},
+            ]
+        })
+        self.assertEqual([item["panoId"] for item in parsed["examples"]], ["SamePano", "OtherPano"])
+
+
 class MMASearchOutputTest(unittest.TestCase):
     def test_search_returns_map_making_json(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -91,6 +113,9 @@ class MMASearchOutputTest(unittest.TestCase):
             self.assertEqual(first["panoId"], "CommunityPano000000000001")
             self.assertEqual(first["extra"]["visionRank"], 1)
             self.assertGreater(first["extra"]["visionScore"], 0.99)
+            self.assertEqual(first["extra"]["tags"], ["Italy"])
+            self.assertEqual(first["extra"]["visionPruneMeters"], 100)
+            self.assertEqual(first["extra"]["visionQueryMode"], "scene")
             self.assertEqual(service.status()["persistImagery"], False)
             pose = result["results"][0]["pose"]
             self.assertEqual(pose["panoId"], "CommunityPano000000000001")

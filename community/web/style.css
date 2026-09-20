@@ -52,6 +52,17 @@ input[type=text],input[type=number],input:not([type]),input[type=file]{width:100
 #output-name,#result-count,#max-per-country,#recovery-code{background:#15191B;border:1px solid var(--line);border-radius:5px;padding:9px 10px;outline:none}
 .split{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:14px}
 .split small{display:block;margin-top:6px;color:var(--muted);font-size:11px}
+.filter-kicker{margin:0 0 8px;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.gen-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px 12px;margin-bottom:8px}
+.gen-grid label{display:flex;gap:8px;align-items:center;font-size:12px}
+.segmented.wide{max-width:none;margin:0 0 10px}
+.country-toolbar{display:flex;gap:8px;margin:0 0 8px;align-items:center}
+.country-toolbar input{flex:1;background:#15191B;border:1px solid var(--line);border-radius:5px;padding:9px 10px;outline:none}
+.country-toolbar .ghost{width:auto;margin:0;white-space:nowrap}
+.country-list{max-height:156px;overflow:auto;background:#15191B;border:1px solid var(--line);border-radius:5px;padding:10px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px 10px}
+.country-list label{display:flex;gap:6px;align-items:center;font-size:12px}
+.country-list.disabled{opacity:.45}
+.country-list .empty{grid-column:1/-1;color:var(--muted);font-size:12px}
 .file-row{display:flex;gap:8px;align-items:center}
 .file-row input[type=file]{flex:1;font-size:12px}
 .file-row .ghost{width:auto;margin:0;white-space:nowrap}
@@ -65,4 +76,4 @@ input[type=text],input[type=number],input:not([type]),input[type=file]{width:100
 .results small{display:block;color:var(--muted);margin-top:3px}
 .statusbar{height:36px;border-top:1px solid var(--line);background:var(--bar);font-size:11px;letter-spacing:0;font-weight:500;color:var(--muted)}
 #download-map{max-width:320px}
-@media(max-width:860px){.workspace{grid-template-columns:1fr;height:auto}.rail{border-right:0;border-bottom:1px solid var(--line)}.jobs{max-height:180px}.split,.run-row{grid-template-columns:1fr;display:grid}}
+@media(max-width:860px){.workspace{grid-template-columns:1fr;height:auto}.rail{border-right:0;border-bottom:1px solid var(--line)}.jobs{max-height:180px}.split,.run-row,.gen-grid,.country-list{grid-template-columns:1fr;display:grid}.country-toolbar{flex-wrap:wrap}}
