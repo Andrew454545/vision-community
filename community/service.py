@@ -753,22 +753,14 @@ class CommunityService:
             max_per_country = 25
         visual = query_faces is not None or query_map is not None
         query_name = output_name.strip() if isinstance(output_name, str) and output_name.strip() else "VISION Community"
-        query_embedding = None
+        parsed = None
         if query_map is not None:
             try:
                 parsed = parse_map(query_map)
             except MMAError as error:
                 raise ServiceError(error.code) from error
             query_name = output_name.strip() if isinstance(output_name, str) and output_name.strip() else parsed["name"]
-            vectors = [
-                embedding_for(
-                    lane,
-                    render_faces(example["panoId"], example["capture"], lane, MODEL_ID),
-                )
-                for example in parsed["examples"]
-            ]
-            query_embedding = mean_embeddings(vectors)
-            query_key = "mma:" + sha256_hex(query_embedding) + ":" + lane
+            query_key = "mma:" + query_name + ":" + lane + ":" + ",".join(example["panoId"] for example in parsed["examples"])
         elif query_faces is not None:
             if not isinstance(query_faces, (bytes, bytearray)):
                 raise ServiceError("invalid_query")
@@ -796,7 +788,21 @@ class CommunityService:
                 raise ServiceError("insufficient_credit", 402)
             if visual:
                 overfetch = max(result_count * 8, 25)
-                if query_embedding is not None:
+                if parsed is not None:
+                    vectors = []
+                    for example in parsed["examples"]:
+                        row = connection.execute(
+                            """SELECT capture FROM locations
+                               WHERE asset_id=? AND lane=?
+                               ORDER BY CASE WHEN state='published' THEN 0 ELSE 1 END, id
+                               LIMIT 1""",
+                            (example["panoId"], lane),
+                        ).fetchone()
+                        capture = row["capture"] if row is not None else example["capture"]
+                        vectors.append(
+                            embedding_for(lane, render_faces(example["panoId"], capture, lane, MODEL_ID))
+                        )
+                    query_embedding = mean_embeddings(vectors)
                     matches = ranked_search_embedding(self.registry, lane, query_embedding, limit=overfetch)
                 else:
                     matches = ranked_search(self.registry, lane, bytes(query_faces), limit=overfetch)

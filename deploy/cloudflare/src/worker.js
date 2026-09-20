@@ -354,7 +354,12 @@ async function search(env, account, body) {
   if (accountRow.units < SEARCH_COST) return error("insufficient_credit", 402);
   const vectors = [];
   for (const example of examples) {
-    const faces = renderFacesFromSeed(await seedBytes(example.panoId, example.capture, lane, MODEL_ID));
+    const indexed = await env.DB.prepare(
+      `SELECT capture FROM locations WHERE asset_id=? AND lane=?
+       ORDER BY CASE WHEN state='published' THEN 0 ELSE 1 END, id LIMIT 1`
+    ).bind(example.panoId, lane).first();
+    const capture = indexed?.capture || example.capture;
+    const faces = renderFacesFromSeed(await seedBytes(example.panoId, capture, lane, MODEL_ID));
     vectors.push(embeddingFor(lane, faces));
   }
   const query = meanEmbeddings(vectors);
