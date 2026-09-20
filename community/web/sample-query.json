@@ -1,0 +1,14 @@
+{
+  "name": "Berkeley reference",
+  "customCoordinates": [
+    {
+      "lat": 37.869085,
+      "lng": -122.254775,
+      "heading": 270,
+      "pitch": 0,
+      "zoom": 0,
+      "panoId": "PrototypeBerkeleyCA000001",
+      "extra": { "panoDate": "2019-06", "tags": ["United States"] }
+    }
+  ]
+}

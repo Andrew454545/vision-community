@@ -6,8 +6,28 @@ The service stores **panorama metadata and embeddings only**, then outputs
 JSON on map-making.app to view the locations.
 
 Each verified scene location earns 1 unit. Each verified object location earns
-10 units. **Every search costs exactly 100,000 units.** New accounts start at
-zero. The owner uses the same index and the same gate as everyone else.
+10 units. Production search costs **100,000 units**. The hosted prototype uses
+**4 units** (one verified scene batch) so the VISION loop can be tried.
+
+## Hosted prototype
+
+https://vision-community.drewjohnburke.workers.dev
+
+This is a working VISION-style workspace: anonymous account, exclusive
+processing, ranked visual search, map-making.app JSON in and out. The corpus is
+a small public-place metadata set, not the local 20.96M VISION index.
+
+1. Create an anonymous account and save the recovery code.
+2. Process a scene batch (slow / medium / max control real device workers).
+3. Load sample JSON (or upload a VISION export).
+4. Search. Rank 1 is the matching reference when that pano is in the index.
+5. Download JSON and open it on [map-making.app](https://map-making.app).
+
+Local equivalent:
+
+```sh
+PYTHONDONTWRITEBYTECODE=1 python3 -m community.server --prototype
+```
 
 ## What works locally
 
@@ -55,11 +75,11 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) and [MEASUREMENTS.md](MEASUREMENTS.md).
 
 ## Remaining owner-only steps
 
-These cannot be finished from this repo without you:
-
 1. A privacy-protected custom domain. The current Worker hostname identifies
    the Cloudflare login.
-2. Approval to create the R2 bucket (last, after the measured budget).
-3. A dedicated search host. Workers Free cannot run 200M ranked search.
-4. The real ~200M metadata catalog path. Do not copy live VISION embeddings.
-5. VISION pixel-model parity (RF-DETR / YOLOE / OWLv2) if that is required.
+2. A dedicated search host before a 200M corpus. This prototype fits Workers +
+   D1; production search will not.
+3. The real ~200M metadata catalog path. Do not copy live VISION embeddings.
+4. VISION pixel-model parity (RF-DETR / YOLOE / OWLv2) if that is required.
+   Prototype search uses `community-visual-v1`.
+5. Restore the 100,000-unit production search cost when the corpus is real.

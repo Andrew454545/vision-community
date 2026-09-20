@@ -95,6 +95,19 @@ class MMASearchOutputTest(unittest.TestCase):
             pose = result["results"][0]["pose"]
             self.assertEqual(pose["panoId"], "CommunityPano000000000001")
             self.assertAlmostEqual(pose["lat"], 41.9, places=4)
+            extra = service.lease(account["accountId"], "object", 1)
+            service.submit(account["accountId"], extra["leaseId"], ProcessingWorker().process_lease(extra))
+            capped = service.search(
+                account["accountId"],
+                None,
+                "mma-search-cap",
+                query_map=query_map,
+                result_count=2,
+                max_per_country=1,
+            )
+            countries = [hit["extra"]["tags"][0] for hit in capped["map"]["customCoordinates"]]
+            self.assertEqual(len(countries), len(set(countries)))
+            self.assertLessEqual(len(countries), 2)
 
 
 class ShardImportAndHttpTest(unittest.TestCase):

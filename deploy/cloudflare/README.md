@@ -1,10 +1,12 @@
-# Cloudflare free-tier shell
+# Cloudflare deploy
 
-This Worker serves the anonymous UI and an honest status endpoint.
-It does **not** host the credit ledger, sealed index, or ranked search.
-
-Do not add `r2_buckets` or create a bucket from here. Do not enable Workers Paid.
+Public VISION-like prototype. D1 holds the ledger and prototype embeddings.
+R2 is not attached.
 
 ```sh
+npx wrangler d1 execute vision-community --remote --file=schema.sql
 npx wrangler deploy
 ```
+
+The Worker seeds a small metadata catalog on first request, verifies volunteer
+embeddings, and returns map-making.app JSON.

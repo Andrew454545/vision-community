@@ -721,6 +721,17 @@ class CommunityService:
             )
         return build_map(query_name, coordinates)
 
+    def _cap_countries(self, matches: list[dict], max_per_country: int) -> list[dict]:
+        counts = {}
+        capped = []
+        for hit in matches:
+            country = ((hit.get("pose") or {}).get("country")) or ""
+            if counts.get(country, 0) >= max_per_country:
+                continue
+            counts[country] = counts.get(country, 0) + 1
+            capped.append(hit)
+        return capped
+
     def search(
         self,
         account_id: str,
@@ -730,18 +741,25 @@ class CommunityService:
         query_faces: bytes | None = None,
         query_map: dict | None = None,
         lane: str = "scene",
+        result_count: int = 25,
+        max_per_country: int = 25,
+        output_name: str | None = None,
     ) -> dict:
         if not isinstance(idempotency_key, str) or not 8 <= len(idempotency_key) <= 100:
             raise ServiceError("invalid_idempotency_key")
+        if type(result_count) is not int or not 1 <= result_count <= 200:
+            result_count = 25
+        if type(max_per_country) is not int or not 1 <= max_per_country <= 200:
+            max_per_country = 25
         visual = query_faces is not None or query_map is not None
-        query_name = "VISION Community"
+        query_name = output_name.strip() if isinstance(output_name, str) and output_name.strip() else "VISION Community"
         query_embedding = None
         if query_map is not None:
             try:
                 parsed = parse_map(query_map)
             except MMAError as error:
                 raise ServiceError(error.code) from error
-            query_name = parsed["name"]
+            query_name = output_name.strip() if isinstance(output_name, str) and output_name.strip() else parsed["name"]
             vectors = [
                 embedding_for(
                     lane,
@@ -777,10 +795,12 @@ class CommunityService:
             if account["units"] < self.search_cost:
                 raise ServiceError("insufficient_credit", 402)
             if visual:
+                overfetch = max(result_count * 8, 25)
                 if query_embedding is not None:
-                    matches = ranked_search_embedding(self.registry, lane, query_embedding, limit=25)
+                    matches = ranked_search_embedding(self.registry, lane, query_embedding, limit=overfetch)
                 else:
-                    matches = ranked_search(self.registry, lane, bytes(query_faces), limit=25)
+                    matches = ranked_search(self.registry, lane, bytes(query_faces), limit=overfetch)
+                matches = self._cap_countries(matches, max_per_country)[:result_count]
                 mma = self._mma_map(connection, matches, query_name=query_name, lane=lane)
                 result_demo = False
             else:
@@ -791,8 +811,8 @@ class CommunityService:
                            JOIN locations l ON l.id=i.location_id
                            WHERE l.state='published' AND i.embedding IS NULL
                              AND instr(i.index_text, ?) > 0
-                           ORDER BY l.id LIMIT 25""",
-                        (fixture_index_text(query_key),),
+                           ORDER BY l.id LIMIT ?""",
+                        (fixture_index_text(query_key), result_count),
                     )
                 ]
                 mma = None

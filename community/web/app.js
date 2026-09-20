@@ -1,9 +1,18 @@
 const $ = (id) => document.getElementById(id);
 const number = (value) => Number(value || 0).toLocaleString();
+const PACE_WORKERS = {
+  slow: 1,
+  medium: Math.max(1, Math.floor((navigator.hardwareConcurrency || 2) / 2)),
+  max: navigator.hardwareConcurrency || 2,
+};
+
 let signedIn = false;
 let state = null;
 let pauseRequested = false;
-const PACE_WORKERS = { slow: 1, medium: Math.max(1, Math.floor((navigator.hardwareConcurrency || 2) / 2)), max: navigator.hardwareConcurrency || 2 };
+let lastMap = null;
+let queryMap = null;
+let jobs = [{ id: crypto.randomUUID(), name: "New search", lane: "scene" }];
+let selectedJob = jobs[0].id;
 
 async function api(path, method = "GET", body = null) {
   const headers = {};
@@ -17,48 +26,61 @@ async function api(path, method = "GET", body = null) {
   return data;
 }
 
+function selectedLane() {
+  return document.querySelector('input[name="mode"]:checked').value;
+}
+
+function renderJobs() {
+  const list = $("jobs");
+  list.replaceChildren();
+  for (const job of jobs) {
+    const item = document.createElement("li");
+    item.className = job.id === selectedJob ? "selected" : "";
+    if (queryMap && job.id === selectedJob) item.classList.add("ready");
+    item.innerHTML = `<span class="dot"></span><span>${job.name}<small>${job.lane} search</small></span>`;
+    item.addEventListener("click", () => {
+      selectedJob = job.id;
+      $("output-name").value = job.name;
+      document.querySelector(`input[name="mode"][value="${job.lane}"]`).checked = true;
+      $("job-title").textContent = job.name;
+      renderJobs();
+      updateReady();
+    });
+    list.append(item);
+  }
+}
+
+function updateReady() {
+  const ready = Boolean(queryMap) && signedIn && Number(state?.units || 0) >= Number(state?.searchCost || Infinity);
+  $("ready-badge").textContent = queryMap ? (ready ? "Ready" : "Needs credit") : "Needs JSON";
+  $("ready-badge").classList.toggle("ok", ready);
+  $("run-search").disabled = !ready;
+  $("job-title").textContent = $("output-name").value.trim() || "New search";
+}
+
 async function refresh() {
   const publicState = await api("/api/status");
   state = await api("/api/me").catch((error) => {
-    if (error.message === "unauthorized") {
-      return publicState;
-    }
+    if (error.message === "unauthorized") return publicState;
     throw error;
   });
   signedIn = Boolean(state.accountId);
   const scene = state.counts.scene || { pending: 0, published: 0 };
   const object = state.counts.object || { pending: 0, published: 0 };
-  $("scene-published").textContent = number(scene.published);
-  $("object-published").textContent = number(object.published);
-  $("work-remaining").textContent = number(scene.pending + object.pending);
+  const indexed = (scene.published || 0) + (object.published || 0);
+  $("index-label").textContent = `${number(indexed)} indexed locations · prototype corpus`;
   $("search-cost").textContent = number(state.searchCost);
   $("units").textContent = number(state.units || 0);
   $("searches-available").textContent = number(state.searchesAvailable || 0);
-  $("account-state").hidden = !signedIn;
-  $("account-id").textContent = state.accountId ? state.accountId.slice(0, 8) : "";
   $("create-account").hidden = signedIn;
   $("process").disabled = !signedIn;
   $("pause").disabled = !signedIn;
-  $("search-form").querySelector("button").disabled = !signedIn || Number(state.units || 0) < state.searchCost;
-  $("build-label").textContent = state.operational ? "Public service" : "Index + JSON only";
-  $("notice-title").textContent = "Index and JSON only";
-  $("notice-body").textContent = "Panorama IDs, pose, and derived embeddings are stored. Street View imagery is not. Download search JSON and open it on map-making.app. Slow, medium, and max change concurrent device work.";
+  $("account-chip").textContent = signedIn ? `Account ${state.accountId.slice(0, 8)}` : "Not signed in";
+  $("build-label").textContent = state.operational ? "Prototype · operational" : "Index + JSON only";
   if (!signedIn) $("process-status").textContent = "Create an account to begin.";
   else if ($("process-status").textContent === "Create an account to begin.")
     $("process-status").textContent = "Ready for an exclusive batch.";
-}
-
-function wait(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }
-
-async function fixtureHash(item) {
-  const indexText = item.label.toLowerCase().trim().replace(/\s+/g, " ");
-  const message = `VISION-FIXTURE-V2\n${item.assetId}\n${item.capture}\n${item.lane}\n${item.model}\n${indexText}`;
-  const bytes = new TextEncoder().encode(message);
-  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
-  return {
-    indexText,
-    outputSha256: Array.from(digest, (byte) => byte.toString(16).padStart(2, "0")).join(""),
-  };
+  updateReady();
 }
 
 async function mapPool(items, limit, mapper) {
@@ -75,6 +97,29 @@ async function mapPool(items, limit, mapper) {
   await Promise.all(Array.from({ length: Math.max(1, Math.min(limit, items.length)) }, worker));
   return outputs;
 }
+
+$("add-job").addEventListener("click", () => {
+  const job = { id: crypto.randomUUID(), name: "New search", lane: selectedLane() };
+  jobs.push(job);
+  selectedJob = job.id;
+  $("output-name").value = job.name;
+  renderJobs();
+});
+
+$("output-name").addEventListener("input", () => {
+  const job = jobs.find((item) => item.id === selectedJob);
+  if (job) job.name = $("output-name").value.trim() || "New search";
+  renderJobs();
+  updateReady();
+});
+
+document.querySelectorAll('input[name="mode"]').forEach((input) => {
+  input.addEventListener("change", () => {
+    const job = jobs.find((item) => item.id === selectedJob);
+    if (job) job.lane = selectedLane();
+    renderJobs();
+  });
+});
 
 $("create-account").addEventListener("click", async () => {
   const button = $("create-account");
@@ -112,17 +157,14 @@ $("process").addEventListener("click", async () => {
   const button = $("process");
   button.disabled = true;
   pauseRequested = false;
-  const lane = $("lane").value;
+  const lane = selectedLane();
   const pace = document.querySelector('input[name="pace"]:checked').value;
   const workers = PACE_WORKERS[pace];
   try {
     const lease = await api("/api/leases", "POST", { lane, count: lane === "scene" ? 4 : 1, pace });
     const outputs = await mapPool(lease.items, workers, async (item, index) => {
       $("process-status").textContent = `Processing ${index + 1} of ${lease.items.length} with ${workers} worker${workers === 1 ? "" : "s"}…`;
-      if (item.model === "community-visual-v1") {
-        return window.VISIONVisual.processItem(item);
-      }
-      return { locationId: item.locationId, ...await fixtureHash(item) };
+      return window.VISIONVisual.processItem(item);
     });
     const accepted = await api("/api/submissions", "POST", { leaseId: lease.leaseId, outputs });
     $("process-status").textContent = `${accepted.accepted} locations verified and published. +${accepted.unitsEarned} units.`;
@@ -134,7 +176,30 @@ $("process").addEventListener("click", async () => {
   }
 });
 
-let lastMap = null;
+$("query-map").addEventListener("change", async () => {
+  const file = $("query-map").files[0];
+  if (!file) return;
+  queryMap = JSON.parse(await file.text());
+  $("file-name").textContent = file.name;
+  if (queryMap.name) {
+    $("output-name").value = queryMap.name;
+    const job = jobs.find((item) => item.id === selectedJob);
+    if (job) job.name = queryMap.name;
+    renderJobs();
+  }
+  updateReady();
+});
+
+$("load-sample").addEventListener("click", async () => {
+  const sample = await fetch("/sample-query.json", { cache: "no-store" }).then((response) => response.json());
+  queryMap = sample;
+  $("file-name").textContent = "sample-query.json";
+  $("output-name").value = sample.name;
+  const job = jobs.find((item) => item.id === selectedJob);
+  if (job) job.name = sample.name;
+  renderJobs();
+  updateReady();
+});
 
 function downloadMap() {
   if (!lastMap) return;
@@ -147,51 +212,42 @@ function downloadMap() {
   URL.revokeObjectURL(url);
 }
 
-$("search-form").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const button = $("search-form").querySelector("button");
+$("run-search").addEventListener("click", async () => {
+  const button = $("run-search");
   button.disabled = true;
-  const query = $("query").value.trim();
-  const file = $("query-map").files[0];
   try {
-    const body = { idempotencyKey: crypto.randomUUID(), lane: $("lane").value };
-    if (file) {
-      body.queryMap = JSON.parse(await file.text());
-    } else {
-      body.query = query;
-    }
-    const result = await api("/api/searches", "POST", body);
+    const result = await api("/api/searches", "POST", {
+      idempotencyKey: crypto.randomUUID(),
+      lane: selectedLane(),
+      queryMap,
+      outputName: $("output-name").value.trim(),
+      resultCount: Number($("result-count").value),
+      maxPerCountry: Number($("max-per-country").value),
+    });
     lastMap = result.map || null;
     $("download-map").hidden = !lastMap;
     const list = $("results");
     list.replaceChildren();
-    const hits = lastMap ? lastMap.customCoordinates : result.results;
-    for (const hit of hits || []) {
+    for (const hit of lastMap?.customCoordinates || []) {
       const item = document.createElement("li");
-      const content = document.createElement("span");
-      content.textContent = hit.panoId || hit.label || `score ${hit.score}`;
-      const detail = document.createElement("small");
       const extra = hit.extra || {};
-      detail.textContent = extra.visionScore != null
-        ? `${hit.lat}, ${hit.lng} · rank ${extra.visionRank} · ${extra.visionScore}`
-        : `${hit.lane || ""} · location ${hit.locationId || ""}`;
-      content.append(detail);
-      item.append(content);
+      item.innerHTML = `<span>${hit.panoId}</span><small>${hit.lat}, ${hit.lng} · rank ${extra.visionRank} · ${extra.visionScore} · ${(extra.tags || []).join(" · ")}</small>`;
       list.append(item);
     }
     $("search-status").textContent = lastMap
-      ? `${lastMap.customCoordinates.length} locations. Download JSON and open it on map-making.app. One search used.`
-      : (result.results.length ? `${result.results.length} fixture matches. One search used.` : "No matches. One search used.");
+      ? `${lastMap.customCoordinates.length} locations. Download JSON and open it on map-making.app.`
+      : "No matches.";
     await refresh();
   } catch (error) {
     $("search-status").textContent = `Search stopped: ${error.message}`;
   } finally {
-    button.disabled = !signedIn || Number(state?.units || 0) < Number(state?.searchCost || Infinity);
+    updateReady();
   }
 });
 
 $("download-map").addEventListener("click", downloadMap);
 
+renderJobs();
 refresh().catch((error) => {
-  $("process-status").textContent = `Unable to reach the local service: ${error.message}`;
+  $("process-status").textContent = `Unable to reach the service: ${error.message}`;
 });

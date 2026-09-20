@@ -21,6 +21,7 @@ STATIC = {
     "/app.js": (WEB / "app.js", "text/javascript; charset=utf-8"),
     "/visual.js": (WEB / "visual.js", "text/javascript; charset=utf-8"),
     "/style.css": (WEB / "style.css", "text/css; charset=utf-8"),
+    "/sample-query.json": (WEB / "sample-query.json", "application/json"),
 }
 
 
@@ -163,6 +164,9 @@ def handler_for(service: CommunityService):
                             query_faces=query_faces,
                             query_map=query_map,
                             lane=data.get("lane") or "scene",
+                            result_count=data.get("resultCount") if type(data.get("resultCount")) is int else 25,
+                            max_per_country=data.get("maxPerCountry") if type(data.get("maxPerCountry")) is int else 25,
+                            output_name=data.get("outputName") if isinstance(data.get("outputName"), str) else None,
                         ),
                     )
                 raise ServiceError("not_found", 404)
@@ -177,13 +181,22 @@ def main():
     parser.add_argument("--demo", action="store_true", help="synthetic fixture demo")
     parser.add_argument("--visual", action="store_true", help="local visual self-test; invented imagery")
     parser.add_argument("--metadata", action="store_true", help="pano-metadata catalog; no imagery stored")
+    parser.add_argument("--prototype", action="store_true", help="usable VISION-like prototype (search costs 4)")
     parser.add_argument("--db", type=Path, default=ROOT / ".data" / "demo.sqlite")
     parser.add_argument("--port", type=int, default=8765)
     args = parser.parse_args()
-    chosen = sum(bool(flag) for flag in (args.demo, args.visual, args.metadata))
+    chosen = sum(bool(flag) for flag in (args.demo, args.visual, args.metadata, args.prototype))
     if chosen != 1:
-        parser.error("choose exactly one of --demo, --visual, or --metadata")
-    service = CommunityService(args.db, artifacts=args.db.parent / "artifacts", segment_capacity=1_000)
+        parser.error("choose exactly one of --demo, --visual, --metadata, or --prototype")
+    search_cost = 4 if args.prototype else 100_000
+    if args.demo:
+        search_cost = 4
+    service = CommunityService(
+        args.db,
+        artifacts=args.db.parent / "artifacts",
+        segment_capacity=1_000,
+        search_cost=search_cost,
+    )
     if args.demo:
         fixture = json.loads((ROOT / "demo_catalog.json").read_text(encoding="utf-8"))
         if fixture.get("rights") != "synthetic-test-data":
@@ -197,6 +210,13 @@ def main():
         except (ServiceError, SourceError) as error:
             parser.error(str(error))
         label = "visual self-test (invented pixels, not stored)"
+    elif args.prototype:
+        catalog = json.loads((ROOT / "prototype_catalog.json").read_text(encoding="utf-8"))
+        try:
+            service.import_jobs(catalog)
+        except (ServiceError, SourceError) as error:
+            parser.error(str(error))
+        label = "VISION-like prototype (search costs 4)"
     else:
         catalog = json.loads((ROOT / "street_catalog.json").read_text(encoding="utf-8"))
         try:
