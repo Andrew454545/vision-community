@@ -7,6 +7,8 @@ embeddings only. It does not persist Street View imagery.
 
 from __future__ import annotations
 
+import json
+
 from .features import MODEL_ID
 from .rank import canonicalize_country
 
@@ -118,7 +120,7 @@ def location_record(
 ) -> dict:
     country = canonicalize_country(country)
     extra = {
-        "tags": [country] if country else [],
+        "tags": [country],
         "visionCameraGeneration": camera_generation or "unknown",
         "visionScore": round(float(score), 7),
         "visionMinScore": round(float(min_score), 7),
@@ -130,13 +132,10 @@ def location_record(
         "visionProcessedLocations": int(processed_locations),
         "visionModel": MODEL_ID,
         "visionPruneMeters": RESULT_PRUNE_METERS,
-        "visionObjectClass": None,
-        "visionObjectClassId": None,
-        "visionObjectLane": lane if lane == "object" else None,
-        "visionObjectConfidence": round(float(score), 7) if lane == "object" else None,
-        "visionObjectSupport": None,
-        "visionObjectBoxArea": None,
     }
+    if lane == "object":
+        extra["visionObjectLane"] = "object"
+        extra["visionObjectConfidence"] = round(float(score), 7)
     return {
         "lat": float(lat),
         "lng": float(lng),
@@ -151,3 +150,8 @@ def location_record(
 def build_map(name: str, coordinates: list[dict]) -> dict:
     title = name.strip() if isinstance(name, str) and name.strip() else "VISION Community"
     return {"name": title, "customCoordinates": coordinates}
+
+
+def dump_map(document: dict) -> str:
+    """Pretty-print an MMA map the same way VISION.app writes search JSON."""
+    return json.dumps(document, indent=2, sort_keys=True, ensure_ascii=False) + "\n"

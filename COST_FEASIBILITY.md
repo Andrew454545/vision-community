@@ -11,7 +11,7 @@ still generally prohibits prefetching, indexing, storing, or caching imagery.
 Measured numbers for index-only storage (no imagery) at 20.96M and 200M
 locations are in [MEASUREMENTS.md](MEASUREMENTS.md). **Imagery is not stored.**
 A 200M community embedding index fits a $20 R2 storage budget. Fast gated
-search still cannot run on Workers Free.
+search runs on the user's computer; Workers Free cannot do that scan.
 
 The local VISION scene sealed-segment directory occupies about 20 GB; the full
 Application Support directory occupies about 76 GB. Those measurements are not

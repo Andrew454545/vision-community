@@ -20,6 +20,7 @@ export const VIEW_DIRECTION_OFFSETS = {
 };
 export const DEFAULT_VIEW_DIRECTION = "bestOfFour";
 export const SEARCH_COST = 100000;
+export const SITE_SEARCH_CAP = 2000;
 export const UNITS = { scene: 1, object: 10 };
 export const LEASE_SECONDS = 30 * 60;
 export const MAX_LEASE = 1000;

@@ -9,11 +9,20 @@ button,input,select{font:inherit;color:inherit}button{cursor:pointer}button:disa
 .brand-block strong{display:block;font-size:16px;letter-spacing:.02em}.brand-block small{display:block;font-size:11px;color:var(--muted)}
 .top-meta{display:flex;gap:16px;align-items:center;font-size:11px;color:var(--teal)}
 .mma-link{color:var(--text);text-decoration:none;border:1px solid var(--line);border-radius:6px;padding:7px 10px}
-.workspace{display:grid;grid-template-columns:320px 1fr;height:calc(100% - 58px - 36px)}
-.rail{background:var(--rail);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
+.workspace{display:grid;grid-template-columns:340px 1fr;height:calc(100% - 58px - 36px)}
+.rail{background:var(--rail);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0;overflow:auto}
+.howto{margin:0;padding:16px 16px 4px 32px;color:var(--muted);font-size:13px;line-height:1.45}
+.howto li{margin:0 0 12px}
+.howto strong{color:var(--text)}
+.progress{height:10px;background:#101315;border:1px solid var(--line);border-radius:999px;overflow:hidden;margin:12px 0 6px}
+#progress-fill{height:100%;width:0;background:var(--teal);transition:width .3s}
+#progress-label{margin:0;font-size:12px;color:var(--muted)}
+.more,.advanced{margin:14px 0 0;border-top:1px solid var(--line);padding-top:10px}
+.advanced{margin:0 0 24px;border:1px solid var(--line);border-radius:8px;padding:10px 14px}
+.more summary,.advanced summary{cursor:pointer;font-size:13px;color:var(--gold);font-weight:700}
 .rail-head,.statusbar{display:flex;align-items:center;justify-content:space-between;padding:0 12px;height:42px;font-size:11px;letter-spacing:.12em;color:var(--muted);font-weight:700}
 #add-job{width:28px;height:28px;border:1px solid var(--line);background:transparent;border-radius:6px}
-.jobs{list-style:none;margin:0;padding:8px;overflow:auto;flex:1}
+.jobs{list-style:none;margin:0;padding:8px 0;overflow:auto;max-height:180px}
 .jobs li{padding:10px 10px;border-radius:8px;margin-bottom:4px;cursor:pointer;display:flex;gap:10px;align-items:center}
 .jobs li.selected{background:#232A2D}
 .jobs .dot{width:8px;height:8px;border-radius:50%;background:#3A4446}
@@ -73,11 +82,15 @@ input[type=text],input[type=number],input:not([type]),input[type=file]{width:100
 .file-name{font-size:12px;color:var(--teal);margin:8px 0 0}
 .hint{font-size:12px;color:var(--muted);line-height:1.5}
 .run-row{display:flex;gap:8px;max-width:520px}
-.recover{display:flex;gap:8px;margin-top:10px;max-width:520px}
+.run-row .cmd{width:auto;min-width:160px}
+.recover{display:flex;gap:8px;margin-top:10px;max-width:520px;flex-wrap:wrap}
+.contribute .recover{max-width:none}
+.contribute .recover input{min-width:0;flex:1 1 140px}
+.contribute .recover button{width:auto;margin:0}
 .recover input{flex:1}.recover button{width:auto;margin:0}
 .results{list-style:none;padding:0;margin:12px 0}
 .results li{border-top:1px solid var(--line);padding:10px 0;font-size:13px}
 .results small{display:block;color:var(--muted);margin-top:3px}
 .statusbar{height:36px;border-top:1px solid var(--line);background:var(--bar);font-size:11px;letter-spacing:0;font-weight:500;color:var(--muted)}
-#download-map{max-width:320px}
+#download-map{max-width:none}
 @media(max-width:860px){.workspace{grid-template-columns:1fr;height:auto}.rail{border-right:0;border-bottom:1px solid var(--line)}.jobs{max-height:180px}.split,.run-row,.gen-grid,.country-list{grid-template-columns:1fr;display:grid}.country-toolbar{flex-wrap:wrap}}

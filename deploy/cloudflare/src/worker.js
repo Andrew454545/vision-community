@@ -1,5 +1,5 @@
 import {
-  MODEL_ID, SEARCH_COST, UNITS, LEASE_SECONDS, MAX_LEASE, RECOVERY_PEPPER, SCENE_DIM,
+  MODEL_ID, SEARCH_COST, SITE_SEARCH_CAP, UNITS, LEASE_SECONDS, MAX_LEASE, RECOVERY_PEPPER, SCENE_DIM,
   OBJECT_PROPOSALS, OBJECT_DIM,
   sha256Hex, encodeUtf8, equalHex, seedBytes, renderFacesFromSeed, embeddingFor,
   outputDigest, maxRegionCosine, meanEmbeddings, base64ToBytes, bytesToHex,
@@ -51,6 +51,10 @@ CREATE TABLE IF NOT EXISTS pose_catalog (
   row_start INTEGER NOT NULL, row_count INTEGER NOT NULL, bytes INTEGER NOT NULL,
   sha256 TEXT NOT NULL, next_byte INTEGER NOT NULL DEFAULT 0, next_row INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (lane, shard_id)
+);
+CREATE TABLE IF NOT EXISTS index_shards (
+  r2_key TEXT PRIMARY KEY, lane TEXT NOT NULL, location_count INTEGER NOT NULL,
+  bytes INTEGER NOT NULL, sha256 TEXT NOT NULL, created_at INTEGER NOT NULL
 );
 `;
 
@@ -182,7 +186,8 @@ async function status(env, account) {
     persistImagery: false,
     r2: await r2Status(env),
     searchCost: SEARCH_COST,
-    searchBackend: "d1-prototype",
+    searchBackend: (visual?.n || 0) <= SITE_SEARCH_CAP ? "d1-prototype" : "local",
+    searchOnSite: (visual?.n || 0) <= SITE_SEARCH_CAP,
     model: MODEL_ID,
     visualPublished: visual?.n || 0,
     countries: [...new Set((countryRows.results || []).map((row) => canonicalizeCountry(row.country)).filter(Boolean))].sort(),
@@ -516,12 +521,128 @@ async function submit(env, account, body) {
     ).bind(item.row.id, item.digest, now, bytesToHex(item.embedding)));
   }
   await env.DB.batch(statements);
+  try {
+    await sealSearchShard(env, leaseId, leaseRow.lane, verified);
+  } catch {
+    // Index files are for local search. A failed copy must not un-publish credited work.
+  }
   return json({ accepted: items.length, unitsEarned: earned, replayed: false, segments: [] });
 }
 
 function canonicalizeCountry(name) {
   if (name === "United States" || name === "United States of America") return "USA";
   return name;
+}
+
+function padBytes(text, size) {
+  const out = new Uint8Array(size);
+  out.set(encodeUtf8(String(text || "")).subarray(0, size));
+  return out;
+}
+
+function packPose(row) {
+  const bytes = new Uint8Array(176);
+  const view = new DataView(bytes.buffer);
+  view.setBigUint64(0, BigInt(row.id || 0), true);
+  view.setFloat64(8, Number(row.lat || 0), true);
+  view.setFloat64(16, Number(row.lon || 0), true);
+  view.setFloat64(24, Number(row.heading || 0), true);
+  view.setFloat64(32, Number(row.pitch || 0), true);
+  view.setFloat64(40, Number(row.zoom || 0), true);
+  bytes.set(padBytes(row.asset_id, 64), 48);
+  bytes.set(padBytes(row.capture, 16), 112);
+  bytes.set(padBytes(canonicalizeCountry(row.country || ""), 32), 128);
+  bytes.set(padBytes(row.camera_generation || "", 16), 160);
+  return bytes;
+}
+
+async function sealSearchShard(env, leaseId, lane, verified) {
+  if (!env.INDEX || !verified.length) return;
+  const embedSize = lane === "object" ? OBJECT_PROPOSALS * OBJECT_DIM : SCENE_DIM;
+  const recordSize = 176 + embedSize;
+  const bytes = new Uint8Array(16 + verified.length * recordSize);
+  const view = new DataView(bytes.buffer);
+  bytes.set(encodeUtf8("VCIDX001").subarray(0, 8), 0);
+  view.setUint32(8, verified.length, true);
+  view.setUint32(12, embedSize, true);
+  let offset = 16;
+  for (const item of verified) {
+    bytes.set(packPose(item.row), offset);
+    bytes.set(item.embedding, offset + 176);
+    offset += recordSize;
+  }
+  const key = `search-index/${lane}/${leaseId}.bin`;
+  await env.INDEX.put(key, bytes);
+  await env.DB.prepare(
+    "INSERT OR REPLACE INTO index_shards (r2_key, lane, location_count, bytes, sha256, created_at) VALUES (?, ?, ?, ?, ?, ?)"
+  ).bind(key, lane, verified.length, bytes.length, await sha256Hex(bytes), Math.floor(Date.now() / 1000)).run();
+}
+
+async function requirePaidSearch(env, account, searchId) {
+  if (typeof searchId !== "string" || !searchId) return null;
+  return env.DB.prepare("SELECT id FROM searches WHERE id=? AND account_id=?").bind(searchId, account).first();
+}
+
+async function publishedSnapshot(env, account, url) {
+  const paid = await requirePaidSearch(env, account, url.searchParams.get("searchId") || "");
+  if (!paid) return error("unknown_search", 404);
+  const lane = url.searchParams.get("lane") === "object" ? "object" : "scene";
+  const after = Math.max(0, Number(url.searchParams.get("after") || 0) || 0);
+  const limit = Math.min(500, Math.max(1, Number(url.searchParams.get("limit") || 250) || 250));
+  const rows = (await env.DB.prepare(
+    `SELECT i.location_id, i.embedding, l.asset_id, l.lat, l.lon, l.heading, l.pitch, l.zoom, l.country, l.camera_generation
+     FROM published_index i JOIN locations l ON l.id=i.location_id
+     WHERE i.embedding IS NOT NULL AND l.lane=? AND i.location_id>?
+     ORDER BY i.location_id LIMIT ?`
+  ).bind(lane, after, limit + 1).all()).results || [];
+  const page = rows.slice(0, limit);
+  return json({
+    lane,
+    locations: page.map((row) => ({
+      locationId: row.location_id,
+      panoId: row.asset_id,
+      lat: row.lat || 0,
+      lng: row.lon || 0,
+      heading: row.heading || 0,
+      pitch: row.pitch || 0,
+      zoom: row.zoom || 0,
+      country: canonicalizeCountry(row.country || ""),
+      cameraGeneration: row.camera_generation || "",
+      embedding: row.embedding,
+    })),
+    nextAfter: rows.length > limit ? page[page.length - 1].location_id : null,
+  });
+}
+
+async function indexManifest(env, account, url) {
+  const paid = await requirePaidSearch(env, account, url.searchParams.get("searchId") || "");
+  if (!paid) return error("unknown_search", 404);
+  const lane = url.searchParams.get("lane") === "object" ? "object" : "scene";
+  const rows = (await env.DB.prepare(
+    "SELECT r2_key, location_count, bytes, sha256 FROM index_shards WHERE lane=? ORDER BY r2_key"
+  ).bind(lane).all()).results || [];
+  return json({
+    shards: rows.map((row) => ({
+      key: row.r2_key,
+      locationCount: row.location_count,
+      bytes: row.bytes,
+      sha256: row.sha256,
+    })),
+  });
+}
+
+async function indexShard(env, account, url) {
+  const paid = await requirePaidSearch(env, account, url.searchParams.get("searchId") || "");
+  if (!paid) return error("unknown_search", 404);
+  const key = url.searchParams.get("key") || "";
+  if (!key.startsWith("search-index/") || key.includes("..")) return error("unknown_search", 404);
+  const row = await env.DB.prepare("SELECT r2_key FROM index_shards WHERE r2_key=?").bind(key).first();
+  if (!row || !env.INDEX) return error("unknown_search", 404);
+  const object = await env.INDEX.get(key);
+  if (!object) return error("unknown_search", 404);
+  return new Response(object.body, {
+    headers: { ...HEADERS, "content-type": "application/octet-stream" },
+  });
 }
 
 function normalizeFilters(body) {
@@ -704,6 +825,24 @@ async function views(request) {
 }
 
 function locationRecord(hit, rank, queryName, lane, processed, minScore) {
+  const extra = {
+    tags: [canonicalizeCountry(hit.country || "")],
+    visionCameraGeneration: hit.cameraGeneration || "unknown",
+    visionScore: Number(hit.score.toFixed(7)),
+    visionMinScore: Number(minScore.toFixed(7)),
+    visionRank: rank,
+    visionQuery: queryName,
+    visionQueryMode: lane === "object" ? "objects" : "scene",
+    visionHeadingOffset: hit.headingOffset || 0,
+    visionSourceIndex: 0,
+    visionProcessedLocations: processed,
+    visionModel: MODEL_ID,
+    visionPruneMeters: 100,
+  };
+  if (lane === "object") {
+    extra.visionObjectLane = "object";
+    extra.visionObjectConfidence = Number(hit.score.toFixed(7));
+  }
   return {
     lat: hit.lat,
     lng: hit.lng,
@@ -711,26 +850,7 @@ function locationRecord(hit, rank, queryName, lane, processed, minScore) {
     pitch: hit.pitch,
     zoom: hit.zoom,
     panoId: hit.panoId,
-    extra: {
-      tags: hit.country ? [hit.country] : [],
-      visionCameraGeneration: hit.cameraGeneration || "unknown",
-      visionScore: Number(hit.score.toFixed(7)),
-      visionMinScore: Number(minScore.toFixed(7)),
-      visionRank: rank,
-      visionQuery: queryName,
-      visionQueryMode: lane === "object" ? "objects" : "scene",
-      visionHeadingOffset: hit.headingOffset || 0,
-      visionSourceIndex: 0,
-      visionProcessedLocations: processed,
-      visionModel: MODEL_ID,
-      visionPruneMeters: 100,
-      visionObjectClass: null,
-      visionObjectClassId: null,
-      visionObjectLane: lane === "object" ? lane : null,
-      visionObjectConfidence: lane === "object" ? Number(hit.score.toFixed(7)) : null,
-      visionObjectSupport: null,
-      visionObjectBoxArea: null,
-    },
+    extra,
   };
 }
 
@@ -764,6 +884,38 @@ async function search(env, account, body) {
   const accountRow = await env.DB.prepare("SELECT units FROM accounts WHERE id=?").bind(account).first();
   if (!accountRow) return error("unauthorized", 401);
   if (accountRow.units < SEARCH_COST) return error("insufficient_credit", 402);
+  if (body.execute === "local") {
+    const debit = await env.DB.prepare("UPDATE accounts SET units=units-? WHERE id=? AND units>=?").bind(SEARCH_COST, account, SEARCH_COST).run();
+    if (!debit.meta || debit.meta.changes !== 1) return error("insufficient_credit", 402);
+    const published = await env.DB.prepare(
+      "SELECT COUNT(*) AS n FROM published_index i JOIN locations l ON l.id=i.location_id WHERE i.embedding IS NOT NULL AND l.lane=?"
+    ).bind(lane).first();
+    const searchId = randomHex(16);
+    const result = {
+      searchId,
+      query: queryName,
+      local: true,
+      lane,
+      results: [],
+      demo: false,
+      persistImagery: false,
+      map: null,
+      published: published?.n || 0,
+    };
+    await env.DB.batch([
+      env.DB.prepare("INSERT INTO searches (id, account_id, idempotency_key, query, result_json) VALUES (?, ?, ?, ?, ?)").bind(
+        searchId, account, key, queryKey, JSON.stringify(result)
+      ),
+      env.DB.prepare("INSERT INTO ledger (account_id, units, reason, reference) VALUES (?, ?, 'search', ?)").bind(
+        account, -SEARCH_COST, `search:${searchId}`
+      ),
+    ]);
+    return json(result);
+  }
+  const publishedCount = await env.DB.prepare(
+    "SELECT COUNT(*) AS n FROM published_index i JOIN locations l ON l.id=i.location_id WHERE i.embedding IS NOT NULL AND l.lane=?"
+  ).bind(lane).first();
+  if ((publishedCount?.n || 0) > SITE_SEARCH_CAP) return error("search_on_computer", 413);
   const vectors = [];
   const queryExamples = examples.some((item) => usesStreetViews(item.panoId))
     ? examples.slice(0, QUERY_VIEW_CAP)
@@ -882,6 +1034,24 @@ export default {
         const account = await accountId(env, request);
         if (!account) return error("unauthorized", 401);
         return views(request);
+      }
+      if (url.pathname === "/api/published-snapshot" && request.method === "GET") {
+        if (!sameOrigin(request)) return error("cross_origin_request", 403);
+        const account = await accountId(env, request);
+        if (!account) return error("unauthorized", 401);
+        return publishedSnapshot(env, account, url);
+      }
+      if (url.pathname === "/api/index-manifest" && request.method === "GET") {
+        if (!sameOrigin(request)) return error("cross_origin_request", 403);
+        const account = await accountId(env, request);
+        if (!account) return error("unauthorized", 401);
+        return indexManifest(env, account, url);
+      }
+      if (url.pathname === "/api/index-shard" && request.method === "GET") {
+        if (!sameOrigin(request)) return error("cross_origin_request", 403);
+        const account = await accountId(env, request);
+        if (!account) return error("unauthorized", 401);
+        return indexShard(env, account, url);
       }
       if (request.method !== "POST") return error("not_found", 404);
       if (!sameOrigin(request)) return error("cross_origin_request", 403);

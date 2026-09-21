@@ -173,6 +173,55 @@ class CommunityClient:
             raise ContributeError("release_failed", status)
         return data
 
+    def authorize_local_search(self, body: dict) -> dict:
+        payload = dict(body)
+        payload["execute"] = "local"
+        status, data, _ = self.request("POST", "/api/searches", payload)
+        if status == 402:
+            raise ContributeError("insufficient_credit", status)
+        if status != 200 or not isinstance(data, dict):
+            raise ContributeError(str(data.get("error") if isinstance(data, dict) else "search_failed"), status)
+        return data
+
+    def published_snapshot(self, *, search_id: str, lane: str, after: int = 0, limit: int = 250) -> dict:
+        query = urllib.parse.urlencode(
+            {"searchId": search_id, "lane": lane, "after": after, "limit": limit}
+        )
+        status, data, _ = self.request("GET", f"/api/published-snapshot?{query}")
+        if status != 200 or not isinstance(data, dict):
+            raise ContributeError("index_unavailable", status)
+        return data
+
+    def index_manifest(self, *, search_id: str, lane: str) -> dict:
+        query = urllib.parse.urlencode({"searchId": search_id, "lane": lane})
+        status, data, _ = self.request("GET", f"/api/index-manifest?{query}")
+        if status == 404:
+            return {"shards": []}
+        if status != 200 or not isinstance(data, dict):
+            raise ContributeError("index_unavailable", status)
+        return data
+
+    def index_shard(self, *, search_id: str, key: str) -> bytes:
+        query = urllib.parse.urlencode({"searchId": search_id, "key": key})
+        path = f"/api/index-shard?{query}"
+        headers = {
+            "Origin": self.origin,
+            "Accept": "application/octet-stream",
+            "User-Agent": "VISION-Community-contribute/1",
+        }
+        if self.token:
+            headers["Authorization"] = f"Bearer {self.token}"
+        request = urllib.request.Request(self.origin + path, headers=headers, method="GET")
+        try:
+            with urllib.request.urlopen(request, timeout=120) as response:
+                if response.status != 200:
+                    raise ContributeError("index_unavailable", response.status)
+                return response.read()
+        except urllib.error.HTTPError as error:
+            raise ContributeError("index_unavailable", error.code) from error
+        except (urllib.error.URLError, TimeoutError, OSError) as error:
+            raise ContributeError("network_error") from error
+
     def fetch_views(self, item: dict) -> bytes:
         query = urllib.parse.urlencode(
             {

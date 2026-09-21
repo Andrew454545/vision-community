@@ -13,7 +13,7 @@ import json
 import sqlite3
 from pathlib import Path
 
-from .mma import build_map, location_record
+from .mma import build_map, dump_map, location_record
 from .rank import canonicalize_country
 
 
@@ -188,7 +188,7 @@ def export_vision(
     for lane, rows in by_lane.items():
         artifacts[lane] = write_indexer_tsv(rows, destination / f"{lane}-published.tsv")
         (destination / f"{lane}-published.json").write_text(
-            json.dumps(mma_map(rows, name=f"VISION Community {lane}"), indent=2) + "\n",
+            dump_map(mma_map(rows, name=f"VISION Community {lane}")),
             encoding="utf-8",
         )
         artifacts[lane]["mmaJson"] = str(destination / f"{lane}-published.json")

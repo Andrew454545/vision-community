@@ -137,7 +137,8 @@ def measure(location_counts: tuple[int, ...] = (200, 2_000, 10_000)) -> dict:
                 "Imagery is not stored. 200M locations of community-visual-v1 embeddings "
                 "plus pano/pose metadata fit well under a $20 R2 storage budget. "
                 "VISION-scale 3080-byte embeddings at 200M are about $9/month storage. "
-                "Search CPU still needs a dedicated host; Workers Free cannot scan 200M vectors."
+                "Search runs on the user's computer after 100,000 units. "
+                "Workers Free cannot scan 200M vectors in a request."
             ),
         },
         "cloudflareFreeTier": {
@@ -157,7 +158,7 @@ def measure(location_counts: tuple[int, ...] = (200, 2_000, 10_000)) -> dict:
             "smallestTradeoff": (
                 "Store only embeddings and panorama metadata (no imagery). R2 storage for a "
                 "200M community-visual-v1 index is a few dollars or less. Fast gated search "
-                "still needs a dedicated process with the index on local disk or RAM. "
+                "runs on the user's computer after they unlock it. "
                 "Workers Free cannot do that scan."
             ),
             "verificationGuarantee": (

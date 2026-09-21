@@ -15,173 +15,198 @@
       <span class="eye" aria-hidden="true">◉</span>
       <div>
         <strong>VISION</strong>
-        <small>Scene and object search</small>
+        <small>Find matching places</small>
       </div>
     </div>
     <div class="top-meta">
       <span id="index-label">Checking index</span>
-      <a class="mma-link" href="https://map-making.app" target="_blank" rel="noopener">map-making.app ↗</a>
+      <a class="mma-link" href="https://map-making.app" target="_blank" rel="noopener">Open the map site ↗</a>
     </div>
   </header>
 
   <div class="workspace">
     <aside class="rail">
-      <div class="rail-head">
-        <span>SEARCH BATCH</span>
-        <button id="add-job" type="button" title="Add search">+</button>
-      </div>
-      <ol class="jobs" id="jobs"></ol>
+      <ol class="howto">
+        <li><strong>Get an account.</strong> Click the gold button. Save the code it shows you — that is your only login.</li>
+        <li><strong>Help index.</strong> Click Start and leave this tab open. Each place you finish counts toward a search.</li>
+        <li><strong>Search.</strong> When the bar is full, press Search, then Download. Open that file on the map site.</li>
+      </ol>
+
       <div class="contribute">
-        <p class="rail-kicker">Contribute</p>
-        <p class="rail-copy">Index on this computer the same way VISION.app looks at a location: four compass Street View for scenes, a six-face cube for objects. Imagery is not saved. One search costs 100,000 scene units (or 10,000 object units). No trial, no owner bypass. The CLI processes 16/64/128 scene locations per lease; this tab is limited to 1/4/8 because it still proxies thumbnails.</p>
-        <pre class="cli" id="cli-command">python3 -m community.contribute --url https://vision-community.visioncommunity.workers.dev --lane scene --pace medium --recovery-code YOUR_CODE</pre>
-        <button id="copy-cli" class="ghost" type="button">Copy CLI command</button>
-        <p class="rail-copy">After you are invited to the private repository, install Pillow and run that command. The recovery code is saved to <code>~/.config/vision-community/session.json</code> so later runs can omit it. Ctrl+C releases the exclusive lease.</p>
-        <p class="rail-kicker">Small browser batch</p>
-        <p class="rail-copy">Optional. Limited size because this tab still proxies thumbnails through the site.</p>
-        <label class="field-label">Contribute lane</label>
-        <div class="pace" id="process-lane">
-          <label><input type="radio" name="process-lane" value="scene" checked><span>Scene</span></label>
-          <label><input type="radio" name="process-lane" value="object"><span>Objects</span></label>
-        </div>
-        <label class="field-label" for="pace">Pace</label>
-        <div class="pace" id="pace">
-          <label><input type="radio" name="pace" value="slow"><span>Slow</span></label>
-          <label><input type="radio" name="pace" value="medium" checked><span>Medium</span></label>
-          <label><input type="radio" name="pace" value="max"><span>Max</span></label>
-        </div>
-        <button id="process" class="cmd" type="button" disabled>Process locations</button>
+        <button id="create-account" class="cmd gold" type="button">Get a free account</button>
+        <form id="recover-form" class="recover">
+          <input id="recovery-code" maxlength="80" autocomplete="off" placeholder="Paste your saved code">
+          <button type="submit" class="ghost">Restore</button>
+        </form>
+        <p class="status warn" id="recovery-once" hidden>
+          <span id="recovery-once-text"></span>
+          <button id="copy-recovery" class="ghost" type="button">Copy</button>
+          <button id="dismiss-recovery" class="ghost" type="button">Got it</button>
+        </p>
+
+        <button id="process" class="cmd" type="button" disabled>Start</button>
         <button id="pause" class="ghost" type="button" disabled>Pause</button>
-        <p class="status" id="process-status">Create an account to begin.</p>
-        <p class="rail-copy" id="queue-label">Checking remaining work…</p>
-        <div class="balance">
-          <span>Verified units</span>
-          <strong id="units">0</strong>
-          <small><span id="searches-available">0</span> searches · cost <span id="search-cost">100000</span> · <span id="units-need">100,000 more until a search</span></small>
+        <p class="status" id="process-status">Get an account, then click Start.</p>
+
+        <div class="progress" role="progressbar" aria-labelledby="progress-label">
+          <div id="progress-fill"></div>
         </div>
+        <p id="progress-label">0 of 100,000 toward a search</p>
+        <div class="balance">
+          <span>Places finished</span>
+          <strong id="units">0</strong>
+          <small><span id="searches-available">0</span> searches ready · needs <span id="search-cost">100000</span> · <span id="units-need">100,000 more</span></small>
+        </div>
+        <p class="rail-copy" id="queue-label">Checking remaining work…</p>
+
+        <details class="more">
+          <summary>Places or objects, and speed</summary>
+          <label class="field-label">What to index</label>
+          <div class="pace" id="process-lane">
+            <label><input type="radio" name="process-lane" value="scene" checked><span>Places</span></label>
+            <label><input type="radio" name="process-lane" value="object"><span>Objects</span></label>
+          </div>
+          <label class="field-label" for="pace">Speed</label>
+          <div class="pace" id="pace">
+            <label><input type="radio" name="pace" value="slow"><span>Gentle</span></label>
+            <label><input type="radio" name="pace" value="medium" checked><span>Normal</span></label>
+            <label><input type="radio" name="pace" value="max"><span>Faster</span></label>
+          </div>
+        </details>
+
+        <details class="more">
+          <summary>Faster (optional, needs the project files)</summary>
+          <p class="rail-copy">If you were given the project folder, paste this into Terminal after you have an account. Most people can ignore this and just click Start. Search also runs on your computer this way — there is no extra server to buy.</p>
+          <pre class="cli" id="cli-command">python3 -m community.contribute --lane scene --pace medium --recovery-code YOUR_CODE</pre>
+          <button id="copy-cli" class="ghost" type="button">Copy command</button>
+          <pre class="cli" id="local-search-command">python3 -m community.local_search --query community/web/sample-query.json --recovery-code YOUR_CODE</pre>
+          <button id="copy-local-search" class="ghost" type="button">Copy search command</button>
+        </details>
+
+        <details class="more">
+          <summary>Saved searches</summary>
+          <div class="rail-head">
+            <span>SEARCHES</span>
+            <button id="add-job" type="button" title="Add search">+</button>
+          </div>
+          <ol class="jobs" id="jobs"></ol>
+        </details>
       </div>
     </aside>
 
     <main class="editor">
       <div class="editor-head">
         <div>
-          <h1 id="job-title">New search</h1>
-          <p class="sub">Download JSON and open it on map-making.app. Imagery is not stored here.</p>
+          <h1 id="job-title">Find matching places</h1>
+          <p class="sub">An example search is already loaded. Finish enough places, press Search, then Download.</p>
         </div>
-        <span class="ready" id="ready-badge">Needs JSON</span>
+        <span class="ready" id="ready-badge">Get an account</span>
       </div>
 
       <section>
-        <h2>Search mode</h2>
+        <h2>What to search</h2>
         <div class="segmented" id="mode">
-          <label><input type="radio" name="mode" value="scene" checked><span>Scene</span></label>
+          <label><input type="radio" name="mode" value="scene" checked><span>Places</span></label>
           <label><input type="radio" name="mode" value="object"><span>Objects</span></label>
         </div>
       </section>
 
       <section id="view-direction-block">
-        <h2>View direction</h2>
-        <label class="field-label" for="view-direction">Quarter-turns from each map’s saved pan</label>
+        <h2>Which way to look</h2>
+        <label class="field-label" for="view-direction">Match the photo’s direction</label>
         <select id="view-direction">
-          <option value="bestOfFour">Best of available views</option>
-          <option value="original">Saved pan (0°)</option>
-          <option value="opposite">Opposite saved pan (180°)</option>
-          <option value="right">Right of saved pan (+90°)</option>
-          <option value="left">Left of saved pan (+270°)</option>
-          <option value="originalAxis">Saved axis (0° / 180°)</option>
-          <option value="sideAxis">Cross-axis (+90° / +270°)</option>
+          <option value="bestOfFour">Best match</option>
+          <option value="original">Same direction</option>
+          <option value="opposite">Opposite direction</option>
+          <option value="right">Turned right</option>
+          <option value="left">Turned left</option>
+          <option value="originalAxis">Same line, either way</option>
+          <option value="sideAxis">Sideways</option>
         </select>
-        <p class="hint">Same directions as VISION.app. Scene search scores the query’s saved pan against those compass views. The JSON heading is the winning view. Object search does not use view direction.</p>
+        <p class="hint">Leave this on Best match unless you know you want a specific turn.</p>
       </section>
 
-      <section>
-        <h2>Output</h2>
-        <label class="field-label" for="output-name">JSON name</label>
-        <input id="output-name" maxlength="80" placeholder="Map name" value="New search">
-        <div class="split">
-          <div>
-            <label class="field-label" for="result-count">Locations</label>
-            <input id="result-count" type="number" min="1" max="10000" value="200">
-            <small>1–10,000 · default 200 · highest scores first</small>
+      <details class="advanced">
+        <summary>More options</summary>
+        <section>
+          <h2>Name and size</h2>
+          <label class="field-label" for="output-name">Map name</label>
+          <input id="output-name" maxlength="80" placeholder="Map name" value="Example search">
+          <div class="split">
+            <div>
+              <label class="field-label" for="result-count">How many places</label>
+              <input id="result-count" type="number" min="1" max="10000" value="200">
+              <small>Usually 200 is enough</small>
+            </div>
+            <div>
+              <label class="field-label" for="max-per-country">Max per country</label>
+              <input id="max-per-country" type="number" min="1" max="10000" value="25">
+              <small>Stops one country from filling the list</small>
+            </div>
           </div>
-          <div>
-            <label class="field-label" for="max-per-country">Max per country</label>
-            <input id="max-per-country" type="number" min="1" max="10000" value="25">
-            <small>1–10,000 · default 25</small>
+        </section>
+
+        <section>
+          <h2>Filters</h2>
+          <p class="filter-kicker">Camera generation</p>
+          <div class="gen-grid" id="generations">
+            <label><input type="checkbox" name="generation" value="badcam" checked><span>Badcam</span></label>
+            <label><input type="checkbox" name="generation" value="gen1" checked><span>Gen 1</span></label>
+            <label><input type="checkbox" name="generation" value="gen2" checked><span>Gen 2</span></label>
+            <label><input type="checkbox" name="generation" value="gen3" checked><span>Gen 3</span></label>
+            <label><input type="checkbox" name="generation" value="gen4" checked><span>Gen 4</span></label>
+            <label><input type="checkbox" name="generation" value="trekker" checked><span>Trekker</span></label>
           </div>
-        </div>
-      </section>
+          <p class="hint" id="generation-help">All cameras are included</p>
 
-      <section>
-        <h2>Filters</h2>
-        <p class="filter-kicker">Camera generation</p>
-        <div class="gen-grid" id="generations">
-          <label><input type="checkbox" name="generation" value="badcam" checked><span>Badcam</span></label>
-          <label><input type="checkbox" name="generation" value="gen1" checked><span>Gen 1</span></label>
-          <label><input type="checkbox" name="generation" value="gen2" checked><span>Gen 2</span></label>
-          <label><input type="checkbox" name="generation" value="gen3" checked><span>Gen 3</span></label>
-          <label><input type="checkbox" name="generation" value="gen4" checked><span>Gen 4</span></label>
-          <label><input type="checkbox" name="generation" value="trekker" checked><span>Trekker</span></label>
-        </div>
-        <p class="hint" id="generation-help">All generations · no generation filter</p>
+          <p class="filter-kicker">Countries</p>
+          <div class="segmented wide" id="country-mode">
+            <label><input type="radio" name="country-mode" value="all" checked><span>All countries</span></label>
+            <label><input type="radio" name="country-mode" value="include"><span>Only these</span></label>
+            <label><input type="radio" name="country-mode" value="exclude"><span>Skip these</span></label>
+          </div>
+          <div class="country-toolbar">
+            <input id="country-search" type="text" placeholder="Find a country" autocomplete="off" disabled>
+            <button id="select-visible-countries" class="ghost" type="button" disabled>Select visible</button>
+            <button id="clear-countries" class="ghost" type="button" disabled>Clear</button>
+          </div>
+          <div class="country-list disabled" id="country-list"></div>
+          <p class="hint" id="country-help">Results can come from any country.</p>
+        </section>
 
-        <p class="filter-kicker">Countries</p>
-        <div class="segmented wide" id="country-mode">
-          <label><input type="radio" name="country-mode" value="all" checked><span>All countries</span></label>
-          <label><input type="radio" name="country-mode" value="include"><span>Include selected</span></label>
-          <label><input type="radio" name="country-mode" value="exclude"><span>Exclude selected</span></label>
-        </div>
-        <div class="country-toolbar">
-          <input id="country-search" type="text" placeholder="Search countries" autocomplete="off" disabled>
-          <button id="select-visible-countries" class="ghost" type="button" disabled>Select visible</button>
-          <button id="clear-countries" class="ghost" type="button" disabled>Clear</button>
-        </div>
-        <div class="country-list disabled" id="country-list"></div>
-        <p class="hint" id="country-help">All indexed countries may be returned. Choose Include or Exclude to narrow the search.</p>
-      </section>
-
-      <section>
-        <h2>Search input</h2>
-        <label class="field-label" for="query-map">Location JSON</label>
-        <div class="file-row">
-          <input id="query-map" type="file" accept="application/json,.json" hidden>
-          <button id="choose-json" class="ghost" type="button">Choose JSON</button>
-          <button id="load-sample" class="ghost" type="button">Load sample JSON</button>
-        </div>
-        <p class="file-name" id="file-name">No JSON selected</p>
-        <p class="hint">Same <code>customCoordinates</code> format the local VISION app exports. Up to 100 unique views are used. Results are highest score first, unique panoramas, 100-meter spacing, then the per-country cap.</p>
-        <label class="field-label" for="exclude-map">Previous map JSON</label>
-        <div class="file-row">
-          <input id="exclude-map" type="file" accept="application/json,.json" hidden>
-          <button id="choose-exclude" class="ghost" type="button">Choose previous map</button>
-          <button id="clear-exclude" class="ghost" type="button">Clear</button>
-        </div>
-        <p class="file-name" id="exclude-file-name">No previous map</p>
-        <p class="hint">Optional. Removes results within 25 m of locations in that map, matching VISION’s Past Locations prune. Imagery is not stored.</p>
-      </section>
+        <section>
+          <h2>Your own photo map</h2>
+          <label class="field-label" for="query-map">Replace the example</label>
+          <div class="file-row">
+            <input id="query-map" type="file" accept="application/json,.json" hidden>
+            <button id="choose-json" class="ghost" type="button">Choose a JSON file</button>
+            <button id="load-sample" class="ghost" type="button">Back to the example</button>
+          </div>
+          <p class="file-name" id="file-name">Example search is loaded</p>
+          <p class="hint">Optional. Use a map file from VISION if you have one.</p>
+          <label class="field-label" for="exclude-map">Skip places already used</label>
+          <div class="file-row">
+            <input id="exclude-map" type="file" accept="application/json,.json" hidden>
+            <button id="choose-exclude" class="ghost" type="button">Choose previous map</button>
+            <button id="clear-exclude" class="ghost" type="button">Clear</button>
+          </div>
+          <p class="file-name" id="exclude-file-name">None</p>
+          <p class="hint">Optional. Hides results within 25 meters of that map.</p>
+        </section>
+      </details>
 
       <div class="run-row">
-        <button id="create-account" class="cmd gold" type="button">Create anonymous account</button>
         <button id="run-search" class="cmd gold" type="button" disabled>Search</button>
+        <button id="download-map" class="cmd" type="button" hidden>Download map</button>
       </div>
-      <form id="recover-form" class="recover">
-        <input id="recovery-code" maxlength="80" autocomplete="off" placeholder="Recovery code">
-        <button type="submit" class="ghost">Restore</button>
-      </form>
-      <p class="status warn" id="recovery-once" hidden>
-        <span id="recovery-once-text"></span>
-        <button id="copy-recovery" class="ghost" type="button">Copy</button>
-        <button id="dismiss-recovery" class="ghost" type="button">Got it</button>
-      </p>
-      <p class="status" id="search-status">Earn units to unlock a search.</p>
+      <p class="status" id="search-status">Finish 100,000 places to unlock Search.</p>
       <ol class="results" id="results"></ol>
-      <button id="download-map" class="ghost" type="button" hidden>Download JSON for map-making.app</button>
     </main>
   </div>
 
   <footer class="statusbar">
-    <span id="account-chip">Not signed in</span>
-    <span id="build-label">Prototype</span>
+    <span id="account-chip">No account yet</span>
+    <span id="build-label">Leave this tab open while indexing</span>
   </footer>
 </body>
 </html>

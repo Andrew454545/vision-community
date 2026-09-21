@@ -32,8 +32,8 @@ def _score(lane: str, query: bytes, embedding: bytes, offsets) -> tuple[float, i
     return best_scene_view(query, embedding, offsets)
 
 
-def ranked_search_embedding(
-    registry: SegmentRegistry,
+def ranked_search_records(
+    records,
     lane: str,
     query: bytes,
     *,
@@ -41,13 +41,14 @@ def ranked_search_embedding(
     accept=None,
     view_direction: str | None = None,
 ) -> list[dict]:
+    """Scan embeddings on this computer. The index never goes back to the site."""
     if limit < 1:
         return []
     heap: list[tuple[float, int]] = []
     payloads: dict[int, dict] = {}
     scanned = 0
     offsets = view_offsets_for(view_direction, lane)
-    for record in registry.iter_records(lane, verify=False):
+    for record in records:
         if accept is not None and not accept(record):
             continue
         score, view_offset = _score(lane, query, record["embedding"], offsets)
@@ -55,10 +56,10 @@ def ranked_search_embedding(
         location_id = record["locationId"]
         payload = {
             "locationId": location_id,
-            "lane": record["lane"],
+            "lane": record.get("lane") or lane,
             "score": round(float(score), 6),
             "viewOffset": view_offset,
-            "segmentId": record["segmentId"],
+            "segmentId": record.get("segmentId"),
             "pose": record.get("pose"),
         }
         if len(heap) < limit:
@@ -73,6 +74,25 @@ def ranked_search_embedding(
     if results:
         results[0] = {**results[0], "scanned": scanned}
     return results
+
+
+def ranked_search_embedding(
+    registry: SegmentRegistry,
+    lane: str,
+    query: bytes,
+    *,
+    limit: int = 25,
+    accept=None,
+    view_direction: str | None = None,
+) -> list[dict]:
+    return ranked_search_records(
+        registry.iter_records(lane, verify=False),
+        lane,
+        query,
+        limit=limit,
+        accept=accept,
+        view_direction=view_direction,
+    )
 
 
 def ranked_search(
