@@ -149,14 +149,18 @@ class CommunityClient:
             raise ContributeError("unauthorized", status)
         return data
 
-    def lease(self, lane: str, count: int, pace: str) -> dict:
+    def lease(self, lane: str, count: int, pace: str, *, part: int | None = None) -> dict:
+        body = {"lane": lane, "count": count, "pace": pace, "client": "cli"}
+        if part is not None:
+            body["part"] = part
         status, data, _ = self.request(
             "POST",
             "/api/leases",
-            {"lane": lane, "count": count, "pace": pace, "client": "cli"},
+            body,
         )
         if status != 200:
-            raise ContributeError("lease_failed", status)
+            code = data.get("error") if isinstance(data, dict) else None
+            raise ContributeError(str(code or "lease_failed"), status)
         return data
 
     def submit(self, lease_id: str, outputs: list[dict]) -> dict:
@@ -260,6 +264,7 @@ def contribute(
     count: int | None = None,
     batches: int | None = None,
     recovery_code: str | None = None,
+    part: int | None = None,
     client: CommunityClient | None = None,
     session_path: Path | None = None,
     persist_session: bool = False,
@@ -302,7 +307,7 @@ def contribute(
             if batches is not None and processed_batches >= batches:
                 break
             try:
-                lease = session.lease(lane, size, pace)
+                lease = session.lease(lane, size, pace, part=part)
             except ContributeError as error:
                 if error.code == "no_available_work":
                     lease = None
@@ -386,6 +391,7 @@ def main() -> None:
     parser.add_argument("--pace", choices=("slow", "medium", "max"), default="medium")
     parser.add_argument("--count", type=int, help="locations per lease (default: 16/64/128 scene, 8/32/64 object)")
     parser.add_argument("--batches", type=int, help="stop after this many leases; default is until the queue is empty")
+    parser.add_argument("--part", type=int, help="1-based catalog batch to exclusive-lease; default is the next free batch")
     parser.add_argument("--recovery-code", dest="recovery_code")
     parser.add_argument("--session-file", type=Path, dest="session_file")
     parser.add_argument("--no-save-session", action="store_true")
@@ -400,6 +406,7 @@ def main() -> None:
             count=args.count,
             batches=args.batches,
             recovery_code=args.recovery_code,
+            part=args.part,
             session_path=session_path,
             persist_session=not args.no_save_session,
             progress=_stderr_progress,

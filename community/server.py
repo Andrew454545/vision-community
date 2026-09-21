@@ -50,7 +50,7 @@ def handler_for(service: CommunityService):
             self.send_header(
                 "Content-Security-Policy",
                 "default-src 'self'; script-src 'self'; style-src 'self'; "
-                "connect-src 'self'; img-src 'self'; base-uri 'none'; frame-ancestors 'none'",
+                "connect-src 'self' https://map-making.app; img-src 'self'; base-uri 'none'; frame-ancestors 'none'",
             )
             self.end_headers()
             self.wfile.write(body)
@@ -107,7 +107,8 @@ def handler_for(service: CommunityService):
                 if route == "/api/status":
                     return self._json(200, service.status())
                 if route == "/api/me":
-                    return self._json(200, service.status(self._account()))
+                    query = {key: values[-1] for key, values in parse_qs(parsed.query, keep_blank_values=True).items()}
+                    return self._json(200, service.status(self._account(), lite=query.get("lite") == "1"))
                 if route == "/api/views":
                     self._same_origin()
                     query = {key: values[-1] for key, values in parse_qs(parsed.query, keep_blank_values=True).items()}
@@ -185,6 +186,8 @@ def handler_for(service: CommunityService):
                             data.get("lane"),
                             data.get("count"),
                             pace=data.get("pace"),
+                            client=data.get("client") if data.get("client") in {"browser", "cli"} else None,
+                            part=data.get("part"),
                         ),
                     )
                 if route == "/api/submissions":
@@ -219,6 +222,8 @@ def handler_for(service: CommunityService):
                             view_direction=data.get("viewDirection") if isinstance(data.get("viewDirection"), str) else None,
                             exclude_map=exclude_map,
                             execute=data.get("execute") if isinstance(data.get("execute"), str) else None,
+                            prompt=data.get("prompt") if isinstance(data.get("prompt"), str) else None,
+                            description_weight=data.get("descriptionWeight") if type(data.get("descriptionWeight")) is int else None,
                         ),
                     )
                 raise ServiceError("not_found", 404)

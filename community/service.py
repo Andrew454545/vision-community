@@ -15,7 +15,15 @@ from pathlib import Path
 
 from .catalog import file_sha256, iter_jobs_from_path, load_jobs, parse_indexer_line
 from .features import MODEL_ID, embedding_for, mean_embeddings, normalize_view_direction, render_faces, sha256_hex, wrap_heading
-from .pano import QUERY_VIEW_CAP, ViewError, render_location_faces, uses_street_views
+from .pano import QUERY_VIEW_CAP, ViewError, lease_cap, render_location_faces, uses_street_views
+from .prompt import description_embedding, mix_embeddings, parse_prompt, snap_description_weight
+from .parts import (
+    STEAL_AFTER_SECONDS,
+    describe_part,
+    family_for_key,
+    family_priority_sql,
+    parse_part,
+)
 from .mma import MMAError, build_map, location_record, parse_map
 from .rank import (
     MAX_EXCLUDE_LOCATIONS,
@@ -29,7 +37,7 @@ from .rank import (
     normalize_filters,
     prune_nearby,
 )
-from .search import ranked_search, ranked_search_embedding
+from .search import query_vector, ranked_search_embedding
 from .segments import SegmentRegistry
 from .source import haversine_meters
 from .store import r2_public_status
@@ -206,6 +214,7 @@ class CommunityService:
             "zoom": "REAL NOT NULL DEFAULT 0",
             "country": "TEXT",
             "camera_generation": "TEXT",
+            "catalog_shard": "INTEGER",
         }
         for name, decl in additions.items():
             if name not in location_cols:
@@ -271,6 +280,35 @@ class CommunityService:
             connection.execute("INSERT OR IGNORE INTO pose_catalog_v2 SELECT * FROM pose_catalog")
             connection.execute("DROP TABLE pose_catalog")
             connection.execute("ALTER TABLE pose_catalog_v2 RENAME TO pose_catalog")
+        catalog_cols = {row[1] for row in connection.execute("PRAGMA table_info(pose_catalog)")}
+        if "assignee" not in catalog_cols:
+            connection.execute("ALTER TABLE pose_catalog ADD COLUMN assignee TEXT")
+        if "assigned_at" not in catalog_cols:
+            connection.execute("ALTER TABLE pose_catalog ADD COLUMN assigned_at INTEGER")
+        if "held" not in catalog_cols:
+            connection.execute("ALTER TABLE pose_catalog ADD COLUMN held INTEGER NOT NULL DEFAULT 0")
+        connection.execute(
+            """CREATE INDEX IF NOT EXISTS locations_part_queue
+               ON locations (lane, catalog_shard, state, lease_until, id)"""
+        )
+        connection.execute(
+            """UPDATE locations SET catalog_shard = (
+                    SELECT p.shard_id FROM pose_catalog p
+                    WHERE p.lane = locations.lane
+                      AND p.r2_key LIKE 'catalog/all-locations-tail-v1/%'
+                    ORDER BY p.shard_id LIMIT 1
+               )
+               WHERE catalog_shard IS NULL
+                 AND COALESCE(source, '') = 'street-metadata'
+                 AND asset_id NOT LIKE 'Prototype%'
+                 AND asset_id NOT LIKE 'synthetic:%'
+                 AND asset_id NOT LIKE 'CommunityPano%'
+                 AND EXISTS (
+                    SELECT 1 FROM pose_catalog p
+                    WHERE p.lane = locations.lane
+                      AND p.r2_key LIKE 'catalog/all-locations-tail-v1/%'
+                 )"""
+        )
 
     @contextmanager
     def _connection(self):
@@ -357,7 +395,7 @@ class CommunityService:
             raise ServiceError("unauthorized", 401)
         return row["id"]
 
-    def status(self, account_id: str | None = None) -> dict:
+    def status(self, account_id: str | None = None, lite: bool = False) -> dict:
         with self._connection() as connection:
             counts = {
                 row["lane"]: {"pending": row["pending"], "published": row["published"]}
@@ -379,7 +417,7 @@ class CommunityService:
             visual_published = connection.execute(
                 "SELECT COUNT(*) FROM published_index WHERE embedding IS NOT NULL"
             ).fetchone()[0]
-            countries = sorted({
+            countries = [] if lite else sorted({
                 canonicalize_country(row[0])
                 for row in connection.execute(
                     """SELECT DISTINCT country FROM locations
@@ -387,7 +425,7 @@ class CommunityService:
                 )
                 if row[0]
             })
-            generations = [
+            generations = [] if lite else [
                 row[0]
                 for row in connection.execute(
                     """SELECT DISTINCT camera_generation FROM locations
@@ -422,7 +460,27 @@ class CommunityService:
                 result["accountId"] = account_id
                 result["units"] = row["units"]
                 result["searchesAvailable"] = row["units"] // self.search_cost
+                if not lite:
+                    scene_work = self._work_status(connection, account_id, "scene")
+                    object_work = self._work_status(connection, account_id, "object")
+                    result["work"] = scene_work
+                    result["workByLane"] = {"scene": scene_work, "object": object_work}
             return result
+
+    def _require_paid_search(self, connection: sqlite3.Connection, account_id: str, search_id: str) -> None:
+        if not isinstance(search_id, str) or not search_id:
+            raise ServiceError("unknown_search", 404)
+        paid = connection.execute(
+            """SELECT s.id FROM searches s
+               WHERE s.id=? AND s.account_id=?
+                 AND EXISTS (
+                   SELECT 1 FROM ledger
+                   WHERE reference=? AND account_id=? AND reason='search' AND units<0
+                 )""",
+            (search_id, account_id, f"search:{search_id}", account_id),
+        ).fetchone()
+        if paid is None:
+            raise ServiceError("unknown_search", 404)
 
     def published_snapshot(
         self,
@@ -435,20 +493,13 @@ class CommunityService:
     ) -> dict:
         if lane not in {"scene", "object"}:
             raise ServiceError("invalid_lane")
-        if not isinstance(search_id, str) or not search_id:
-            raise ServiceError("unknown_search", 404)
         try:
             after = max(0, int(after or 0))
             limit = min(500, max(1, int(limit or 250)))
         except (TypeError, ValueError) as error:
             raise ServiceError("invalid_json") from error
         with self._connection() as connection:
-            paid = connection.execute(
-                "SELECT id FROM searches WHERE id=? AND account_id=?",
-                (search_id, account_id),
-            ).fetchone()
-            if paid is None:
-                raise ServiceError("unknown_search", 404)
+            self._require_paid_search(connection, account_id, search_id)
             rows = connection.execute(
                 """SELECT i.location_id, i.embedding, l.asset_id, l.lat, l.lon, l.heading,
                           l.pitch, l.zoom, l.country, l.camera_generation
@@ -487,15 +538,8 @@ class CommunityService:
     def index_manifest(self, account_id: str, *, search_id: str, lane: str = "scene") -> dict:
         if lane not in {"scene", "object"}:
             raise ServiceError("invalid_lane")
-        if not isinstance(search_id, str) or not search_id:
-            raise ServiceError("unknown_search", 404)
         with self._connection() as connection:
-            paid = connection.execute(
-                "SELECT id FROM searches WHERE id=? AND account_id=?",
-                (search_id, account_id),
-            ).fetchone()
-            if paid is None:
-                raise ServiceError("unknown_search", 404)
+            self._require_paid_search(connection, account_id, search_id)
         return {"shards": []}
 
     def _nearby_duplicate(self, connection: sqlite3.Connection, row: dict, *, meters: float = 25.0) -> bool:
@@ -719,34 +763,237 @@ class CommunityService:
                     installed += 1
         return {"lanes": list(lanes), "shards": installed, "rows": int(manifest.get("totalRows") or 0)}
 
+    def _catalog_order_sql(self) -> str:
+        return family_priority_sql("r2_key") + ", shard_id"
+
+    def _part_count(self, connection: sqlite3.Connection, lane: str) -> int:
+        row = connection.execute(
+            "SELECT COUNT(*) AS n FROM pose_catalog WHERE lane=?", (lane,)
+        ).fetchone()
+        return int(row["n"] if row is not None else 0)
+
+    def _part_number(self, connection: sqlite3.Connection, lane: str, shard_id: int) -> int:
+        row = connection.execute(
+            f"""SELECT COUNT(*) AS n FROM pose_catalog
+                WHERE lane=? AND (
+                    {family_priority_sql("r2_key")} < (
+                        SELECT {family_priority_sql("r2_key")} FROM pose_catalog
+                        WHERE lane=? AND shard_id=?
+                    )
+                    OR (
+                        {family_priority_sql("r2_key")} = (
+                            SELECT {family_priority_sql("r2_key")} FROM pose_catalog
+                            WHERE lane=? AND shard_id=?
+                        )
+                        AND shard_id <= ?
+                    )
+                )""",
+            (lane, lane, shard_id, lane, shard_id, shard_id),
+        ).fetchone()
+        return int(row["n"] if row is not None else 0)
+
+    def _work_from_shard(self, connection: sqlite3.Connection, lane: str, shard) -> dict:
+        part_count = max(1, self._part_count(connection, lane))
+        shard_id = int(shard["shard_id"])
+        remaining = max(0, int(shard["row_count"]) - int(shard["next_row"]))
+        family = family_for_key(shard["r2_key"])
+        payload = describe_part(
+            part=self._part_number(connection, lane, shard_id),
+            part_count=part_count,
+            family=family,
+            rows_left=remaining,
+            lane=lane,
+        )
+        payload["shardId"] = shard_id
+        return payload
+
+    def _work_status(self, connection: sqlite3.Connection, account_id: str, lane: str) -> dict | None:
+        shard = connection.execute(
+            f"""SELECT * FROM pose_catalog
+                WHERE lane=? AND assignee=? AND next_row < row_count
+                ORDER BY {self._catalog_order_sql()} LIMIT 1""",
+            (lane, account_id),
+        ).fetchone()
+        if shard is None:
+            part_count = self._part_count(connection, lane)
+            if part_count < 1:
+                return None
+            return {
+                "lane": lane,
+                "partCount": part_count,
+                "separateParts": True,
+                "summary": (
+                    f"{part_count} separate batches are available. "
+                    f"Start to get your own batch so other people index different "
+                    f"{'objects' if lane == 'object' else 'places'}."
+                ),
+            }
+        return self._work_from_shard(connection, lane, shard)
+
+    def _catalog_remaining(self, connection: sqlite3.Connection, lane: str) -> bool:
+        row = connection.execute(
+            "SELECT 1 FROM pose_catalog WHERE lane=? AND next_row < row_count LIMIT 1",
+            (lane,),
+        ).fetchone()
+        return row is not None
+
+    def _shard_by_part(self, connection: sqlite3.Connection, lane: str, part: int):
+        return connection.execute(
+            f"""SELECT * FROM pose_catalog WHERE lane=?
+                ORDER BY {self._catalog_order_sql()} LIMIT 1 OFFSET ?""",
+            (lane, part - 1),
+        ).fetchone()
+
+    def _claim_shard(
+        self,
+        connection: sqlite3.Connection,
+        account_id: str,
+        lane: str,
+        shard,
+        now: int,
+    ):
+        stale = now - STEAL_AFTER_SECONDS
+        changed = connection.execute(
+            """UPDATE pose_catalog
+               SET assignee=?, assigned_at=?
+               WHERE lane=? AND shard_id=? AND next_row < row_count AND COALESCE(held, 0)=0
+                 AND (
+                    assignee IS NULL OR assignee=?
+                    OR (
+                        assigned_at IS NOT NULL AND assigned_at < ?
+                        AND NOT EXISTS (
+                            SELECT 1 FROM leases
+                            WHERE account_id=pose_catalog.assignee AND lane=pose_catalog.lane
+                              AND state='active' AND expires_at>?
+                        )
+                    )
+                 )""",
+            (account_id, now, lane, shard["shard_id"], account_id, stale, now),
+        ).rowcount
+        if changed != 1:
+            return None
+        connection.execute(
+            """UPDATE pose_catalog SET assignee=NULL
+               WHERE lane=? AND assignee=? AND shard_id!=? AND next_row < row_count""",
+            (lane, account_id, shard["shard_id"]),
+        )
+        return connection.execute(
+            "SELECT * FROM pose_catalog WHERE lane=? AND shard_id=?",
+            (lane, shard["shard_id"]),
+        ).fetchone()
+
+    def _assign_catalog_shard(
+        self,
+        connection: sqlite3.Connection,
+        account_id: str,
+        lane: str,
+        now: int,
+        part: int | None,
+    ):
+        if part is not None:
+            shard = self._shard_by_part(connection, lane, part)
+            if shard is None:
+                raise ServiceError("invalid_part")
+            claimed = self._claim_shard(connection, account_id, lane, shard, now)
+            if claimed is None:
+                if int(shard["next_row"]) >= int(shard["row_count"]):
+                    return self._assign_catalog_shard(connection, account_id, lane, now, None)
+                current = shard["assignee"]
+                if current and current != account_id:
+                    raise ServiceError("part_taken", 409)
+                return None
+            return claimed
+        existing = connection.execute(
+            f"""SELECT * FROM pose_catalog
+                WHERE lane=? AND assignee=? AND next_row < row_count AND COALESCE(held, 0)=0
+                ORDER BY {self._catalog_order_sql()} LIMIT 1""",
+            (lane, account_id),
+        ).fetchone()
+        if existing is not None:
+            return existing
+        candidates = connection.execute(
+            f"""SELECT * FROM pose_catalog
+                WHERE lane=? AND next_row < row_count AND COALESCE(held, 0)=0
+                ORDER BY {self._catalog_order_sql()}""",
+            (lane,),
+        ).fetchall()
+        for shard in candidates:
+            claimed = self._claim_shard(connection, account_id, lane, shard, now)
+            if claimed is not None:
+                return claimed
+        return None
+
+    def _pending_for_shard(
+        self,
+        connection: sqlite3.Connection,
+        lane: str,
+        shard_id: int,
+        now: int,
+        count: int,
+    ) -> list:
+        return connection.execute(
+            """SELECT id, asset_id, capture, lane, model, label, generation, source, rights, attribution,
+                      lat, lon, heading, pitch, zoom, country, camera_generation, catalog_shard,
+                      state, lease_until
+               FROM locations WHERE lane=? AND catalog_shard=? AND COALESCE(queue_state, 'pending')='pending'
+                 AND (state='pending' OR (state='leased' AND lease_until<=?))
+               ORDER BY id LIMIT ?""",
+            (lane, shard_id, now, count),
+        ).fetchall()
+
+    def _pending_shared(
+        self,
+        connection: sqlite3.Connection,
+        lane: str,
+        now: int,
+        count: int,
+    ) -> list:
+        return connection.execute(
+            """SELECT id, asset_id, capture, lane, model, label, generation, source, rights, attribution,
+                      lat, lon, heading, pitch, zoom, country, camera_generation, catalog_shard,
+                      state, lease_until
+               FROM locations WHERE lane=? AND COALESCE(queue_state, 'pending')='pending'
+                 AND (state='pending' OR (state='leased' AND lease_until<=?))
+               ORDER BY id LIMIT ?""",
+            (lane, now, count),
+        ).fetchall()
+
+    def _release_exhausted_shard(self, connection: sqlite3.Connection, lane: str, shard_id: int) -> None:
+        connection.execute(
+            """UPDATE pose_catalog SET assignee=NULL
+               WHERE lane=? AND shard_id=? AND next_row >= row_count""",
+            (lane, shard_id),
+        )
+
     def _materialize_pose_catalog(
         self,
         connection: sqlite3.Connection,
         lane: str,
         count: int,
         now: int,
+        shard,
     ) -> list:
         claimed = []
         attempts = 0
+        shard_id = int(shard["shard_id"])
         while len(claimed) < count and attempts < 32:
             attempts += 1
-            shard = connection.execute(
-                """SELECT * FROM pose_catalog
-                   WHERE lane=? AND next_row < row_count
-                   ORDER BY shard_id LIMIT 1""",
-                (lane,),
+            current = connection.execute(
+                "SELECT * FROM pose_catalog WHERE lane=? AND shard_id=?",
+                (lane, shard_id),
             ).fetchone()
-            if shard is None:
+            if current is None or int(current["next_row"]) >= int(current["row_count"]):
                 break
-            path = self.artifacts / shard["r2_key"]
+            path = self.artifacts / current["r2_key"]
             data = path.read_bytes() if path.is_file() else b""
-            start = int(shard["next_byte"])
+            start = int(current["next_byte"])
             if not data or start >= len(data):
                 connection.execute(
                     "UPDATE pose_catalog SET next_byte=?, next_row=row_count WHERE lane=? AND shard_id=?",
-                    (len(data), lane, shard["shard_id"]),
+                    (len(data), lane, shard_id),
                 )
-                continue
+                self._release_exhausted_shard(connection, lane, shard_id)
+                break
             needed = count - len(claimed)
             chunk = data[start : start + max(8192, needed * 256)]
             text = chunk.decode("utf-8")
@@ -764,24 +1011,27 @@ class CommunityService:
             if consumed == 0:
                 connection.execute(
                     "UPDATE pose_catalog SET next_row=row_count, next_byte=? WHERE lane=? AND shard_id=?",
-                    (len(data), lane, shard["shard_id"]),
+                    (len(data), lane, shard_id),
                 )
-                continue
+                self._release_exhausted_shard(connection, lane, shard_id)
+                break
             changed = connection.execute(
                 """UPDATE pose_catalog SET next_byte=next_byte+?, next_row=next_row+?
                    WHERE lane=? AND shard_id=? AND next_byte=?""",
-                (consumed, len(jobs), lane, shard["shard_id"], start),
+                (consumed, len(jobs), lane, shard_id, start),
             ).rowcount
             if changed != 1:
                 continue
+            self._release_exhausted_shard(connection, lane, shard_id)
             for job in jobs:
                 connection.execute(
                     """INSERT OR IGNORE INTO locations
                        (asset_id, capture, lane, model, label, source, rights, attribution,
-                        lat, lon, heading, pitch, zoom, country, camera_generation, queue_state)
+                        lat, lon, heading, pitch, zoom, country, camera_generation, queue_state,
+                        catalog_shard)
                        VALUES (?, ?, ?, ?, '', 'street-metadata', 'metadata-only-no-imagery',
                                'Panorama metadata only. Imagery is not stored.',
-                               ?, ?, ?, ?, ?, ?, ?, 'pending')""",
+                               ?, ?, ?, ?, ?, ?, ?, 'pending', ?)""",
                     (
                         job["assetId"],
                         job["capture"],
@@ -794,11 +1044,18 @@ class CommunityService:
                         job.get("zoom") or 0,
                         job.get("country") or "",
                         job.get("cameraGeneration") or "",
+                        shard_id,
                     ),
+                )
+                connection.execute(
+                    """UPDATE locations SET catalog_shard=?
+                       WHERE asset_id=? AND capture=? AND lane=? AND model=? AND catalog_shard IS NULL""",
+                    (shard_id, job["assetId"], job["capture"], job["lane"], job["model"]),
                 )
                 row = connection.execute(
                     """SELECT id, asset_id, capture, lane, model, label, generation, source, rights, attribution,
-                              lat, lon, heading, pitch, zoom, country, camera_generation, state, lease_until
+                              lat, lon, heading, pitch, zoom, country, camera_generation, catalog_shard,
+                              state, lease_until
                        FROM locations WHERE asset_id=? AND capture=? AND lane=? AND model=?""",
                     (job["assetId"], job["capture"], job["lane"], job["model"]),
                 ).fetchone()
@@ -819,13 +1076,24 @@ class CommunityService:
         *,
         now: int | None = None,
         pace: str | None = None,
+        client: str | None = None,
+        part: int | None = None,
     ) -> dict:
         if lane not in UNITS_PER_LOCATION or type(count) is not int or not 1 <= count <= MAX_LEASE_SIZE:
             raise ServiceError("invalid_lease_request")
         if pace is not None and pace not in {"slow", "medium", "max"}:
             raise ServiceError("invalid_pace")
+        if client is not None and client not in {"browser", "cli"}:
+            raise ServiceError("invalid_lease_request")
+        try:
+            requested_part = parse_part(part)
+        except ValueError:
+            raise ServiceError("invalid_part") from None
+        if client is not None:
+            count = min(count, lease_cap(lane, pace or "medium", client))
         now = int(time.time()) if now is None else now
         expires_at = now + LEASE_SECONDS
+        work = None
         with self._connection() as connection:
             connection.execute("BEGIN IMMEDIATE")
             # An expired lease loses its claim before any task can be reassigned.
@@ -845,7 +1113,7 @@ class CommunityService:
                     (existing["id"],),
                 ).fetchall()
                 items = self._lease_items(rows, {row["id"]: int(row["generation"] or 0) for row in rows})
-                return {
+                payload = {
                     "leaseId": existing["id"],
                     "expiresAt": existing["expires_at"],
                     "pace": existing["pace"] or pace,
@@ -853,19 +1121,54 @@ class CommunityService:
                     "items": items,
                     "resumed": True,
                 }
+                work = self._work_status(connection, account_id, lane)
+                if work:
+                    payload["work"] = work
+                return payload
             lease_id = secrets.token_hex(16)
-            rows = connection.execute(
-                """SELECT id, asset_id, capture, lane, model, label, generation, source, rights, attribution,
-                          lat, lon, heading, pitch, zoom, country, camera_generation
-                   FROM locations WHERE lane=? AND COALESCE(queue_state, 'pending')='pending' AND
-                     (state='pending' OR (state='leased' AND lease_until<=?))
-                   ORDER BY id LIMIT ?""",
-                (lane, now, count),
-            ).fetchall()
-            if len(rows) < count:
-                extra = self._materialize_pose_catalog(connection, lane, count - len(rows), now)
-                seen = {row["id"] for row in rows}
-                rows = list(rows) + [row for row in extra if row["id"] not in seen][: count - len(rows)]
+            rows: list = []
+            active_shard = None
+            if self._catalog_remaining(connection, lane):
+                hops = 0
+                while len(rows) < count and hops < 32:
+                    hops += 1
+                    shard = self._assign_catalog_shard(
+                        connection, account_id, lane, now, requested_part if hops == 1 else None
+                    )
+                    if shard is None:
+                        break
+                    active_shard = shard
+                    need = count - len(rows)
+                    chunk = list(self._pending_for_shard(connection, lane, int(shard["shard_id"]), now, need))
+                    if len(chunk) < need:
+                        extra = self._materialize_pose_catalog(connection, lane, need - len(chunk), now, shard)
+                        seen = {row["id"] for row in chunk}
+                        chunk.extend(row for row in extra if row["id"] not in seen)
+                    if not chunk:
+                        self._release_exhausted_shard(connection, lane, int(shard["shard_id"]))
+                        current = connection.execute(
+                            "SELECT * FROM pose_catalog WHERE lane=? AND shard_id=?",
+                            (lane, shard["shard_id"]),
+                        ).fetchone()
+                        if current is not None and int(current["next_row"]) < int(current["row_count"]):
+                            break
+                        continue
+                    seen = {row["id"] for row in rows}
+                    for row in chunk:
+                        if row["id"] in seen:
+                            continue
+                        rows.append(row)
+                        seen.add(row["id"])
+                        if len(rows) >= count:
+                            break
+                    current = connection.execute(
+                        "SELECT * FROM pose_catalog WHERE lane=? AND shard_id=?",
+                        (lane, shard["shard_id"]),
+                    ).fetchone()
+                    if current is not None:
+                        active_shard = current
+            else:
+                rows = list(self._pending_shared(connection, lane, now, count))
             if not rows:
                 raise ServiceError("no_available_work", 409)
             generations = []
@@ -886,14 +1189,25 @@ class CommunityService:
                 [(lease_id, expires_at, generation, location_id) for generation, location_id in generations],
             )
             generation_by_id = {location_id: generation for generation, location_id in generations}
+            if active_shard is not None:
+                latest = connection.execute(
+                    "SELECT * FROM pose_catalog WHERE lane=? AND shard_id=?",
+                    (lane, active_shard["shard_id"]),
+                ).fetchone()
+                work = self._work_from_shard(connection, lane, latest or active_shard)
+            else:
+                work = self._work_status(connection, account_id, lane)
         items = self._lease_items(rows, generation_by_id)
-        return {
+        payload = {
             "leaseId": lease_id,
             "expiresAt": expires_at,
             "pace": pace,
             "resourceBudget": {"slow": 1, "medium": "cpu/2", "max": "all-cores"}.get(pace or "medium"),
             "items": items,
         }
+        if work:
+            payload["work"] = work
+        return payload
 
     def _lease_items(self, rows, generation_by_id: dict) -> list[dict]:
         items = []
@@ -1203,6 +1517,8 @@ class CommunityService:
         view_direction: str | None = None,
         exclude_map: dict | None = None,
         execute: str | None = None,
+        prompt: str | None = None,
+        description_weight: int | None = None,
     ) -> dict:
         if not isinstance(idempotency_key, str) or not 8 <= len(idempotency_key) <= 100:
             raise ServiceError("invalid_idempotency_key")
@@ -1215,33 +1531,60 @@ class CommunityService:
             raise ServiceError("invalid_country_filter")
         direction = normalize_view_direction(view_direction, lane)
         excluded = _exclude_points(exclude_map)
-        visual = query_faces is not None or query_map is not None
-        query_name = output_name.strip() if isinstance(output_name, str) and output_name.strip() else "VISION Community"
+        try:
+            prompt_text = parse_prompt(prompt)
+        except ValueError as error:
+            raise ServiceError("invalid_query") from error
         parsed = None
         if query_map is not None:
             try:
                 parsed = parse_map(query_map)
             except MMAError as error:
-                raise ServiceError(error.code) from error
+                if error.code in {"invalid_mma_map", "empty_mma_map"} and prompt_text:
+                    parsed = None
+                else:
+                    raise ServiceError(error.code) from error
+        has_json = parsed is not None
+        has_prompt = bool(prompt_text)
+        visual = query_faces is not None or has_json or has_prompt
+        if not visual:
+            if not isinstance(query, str) or not 1 <= len(query.strip()) <= 200:
+                raise ServiceError("invalid_query")
+        weight = snap_description_weight(description_weight, has_json=has_json, has_prompt=has_prompt)
+        query_name = output_name.strip() if isinstance(output_name, str) and output_name.strip() else "VISION Community"
+        if has_json:
             query_name = output_name.strip() if isinstance(output_name, str) and output_name.strip() else parsed["name"]
+        elif has_prompt and query_name == "VISION Community":
+            query_name = prompt_text[:80]
+        if visual:
+            json_key = ",".join(example["panoId"] for example in parsed["examples"]) if has_json else ""
+            prompt_key = f":prompt:{prompt_text}:w{weight}" if has_prompt else ""
             query_key = (
-                "mma:"
+                "mix:"
                 + query_name
                 + ":"
                 + lane
                 + ":"
                 + direction
                 + ":"
-                + ",".join(example["panoId"] for example in parsed["examples"])
+                + json_key
+                + prompt_key
                 + _exclude_key(excluded)
             )
-        elif query_faces is not None:
-            if not isinstance(query_faces, (bytes, bytearray)):
-                raise ServiceError("invalid_query")
-            query_key = "visual:" + sha256_hex(bytes(query_faces)) + ":" + lane + ":" + direction + _exclude_key(excluded)
+            if query_faces is not None:
+                if not isinstance(query_faces, (bytes, bytearray)):
+                    raise ServiceError("invalid_query")
+                query_key = (
+                    "visual:"
+                    + sha256_hex(bytes(query_faces))
+                    + ":"
+                    + lane
+                    + ":"
+                    + direction
+                    + prompt_key
+                    + _exclude_key(excluded)
+                )
         else:
-            if not isinstance(query, str) or not 1 <= len(query.strip()) <= 200:
-                raise ServiceError("invalid_query")
             query_key = query.strip()
         with self._connection() as connection:
             connection.execute("BEGIN IMMEDIATE")
@@ -1260,10 +1603,16 @@ class CommunityService:
                 raise ServiceError("unauthorized", 401)
             if account["units"] < self.search_cost:
                 raise ServiceError("insufficient_credit", 402)
+            connection.execute(
+                "UPDATE accounts SET units=units-? WHERE id=? AND units>=?",
+                (self.search_cost, account_id, self.search_cost),
+            )
+            if connection.execute("SELECT changes()").fetchone()[0] != 1:
+                raise ServiceError("insufficient_credit", 402)
             execute_local = execute == "local"
             if execute_local:
-                if parsed is None:
-                    raise ServiceError("invalid_mma_map")
+                if not has_json and not has_prompt:
+                    raise ServiceError("invalid_query")
                 published = connection.execute(
                     "SELECT COUNT(*) FROM published_index WHERE embedding IS NOT NULL"
                 ).fetchone()[0]
@@ -1280,12 +1629,6 @@ class CommunityService:
                     "published": published,
                 }
                 connection.execute(
-                    "UPDATE accounts SET units=units-? WHERE id=? AND units>=?",
-                    (self.search_cost, account_id, self.search_cost),
-                )
-                if connection.execute("SELECT changes()").fetchone()[0] != 1:
-                    raise ServiceError("insufficient_credit", 402)
-                connection.execute(
                     "INSERT INTO searches (id, account_id, idempotency_key, query, result_json) VALUES (?, ?, ?, ?, ?)",
                     (search_id, account_id, idempotency_key, query_key, json.dumps(result, separators=(",", ":"))),
                 )
@@ -1297,7 +1640,10 @@ class CommunityService:
             if visual:
                 overfetch = candidate_result_count(result_count, max_per_country)
                 accept = lambda record: accepts(record, country_mode, selected_countries, selected_generations)
-                if parsed is not None:
+                query_embedding = None
+                if query_faces is not None:
+                    query_embedding = query_vector(lane, bytes(query_faces))
+                if has_json:
                     examples = parsed["examples"]
                     if any(uses_street_views(example["panoId"]) for example in examples):
                         examples = examples[:QUERY_VIEW_CAP]
@@ -1326,24 +1672,25 @@ class CommunityService:
                         except ViewError as error:
                             raise ServiceError(error.code, 422) from error
                         vectors.append(embedding_for(lane, faces))
-                    query_embedding = mean_embeddings(vectors)
-                    matches = ranked_search_embedding(
-                        self.registry,
-                        lane,
-                        query_embedding,
-                        limit=overfetch,
-                        accept=accept,
-                        view_direction=direction,
+                    visual_query = mean_embeddings(vectors)
+                    query_embedding = visual_query if query_embedding is None else mean_embeddings(
+                        [query_embedding, visual_query]
                     )
-                else:
-                    matches = ranked_search(
-                        self.registry,
-                        lane,
-                        bytes(query_faces),
-                        limit=overfetch,
-                        accept=accept,
-                        view_direction=direction,
+                if has_prompt:
+                    text_query = description_embedding(prompt_text, lane)
+                    query_embedding = (
+                        mix_embeddings(query_embedding, text_query, weight)
+                        if query_embedding is not None
+                        else text_query
                     )
+                matches = ranked_search_embedding(
+                    self.registry,
+                    lane,
+                    query_embedding,
+                    limit=overfetch,
+                    accept=accept,
+                    view_direction=direction,
+                )
                 matches = cap_by_country(
                     prune_nearby(exclude_used(matches, excluded)),
                     result_count,
@@ -1374,12 +1721,6 @@ class CommunityService:
                 "persistImagery": False,
                 "map": mma,
             }
-            connection.execute(
-                "UPDATE accounts SET units=units-? WHERE id=? AND units>=?",
-                (self.search_cost, account_id, self.search_cost),
-            )
-            if connection.execute("SELECT changes()").fetchone()[0] != 1:
-                raise ServiceError("insufficient_credit", 402)
             connection.execute(
                 "INSERT INTO searches (id, account_id, idempotency_key, query, result_json) VALUES (?, ?, ?, ?, ?)",
                 (search_id, account_id, idempotency_key, query_key, json.dumps(result, separators=(",", ":"))),

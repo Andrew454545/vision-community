@@ -2,7 +2,9 @@ import {
   MODEL_ID, SEARCH_COST, SITE_SEARCH_CAP, UNITS, LEASE_SECONDS, MAX_LEASE, RECOVERY_PEPPER, SCENE_DIM,
   OBJECT_PROPOSALS, OBJECT_DIM,
   sha256Hex, encodeUtf8, equalHex, seedBytes, renderFacesFromSeed, embeddingFor,
-  outputDigest, maxRegionCosine, meanEmbeddings, base64ToBytes, bytesToHex,
+  outputDigest, maxRegionCosine, meanEmbeddings, descriptionEmbedding, mixEmbeddings,
+  parsePrompt, snapDescriptionWeight,
+  base64ToBytes, bytesToHex,
   bytesToBase64, randomHex, randomToken, bestSceneView, normalizeViewDirection,
   viewOffsetsFor, wrapHeading,
 } from "./model.js";
@@ -67,7 +69,7 @@ const HEADERS = {
   "x-robots-tag": "noindex, nofollow",
   "permissions-policy": "camera=(), microphone=(), geolocation=()",
   "content-security-policy":
-    "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; base-uri 'none'; frame-ancestors 'none'",
+    "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self' https://map-making.app; img-src 'self'; base-uri 'none'; frame-ancestors 'none'",
 };
 
 async function locationFaces(location) {
@@ -118,6 +120,7 @@ async function ready(env) {
     await env.DB.prepare(statement).run();
   }
   await migratePoseCatalog(env);
+  await migrateWorkParts(env);
   const count = await env.DB.prepare("SELECT COUNT(*) AS n FROM locations").first();
   if (!count || count.n > 0) return;
   const statements = SEED_LOCATIONS.map((row) =>
@@ -144,6 +147,144 @@ async function migratePoseCatalog(env) {
   await env.DB.prepare("ALTER TABLE pose_catalog_v2 RENAME TO pose_catalog").run();
 }
 
+async function tableColumns(env, table) {
+  return ((await env.DB.prepare(`PRAGMA table_info(${table})`).all()).results || []).map((row) => row.name);
+}
+
+async function migrateWorkParts(env) {
+  const locationCols = await tableColumns(env, "locations");
+  const addedShard = !locationCols.includes("catalog_shard");
+  if (addedShard) {
+    await env.DB.prepare("ALTER TABLE locations ADD COLUMN catalog_shard INTEGER").run();
+  }
+  const catalogCols = await tableColumns(env, "pose_catalog");
+  if (!catalogCols.includes("assignee")) {
+    await env.DB.prepare("ALTER TABLE pose_catalog ADD COLUMN assignee TEXT").run();
+  }
+  if (!catalogCols.includes("assigned_at")) {
+    await env.DB.prepare("ALTER TABLE pose_catalog ADD COLUMN assigned_at INTEGER").run();
+  }
+  if (!catalogCols.includes("held")) {
+    await env.DB.prepare("ALTER TABLE pose_catalog ADD COLUMN held INTEGER NOT NULL DEFAULT 0").run();
+  }
+  await env.DB.prepare(
+    "CREATE INDEX IF NOT EXISTS locations_part_queue ON locations (lane, catalog_shard, state, lease_until, id)"
+  ).run();
+  if (addedShard) {
+    await env.DB.prepare(
+      `UPDATE locations SET catalog_shard = (
+          SELECT p.shard_id FROM pose_catalog p
+          WHERE p.lane = locations.lane AND p.r2_key LIKE 'catalog/all-locations-tail-v1/%'
+          ORDER BY p.shard_id LIMIT 1
+       )
+       WHERE catalog_shard IS NULL
+         AND COALESCE(source, '') = 'street-metadata'
+         AND asset_id NOT LIKE 'Prototype%'
+         AND asset_id NOT LIKE 'synthetic:%'
+         AND asset_id NOT LIKE 'CommunityPano%'
+         AND EXISTS (
+           SELECT 1 FROM pose_catalog p
+           WHERE p.lane = locations.lane AND p.r2_key LIKE 'catalog/all-locations-tail-v1/%'
+         )`
+    ).run();
+  }
+}
+
+const STEAL_AFTER_SECONDS = 6 * 60 * 60;
+const FAMILY_LABELS = {
+  "new-places": "New places",
+  "whole-map": "Whole map",
+  "already-indexed": "Already-indexed places",
+  other: "Other places",
+};
+
+function catalogOrderSql() {
+  return `CASE WHEN r2_key LIKE 'catalog/all-locations-tail-v1/%' THEN 0 WHEN r2_key LIKE 'catalog/all-locations-full-v1/%' THEN 1 WHEN r2_key LIKE 'catalog/vision-indexed-v1/%' THEN 2 ELSE 3 END, shard_id`;
+}
+
+function familyForKey(key) {
+  const value = key || "";
+  if (value.startsWith("catalog/all-locations-tail-v1/")) return "new-places";
+  if (value.startsWith("catalog/all-locations-full-v1/")) return "whole-map";
+  if (value.startsWith("catalog/vision-indexed-v1/")) return "already-indexed";
+  return "other";
+}
+
+function parsePart(value) {
+  if (value == null || value === "") return null;
+  if (typeof value !== "number" && typeof value !== "string") return undefined;
+  const part = typeof value === "number" ? value : Number(String(value).trim());
+  if (!Number.isInteger(part) || part < 1 || part > 1000000) return undefined;
+  return part;
+}
+
+function describePart(part, partCountValue, family, rowsLeft, lane = "scene") {
+  const familyName = FAMILY_LABELS[family] ? family : "other";
+  const noun = lane === "object" ? "objects" : "places";
+  return {
+    part,
+    partCount: partCountValue,
+    family: familyName,
+    familyLabel: FAMILY_LABELS[familyName],
+    rowsLeftInPart: Math.max(0, rowsLeft),
+    partLabel: `Batch ${part} of ${partCountValue}`,
+    separateParts: true,
+    lane,
+    summary: `Batch ${part} of ${partCountValue} · ${FAMILY_LABELS[familyName]}. Other people have different batches, so you are not indexing the same ${noun}.`,
+  };
+}
+
+async function partCount(env, lane) {
+  const row = await env.DB.prepare("SELECT COUNT(*) AS n FROM pose_catalog WHERE lane=?").bind(lane).first();
+  return row?.n || 0;
+}
+
+async function partNumber(env, lane, shardId) {
+  const row = await env.DB.prepare(
+    `SELECT COUNT(*) AS n FROM pose_catalog
+     WHERE lane=? AND (
+       CASE WHEN r2_key LIKE 'catalog/all-locations-tail-v1/%' THEN 0 WHEN r2_key LIKE 'catalog/all-locations-full-v1/%' THEN 1 WHEN r2_key LIKE 'catalog/vision-indexed-v1/%' THEN 2 ELSE 3 END
+       < (SELECT CASE WHEN r2_key LIKE 'catalog/all-locations-tail-v1/%' THEN 0 WHEN r2_key LIKE 'catalog/all-locations-full-v1/%' THEN 1 WHEN r2_key LIKE 'catalog/vision-indexed-v1/%' THEN 2 ELSE 3 END FROM pose_catalog WHERE lane=? AND shard_id=?)
+       OR (
+         CASE WHEN r2_key LIKE 'catalog/all-locations-tail-v1/%' THEN 0 WHEN r2_key LIKE 'catalog/all-locations-full-v1/%' THEN 1 WHEN r2_key LIKE 'catalog/vision-indexed-v1/%' THEN 2 ELSE 3 END
+         = (SELECT CASE WHEN r2_key LIKE 'catalog/all-locations-tail-v1/%' THEN 0 WHEN r2_key LIKE 'catalog/all-locations-full-v1/%' THEN 1 WHEN r2_key LIKE 'catalog/vision-indexed-v1/%' THEN 2 ELSE 3 END FROM pose_catalog WHERE lane=? AND shard_id=?)
+         AND shard_id <= ?
+       )
+     )`
+  ).bind(lane, lane, shardId, lane, shardId, shardId).first();
+  return row?.n || 0;
+}
+
+async function workFromShard(env, lane, shard) {
+  const count = Math.max(1, await partCount(env, lane));
+  const payload = describePart(
+    await partNumber(env, lane, shard.shard_id),
+    count,
+    familyForKey(shard.r2_key),
+    Math.max(0, (shard.row_count || 0) - (shard.next_row || 0)),
+    lane,
+  );
+  payload.shardId = shard.shard_id;
+  return payload;
+}
+
+async function workStatus(env, account, lane) {
+  const shard = await env.DB.prepare(
+    `SELECT * FROM pose_catalog WHERE lane=? AND assignee=? AND next_row < row_count ORDER BY ${catalogOrderSql()} LIMIT 1`
+  ).bind(lane, account).first();
+  if (!shard) {
+    const count = await partCount(env, lane);
+    if (!count) return null;
+    return {
+      lane,
+      partCount: count,
+      separateParts: true,
+      summary: `${count} separate batches are available. Start to get your own batch so other people index different ${lane === "object" ? "objects" : "places"}.`,
+    };
+  }
+  return workFromShard(env, lane, shard);
+}
+
 async function accountId(env, request) {
   const token = tokenFrom(request);
   if (!token || token.length > 100) return null;
@@ -153,7 +294,8 @@ async function accountId(env, request) {
   return row.id;
 }
 
-async function status(env, account) {
+async function status(env, account, options = {}) {
+  const lite = Boolean(options.lite);
   const rows = await env.DB.prepare(
     `SELECT lane,
             SUM(CASE WHEN state='published' THEN 0 ELSE 1 END) AS pending,
@@ -172,35 +314,47 @@ async function status(env, account) {
     laneCounts.pending = (laneCounts.pending || 0) + remaining;
   }
   const visual = await env.DB.prepare("SELECT COUNT(*) AS n FROM published_index WHERE embedding IS NOT NULL").first();
-  const countryRows = await env.DB.prepare(
-    "SELECT DISTINCT country FROM locations WHERE country IS NOT NULL AND country != '' ORDER BY country"
-  ).all();
-  const generationRows = await env.DB.prepare(
-    "SELECT DISTINCT camera_generation FROM locations WHERE camera_generation IS NOT NULL AND camera_generation != '' ORDER BY camera_generation"
-  ).all();
   const result = {
     operational: true,
     demo: false,
     publicCorpus: false,
     ownerBypass: false,
     persistImagery: false,
-    r2: await r2Status(env),
+    r2: lite
+      ? { provisioned: Boolean(env.INDEX), bucket: env.INDEX ? "vision-community" : null, binding: "INDEX", publicAccess: false, role: "sealed-segments" }
+      : await r2Status(env),
     searchCost: SEARCH_COST,
     searchBackend: (visual?.n || 0) <= SITE_SEARCH_CAP ? "d1-prototype" : "local",
     searchOnSite: (visual?.n || 0) <= SITE_SEARCH_CAP,
     model: MODEL_ID,
     visualPublished: visual?.n || 0,
-    countries: [...new Set((countryRows.results || []).map((row) => canonicalizeCountry(row.country)).filter(Boolean))].sort(),
-    cameraGenerations: (generationRows.results || []).map((row) => row.camera_generation),
+    countries: [],
+    cameraGenerations: [],
     output: "map-making.app JSON",
     prototype: true,
     counts,
   };
+  if (!lite) {
+    const countryRows = await env.DB.prepare(
+      "SELECT DISTINCT country FROM locations WHERE country IS NOT NULL AND country != '' ORDER BY country"
+    ).all();
+    const generationRows = await env.DB.prepare(
+      "SELECT DISTINCT camera_generation FROM locations WHERE camera_generation IS NOT NULL AND camera_generation != '' ORDER BY camera_generation"
+    ).all();
+    result.countries = [...new Set((countryRows.results || []).map((row) => canonicalizeCountry(row.country)).filter(Boolean))].sort();
+    result.cameraGenerations = (generationRows.results || []).map((row) => row.camera_generation);
+  }
   if (account) {
     const row = await env.DB.prepare("SELECT units FROM accounts WHERE id=?").bind(account).first();
     result.accountId = account;
     result.units = row?.units || 0;
     result.searchesAvailable = Math.floor(result.units / SEARCH_COST);
+    if (!lite) {
+      const sceneWork = await workStatus(env, account, "scene");
+      const objectWork = await workStatus(env, account, "object");
+      result.work = sceneWork;
+      result.workByLane = { scene: sceneWork, object: objectWork };
+    }
   }
   return result;
 }
@@ -265,36 +419,123 @@ async function readCatalogSlice(env, shard, needed) {
   return { jobs, consumed };
 }
 
-async function materializeCatalog(env, lane, count, now) {
-  const claimed = [];
-  for (let attempt = 0; attempt < 32 && claimed.length < count; attempt += 1) {
+async function releaseExhaustedShard(env, lane, shardId) {
+  await env.DB.prepare(
+    "UPDATE pose_catalog SET assignee=NULL WHERE lane=? AND shard_id=? AND next_row >= row_count"
+  ).bind(lane, shardId).run();
+}
+
+async function claimShard(env, account, lane, shard, now) {
+  const stale = now - STEAL_AFTER_SECONDS;
+  const moved = await env.DB.prepare(
+    `UPDATE pose_catalog SET assignee=?, assigned_at=?
+     WHERE lane=? AND shard_id=? AND next_row < row_count AND COALESCE(held, 0)=0
+       AND (
+         assignee IS NULL OR assignee=?
+         OR (
+           assigned_at IS NOT NULL AND assigned_at < ?
+           AND NOT EXISTS (
+             SELECT 1 FROM leases
+             WHERE account_id=pose_catalog.assignee AND lane=pose_catalog.lane
+               AND state='active' AND expires_at>?
+           )
+         )
+       )`
+  ).bind(account, now, lane, shard.shard_id, account, stale, now).run();
+  if (!moved.meta || moved.meta.changes !== 1) return null;
+  await env.DB.prepare(
+    "UPDATE pose_catalog SET assignee=NULL WHERE lane=? AND assignee=? AND shard_id!=? AND next_row < row_count"
+  ).bind(lane, account, shard.shard_id).run();
+  return env.DB.prepare("SELECT * FROM pose_catalog WHERE lane=? AND shard_id=?").bind(lane, shard.shard_id).first();
+}
+
+async function assignCatalogShard(env, account, lane, now, part) {
+  if (part != null) {
     const shard = await env.DB.prepare(
-      "SELECT * FROM pose_catalog WHERE lane=? AND next_row < row_count ORDER BY shard_id LIMIT 1"
-    ).bind(lane).first();
-    if (!shard) break;
+      `SELECT * FROM pose_catalog WHERE lane=? ORDER BY ${catalogOrderSql()} LIMIT 1 OFFSET ?`
+    ).bind(lane, part - 1).first();
+    if (!shard) return { error: "invalid_part" };
+    const claimed = await claimShard(env, account, lane, shard, now);
+    if (!claimed) {
+      if ((shard.next_row || 0) >= (shard.row_count || 0)) {
+        return assignCatalogShard(env, account, lane, now, null);
+      }
+      if (shard.assignee && shard.assignee !== account) return { error: "part_taken" };
+      return null;
+    }
+    return claimed;
+  }
+  const existing = await env.DB.prepare(
+    `SELECT * FROM pose_catalog WHERE lane=? AND assignee=? AND next_row < row_count AND COALESCE(held, 0)=0 ORDER BY ${catalogOrderSql()} LIMIT 1`
+  ).bind(lane, account).first();
+  if (existing) return existing;
+  const candidates = (await env.DB.prepare(
+    `SELECT * FROM pose_catalog WHERE lane=? AND next_row < row_count AND COALESCE(held, 0)=0 ORDER BY ${catalogOrderSql()}`
+  ).bind(lane).all()).results || [];
+  for (const shard of candidates) {
+    const claimed = await claimShard(env, account, lane, shard, now);
+    if (claimed) return claimed;
+  }
+  return null;
+}
+
+async function pendingForShard(env, lane, shardId, now, count) {
+  return (await env.DB.prepare(
+    `SELECT id, asset_id, capture, lane, model, generation, attribution, lat, lon, heading, pitch, zoom, country, camera_generation, catalog_shard, state, lease_until
+     FROM locations WHERE lane=? AND catalog_shard=? AND COALESCE(queue_state,'pending')='pending'
+       AND asset_id NOT LIKE 'Prototype%' AND asset_id NOT LIKE 'synthetic:%' AND asset_id NOT LIKE 'CommunityPano%'
+       AND (state='pending' OR (state='leased' AND lease_until<=?))
+     ORDER BY id LIMIT ?`
+  ).bind(lane, shardId, now, count).all()).results || [];
+}
+
+async function pendingShared(env, lane, now, count) {
+  return (await env.DB.prepare(
+    `SELECT id, asset_id, capture, lane, model, generation, attribution, lat, lon, heading, pitch, zoom, country, camera_generation, catalog_shard, state, lease_until
+     FROM locations WHERE lane=? AND COALESCE(queue_state,'pending')='pending'
+       AND asset_id NOT LIKE 'Prototype%' AND asset_id NOT LIKE 'synthetic:%' AND asset_id NOT LIKE 'CommunityPano%'
+       AND (state='pending' OR (state='leased' AND lease_until<=?))
+     ORDER BY id LIMIT ?`
+  ).bind(lane, now, count).all()).results || [];
+}
+
+async function materializeCatalog(env, lane, count, now, shard) {
+  const claimed = [];
+  const shardId = shard.shard_id;
+  for (let attempt = 0; attempt < 32 && claimed.length < count; attempt += 1) {
+    const current = await env.DB.prepare(
+      "SELECT * FROM pose_catalog WHERE lane=? AND shard_id=?"
+    ).bind(lane, shardId).first();
+    if (!current || current.next_row >= current.row_count) break;
     const needed = count - claimed.length;
-    const slice = await readCatalogSlice(env, shard, needed);
+    const slice = await readCatalogSlice(env, current, needed);
     if (!slice.consumed) {
       await env.DB.prepare(
         "UPDATE pose_catalog SET next_row=row_count, next_byte=bytes WHERE lane=? AND shard_id=?"
-      ).bind(lane, shard.shard_id).run();
-      continue;
+      ).bind(lane, shardId).run();
+      await releaseExhaustedShard(env, lane, shardId);
+      break;
     }
     const moved = await env.DB.prepare(
       "UPDATE pose_catalog SET next_byte=next_byte+?, next_row=next_row+? WHERE lane=? AND shard_id=? AND next_byte=?"
-    ).bind(slice.consumed, slice.jobs.length, lane, shard.shard_id, shard.next_byte).run();
+    ).bind(slice.consumed, slice.jobs.length, lane, shardId, current.next_byte).run();
     if (!moved.meta || moved.meta.changes !== 1) continue;
+    await releaseExhaustedShard(env, lane, shardId);
     for (const job of slice.jobs) {
       await env.DB.prepare(
         `INSERT OR IGNORE INTO locations
-          (asset_id, capture, lane, model, label, source, rights, attribution, lat, lon, heading, pitch, zoom, country, camera_generation, queue_state)
-         VALUES (?, ?, ?, ?, '', 'street-metadata', 'metadata-only-no-imagery', 'Panorama metadata only. Imagery is not stored.', ?, ?, ?, ?, ?, ?, ?, 'pending')`
+          (asset_id, capture, lane, model, label, source, rights, attribution, lat, lon, heading, pitch, zoom, country, camera_generation, queue_state, catalog_shard)
+         VALUES (?, ?, ?, ?, '', 'street-metadata', 'metadata-only-no-imagery', 'Panorama metadata only. Imagery is not stored.', ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`
       ).bind(
         job.assetId, job.capture, job.lane, job.model,
-        job.lat, job.lon, job.heading, job.pitch, job.zoom, job.country, job.cameraGeneration
+        job.lat, job.lon, job.heading, job.pitch, job.zoom, job.country, job.cameraGeneration, shardId
       ).run();
+      await env.DB.prepare(
+        `UPDATE locations SET catalog_shard=?
+         WHERE asset_id=? AND capture=? AND lane=? AND model=? AND catalog_shard IS NULL`
+      ).bind(shardId, job.assetId, job.capture, job.lane, job.model).run();
       const row = await env.DB.prepare(
-        `SELECT id, asset_id, capture, lane, model, generation, attribution, lat, lon, heading, pitch, zoom, country, camera_generation, state, lease_until
+        `SELECT id, asset_id, capture, lane, model, generation, attribution, lat, lon, heading, pitch, zoom, country, camera_generation, catalog_shard, state, lease_until
          FROM locations WHERE asset_id=? AND capture=? AND lane=? AND model=?`
       ).bind(job.assetId, job.capture, job.lane, job.model).first();
       if (!row || row.state === "published") continue;
@@ -360,6 +601,8 @@ async function lease(env, account, body) {
   const pace = body.pace || "medium";
   if (!UNITS[lane] || typeof body.count !== "number" || body.count < 1 || body.count > MAX_LEASE) return error("invalid_lease_request");
   if (!["slow", "medium", "max"].includes(pace)) return error("invalid_pace");
+  const requestedPart = parsePart(body.part);
+  if (requestedPart === undefined) return error("invalid_part");
   const client = body.client === "cli" ? "cli" : "browser";
   const count = Math.min(body.count, leaseCap(lane, pace, client));
   const now = Math.floor(Date.now() / 1000);
@@ -373,6 +616,7 @@ async function lease(env, account, body) {
     ).bind(existing.id).all()).results || [];
     const payload = [];
     for (const row of held) payload.push(await leaseItemFromRow(row, row.generation || 1));
+    const work = await workStatus(env, account, lane);
     return json({
       leaseId: existing.id,
       expiresAt: existing.expires_at,
@@ -380,20 +624,49 @@ async function lease(env, account, body) {
       resourceBudget: { slow: 1, medium: "cpu/2", max: "all-cores" }[existing.pace || pace],
       items: payload,
       resumed: true,
+      work,
     });
   }
-  const rows = await env.DB.prepare(
-    `SELECT id, asset_id, capture, lane, model, generation, attribution, lat, lon, heading, pitch, zoom, country, camera_generation
-     FROM locations WHERE lane=? AND COALESCE(queue_state,'pending')='pending'
-       AND asset_id NOT LIKE 'Prototype%' AND asset_id NOT LIKE 'synthetic:%' AND asset_id NOT LIKE 'CommunityPano%'
-       AND (state='pending' OR (state='leased' AND lease_until<=?))
-     ORDER BY id LIMIT ?`
-  ).bind(lane, now, count).all();
-  let items = rows.results || [];
-  if (items.length < count) {
-    const extra = await materializeCatalog(env, lane, count - items.length, now);
-    const seen = new Set(items.map((row) => row.id));
-    items = items.concat(extra.filter((row) => !seen.has(row.id))).slice(0, count);
+  const remaining = await env.DB.prepare(
+    "SELECT 1 AS ok FROM pose_catalog WHERE lane=? AND next_row < row_count LIMIT 1"
+  ).bind(lane).first();
+  let items = [];
+  let activeShard = null;
+  if (remaining) {
+    for (let hops = 0; hops < 32 && items.length < count; hops += 1) {
+      const assigned = await assignCatalogShard(env, account, lane, now, hops === 0 ? requestedPart : null);
+      if (assigned && assigned.error) return error(assigned.error, assigned.error === "part_taken" ? 409 : 400);
+      if (!assigned) break;
+      activeShard = assigned;
+      const need = count - items.length;
+      let chunk = await pendingForShard(env, lane, assigned.shard_id, now, need);
+      if (chunk.length < need) {
+        const extra = await materializeCatalog(env, lane, need - chunk.length, now, assigned);
+        const seen = new Set(chunk.map((row) => row.id));
+        chunk = chunk.concat(extra.filter((row) => !seen.has(row.id)));
+      }
+      if (!chunk.length) {
+        await releaseExhaustedShard(env, lane, assigned.shard_id);
+        const current = await env.DB.prepare(
+          "SELECT * FROM pose_catalog WHERE lane=? AND shard_id=?"
+        ).bind(lane, assigned.shard_id).first();
+        if (current && current.next_row < current.row_count) break;
+        continue;
+      }
+      const seen = new Set(items.map((row) => row.id));
+      for (const row of chunk) {
+        if (seen.has(row.id)) continue;
+        items.push(row);
+        seen.add(row.id);
+        if (items.length >= count) break;
+      }
+      const current = await env.DB.prepare(
+        "SELECT * FROM pose_catalog WHERE lane=? AND shard_id=?"
+      ).bind(lane, assigned.shard_id).first();
+      if (current) activeShard = current;
+    }
+  } else {
+    items = await pendingShared(env, lane, now, count);
   }
   if (!items.length) return error("no_available_work", 409);
   const leaseId = randomHex(16);
@@ -411,12 +684,16 @@ async function lease(env, account, body) {
     payload.push(await leaseItemFromRow(row, generation));
   }
   await env.DB.batch(statements);
+  const work = activeShard
+    ? await workFromShard(env, lane, activeShard)
+    : await workStatus(env, account, lane);
   return json({
     leaseId,
     expiresAt: expires,
     pace,
     resourceBudget: { slow: 1, medium: "cpu/2", max: "all-cores" }[pace],
     items: payload,
+    work,
   });
 }
 
@@ -580,7 +857,14 @@ async function sealSearchShard(env, leaseId, lane, verified) {
 
 async function requirePaidSearch(env, account, searchId) {
   if (typeof searchId !== "string" || !searchId) return null;
-  return env.DB.prepare("SELECT id FROM searches WHERE id=? AND account_id=?").bind(searchId, account).first();
+  return env.DB.prepare(
+    `SELECT s.id FROM searches s
+     WHERE s.id=? AND s.account_id=?
+       AND EXISTS (
+         SELECT 1 FROM ledger
+         WHERE reference=? AND account_id=? AND reason='search' AND units<0
+       )`
+  ).bind(searchId, account, `search:${searchId}`, account).first();
 }
 
 async function publishedSnapshot(env, account, url) {
@@ -866,14 +1150,23 @@ async function search(env, account, body) {
   const maxPerCountry = Math.min(10000, Math.max(1, Number.isInteger(body.maxPerCountry) ? body.maxPerCountry : 25));
   const filters = normalizeFilters(body);
   if (filters.mode === "include" && !filters.countries.length) return error("invalid_country_filter");
+  const prompt = parsePrompt(body.prompt);
+  if (prompt === null) return error("invalid_query");
   const map = body.queryMap;
-  const parsed = parseQueryMap(map);
+  const parsed = map == null ? null : parseQueryMap(map);
   if (parsed?.error) return error(parsed.error);
-  if (!parsed) return error("invalid_mma_map");
-  const examples = parsed;
-  const queryName = typeof map?.name === "string" && map.name.trim() ? map.name.trim() : (body.outputName || "VISION Community");
+  const examples = Array.isArray(parsed) ? parsed : [];
+  const hasJson = examples.length > 0;
+  const hasPrompt = Boolean(prompt);
+  if (!hasJson && !hasPrompt) return error("invalid_query");
+  const weight = snapDescriptionWeight(body.descriptionWeight, hasJson, hasPrompt);
+  const queryName = typeof body.outputName === "string" && body.outputName.trim()
+    ? body.outputName.trim()
+    : (typeof map?.name === "string" && map.name.trim() ? map.name.trim() : (prompt || "VISION Community"));
   const excludeKey = excluded.length ? `:exclude:${excluded.length}:${excluded[0].panoId}` : "";
-  const queryKey = `mma:${queryName}:${lane}:${viewDirection}:${examples.map((item) => item.panoId).join(",")}${excludeKey}`;
+  const jsonKey = hasJson ? examples.map((item) => item.panoId).join(",") : "";
+  const promptKey = hasPrompt ? `:prompt:${prompt}:w${weight}` : "";
+  const queryKey = `mix:${queryName}:${lane}:${viewDirection}:${jsonKey}${promptKey}${excludeKey}`;
   const existing = await env.DB.prepare(
     "SELECT query, result_json FROM searches WHERE account_id=? AND idempotency_key=?"
   ).bind(account, key).first();
@@ -916,34 +1209,48 @@ async function search(env, account, body) {
     "SELECT COUNT(*) AS n FROM published_index i JOIN locations l ON l.id=i.location_id WHERE i.embedding IS NOT NULL AND l.lane=?"
   ).bind(lane).first();
   if ((publishedCount?.n || 0) > SITE_SEARCH_CAP) return error("search_on_computer", 413);
-  const vectors = [];
-  const queryExamples = examples.some((item) => usesStreetViews(item.panoId))
-    ? examples.slice(0, QUERY_VIEW_CAP)
-    : examples;
-  for (const example of queryExamples) {
-    const indexed = await env.DB.prepare(
-      `SELECT capture FROM locations WHERE asset_id=? AND lane=?
-       ORDER BY CASE WHEN state='published' THEN 0 ELSE 1 END, id LIMIT 1`
-    ).bind(example.panoId, lane).first();
-    const capture = indexed?.capture || example.capture;
-    let faces;
-    try {
-      faces = await locationFaces({
-        panoId: example.panoId,
-        assetId: example.panoId,
-        capture,
-        lane,
-        model: MODEL_ID,
-        heading: example.heading || 0,
-        pitch: example.pitch || 0,
-        zoom: example.zoom || 0,
-      });
-    } catch (err) {
-      return viewFailure(err) || error("view_unavailable", 422);
+  let query = null;
+  if (hasJson) {
+    const vectors = [];
+    const queryExamples = examples.some((item) => usesStreetViews(item.panoId))
+      ? examples.slice(0, QUERY_VIEW_CAP)
+      : examples;
+    for (const example of queryExamples) {
+      const indexed = await env.DB.prepare(
+        `SELECT capture FROM locations WHERE asset_id=? AND lane=?
+         ORDER BY CASE WHEN state='published' THEN 0 ELSE 1 END, id LIMIT 1`
+      ).bind(example.panoId, lane).first();
+      const capture = indexed?.capture || example.capture;
+      let faces;
+      try {
+        faces = await locationFaces({
+          panoId: example.panoId,
+          assetId: example.panoId,
+          capture,
+          lane,
+          model: MODEL_ID,
+          heading: example.heading || 0,
+          pitch: example.pitch || 0,
+          zoom: example.zoom || 0,
+        });
+      } catch (err) {
+        return viewFailure(err) || error("view_unavailable", 422);
+      }
+      vectors.push(embeddingFor(lane, faces));
     }
-    vectors.push(embeddingFor(lane, faces));
+    query = meanEmbeddings(vectors);
   }
-  const query = meanEmbeddings(vectors);
+  if (hasPrompt) {
+    let textQuery;
+    try {
+      textQuery = await descriptionEmbedding(prompt, lane);
+    } catch {
+      return error("invalid_query");
+    }
+    query = query ? mixEmbeddings(query, textQuery, weight) : textQuery;
+  }
+  const debit = await env.DB.prepare("UPDATE accounts SET units=units-? WHERE id=? AND units>=?").bind(SEARCH_COST, account, SEARCH_COST).run();
+  if (!debit.meta || debit.meta.changes !== 1) return error("insufficient_credit", 402);
   const published = (await env.DB.prepare(
     `SELECT i.location_id, i.embedding, l.asset_id, l.lat, l.lon, l.heading, l.pitch, l.zoom, l.country, l.camera_generation
      FROM published_index i JOIN locations l ON l.id=i.location_id
@@ -987,8 +1294,6 @@ async function search(env, account, body) {
     persistImagery: false,
     map: { name: queryName, customCoordinates: coordinates },
   };
-  const debit = await env.DB.prepare("UPDATE accounts SET units=units-? WHERE id=? AND units>=?").bind(SEARCH_COST, account, SEARCH_COST).run();
-  if (!debit.meta || debit.meta.changes !== 1) return error("insufficient_credit", 402);
   await env.DB.batch([
     env.DB.prepare("INSERT INTO searches (id, account_id, idempotency_key, query, result_json) VALUES (?, ?, ?, ?, ?)").bind(
       searchId, account, key, queryKey, JSON.stringify(result)
@@ -1027,7 +1332,7 @@ export default {
       if (url.pathname === "/api/me" && request.method === "GET") {
         const account = await accountId(env, request);
         if (!account) return error("unauthorized", 401);
-        return json(await status(env, account));
+        return json(await status(env, account, { lite: url.searchParams.get("lite") === "1" }));
       }
       if (url.pathname === "/api/views" && request.method === "GET") {
         if (!sameOrigin(request)) return error("cross_origin_request", 403);

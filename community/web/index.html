@@ -7,6 +7,7 @@
   <title>VISION Community</title>
   <link rel="stylesheet" href="/style.css">
   <script src="/visual.js" defer></script>
+  <script src="/mma.js" defer></script>
   <script src="/app.js" defer></script>
 </head>
 <body>
@@ -28,8 +29,8 @@
     <aside class="rail">
       <ol class="howto">
         <li><strong>Get an account.</strong> Click the gold button. Save the code it shows you — that is your only login.</li>
-        <li><strong>Help index.</strong> Click Start and leave this tab open. Each place you finish counts toward a search.</li>
-        <li><strong>Search.</strong> When the bar is full, press Search, then Download. Open that file on the map site.</li>
+        <li><strong>Help index.</strong> Choose Places, Objects, or Both, then click Start and leave this tab open. You get your own batch, so other people are not doing the same ones. Places count as 1 toward a search. Objects count as 10.</li>
+        <li><strong>Search.</strong> When the bar is full, press Search. Add the results to map-making.app, or copy them into the local Map Making App.</li>
       </ol>
 
       <div class="contribute">
@@ -44,34 +45,69 @@
           <button id="dismiss-recovery" class="ghost" type="button">Got it</button>
         </p>
 
+        <label class="field-label">What to index</label>
+        <div class="segmented wide" id="process-lane">
+          <label><input type="radio" name="process-lane" value="scene" checked><span>Places</span></label>
+          <label><input type="radio" name="process-lane" value="object"><span>Objects</span></label>
+          <label><input type="radio" name="process-lane" value="both"><span>Both</span></label>
+        </div>
+        <p class="rail-copy" id="process-lane-help">Places look around each panorama. Objects use the six-face cube, like VISION. Both does each in turn.</p>
+
         <button id="process" class="cmd" type="button" disabled>Start</button>
         <button id="pause" class="ghost" type="button" disabled>Pause</button>
         <p class="status" id="process-status">Get an account, then click Start.</p>
+        <p class="rail-copy">Keep this tab in front. Indexing slows if the computer sleeps or you switch away.</p>
+        <p class="rail-copy" id="batch-label">You will get your own batch. Other people get different batches.</p>
 
         <div class="progress" role="progressbar" aria-labelledby="progress-label">
           <div id="progress-fill"></div>
         </div>
         <p id="progress-label">0 of 100,000 toward a search</p>
         <div class="balance">
-          <span>Places finished</span>
+          <span id="units-label">Toward a search</span>
           <strong id="units">0</strong>
           <small><span id="searches-available">0</span> searches ready · needs <span id="search-cost">100000</span> · <span id="units-need">100,000 more</span></small>
         </div>
         <p class="rail-copy" id="queue-label">Checking remaining work…</p>
 
-        <details class="more">
-          <summary>Places or objects, and speed</summary>
-          <label class="field-label">What to index</label>
-          <div class="pace" id="process-lane">
-            <label><input type="radio" name="process-lane" value="scene" checked><span>Places</span></label>
-            <label><input type="radio" name="process-lane" value="object"><span>Objects</span></label>
+        <details class="more" id="mma-connect">
+          <summary id="mma-connect-summary">Connect a map app</summary>
+          <p class="rail-copy">Search results can go straight into your maps. The key stays on this computer — not on VISION Community.</p>
+          <label class="field-label">Where to add results</label>
+          <div class="segmented wide" id="mma-target">
+            <label><input type="radio" name="mma-target" value="cloud" checked><span>map-making.app</span></label>
+            <label><input type="radio" name="mma-target" value="local"><span>Local app</span></label>
           </div>
+          <div id="mma-cloud-block">
+            <label class="field-label" for="mma-api-key">API key</label>
+            <input id="mma-api-key" type="password" maxlength="200" autocomplete="off" placeholder="Paste a map-making.app API key">
+            <div class="file-row">
+              <button id="mma-connect-btn" class="ghost" type="button">Connect</button>
+              <button id="mma-disconnect" class="ghost" type="button">Disconnect</button>
+            </div>
+            <p class="hint">On map-making.app, open your account menu and create an API key named VISION Community. Paste it here once.</p>
+            <label class="field-label" for="mma-map-select">Map to add to</label>
+            <select id="mma-map-select">
+              <option value="__new__">New map each search</option>
+            </select>
+            <p class="status" id="mma-connect-status">Not connected</p>
+          </div>
+          <div id="mma-local-block" hidden>
+            <p class="rail-copy">After Search, click Copy for local app. Open Map Making App, open a map, then paste or drop the file onto the window.</p>
+          </div>
+        </details>
+
+        <details class="more">
+          <summary>Speed and batch number</summary>
           <label class="field-label" for="pace">Speed</label>
           <div class="pace" id="pace">
             <label><input type="radio" name="pace" value="slow"><span>Gentle</span></label>
             <label><input type="radio" name="pace" value="medium" checked><span>Normal</span></label>
             <label><input type="radio" name="pace" value="max"><span>Faster</span></label>
           </div>
+          <label class="field-label" for="batch-number">Batch number (optional)</label>
+          <input id="batch-number" type="number" min="1" step="1" placeholder="Leave blank and we pick a free batch">
+          <small>Use this only if you agreed to split the map with someone. Otherwise leave it blank.</small>
         </details>
 
         <details class="more">
@@ -79,7 +115,8 @@
           <p class="rail-copy">If you were given the project folder, paste this into Terminal after you have an account. Most people can ignore this and just click Start. Search also runs on your computer this way — there is no extra server to buy.</p>
           <pre class="cli" id="cli-command">python3 -m community.contribute --lane scene --pace medium --recovery-code YOUR_CODE</pre>
           <button id="copy-cli" class="ghost" type="button">Copy command</button>
-          <pre class="cli" id="local-search-command">python3 -m community.local_search --query community/web/sample-query.json --recovery-code YOUR_CODE</pre>
+          <pre class="cli" id="local-search-command">python3 -m community.local_search --prompt "red barn in snow" --recovery-code YOUR_CODE</pre>
+          <p class="hint">Then add that JSON to a map: <code>python3 -m community.send_mma result.json --new-map</code></p>
           <button id="copy-local-search" class="ghost" type="button">Copy search command</button>
         </details>
 
@@ -98,7 +135,7 @@
       <div class="editor-head">
         <div>
           <h1 id="job-title">Find matching places</h1>
-          <p class="sub">An example search is already loaded. Finish enough places, press Search, then Download.</p>
+          <p class="sub">Type a description, add a JSON file, or mix both. Finish enough indexing, then Search and add the map.</p>
         </div>
         <span class="ready" id="ready-badge">Get an account</span>
       </div>
@@ -124,6 +161,32 @@
           <option value="sideAxis">Cross-axis (+90° / +270°)</option>
         </select>
         <p class="hint">Saved pan is each place’s original heading, pitch, and zoom. Leave this on Best of available views unless you want a specific turn.</p>
+      </section>
+
+      <section>
+        <h2>What to search with</h2>
+        <label class="field-label" for="prompt" id="prompt-label">Description</label>
+        <textarea id="prompt" rows="4" maxlength="400" placeholder="What should the locations look like?"></textarea>
+        <p class="hint" id="prompt-help">Type a description, choose a JSON file of example places, or use both — the same choices as VISION.</p>
+        <label class="field-label">Location JSON</label>
+        <div class="file-row">
+          <input id="query-map" type="file" accept="application/json,.json" hidden>
+          <button id="choose-json" class="ghost" type="button">Choose a JSON file</button>
+          <button id="load-sample" class="ghost" type="button">Load example JSON</button>
+          <button id="clear-json" class="ghost" type="button">Clear JSON</button>
+        </div>
+        <p class="file-name" id="file-name">No JSON yet</p>
+        <div id="blend-block" hidden>
+          <label class="field-label">Mix JSON and description</label>
+          <div class="segmented wide" id="description-weight">
+            <label><input type="radio" name="description-weight" value="0"><span>JSON</span></label>
+            <label><input type="radio" name="description-weight" value="25"><span>25%</span></label>
+            <label><input type="radio" name="description-weight" value="50" checked><span>50%</span></label>
+            <label><input type="radio" name="description-weight" value="75"><span>75%</span></label>
+            <label><input type="radio" name="description-weight" value="100"><span>Description</span></label>
+          </div>
+          <p class="hint">JSON is the photo examples. Description is the written query. 50% uses both equally.</p>
+        </div>
       </section>
 
       <details class="advanced">
@@ -175,16 +238,8 @@
         </section>
 
         <section>
-          <h2>Your own photo map</h2>
-          <label class="field-label" for="query-map">Replace the example</label>
-          <div class="file-row">
-            <input id="query-map" type="file" accept="application/json,.json" hidden>
-            <button id="choose-json" class="ghost" type="button">Choose a JSON file</button>
-            <button id="load-sample" class="ghost" type="button">Back to the example</button>
-          </div>
-          <p class="file-name" id="file-name">Example search is loaded</p>
-          <p class="hint">Optional. Use a map file from VISION if you have one.</p>
-          <label class="field-label" for="exclude-map">Skip places already used</label>
+          <h2>Skip places already used</h2>
+          <label class="field-label" for="exclude-map">Previous map</label>
           <div class="file-row">
             <input id="exclude-map" type="file" accept="application/json,.json" hidden>
             <button id="choose-exclude" class="ghost" type="button">Choose previous map</button>
@@ -197,6 +252,8 @@
 
       <div class="run-row">
         <button id="run-search" class="cmd gold" type="button" disabled>Search</button>
+        <button id="send-mma" class="cmd" type="button" hidden>Add to my map</button>
+        <button id="copy-mma" class="ghost" type="button" hidden>Copy for local app</button>
         <button id="download-map" class="cmd" type="button" hidden>Download map</button>
       </div>
       <p class="status" id="search-status">Finish 100,000 places to unlock Search.</p>
@@ -206,7 +263,7 @@
 
   <footer class="statusbar">
     <span id="account-chip">No account yet</span>
-    <span id="build-label">Leave this tab open while indexing</span>
+    <span id="build-label">Keep this tab in front while indexing</span>
   </footer>
 </body>
 </html>
