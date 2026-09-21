@@ -112,6 +112,37 @@ def handler_for(service: CommunityService):
                     self._same_origin()
                     query = {key: values[-1] for key, values in parse_qs(parsed.query, keep_blank_values=True).items()}
                     return self._json(200, service.views(self._account(), query))
+                if route == "/api/published-snapshot":
+                    self._same_origin()
+                    query = {key: values[-1] for key, values in parse_qs(parsed.query, keep_blank_values=True).items()}
+                    after = 0
+                    limit = 250
+                    try:
+                        after = int(query.get("after") or 0)
+                        limit = int(query.get("limit") or 250)
+                    except ValueError:
+                        raise ServiceError("invalid_json")
+                    return self._json(
+                        200,
+                        service.published_snapshot(
+                            self._account(),
+                            search_id=query.get("searchId") or "",
+                            lane=query.get("lane") or "scene",
+                            after=after,
+                            limit=limit,
+                        ),
+                    )
+                if route == "/api/index-manifest":
+                    self._same_origin()
+                    query = {key: values[-1] for key, values in parse_qs(parsed.query, keep_blank_values=True).items()}
+                    return self._json(
+                        200,
+                        service.index_manifest(
+                            self._account(),
+                            search_id=query.get("searchId") or "",
+                            lane=query.get("lane") or "scene",
+                        ),
+                    )
                 static = STATIC.get(route)
                 if static is None:
                     raise ServiceError("not_found", 404)
@@ -187,6 +218,7 @@ def handler_for(service: CommunityService):
                             camera_generations=data.get("cameraGenerations") if isinstance(data.get("cameraGenerations"), list) else [],
                             view_direction=data.get("viewDirection") if isinstance(data.get("viewDirection"), str) else None,
                             exclude_map=exclude_map,
+                            execute=data.get("execute") if isinstance(data.get("execute"), str) else None,
                         ),
                     )
                 raise ServiceError("not_found", 404)

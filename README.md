@@ -10,24 +10,22 @@ Each verified scene location earns 1 unit. Each verified object location earns
 10,000 object locations). New accounts start at zero. There is no trial, owner,
 or API bypass.
 
-## Hosted prototype
+## How to use the site
 
 https://vision-community.visioncommunity.workers.dev
 
-This is a working VISION-style workspace: exclusive processing, ranked visual
-search, map-making.app JSON in and out. **Index on your computer** with the
-CLI so Street View is fetched there. The queue is the ALL LOCATIONS tail (five
-million poses on R2), not the local 20.96M VISION index.
+You only need a web browser.
 
-1. Create an anonymous account and save the recovery code.
-2. Clone this repo, `pip install -r requirements.txt`, and run
-   `python3 -m community.contribute --lane scene --pace medium --recovery-code YOUR_CODE`.
-   `--url` defaults to the hosted Worker. The recovery code is saved locally so
-   later runs can omit it.
-3. Or process a small batch in the browser (limited; it still proxies thumbnails).
-4. Load sample JSON (or upload a VISION export).
-5. Search. Rank 1 is the matching reference when that pano is in the index.
-6. Download JSON and open it on [map-making.app](https://map-making.app).
+1. Click **Get a free account**. Write down the code it shows you.
+2. Click **Start** and leave the tab open. Each place you finish fills the bar.
+3. When the bar is full, click **Search**, then **Download**. Open that file on [map-making.app](https://map-making.app).
+
+A search needs **100,000 places** (or 10,000 objects). There is no shortcut. An example search is already loaded, so you do not need a JSON file unless you have one from VISION.
+
+If you were given the project folder and want it to go faster, see [CONTRIBUTING.md](CONTRIBUTING.md). Most people can ignore that.
+
+The queue is the local 20.96M already-indexed VISION poses (metadata only) plus
+the ALL LOCATIONS tail. SigLIP embeddings stay on this computer.
 
 Local equivalent:
 
@@ -59,6 +57,7 @@ proxied through the site):
 
 ```sh
 PYTHONDONTWRITEBYTECODE=1 python3 -m community.contribute --url https://vision-community.visioncommunity.workers.dev --lane scene --pace medium --recovery-code YOUR_CODE
+PYTHONDONTWRITEBYTECODE=1 python3 -m community.local_search --url https://vision-community.visioncommunity.workers.dev --query community/web/sample-query.json --recovery-code YOUR_CODE
 ```
 
 ```sh
@@ -82,11 +81,11 @@ per hit.
 
 ## Storage at 200 million locations
 
-A 200M corpus of community embeddings plus sealed pose metadata is about 51 GiB
-(~$0.61/month on R2 after the free 10 GB). VISION-scale 3,080-byte embeddings
-at 200M are about 590 GiB (~$9/month storage). Neither stores imagery. Fast
-search still needs a dedicated host; Workers Free cannot scan 200M vectors.
-See [ARCHITECTURE.md](ARCHITECTURE.md) and [MEASUREMENTS.md](MEASUREMENTS.md).
+Fast search at 200 million locations runs **on the user's computer**. The site
+is only the queue and credit desk. Workers Free cannot scan 200M vectors, so
+there is no paid search host to buy. After 100,000 units, `python3 -m
+community.local_search` downloads the shared index and ranks it locally. While
+the published index is still small, the website can search in the tab.
 
 ## Invariants
 
@@ -118,10 +117,12 @@ What still needs a person:
    local indexer is stopped or has passed that cursor. Do not shrink the file
    while `mma-vision` is running.
 
-3. **Later, when the corpus is real:** dedicated search host (Workers Free
-   cannot scan ~200M vectors); custom domain if you want one; keep GitHub
-   private. Never touch `geonections-images`. Do not upload the 20.96M VISION
-   embeddings. Live search already costs 100,000 units.
+3. **Later, when the corpus is real:** custom domain if you want one; keep
+   GitHub private. Never touch `geonections-images`. Do not upload the 20.96M
+   VISION embeddings. Search already costs 100,000 units. Large searches run
+   on the user's computer (`python3 -m community.local_search`). Do not buy a
+   search VM.
 
-The hosted site is the shared queue and credit desk. Fast 200M search still
-needs a dedicated host. Search already costs 100,000 units with no bypass.
+The hosted site is the shared queue and credit desk. Search at 200 million
+locations runs on volunteers' computers after they unlock it. Search already
+costs 100,000 units with no bypass.

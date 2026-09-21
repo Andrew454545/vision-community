@@ -5,7 +5,7 @@ from pathlib import Path
 
 from community.catalog import load_jobs, parse_tsv
 from community.features import MODEL_ID
-from community.mma import parse_map
+from community.mma import dump_map, location_record, parse_map
 from community.service import CommunityService
 from community.source import SourceError
 from community.worker import ProcessingWorker
@@ -216,5 +216,44 @@ class ShardImportAndHttpTest(unittest.TestCase):
                 server.server_close()
 
 
+class VisionCountryTagTest(unittest.TestCase):
+    def test_each_location_is_tagged_with_the_country_name(self):
+        record = location_record(
+            lat=41.9,
+            lng=12.5,
+            heading=90,
+            pitch=0,
+            zoom=0,
+            pano_id="CommunityPano000000000001",
+            rank=1,
+            score=0.12,
+            query_name="Example search",
+            lane="scene",
+            country="United States",
+        )
+        self.assertEqual(record["extra"]["tags"], ["USA"])
+        self.assertNotIn("visionObjectClass", record["extra"])
+        dumped = dump_map({"name": "Example search", "customCoordinates": [record]})
+        parsed = json.loads(dumped)
+        self.assertEqual(parsed["customCoordinates"][0]["extra"]["tags"], ["USA"])
+        self.assertLess(dumped.index('"customCoordinates"'), dumped.index('"name"'))
+        empty = location_record(
+            lat=0,
+            lng=0,
+            heading=0,
+            pitch=0,
+            zoom=0,
+            pano_id="CommunityPano000000000002",
+            rank=2,
+            score=0.01,
+            query_name="Example search",
+            lane="object",
+            country="",
+        )
+        self.assertEqual(empty["extra"]["tags"], [""])
+        self.assertEqual(empty["extra"]["visionObjectLane"], "object")
+
+
 if __name__ == "__main__":
     unittest.main()
+

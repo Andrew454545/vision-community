@@ -54,10 +54,9 @@ after the 10 GB free tier). VISION-scale 3,080-byte embeddings at 200M are
 about **590 GiB** (~$9/month storage). Both sit under a $20 storage-only
 budget.
 
-Fast gated search still cannot run on Workers Free (10 ms, 128 MB). The
-smallest remaining tradeoff is a dedicated search host with the sealed index
-on local disk or RAM. R2 remains the durable copy of segments, not the query
-engine.
+Fast gated search still cannot run on Workers Free (10 ms, 128 MB). Search at
+that scale runs on the user's computer after a 100,000-unit debit. R2 remains
+the durable copy of segments, not a query engine you have to rent.
 
 ## Verification
 

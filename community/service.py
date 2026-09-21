@@ -404,6 +404,7 @@ class CommunityService:
                 "operational": self.operational,
                 "ownerBypass": False,
                 "searchBackend": "local-sealed-segments",
+                "searchOnSite": True,
                 "r2": r2_public_status(),
                 "model": MODEL_ID,
                 "visualPublished": visual_published,
@@ -422,6 +423,80 @@ class CommunityService:
                 result["units"] = row["units"]
                 result["searchesAvailable"] = row["units"] // self.search_cost
             return result
+
+    def published_snapshot(
+        self,
+        account_id: str,
+        *,
+        search_id: str,
+        lane: str = "scene",
+        after: int = 0,
+        limit: int = 250,
+    ) -> dict:
+        if lane not in {"scene", "object"}:
+            raise ServiceError("invalid_lane")
+        if not isinstance(search_id, str) or not search_id:
+            raise ServiceError("unknown_search", 404)
+        try:
+            after = max(0, int(after or 0))
+            limit = min(500, max(1, int(limit or 250)))
+        except (TypeError, ValueError) as error:
+            raise ServiceError("invalid_json") from error
+        with self._connection() as connection:
+            paid = connection.execute(
+                "SELECT id FROM searches WHERE id=? AND account_id=?",
+                (search_id, account_id),
+            ).fetchone()
+            if paid is None:
+                raise ServiceError("unknown_search", 404)
+            rows = connection.execute(
+                """SELECT i.location_id, i.embedding, l.asset_id, l.lat, l.lon, l.heading,
+                          l.pitch, l.zoom, l.country, l.camera_generation
+                   FROM published_index i JOIN locations l ON l.id=i.location_id
+                   WHERE i.embedding IS NOT NULL AND l.lane=? AND i.location_id>?
+                   ORDER BY i.location_id LIMIT ?""",
+                (lane, after, limit + 1),
+            ).fetchall()
+        page = rows[:limit]
+        locations = []
+        for row in page:
+            embedding = row["embedding"]
+            if isinstance(embedding, memoryview):
+                embedding = bytes(embedding)
+            if isinstance(embedding, bytes):
+                hex_embedding = embedding.hex()
+            else:
+                hex_embedding = str(embedding or "")
+            locations.append(
+                {
+                    "locationId": row["location_id"],
+                    "panoId": row["asset_id"],
+                    "lat": row["lat"] or 0,
+                    "lng": row["lon"] or 0,
+                    "heading": row["heading"] or 0,
+                    "pitch": row["pitch"] or 0,
+                    "zoom": row["zoom"] or 0,
+                    "country": row["country"] or "",
+                    "cameraGeneration": row["camera_generation"] or "",
+                    "embedding": hex_embedding,
+                }
+            )
+        next_after = page[-1]["location_id"] if len(rows) > limit else None
+        return {"lane": lane, "locations": locations, "nextAfter": next_after}
+
+    def index_manifest(self, account_id: str, *, search_id: str, lane: str = "scene") -> dict:
+        if lane not in {"scene", "object"}:
+            raise ServiceError("invalid_lane")
+        if not isinstance(search_id, str) or not search_id:
+            raise ServiceError("unknown_search", 404)
+        with self._connection() as connection:
+            paid = connection.execute(
+                "SELECT id FROM searches WHERE id=? AND account_id=?",
+                (search_id, account_id),
+            ).fetchone()
+            if paid is None:
+                raise ServiceError("unknown_search", 404)
+        return {"shards": []}
 
     def _nearby_duplicate(self, connection: sqlite3.Connection, row: dict, *, meters: float = 25.0) -> bool:
         lat, lon = row["lat"], row["lon"]
@@ -1127,6 +1202,7 @@ class CommunityService:
         camera_generations=None,
         view_direction: str | None = None,
         exclude_map: dict | None = None,
+        execute: str | None = None,
     ) -> dict:
         if not isinstance(idempotency_key, str) or not 8 <= len(idempotency_key) <= 100:
             raise ServiceError("invalid_idempotency_key")
@@ -1184,6 +1260,40 @@ class CommunityService:
                 raise ServiceError("unauthorized", 401)
             if account["units"] < self.search_cost:
                 raise ServiceError("insufficient_credit", 402)
+            execute_local = execute == "local"
+            if execute_local:
+                if parsed is None:
+                    raise ServiceError("invalid_mma_map")
+                published = connection.execute(
+                    "SELECT COUNT(*) FROM published_index WHERE embedding IS NOT NULL"
+                ).fetchone()[0]
+                search_id = secrets.token_hex(16)
+                result = {
+                    "searchId": search_id,
+                    "query": query_name,
+                    "local": True,
+                    "lane": lane,
+                    "results": [],
+                    "demo": False,
+                    "persistImagery": False,
+                    "map": None,
+                    "published": published,
+                }
+                connection.execute(
+                    "UPDATE accounts SET units=units-? WHERE id=? AND units>=?",
+                    (self.search_cost, account_id, self.search_cost),
+                )
+                if connection.execute("SELECT changes()").fetchone()[0] != 1:
+                    raise ServiceError("insufficient_credit", 402)
+                connection.execute(
+                    "INSERT INTO searches (id, account_id, idempotency_key, query, result_json) VALUES (?, ?, ?, ?, ?)",
+                    (search_id, account_id, idempotency_key, query_key, json.dumps(result, separators=(",", ":"))),
+                )
+                connection.execute(
+                    "INSERT INTO ledger (account_id, units, reason, reference) VALUES (?, ?, 'search', ?)",
+                    (account_id, -self.search_cost, f"search:{search_id}"),
+                )
+                return result
             if visual:
                 overfetch = candidate_result_count(result_count, max_per_country)
                 accept = lambda record: accepts(record, country_mode, selected_countries, selected_generations)

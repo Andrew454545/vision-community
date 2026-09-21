@@ -1,58 +1,25 @@
-# Contribute with the local worker
+# How to help
 
-The website assigns exclusive batches and stores embeddings. **Street View is
-fetched on your computer**, then discarded. Do not upload JPEG/PNG bytes.
+You do not need to be technical. A web browser is enough.
 
-## Setup
+1. Open the site.
+2. Click **Get a free account**. Write down or screenshot the code. That code is your only login.
+3. Click **Start** and leave the tab open.
+4. When the bar reaches 100,000, click **Search**, then **Download**.
+5. Open the downloaded file on [map-making.app](https://map-making.app).
 
-You need Python 3.12+ and [Pillow](https://pypi.org/project/Pillow/).
+Keep the tab in the foreground if you can. Pause if you need to stop.
+
+Coming back later: paste your saved code and click Restore.
+
+## Faster (optional)
+
+Only if you already have this project folder on your computer:
 
 ```sh
-cd vision-community
 python3 -m pip install -r requirements.txt
+python3 -m community.contribute --lane scene --pace medium --recovery-code YOUR_CODE
+python3 -m community.local_search --query community/web/sample-query.json --recovery-code YOUR_CODE
 ```
 
-The GitHub repository is private. Clone it from the invitation you were sent,
-not from a public URL. After a clone:
-
-```sh
-python3 -m community.contribute \
-  --url https://vision-community.visioncommunity.workers.dev \
-  --lane scene \
-  --pace medium \
-  --recovery-code YOUR_CODE
-```
-
-`--pace` is `slow`, `medium`, or `max`. That only changes how many CPU workers
-you run. Credits stay 1 per verified scene and 10 per verified object. One
-search still costs 100,000 units. There is no trial.
-
-Processing uses the same Street View views as VISION.app: four compass views
-for scenes, a six-face cube for objects. This worker does **not** run SigLIP,
-RF-DETR, YOLOE, or OWLv2. Those stay in the local VISION app. After locations
-are published here, the owner can export poses and index them there.
-
-`--lane object` indexes the six-face object cube instead of four-view scenes.
-
-Create an anonymous account on the site first and paste the recovery code so
-CLI work lands on the same balance you search with. The CLI writes that code to
-`~/.config/vision-community/session.json` (mode 0600). Later runs can omit
-`--recovery-code`. `Ctrl+C` releases the exclusive lease so someone else can
-claim those locations.
-
-`--url` defaults to the hosted Worker. Pass a loopback URL only for a local
-server.
-
-## What this machine does
-
-Each leased location downloads VISION’s Street View views (four compass
-thumbnails for scenes, six cube faces for objects), downsamples them to 16×16,
-and uploads only the `community-visual-v1` embedding. The site audits one Street
-View location per batch by re-fetching it; invented test panos are always
-recomputed.
-
-## Browser processing
-
-The site can still process a **small** batch in a tab. Browsers cannot call
-Google directly, so that path proxies thumbnails through the Worker and is
-capped (1/4/8 scenes). Use the CLI for real volume.
+Create the account on the site first so the work counts toward the same search. Most people should skip this and just click Start. Search on this computer uses the same folder; there is no extra server to pay for.

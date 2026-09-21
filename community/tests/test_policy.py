@@ -34,6 +34,7 @@ class PublicCreditPolicyTest(unittest.TestCase):
     def test_hosted_worker_search_cost_is_one_hundred_thousand(self):
         source = WORKER_MODEL.read_text(encoding="utf-8")
         self.assertIn("export const SEARCH_COST = 100000;", source)
+        self.assertIn("export const SITE_SEARCH_CAP = 2000;", source)
         self.assertNotIn("export const SEARCH_COST = 4;", source)
         self.assertIn("scene: 1", source)
         self.assertIn("object: 10", source)
@@ -55,6 +56,14 @@ class PublicSurfaceIdentityTest(unittest.TestCase):
             self.assertNotIn("/Users/", text)
             self.assertNotIn("\\Users\\", text)
 
+    def test_hosted_worker_tags_each_hit_with_country_name(self):
+        source = (ROOT / "deploy" / "cloudflare" / "src" / "worker.js").read_text(encoding="utf-8")
+        self.assertIn("tags: [canonicalizeCountry(hit.country || \"\")]", source)
+        self.assertNotIn("tags: hit.country ? [hit.country] : []", source)
+        self.assertIn('body.execute === "local"', source)
+        self.assertIn("search_on_computer", source)
+
 
 if __name__ == "__main__":
     unittest.main()
+

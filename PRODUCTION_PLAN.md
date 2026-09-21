@@ -3,7 +3,8 @@
 The running code imports panorama **metadata** (IDs and pose), never imagery.
 Search queries and results use map-making.app `customCoordinates` JSON. Credits,
 leases, and verification stay on trusted server code. A 200M index-only corpus
-fits R2 storage under $20/month; ranked search still needs a dedicated host.
+fits R2 storage under $20/month; ranked search runs on the user's computer
+after they unlock it. Do not buy a search host.
 See [ARCHITECTURE.md](ARCHITECTURE.md) and [MEASUREMENTS.md](MEASUREMENTS.md).
 
 ## Updated owner constraints (2026-09-19)
@@ -35,11 +36,10 @@ shown to fit an available free tier.
 4. The server checks assignment, output structure, model version, duplicate
    content, and imagery rights. Hold credits until verification is complete.
    Publish verified outputs as immutable segments with a signed manifest.
-5. Put those immutable segments in R2 or another low-egress object store. The
-   active search service keeps a local indexed copy on fast disk and applies
-   new verified segments incrementally. R2 is the durable artifact store, not
-   the query engine. An owner account and every other account query the same
-   published index through one server endpoint.
+5. Put those immutable segments in R2. Users who have paid 100,000 units
+   download that index and search on their own computer. R2 is the durable
+   artifact store, not a rented query engine. An owner account and every
+   other account debit the same ledger before a search.
 6. The search endpoint checks and deducts 100,000 units in the same database
    transaction that records an idempotent search request. Verified scene work
    earns one unit per location; verified object work earns ten. Query execution

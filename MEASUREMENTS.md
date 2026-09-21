@@ -14,8 +14,9 @@ Scene embedding: **96 bytes**. Object embedding: **128 bytes**. Sealed pose
 record: **176 bytes**. Ephemeral six-face working set: 4,608 bytes, discarded.
 
 Linear search already misses Workers Free's 10 ms budget at 2,000 locations.
-At 20.96M locations that scan is minutes; at 200M it needs a dedicated host
-and an ANN/shard plan.
+At 20.96M locations that scan is minutes; at 200M the user runs
+`python3 -m community.local_search` on their own machine. Do not buy a
+search host.
 
 ## Storage (no imagery)
 
@@ -33,5 +34,5 @@ $20 storage-only budget. Search CPU does not.
 
 ## Verdict
 
-Index-only R2 spend at 200M is feasible. Fast gated search still requires a
-machine that can hold the sealed segments. Workers Free cannot.
+Index-only R2 spend at 200M is feasible. Fast gated search runs on the user's
+computer. Workers Free cannot scan the full index in a request.
