@@ -115,15 +115,15 @@
         <h2>Which way to look</h2>
         <label class="field-label" for="view-direction">Match the photo’s direction</label>
         <select id="view-direction">
-          <option value="bestOfFour">Best match</option>
-          <option value="original">Same direction</option>
-          <option value="opposite">Opposite direction</option>
-          <option value="right">Turned right</option>
-          <option value="left">Turned left</option>
-          <option value="originalAxis">Same line, either way</option>
-          <option value="sideAxis">Sideways</option>
+          <option value="bestOfFour">Best of available views</option>
+          <option value="original">Saved pan (0°)</option>
+          <option value="opposite">Opposite saved pan (180°)</option>
+          <option value="right">Right of saved pan (+90°)</option>
+          <option value="left">Left of saved pan (+270°)</option>
+          <option value="originalAxis">Saved axis (0° / 180°)</option>
+          <option value="sideAxis">Cross-axis (+90° / +270°)</option>
         </select>
-        <p class="hint">Leave this on Best match unless you know you want a specific turn.</p>
+        <p class="hint">Saved pan is each place’s original heading, pitch, and zoom. Leave this on Best of available views unless you want a specific turn.</p>
       </section>
 
       <details class="advanced">
