@@ -26,6 +26,7 @@ from .contribute import (
 from .features import embedding_for, mean_embeddings, wrap_heading
 from .mma import build_map, dump_map, location_record, parse_map
 from .pano import QUERY_VIEW_CAP, render_location_faces, uses_street_views
+from .prompt import description_embedding, mix_embeddings, parse_prompt, snap_description_weight
 from .rank import (
     accepts,
     candidate_result_count,
@@ -142,25 +143,36 @@ def download_index(session: CommunityClient, *, search_id: str, lane: str) -> li
     return records
 
 
-def query_embedding(query_map: dict, lane: str) -> bytes:
-    parsed = parse_map(query_map)
-    examples = parsed["examples"]
-    if any(uses_street_views(example["panoId"]) for example in examples):
-        examples = examples[:QUERY_VIEW_CAP]
-    vectors = []
-    for example in examples:
-        faces = render_location_faces(
-            {
-                "panoId": example["panoId"],
-                "capture": example.get("capture") or "unknown",
-                "lane": lane,
-                "heading": example.get("heading") or 0,
-                "pitch": example.get("pitch") or 0,
-                "zoom": example.get("zoom") or 0,
-            }
-        )
-        vectors.append(embedding_for(lane, faces))
-    return mean_embeddings(vectors)
+def query_embedding(query_map: dict | None, lane: str, prompt: str | None = None, description_weight: int | None = None) -> bytes:
+    visual = None
+    if query_map is not None:
+        parsed = parse_map(query_map)
+        examples = parsed["examples"]
+        if any(uses_street_views(example["panoId"]) for example in examples):
+            examples = examples[:QUERY_VIEW_CAP]
+        vectors = []
+        for example in examples:
+            faces = render_location_faces(
+                {
+                    "panoId": example["panoId"],
+                    "capture": example.get("capture") or "unknown",
+                    "lane": lane,
+                    "heading": example.get("heading") or 0,
+                    "pitch": example.get("pitch") or 0,
+                    "zoom": example.get("zoom") or 0,
+                }
+            )
+            vectors.append(embedding_for(lane, faces))
+        visual = mean_embeddings(vectors)
+    text = parse_prompt(prompt)
+    if text:
+        textual = description_embedding(text, lane)
+        if visual is None:
+            return textual
+        return mix_embeddings(visual, textual, snap_description_weight(description_weight, has_json=True, has_prompt=True))
+    if visual is None:
+        raise ContributeError("invalid_query")
+    return visual
 
 
 def map_from_hits(hits: list[dict], *, query_name: str, lane: str, processed: int) -> dict:
@@ -194,7 +206,7 @@ def map_from_hits(hits: list[dict], *, query_name: str, lane: str, processed: in
 def local_search(
     *,
     url: str,
-    query_map: dict,
+    query_map: dict | None,
     lane: str = "scene",
     recovery_code: str | None = None,
     session_path: Path | None = None,
@@ -207,6 +219,8 @@ def local_search(
     countries=None,
     camera_generations=None,
     exclude_map=None,
+    prompt: str | None = None,
+    description_weight: int | None = None,
     output: Path | None = None,
 ) -> dict:
     require_street_decoder()
@@ -229,8 +243,15 @@ def local_search(
         elif recovered:
             account_id = recovered.get("accountId")
         save_session(session_path, url=url, account_id=account_id, recovery_code=recovery_code)
-    parsed = parse_map(query_map)
-    query_name = output_name.strip() if isinstance(output_name, str) and output_name.strip() else parsed["name"]
+    prompt_text = parse_prompt(prompt)
+    parsed = None
+    if query_map is not None:
+        parsed = parse_map(query_map)
+    if parsed is None and not prompt_text:
+        raise ContributeError("invalid_query")
+    query_name = output_name.strip() if isinstance(output_name, str) and output_name.strip() else (
+        parsed["name"] if parsed is not None else prompt_text[:80] or "VISION Community"
+    )
     result_count = clamp_result_count(result_count)
     max_per_country = clamp_max_per_country(max_per_country)
     authorized = session.authorize_local_search(
@@ -238,6 +259,8 @@ def local_search(
             "idempotencyKey": secrets.token_hex(16),
             "lane": lane,
             "queryMap": query_map,
+            "prompt": prompt_text or None,
+            "descriptionWeight": description_weight,
             "outputName": query_name,
             "resultCount": result_count,
             "maxPerCountry": max_per_country,
@@ -250,7 +273,7 @@ def local_search(
     )
     search_id = authorized["searchId"]
     records = download_index(session, search_id=search_id, lane=lane)
-    query = query_embedding(query_map, lane)
+    query = query_embedding(query_map, lane, prompt=prompt_text, description_weight=description_weight)
     country_mode, selected_countries, selected_generations = normalize_filters(
         country_filter_mode, countries, camera_generations
     )
@@ -292,7 +315,9 @@ def local_search(
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--url", default=DEFAULT_URL)
-    parser.add_argument("--query", type=Path, required=True, help="map-making.app JSON (same file the site uses)")
+    parser.add_argument("--query", type=Path, help="map-making.app JSON (same file the site uses)")
+    parser.add_argument("--prompt", help="written description, used alone or mixed with --query")
+    parser.add_argument("--description-weight", type=int, default=50, help="0=JSON only, 100=description only")
     parser.add_argument("--output", type=Path, help="where to write the result JSON")
     parser.add_argument("--lane", choices=("scene", "object"), default="scene")
     parser.add_argument("--recovery-code", dest="recovery_code")
@@ -305,9 +330,11 @@ def main() -> None:
     args = parser.parse_args()
     try:
         origin_of(args.url)
-        query_map = json.loads(args.query.read_text(encoding="utf-8"))
+        if args.query is None and not (args.prompt and str(args.prompt).strip()):
+            parser.error("provide --query, --prompt, or both")
+        query_map = json.loads(args.query.read_text(encoding="utf-8")) if args.query is not None else None
         session_path = args.session_file or default_session_path()
-        stem = (args.output_name or query_map.get("name") or "vision-community")
+        stem = (args.output_name or (query_map.get("name") if isinstance(query_map, dict) else None) or args.prompt or "vision-community")
         if not isinstance(stem, str) or not stem.strip():
             stem = "vision-community"
         output = args.output or Path(f"{stem.strip().replace(' ', '-')}.json")
@@ -322,6 +349,8 @@ def main() -> None:
             max_per_country=args.max_per_country,
             output_name=args.output_name,
             view_direction=args.view_direction,
+            prompt=args.prompt,
+            description_weight=args.description_weight,
             output=output,
         )
     except ContributeError as error:

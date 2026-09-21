@@ -18,7 +18,7 @@ You only need a web browser.
 
 1. Click **Get a free account**. Write down the code it shows you.
 2. Click **Start** and leave the tab open. Each place you finish fills the bar.
-3. When the bar is full, click **Search**, then **Download**. Open that file on [map-making.app](https://map-making.app).
+3. When the bar is full, click **Search**. Connect map-making.app under **Connect a map app** to add the JSON to a map, or copy/download it for the local Map Making App.
 
 A search needs **100,000 places** (or 10,000 objects). There is no shortcut. An example search is already loaded, so you do not need a JSON file unless you have one from VISION.
 

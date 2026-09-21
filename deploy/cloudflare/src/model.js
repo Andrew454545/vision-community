@@ -238,6 +238,115 @@ export function meanEmbeddings(vectors) {
   return toUint8(dims);
 }
 
+export const PROMPT_MAX = 400;
+export const DESCRIPTION_WEIGHTS = [0, 25, 50, 75, 100];
+const PALETTE = [
+  ["bird nest", 96, 72, 48],
+  ["forest", 28, 88, 38],
+  ["ocean", 20, 70, 140],
+  ["water", 32, 92, 154],
+  ["night", 22, 26, 42],
+  ["brick", 150, 62, 48],
+  ["snow", 240, 244, 248],
+  ["sand", 196, 168, 118],
+  ["road", 86, 86, 86],
+  ["sky", 92, 152, 214],
+  ["orange", 220, 120, 30],
+  ["purple", 130, 50, 170],
+  ["yellow", 210, 190, 40],
+  ["green", 40, 160, 50],
+  ["brown", 120, 70, 40],
+  ["white", 230, 230, 230],
+  ["black", 25, 25, 25],
+  ["pink", 210, 90, 140],
+  ["blue", 40, 70, 190],
+  ["grey", 128, 128, 128],
+  ["gray", 128, 128, 128],
+  ["red", 210, 42, 42],
+];
+const DARK_WORDS = ["dark", "night", "black", "shadow"];
+const BRIGHT_WORDS = ["bright", "sunny", "white", "snow", "daylight"];
+
+export function normalizePrompt(value) {
+  if (typeof value !== "string") return "";
+  return value.trim().toLowerCase().split(/\s+/).filter(Boolean).join(" ");
+}
+
+export function parsePrompt(value) {
+  const prompt = normalizePrompt(value);
+  if (!prompt) return "";
+  if (prompt.length > PROMPT_MAX) return null;
+  return prompt;
+}
+
+export function snapDescriptionWeight(value, hasJson, hasPrompt) {
+  if (!hasJson) return 100;
+  if (!hasPrompt) return 0;
+  const number = Number.parseInt(value, 10);
+  const snapped = Number.isFinite(number) ? number : 50;
+  return DESCRIPTION_WEIGHTS.reduce((best, item) => (
+    Math.abs(item - snapped) < Math.abs(best - snapped) ? item : best
+  ));
+}
+
+function tintDescriptionFaces(faces, prompt) {
+  const padded = ` ${prompt} `;
+  let remaining = padded;
+  const targets = [];
+  const palette = [...PALETTE].sort((left, right) => right[0].length - left[0].length);
+  for (const [token, red, green, blue] of palette) {
+    const needle = ` ${token} `;
+    if (remaining.includes(needle)) {
+      targets.push([red, green, blue]);
+      remaining = remaining.split(needle).join(" ");
+    }
+  }
+  const dark = DARK_WORDS.reduce((count, word) => count + (padded.includes(` ${word} `) ? 1 : 0), 0);
+  const bright = BRIGHT_WORDS.reduce((count, word) => count + (padded.includes(` ${word} `) ? 1 : 0), 0);
+  if (!targets.length && !dark && !bright) return;
+  let targetR = 128, targetG = 128, targetB = 128, strength = 0;
+  if (targets.length) {
+    targetR = Math.trunc(targets.reduce((sum, item) => sum + item[0], 0) / targets.length);
+    targetG = Math.trunc(targets.reduce((sum, item) => sum + item[1], 0) / targets.length);
+    targetB = Math.trunc(targets.reduce((sum, item) => sum + item[2], 0) / targets.length);
+    strength = Math.min(70, 25 + 15 * Math.min(4, targets.length));
+  }
+  const shift = bright * 18 - dark * 18;
+  const keep = 100 - strength;
+  for (let index = 0; index < faces.length; index += 3) {
+    const red = Math.trunc((faces[index] * keep + targetR * strength) / 100) + shift;
+    const green = Math.trunc((faces[index + 1] * keep + targetG * strength) / 100) + shift;
+    const blue = Math.trunc((faces[index + 2] * keep + targetB * strength) / 100) + shift;
+    faces[index] = red < 0 ? 0 : red > 255 ? 255 : red;
+    faces[index + 1] = green < 0 ? 0 : green > 255 ? 255 : green;
+    faces[index + 2] = blue < 0 ? 0 : blue > 255 ? 255 : blue;
+  }
+}
+
+export async function descriptionEmbedding(prompt, lane) {
+  const normalized = parsePrompt(prompt);
+  if (!normalized) throw new Error("invalid_query");
+  const seed = await seedBytes(`description:${normalized}`, "prompt", lane, MODEL_ID);
+  const faces = renderFacesFromSeed(seed);
+  tintDescriptionFaces(faces, normalized);
+  return embeddingFor(lane, faces);
+}
+
+export function mixEmbeddings(visual, textual, descriptionWeight) {
+  if (visual.length !== textual.length) throw new Error("query_width");
+  const weight = snapDescriptionWeight(descriptionWeight, true, true);
+  if (weight <= 0) return visual;
+  if (weight >= 100) return textual;
+  const visualWeight = 100 - weight;
+  const vis = signedInt8(visual);
+  const text = signedInt8(textual);
+  const dims = vis.map((value, index) => {
+    const mixed = Math.trunc((value * visualWeight + text[index] * weight) / 100);
+    return Math.max(-127, Math.min(127, mixed));
+  });
+  return toUint8(dims);
+}
+
 export function bytesToBase64(bytes) {
   let binary = "";
   bytes.forEach((value) => { binary += String.fromCharCode(value); });
