@@ -27,13 +27,13 @@ const ERRORS = {
 
 const ALL_GENERATIONS = ["badcam", "gen1", "gen2", "gen3", "gen4", "trekker"];
 const VIEW_DIRECTION_LABELS = {
-  bestOfFour: "Best match",
-  original: "Same direction",
-  opposite: "Opposite direction",
-  right: "Turned right",
-  left: "Turned left",
-  originalAxis: "Same line, either way",
-  sideAxis: "Sideways",
+  bestOfFour: "Best of available views",
+  original: "Saved pan (0°)",
+  opposite: "Opposite saved pan (180°)",
+  right: "Right of saved pan (+90°)",
+  left: "Left of saved pan (+270°)",
+  originalAxis: "Saved axis (0° / 180°)",
+  sideAxis: "Cross-axis (+90° / +270°)",
 };
 
 let signedIn = false;
@@ -771,7 +771,7 @@ $("run-search").addEventListener("click", async () => {
     }
     $("search-status").textContent = hits.length
       ? `${hits.length} matching places. Click Download, then open that file on the map site.`
-      : "Nothing matched. Try Best match, or open More options.";
+      : "Nothing matched. Try Best of available views, or open More options.";
     await refresh();
   } catch (error) {
     $("search-status").textContent = `Search stopped: ${explain(error)}`;

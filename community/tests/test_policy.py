@@ -56,6 +56,17 @@ class PublicSurfaceIdentityTest(unittest.TestCase):
             self.assertNotIn("/Users/", text)
             self.assertNotIn("\\Users\\", text)
 
+    def test_public_web_uses_vision_saved_pan_labels(self):
+        html = (ROOT / "community" / "web" / "index.html").read_text(encoding="utf-8")
+        app = (ROOT / "community" / "web" / "app.js").read_text(encoding="utf-8")
+        self.assertIn("Saved pan (0°)", html)
+        self.assertIn("Opposite saved pan (180°)", html)
+        self.assertIn("Saved pan (0°)", app)
+        worker = (ROOT / "deploy" / "cloudflare" / "src" / "worker.js").read_text(encoding="utf-8")
+        self.assertIn("cameraGeneration: parts[9] || \"\"", worker)
+        self.assertIn("heading: Number(parts[4]) || 0", worker)
+        self.assertIn("ORDER BY shard_id LIMIT 1", worker)
+
     def test_hosted_worker_tags_each_hit_with_country_name(self):
         source = (ROOT / "deploy" / "cloudflare" / "src" / "worker.js").read_text(encoding="utf-8")
         self.assertIn("tags: [canonicalizeCountry(hit.country || \"\")]", source)
