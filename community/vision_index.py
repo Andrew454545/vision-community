@@ -59,6 +59,10 @@ LIVE_PATH_MARKERS = (
     "all-locations-four-view-no-road-remainder-badcam-v1",
     "four-view-published-segments",
     "no-road-after-one-view-prefix.badcam.tsv",
+    "object-indexes",
+    "object-runtime-legacy-mixed",
+    "scheduled-sources",
+    "object-hybrid-v1/coreml-cache",
 )
 # Batch shape is fixed. A sealed VISION shard matched these settings byte for
 # byte; embedding one picture at a time flipped bytes. Pace only changes

@@ -14,10 +14,10 @@ or API bypass.
 
 https://vision-community.visioncommunity.workers.dev
 
-Places are indexed in Terminal with the same four-view program as the VISION app. Objects can run in the browser.
+Scenes and objects are indexed in Terminal with the same programs as the VISION app. The browser cannot run those models.
 
 1. Click **Get a free account**. Write down the code it shows you.
-2. Click **Copy place command**, open Terminal, paste, and press Return. Leave that window open. Each finished place fills the bar.
+2. Click **Copy scene command** (or **Copy object command**). Open Terminal, paste, and press Return. Leave that window open. Each finished scene fills 1 toward a search. Each finished object fills 10.
 3. When the bar is full, copy the search command and run it in Terminal. Connect map-making.app under **Connect a map app** to add the JSON to a map, or copy/download it for the local Map Making App.
 
 A search needs **100,000 places** (or 10,000 objects). There is no shortcut. An example search is already loaded, so you do not need a JSON file unless you have one from VISION.
@@ -25,10 +25,12 @@ A search needs **100,000 places** (or 10,000 objects). There is no shortcut. An 
 If you were given the project folder and want it to go faster, see [CONTRIBUTING.md](CONTRIBUTING.md). Most people can ignore that.
 
 The queue is the local 20.96M already-indexed VISION poses (metadata only) plus
-the ALL LOCATIONS tail. Place indexing runs `mma-vision index-four-views` on
-the volunteer computer, using that computer's SigLIP model. Set
-`VISION_FOUR_VIEW_BINARY` and `VISION_MODEL_DIR` when those files are not in
-the usual VISION folders. The model and program are not stored in this repo.
+the ALL LOCATIONS tail. Scene indexing runs `mma-vision index-four-views` on
+the volunteer computer, using that computer's SigLIP model. Object indexing
+runs `vision-object index-segment` with the hybrid RF-DETR, YOLOE, and OWLv2
+models. Set `VISION_FOUR_VIEW_BINARY`, `VISION_MODEL_DIR`,
+`VISION_OBJECT_BINARY`, and `VISION_OBJECT_MODEL_DIR` when those files are not
+in the usual VISION folders. The models and programs are not stored in this repo.
 
 Local equivalent:
 
@@ -73,23 +75,22 @@ PYTHONDONTWRITEBYTECODE=1 python3 -m community.admin import-shard --db community
 `import-shard` accepts Community catalog TSV **or** VISION’s headerless 11-column
 indexer TSV (pose metadata only). Do not import embeddings or imagery.
 
-Leases send panorama identity and pose, not image bytes. The CLI looks at
-Street View the same way VISION.app does: four compass views for scenes
-(heading + 0/90/180/270 at the saved pitch and zoom FOV) and a six-face cube
-for objects. Thumbnails are fetched on the volunteer machine, downsampled to
-16×16, and discarded. The Worker re-fetches **one** Street View location per
-batch as an audit. Invented test IDs (`Prototype…`, `CommunityPano…`) are
-always recomputed. Published segments seal `embeddings.bin`, `ids.bin`, and
-`poses.bin` so search can emit map-making.app JSON without a SQLite round-trip
-per hit.
+Leases send panorama identity and pose, not image bytes. Scene indexing runs
+`mma-vision index-four-views` on the volunteer computer. Object indexing runs
+`vision-object index-segment` there too. Street View is fetched by those
+programs and is not stored. Invented test IDs (`Prototype…`, `CommunityPano…`)
+are still recomputed with the old `community-visual-v1` descriptor. That
+descriptor is not the scene or object credit proof.
 
 ## Storage at 200 million locations
 
 Fast search at 200 million locations runs **on the user's computer**. The site
 is only the queue and credit desk. Workers Free cannot scan 200M vectors, so
-there is no paid search host to buy. After 100,000 units, `python3 -m
-community.local_search` downloads the shared index and ranks it locally. While
-the published index is still small, the website can search in the tab.
+there is no paid search host to buy. Scene search is `python3 -m
+community.vision_index --search`, the same four-view search as VISION, over
+indexes on that computer. Object search is `python3 -m community.local_search`
+over the shared visual index. While that visual index is still small, the
+website can run an object search in the tab.
 
 ## Invariants
 
@@ -114,8 +115,8 @@ What still needs a person:
      --from-d1-remote --to community/.data/vision-handoff-live
    ```
 
-   Community browser embeddings stay `community-visual-v1`. They are a credit
-   proof, not a drop-in for SigLIP / RF-DETR.
+   Scene credit requires the four-view record. Object credit requires the
+   version-4 object index. `community-visual-v1` is only the old test descriptor.
 
 2. **Cut the live remainder TSV** at `reservedFromLocationIndex` only after the
    local indexer is stopped or has passed that cursor. Do not shrink the file

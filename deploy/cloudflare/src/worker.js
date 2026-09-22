@@ -12,6 +12,7 @@ import {
   QUERY_VIEW_CAP, renderLocationFaces, leaseCap, usesStreetViews,
 } from "./pano.js";
 import { SEED_LOCATIONS } from "./seed.js";
+import { OBJECT_INDEX_MODEL, validateObjectIndex } from "./objectIndex.js";
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS accounts (
@@ -159,6 +160,12 @@ async function migrateFourView(env) {
   }
   if (!cols.includes("four_view_key")) {
     await env.DB.prepare("ALTER TABLE published_index ADD COLUMN four_view_key TEXT").run();
+  }
+  if (!cols.includes("object_index_sha256")) {
+    await env.DB.prepare("ALTER TABLE published_index ADD COLUMN object_index_sha256 TEXT").run();
+  }
+  if (!cols.includes("object_index_key")) {
+    await env.DB.prepare("ALTER TABLE published_index ADD COLUMN object_index_key TEXT").run();
   }
 }
 
@@ -816,6 +823,78 @@ async function submitFourView(env, account, leaseId, items, supplied, now) {
   return json({ accepted: items.length, unitsEarned: earned, replayed: false, segments: [] });
 }
 
+async function submitObjectIndex(env, account, leaseId, items, supplied, objectIndex, now) {
+  if (!env.INDEX) return error("index_unavailable", 503);
+  if (!objectIndex || typeof objectIndex !== "object") return error("object_index_required", 422);
+  if (items.some((row) => row.lane !== "object" || row.state !== "leased" || row.active_lease !== leaseId)) {
+    return error("lease_lost", 409);
+  }
+  let sourceTsv;
+  try {
+    sourceTsv = base64ToBytes(objectIndex.sourceTsv);
+  } catch {
+    return error("verification_failed", 422);
+  }
+  const encoded = objectIndex.files;
+  if (!(sourceTsv instanceof Uint8Array) || !encoded || typeof encoded !== "object") return error("verification_failed", 422);
+  const files = {};
+  let totalBytes = 0;
+  for (const [name, value] of Object.entries(encoded)) {
+    let bytes;
+    try {
+      bytes = base64ToBytes(value);
+    } catch {
+      return error("verification_failed", 422);
+    }
+    totalBytes += bytes.length;
+    if (totalBytes > 32000000) return error("verification_failed", 422);
+    files[name] = bytes;
+  }
+  const leaseItems = items.map((row) => ({
+    locationId: row.id,
+    panoId: row.asset_id,
+    lat: row.lat,
+    lng: row.lon,
+  }));
+  let expected;
+  try {
+    expected = await validateObjectIndex(objectIndex.manifest, files, sourceTsv, leaseItems, leaseId);
+  } catch {
+    return error("verification_failed", 422);
+  }
+  if (expected.length !== items.length) return error("incomplete_submission");
+  for (const item of expected) {
+    const payload = supplied.get(item.locationId);
+    if (!payload || payload.model !== OBJECT_INDEX_MODEL || !equalHex(payload.digest, item.outputSha256)) {
+      return error("verification_failed", 422);
+    }
+  }
+  const prefix = `object-index-v4/${leaseId}/`;
+  await env.INDEX.put(`${prefix}manifest.json`, JSON.stringify(objectIndex.manifest));
+  await env.INDEX.put(`${prefix}locations.tsv`, sourceTsv);
+  for (const [name, bytes] of Object.entries(files)) {
+    await env.INDEX.put(`${prefix}${name}`, bytes);
+  }
+  const earned = items.reduce((sum, row) => sum + UNITS[row.lane], 0);
+  const statements = [
+    env.DB.prepare("UPDATE leases SET state='submitted' WHERE id=?").bind(leaseId),
+    env.DB.prepare("UPDATE accounts SET units=units+? WHERE id=?").bind(earned, account),
+    env.DB.prepare("INSERT INTO ledger (account_id, units, reason, reference) VALUES (?, ?, 'verified_work', ?)").bind(account, earned, `lease:${leaseId}`),
+  ];
+  for (const item of expected) {
+    statements.push(env.DB.prepare(
+      "UPDATE locations SET state='published', active_lease=NULL, lease_until=NULL, output_sha256=?, contributor_id=? WHERE id=?"
+    ).bind(item.outputSha256, account, item.locationId));
+    statements.push(env.DB.prepare(
+      `INSERT INTO published_index
+        (location_id, index_text, output_sha256, published_at, embedding, object_index_sha256, object_index_key)
+       VALUES (?, '', ?, ?, NULL, ?, ?)`
+    ).bind(item.locationId, item.outputSha256, now, objectIndex.manifest.sourceSha256, prefix));
+  }
+  await env.DB.batch(statements);
+  return json({ accepted: items.length, unitsEarned: earned, replayed: false, segments: [] });
+}
+
 async function submit(env, account, body) {
   const leaseId = body.leaseId;
   const outputs = body.outputs;
@@ -841,6 +920,9 @@ async function submit(env, account, body) {
     supplied.set(output.locationId, { digest, embedding, embeddingSha256: output.embeddingSha256, model: output.model });
   }
   if (supplied.size !== items.length || items.some((row) => !supplied.has(row.id))) return error("incomplete_submission");
+  if (leaseRow.lane === "object" || items.some((row) => row.lane === "object")) {
+    return submitObjectIndex(env, account, leaseId, items, supplied, body.objectIndex, now);
+  }
   const suppliedModels = [...supplied.values()].map((item) => item.model);
   if (suppliedModels.includes(FOUR_VIEW_MODEL)) {
     if (!suppliedModels.every((model) => model === FOUR_VIEW_MODEL)) return error("invalid_submission");

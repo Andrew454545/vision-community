@@ -197,7 +197,13 @@ def handler_for(service: CommunityService):
                     )
                 if route == "/api/submissions":
                     return self._json(
-                        200, service.submit(account_id, data.get("leaseId"), data.get("outputs"))
+                        200,
+                        service.submit(
+                            account_id,
+                            data.get("leaseId"),
+                            data.get("outputs"),
+                            object_index=data.get("objectIndex") if isinstance(data.get("objectIndex"), dict) else None,
+                        ),
                     )
                 if route == "/api/searches":
                     query_image = data.get("queryImage")

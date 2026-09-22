@@ -12,6 +12,8 @@ from community.search import ranked_search
 from community.segments import SegmentError, SegmentRegistry
 from community.service import CommunityService, ServiceError
 from community.source import SourceError, parse_catalog
+from community.object_index import encode_object_submission, validate_object_index
+from community.tests.test_object_index import contract_bundle
 from community.worker import ProcessingWorker, PACE
 
 
@@ -108,15 +110,15 @@ class VisualPipelineTest(unittest.TestCase):
         self.assertTrue(replay["replayed"])
         self.assertEqual(self.service.status(account)["units"], 4)
 
-        old = self.service.lease(self.first["accountId"], "object", 1, now=100, pace="max")
-        new = self.service.lease(self.second["accountId"], "object", 1, now=100 + 30 * 60, pace="medium")
+        old = self.service.lease(self.first["accountId"], "scene", 1, now=100, pace="max")
+        new = self.service.lease(self.second["accountId"], "scene", 1, now=100 + 30 * 60, pace="medium")
         self.assertEqual(old["items"][0]["locationId"], new["items"][0]["locationId"])
         with self.assertRaisesRegex(ServiceError, "expired_lease"):
             self.service.submit(self.first["accountId"], old["leaseId"], ProcessingWorker().process_lease(old), now=2000)
         result = self.service.submit(
             self.second["accountId"], new["leaseId"], ProcessingWorker().process_lease(new), now=2000
         )
-        self.assertEqual(result["unitsEarned"], 10)
+        self.assertEqual(result["unitsEarned"], 1)
 
     def test_shared_visual_index_is_ranked_not_label_search(self):
         first_id = self.first["accountId"]
@@ -134,7 +136,18 @@ class VisualPipelineTest(unittest.TestCase):
         self.assertEqual(self.service.search(first_id, None, "visual-first-001", query_faces=query), result)
         self.assertEqual(self.service.status(first_id)["units"], 4)
         other_lease = self.service.lease(second_id, "object", 1)
-        self.service.submit(second_id, other_lease["leaseId"], ProcessingWorker().process_lease(other_lease))
+        manifest, files, tsv = contract_bundle(
+            other_lease["items"], other_lease["leaseId"], self.folder / "locations.tsv"
+        )
+        object_outputs = validate_object_index(
+            manifest, files, tsv, other_lease["items"], lease_id=other_lease["leaseId"]
+        )
+        self.service.submit(
+            second_id,
+            other_lease["leaseId"],
+            object_outputs,
+            object_index=encode_object_submission(manifest, files, tsv),
+        )
         other_query = render_faces("synthetic:visual:001", "2026-01", "scene", MODEL_ID)
         second_result = self.service.search(second_id, None, "visual-second-002", query_faces=other_query)
         self.assertEqual(second_result["results"][0]["locationId"], result["results"][0]["locationId"])

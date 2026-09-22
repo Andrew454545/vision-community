@@ -6,7 +6,9 @@ from pathlib import Path
 from community.catalog import load_jobs, parse_tsv
 from community.features import MODEL_ID
 from community.mma import dump_map, location_record, parse_map
+from community.object_index import encode_object_submission, validate_object_index
 from community.service import CommunityService
+from community.tests.test_object_index import contract_bundle
 from community.source import SourceError
 from community.worker import ProcessingWorker
 
@@ -121,7 +123,18 @@ class MMASearchOutputTest(unittest.TestCase):
             self.assertEqual(pose["panoId"], "CommunityPano000000000001")
             self.assertAlmostEqual(pose["lat"], 41.9, places=4)
             extra = service.lease(account["accountId"], "object", 1)
-            service.submit(account["accountId"], extra["leaseId"], ProcessingWorker().process_lease(extra))
+            manifest, files, tsv = contract_bundle(
+                extra["items"], extra["leaseId"], Path(folder) / "locations.tsv"
+            )
+            object_outputs = validate_object_index(
+                manifest, files, tsv, extra["items"], lease_id=extra["leaseId"]
+            )
+            service.submit(
+                account["accountId"],
+                extra["leaseId"],
+                object_outputs,
+                object_index=encode_object_submission(manifest, files, tsv),
+            )
             capped = service.search(
                 account["accountId"],
                 None,
