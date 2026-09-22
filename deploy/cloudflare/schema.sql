@@ -52,7 +52,9 @@ CREATE TABLE IF NOT EXISTS published_index (
   output_sha256 TEXT NOT NULL,
   published_at INTEGER NOT NULL,
   embedding TEXT,
-  segment_id TEXT
+  segment_id TEXT,
+  four_view_sha256 TEXT,
+  four_view_key TEXT
 );
 CREATE TABLE IF NOT EXISTS ledger (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

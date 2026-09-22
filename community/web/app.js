@@ -10,20 +10,20 @@ const PACE_LEASE = {
   object: { slow: 1, medium: 2, max: 4 },
 };
 const ERRORS = {
-  no_available_work: "No more work is waiting for that choice right now. Try Places, Objects, or Both.",
-  insufficient_credit: "Keep indexing. A search needs 100,000 places (or 10,000 objects).",
-  verification_failed: "That place could not be checked, so it was not counted.",
-  view_unavailable: "Street View did not return that place, so it was not counted.",
-  expired_lease: "That batch timed out. Click Start again.",
+  no_available_work: "No more work is waiting for that choice right now. Try Scene, Objects, or Both.",
+  insufficient_credit: "Keep indexing. A search needs 100,000 scenes (or 10,000 objects).",
+  verification_failed: "That scene could not be checked, so it was not counted.",
+  view_unavailable: "Street View did not return that scene, so it was not counted.",
+  expired_lease: "That batch timed out. Indexing will take the next one.",
   unauthorized: "No account on this browser. Get a free account or paste your saved code.",
   invalid_mma_map: "That file is not a map JSON we can use.",
   invalid_query: "Add a description, a JSON file, or both.",
-  invalid_pano_id: "A place ID in that file is missing or invalid.",
+  invalid_pano_id: "A scene ID in that file is missing or invalid.",
   invalid_json: "That request could not be read. Try again.",
   invalid_country_filter: "Pick at least one country, or switch back to All countries.",
   cross_origin_request: "That request was blocked.",
   internal_error: "Something went wrong. Try again in a moment.",
-  search_on_computer: "The shared index is now too large for this browser tab. Search on your computer with the command under Faster.",
+  search_on_computer: "The shared index is now too large for this browser tab. Search on your computer with the command under Index.",
   part_taken: "Someone else is already indexing that batch. Leave the batch box blank, or try another number.",
   invalid_part: "That batch number is not valid. Leave it blank and we will pick a free batch.",
   mma_unauthorized: "That map-making.app key was not accepted. Create a new API key and paste it again.",
@@ -52,7 +52,8 @@ let pauseRequested = false;
 let lastRecovery = "";
 let lastMap = null;
 let queryMap = null;
-let jobs = [newJob("Example search")];
+const queryMaps = new Map();
+let jobs = [newJob("")];
 let selectedJob = jobs[0].id;
 let wakeLock = null;
 const JOBS_KEY = "vision-community-jobs";
@@ -62,7 +63,7 @@ const REFRESH_EVERY_BATCHES = 8;
 function newJob(name) {
   return {
     id: crypto.randomUUID(),
-    name: name || "Example search",
+    name: name || "",
     lane: "scene",
     resultCount: 200,
     maxPerCountry: 25,
@@ -75,6 +76,9 @@ function newJob(name) {
     descriptionWeight: 50,
     excludeMap: null,
     excludeName: "",
+    excludePrevious: true,
+    objectConfidence: "balanced",
+    queryLabel: "",
   };
 }
 
@@ -101,7 +105,7 @@ function visibleCountryLabels() {
 function saveJobFromForm() {
   const job = currentJob();
   if (!job) return;
-  job.name = $("output-name").value.trim() || "Example search";
+  job.name = $("output-name").value.trim();
   job.lane = selectedLane();
   job.resultCount = Number($("result-count").value) || 200;
   job.maxPerCountry = Number($("max-per-country").value) || 25;
@@ -115,6 +119,9 @@ function saveJobFromForm() {
   job.prompt = ($("prompt")?.value || "").trim();
   const weight = document.querySelector('input[name="description-weight"]:checked')?.value;
   job.descriptionWeight = weight == null ? 50 : Number(weight);
+  job.excludePrevious = Boolean($("exclude-previous")?.checked);
+  job.objectConfidence = document.querySelector('input[name="object-confidence"]:checked')?.value || "balanced";
+  job.queryLabel = queryMap ? ($("file-name")?.textContent || "") : "";
   persistJobs();
 }
 
@@ -136,6 +143,9 @@ function persistJobs() {
         prompt: job.prompt || "",
         descriptionWeight: job.descriptionWeight,
         excludeName: job.excludeName || "",
+        excludePrevious: Boolean(job.excludePrevious),
+        objectConfidence: job.objectConfidence || "balanced",
+        queryLabel: job.queryLabel || "",
       })),
     }));
   } catch {
@@ -251,13 +261,19 @@ function applyJobToForm(job) {
   document.querySelectorAll('input[name="generation"]').forEach((input) => {
     input.checked = (job.generations || ALL_GENERATIONS).includes(input.value);
   });
-  $("job-title").textContent = job.name;
+  $("job-title").textContent = job.name || "New search";
   $("view-direction").value = job.viewDirection || "bestOfFour";
   if ($("prompt")) $("prompt").value = job.prompt || "";
   const weight = [0, 25, 50, 75, 100].includes(job.descriptionWeight) ? job.descriptionWeight : 50;
   const weightInput = document.querySelector(`input[name="description-weight"][value="${weight}"]`);
   if (weightInput) weightInput.checked = true;
   $("exclude-file-name").textContent = job.excludeName || "None";
+  if ($("exclude-previous")) $("exclude-previous").checked = Boolean(job.excludePrevious);
+  const confidence = document.querySelector(`input[name="object-confidence"][value="${job.objectConfidence || "balanced"}"]`);
+  if (confidence) confidence.checked = true;
+  const storedQuery = queryMaps.get(job.id);
+  queryMap = storedQuery?.map || null;
+  if ($("file-name")) $("file-name").textContent = queryMap ? (storedQuery.label || job.queryLabel || "JSON loaded") : "No JSON yet";
   updateViewDirection();
   updateQueryInputs();
   renderCountries();
@@ -295,6 +311,7 @@ function renderCountries() {
         if (normalizeCountrySelection()) renderCountries();
         updateFilterHelp();
         updateReady();
+        updateCliCommand();
       });
       list.append(label);
     }
@@ -309,36 +326,60 @@ function renderCountries() {
 function updateFilterHelp() {
   const gens = selectedGenerations();
     $("generation-help").textContent = gens.length === ALL_GENERATIONS.length
-    ? "All cameras are included"
-    : `Only the camera types you ticked`;
+    ? "All generations · no generation filter"
+    : `Only the selected generation${gens.length === 1 ? "" : "s"}`;
   const mode = countryMode();
   const countries = state?.countries || [];
   const selected = selectedCountries();
+  const count = $("country-count");
+  if (count) {
+    count.textContent = mode === "all"
+      ? `All ${countries.length} indexed countries`
+      : `${selected.length} selected`;
+  }
   if (!countries.length) {
-    $("country-help").textContent = "Country filters are not available yet.";
+    $("country-help").textContent = "No indexed source has country metadata.";
   } else if (mode === "all") {
-    $("country-help").textContent = `Results can come from any of ${countries.length} countries.`;
+    $("country-help").textContent = "All indexed countries may be returned. Choose Include or Exclude to narrow the search.";
   } else if (!selected.length) {
-    $("country-help").textContent = "Pick at least one country, or switch back to All countries.";
+    $("country-help").textContent = "Choose at least one country, or switch back to All countries.";
   } else if (mode === "include") {
-    $("country-help").textContent = `Only the ${selected.length} selected ${selected.length === 1 ? "country" : "countries"}.`;
+    $("country-help").textContent = "Only selected countries may be returned.";
   } else {
-    $("country-help").textContent = `Skipping ${selected.length} ${selected.length === 1 ? "country" : "countries"}.`;
+    $("country-help").textContent = "Selected countries will not be returned.";
   }
 }
+
+const OBJECT_GUIDANCE = {
+  highRecall: "Finds more small, distant, or partly hidden objects; expect more false positives.",
+  balanced: "Best starting point for most searches; balances missed objects and false positives.",
+  precise: "Favors stronger detections with fewer false positives; subtle objects may be missed.",
+};
 
 function updateViewDirection() {
   const scene = selectedLane() === "scene";
   $("view-direction-block").hidden = !scene;
   $("view-direction").disabled = !scene;
+  if ($("json-row")) $("json-row").hidden = !scene;
+  if ($("blend-block")) $("blend-block").hidden = !scene;
+  if ($("detection-block")) $("detection-block").hidden = scene;
+  const road = $("reject-road");
+  if (road) {
+    road.disabled = !scene;
+    road.closest("label")?.setAttribute(
+      "title",
+      scene ? "" : "Road names are not in the object index yet.",
+    );
+  }
   if ($("prompt")) {
     $("prompt").placeholder = scene
       ? "What should the locations look like?"
-      : "bird, clock, red airplane";
+      : "bird, bird nest, beetle, red airplane";
   }
   if ($("prompt-label")) {
     $("prompt-label").textContent = scene ? "Description" : "Object types";
   }
+  updateBlendMeta();
 }
 
 function typedPrompt() {
@@ -365,12 +406,28 @@ function queryInputLabel() {
   return "Needs input";
 }
 
+function updateBlendMeta() {
+  const count = $("result-count")?.value || "200";
+  const direction = $("view-direction")?.value === "bestOfFour"
+    ? "Best available view"
+    : (VIEW_DIRECTION_LABELS[$("view-direction")?.value] || "Best available view");
+  if ($("blend-meta")) $("blend-meta").textContent = `${direction} · 100 m dedupe · ${count} requested`;
+  if ($("detection-meta")) $("detection-meta").textContent = `Exact object aim · 100 m dedupe · ${count} requested`;
+  const confidence = document.querySelector('input[name="object-confidence"]:checked')?.value || "balanced";
+  if ($("detection-guidance")) $("detection-guidance").textContent = OBJECT_GUIDANCE[confidence] || OBJECT_GUIDANCE.balanced;
+}
+
 function updateQueryInputs() {
-  const blend = $("blend-block");
-  if (blend) blend.hidden = !(queryMap && hasPrompt());
+  const canBlend = Boolean(queryMap && hasPrompt());
+  document.querySelectorAll('input[name="description-weight"]').forEach((input) => {
+    input.disabled = !canBlend;
+  });
+  const choose = $("choose-json");
+  if (choose) choose.classList.toggle("active", Boolean(queryMap));
   if ($("file-name") && !queryMap && ($("file-name").textContent === "Example search is loaded" || $("file-name").textContent === "Example search")) {
     $("file-name").textContent = "No JSON yet";
   }
+  updateBlendMeta();
   updateReady();
   updateCliCommand();
 }
@@ -407,16 +464,49 @@ async function copyText(text, highlight) {
   return false;
 }
 
+const INDEXING_KEY = "vision-community-indexing";
+
+function indexingKeepsGoing(error) {
+  const message = String(error && error.message || "");
+  if ([
+    "view_unavailable",
+    "verification_failed",
+    "expired_lease",
+    "lease_lost",
+    "internal_error",
+    "network_error",
+    "index_unavailable",
+  ].includes(message)) return true;
+  if (/^HTTP (408|429|500|502|503|504)$/.test(message)) return true;
+  if (message === "Failed to fetch" || message.includes("NetworkError")) return true;
+  return false;
+}
+
 async function api(path, method = "GET", body = null) {
   const headers = {};
   if (body !== null) headers["Content-Type"] = "application/json";
-  const response = await fetch(path, {
-    method, headers, credentials: "same-origin", cache: "no-store",
-    body: body === null ? undefined : JSON.stringify(body),
-  });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
-  return data;
+  let lastError = null;
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    try {
+      const response = await fetch(path, {
+        method, headers, credentials: "same-origin", cache: "no-store",
+        body: body === null ? undefined : JSON.stringify(body),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (response.ok) return data;
+      const error = new Error(data.error || `HTTP ${response.status}`);
+      const retryable = response.status === 429 || response.status >= 500;
+      if (!retryable || attempt === 3) throw error;
+      lastError = error;
+    } catch (error) {
+      const retryable = error instanceof TypeError || error.message === "Failed to fetch";
+      if (!retryable) throw error;
+      lastError = error;
+      if (attempt === 3) throw error;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)));
+  }
+  throw lastError || new Error("network_error");
 }
 
 function selectedLane() {
@@ -435,9 +525,9 @@ function selectedProcessLanes() {
 }
 
 function laneNoun(lane, count = 1) {
-  if (lane === "both") return count === 1 ? "place or object" : "places and objects";
+  if (lane === "both") return count === 1 ? "scene or object" : "scenes and objects";
   if (lane === "object") return count === 1 ? "object" : "objects";
-  return count === 1 ? "place" : "places";
+  return count === 1 ? "scene" : "scenes";
 }
 
 function pendingFor(lane) {
@@ -455,29 +545,114 @@ function selectedPart() {
   return Number.isInteger(part) && part > 0 ? part : null;
 }
 
-function cliCommand() {
+function indexCommand(lane) {
   const origin = window.location.origin;
-  const lanes = selectedProcessLanes();
   const pace = document.querySelector('input[name="pace"]:checked')?.value || "medium";
   const code = lastRecovery || $("recovery-code")?.value.trim() || "YOUR_CODE";
   const part = selectedPart();
   const extra = part ? ` --part ${part}` : "";
-  return lanes.map((lane) => (
-    `python3 -m community.contribute --url ${origin} --lane ${lane} --pace ${pace}${extra} --recovery-code ${code}`
-  )).join("\n");
+  if (lane === "scene") {
+    return `python3 -m community.vision_index --url ${origin} --pace ${pace}${extra} --recovery-code ${code}`;
+  }
+  return `python3 -m community.contribute --url ${origin} --lane object --pace ${pace}${extra} --recovery-code ${code}`;
+}
+
+function cliCommand() {
+  return selectedProcessLanes().map((lane) => indexCommand(lane)).join("\n");
+}
+
+function shellQuote(value) {
+  return `'${String(value).replaceAll("'", `'"'"'`)}'`;
+}
+
+function sceneSearchCommand() {
+  const origin = window.location.origin;
+  const code = lastRecovery || $("recovery-code")?.value.trim() || "YOUR_CODE";
+  const parts = ["python3 -m community.vision_index", "--url", origin, "--search"];
+  const prompt = typedPrompt();
+  if (queryMap) parts.push("--query", "vision-query.json");
+  if (prompt) parts.push("--prompt", shellQuote(prompt));
+  parts.push("--result-count", String(Number($("result-count")?.value) || 200));
+  parts.push("--max-per-country", String(Number($("max-per-country")?.value) || 25));
+  parts.push("--description-weight", String(selectedDescriptionWeight()));
+  parts.push("--view-direction", $("view-direction")?.value || "bestOfFour");
+  const name = $("output-name")?.value.trim();
+  if (name) parts.push("--output-name", shellQuote(name));
+  const mode = countryMode();
+  if (mode !== "all") {
+    parts.push("--country-mode", mode);
+    const countries = selectedCountries();
+    if (countries.length) parts.push("--countries", shellQuote(countries.join(",")));
+  }
+  const generations = selectedGenerations();
+  if (generations.length && generations.length < ALL_GENERATIONS.length) {
+    parts.push("--camera-generations", generations.join(","));
+  }
+  if ($("reject-road")?.checked) parts.push("--reject-road-names");
+  const job = currentJob();
+  if ($("exclude-previous")?.checked && job?.excludeMap) parts.push("--exclude", "vision-exclude.json");
+  parts.push("--recovery-code", code);
+  return parts.join(" ");
 }
 
 function localSearchCommand() {
+  if (selectedLane() === "scene") return sceneSearchCommand();
   const origin = window.location.origin;
   const code = lastRecovery || $("recovery-code")?.value.trim() || "YOUR_CODE";
   const lane = selectedLane();
-  const parts = [`python3 -m community.local_search --url ${origin} --lane ${lane}`];
-  if (queryMap) parts.push("--query community/web/sample-query.json");
+  const parts = ["python3 -m community.local_search", "--url", origin, "--lane", lane];
   const prompt = typedPrompt();
-  if (prompt) parts.push(`--prompt ${JSON.stringify(prompt)}`);
-  if (queryMap && prompt) parts.push(`--description-weight ${selectedDescriptionWeight()}`);
-  parts.push(`--recovery-code ${code}`);
+  if (queryMap) parts.push("--query", "vision-query.json");
+  if (prompt) parts.push("--prompt", shellQuote(prompt));
+  if (!prompt && !queryMap) parts.push("--prompt", shellQuote("a street view panorama"));
+  if (queryMap && prompt) parts.push("--description-weight", String(selectedDescriptionWeight()));
+  parts.push("--result-count", String(Number($("result-count")?.value) || 200));
+  parts.push("--max-per-country", String(Number($("max-per-country")?.value) || 25));
+  if (lane === "scene") parts.push("--view-direction", $("view-direction")?.value || "bestOfFour");
+  const name = $("output-name")?.value.trim();
+  if (name) parts.push("--output-name", shellQuote(name));
+  const mode = countryMode();
+  if (mode !== "all") {
+    parts.push("--country-mode", mode);
+    const countries = selectedCountries();
+    if (countries.length) parts.push("--countries", shellQuote(countries.join(",")));
+  }
+  const generations = selectedGenerations();
+  if (generations.length && generations.length < ALL_GENERATIONS.length) {
+    parts.push("--camera-generations", generations.join(","));
+  }
+  const job = currentJob();
+  if ($("exclude-previous")?.checked && job?.excludeMap) parts.push("--exclude", "vision-exclude.json");
+  parts.push("--recovery-code", code);
   return parts.join(" ");
+}
+
+function downloadJson(filename, payload) {
+  const blob = new Blob([`${JSON.stringify(payload, null, 2)}\n`], { type: "application/json" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(link.href), 1500);
+}
+
+async function copyComputerSearch() {
+  saveJobFromForm();
+  updateCliCommand();
+  if (queryMap) downloadJson("vision-query.json", queryMap);
+  const job = currentJob();
+  if ($("exclude-previous")?.checked && job?.excludeMap) downloadJson("vision-exclude.json", job.excludeMap);
+  const block = $("command-block");
+  if (block) block.open = true;
+  $("index-sheet")?.showModal();
+  const copied = await copyText(localSearchCommand(), $("local-search-command"));
+  const scene = selectedLane() === "scene";
+  $("build-label").textContent = "Search on this computer";
+  $("search-status").textContent = copied
+    ? (scene
+      ? "Copied. Paste it into Terminal. It uses the same four-view search as VISION and writes a map JSON."
+      : "Copied. Paste it into Terminal. It searches the shared index on this computer and writes a map JSON.")
+    : "Select the search command, copy it, and paste it into Terminal.";
 }
 
 function updateCliCommand() {
@@ -508,14 +683,14 @@ function updateProcessHelp() {
     if (choice === "object") {
       help.textContent = "Objects use the six-face cube (front, back, left, right, up, down). Each finished object counts as 10 toward a search.";
     } else if (choice === "both") {
-      help.textContent = "Both indexes places and objects in turn. Places count as 1. Objects count as 10.";
+      help.textContent = "Scenes use the VISION indexer in Terminal. Objects then run in this tab. Scenes count as 1. Objects count as 10.";
     } else {
-      help.textContent = "Places look around each panorama using saved pan and the four compass views. Each finished place counts as 1 toward a search.";
+      help.textContent = "Scenes use the same four-view indexer as VISION. Copy the command into Terminal. Each finished scene counts as 1 toward a search.";
     }
   }
   const start = $("process");
   if (start && !start.dataset.busy) {
-    start.textContent = choice === "object" ? "Start objects" : choice === "both" ? "Start both" : "Start places";
+    start.textContent = choice === "object" ? "Start objects" : choice === "both" ? "Copy scene command and start objects" : "Copy scene command";
   }
 }
 
@@ -524,7 +699,7 @@ function updateQueue() {
   const object = pendingFor("object");
   const choice = selectedProcessLane();
   const work = workForSelection();
-  $("queue-label").textContent = `${number(scene)} places and ${number(object)} objects still waiting`;
+  $("queue-label").textContent = `${number(scene)} scenes and ${number(object)} objects still waiting`;
   if ($("batch-label")) {
     $("batch-label").textContent = work?.summary
       || "You will get your own batch. Other people get different batches.";
@@ -534,24 +709,60 @@ function updateQueue() {
   if (!$("process").dataset.busy) $("process").disabled = !canProcess;
 }
 
+function jobHasInput(job) {
+  if (job.prompt) return true;
+  return job.id === selectedJob && Boolean(queryMap);
+}
+
+function jobSummary(job) {
+  const selected = job.id === selectedJob;
+  const input = selected ? queryInputLabel() : (job.prompt ? "Description" : "Needs input");
+  if (job.lane === "object") {
+    const label = job.prompt || (selected && queryMap ? "JSON reference" : "Needs an object");
+    return `Objects · ${label} · ${job.resultCount || 200} locations`;
+  }
+  if (input === "Needs input") return "Needs input";
+  return `${input} · ${job.resultCount || 200} locations`;
+}
+
 function renderJobs() {
   const list = $("jobs");
   list.replaceChildren();
+  let readyJobs = 0;
   for (const job of jobs) {
     const item = document.createElement("li");
+    const ready = jobHasInput(job);
+    if (ready) readyJobs += 1;
     if (job.id === selectedJob) item.classList.add("selected");
-    if (hasQueryInput() && job.id === selectedJob) item.classList.add("ready");
+    if (ready) item.classList.add("ready");
     const dot = document.createElement("span");
     dot.className = "dot";
     const title = document.createElement("span");
-    title.append(job.name);
+    title.className = "job-copy";
+    const name = document.createElement("strong");
+    name.className = "job-name";
+    name.textContent = job.name || "Untitled search";
     const meta = document.createElement("small");
-    const input = queryInputLabel();
-    meta.textContent = job.lane === "scene"
-      ? `${input} · ${VIEW_DIRECTION_LABELS[job.viewDirection || "bestOfFour"]}`
-      : `${input} · Objects`;
-    title.append(meta);
+    meta.textContent = jobSummary(job);
+    title.append(name, meta);
     item.append(dot, title);
+    if (jobs.length > 1 && job.id === selectedJob) {
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "trash";
+      remove.title = "Delete search";
+      remove.textContent = "⌫";
+      remove.addEventListener("click", (event) => {
+        event.stopPropagation();
+        jobs = jobs.filter((entry) => entry.id !== job.id);
+        selectedJob = jobs[0].id;
+        applyJobToForm(currentJob());
+        persistJobs();
+        renderJobs();
+        updateReady();
+      });
+      item.append(remove);
+    }
     item.addEventListener("click", () => {
       saveJobFromForm();
       selectedJob = job.id;
@@ -561,6 +772,7 @@ function renderJobs() {
     });
     list.append(item);
   }
+  if ($("ready-count")) $("ready-count").textContent = `${readyJobs} ready`;
 }
 
 function updateReady() {
@@ -568,23 +780,22 @@ function updateReady() {
   const generationReady = selectedGenerations().length > 0;
   const onSite = state?.searchOnSite !== false;
   const hasInput = hasQueryInput();
-  const ready = hasInput
-    && signedIn
-    && includeReady
-    && generationReady
-    && Number(state?.units || 0) >= Number(state?.searchCost || Infinity)
-    && onSite;
-  let badge = "Get an account";
-  if (!signedIn) badge = "Get an account";
-  else if (!hasInput) badge = "Add a description or JSON";
-  else if (!includeReady || !generationReady) badge = "Check filters";
-  else if (!onSite && Number(state?.units || 0) >= Number(state?.searchCost || Infinity)) badge = "Search on your computer";
-  else if (ready) badge = "Ready to search";
-  else badge = "Keep indexing";
-  $("ready-badge").textContent = badge;
-  $("ready-badge").classList.toggle("ok", ready);
+  const credited = Number(state?.units || 0) >= Number(state?.searchCost || Infinity);
+  const ready = hasInput && includeReady && generationReady && (signedIn ? credited : true);
+  $("ready-badge").textContent = hasInput ? "Ready" : "Needs input";
+  $("ready-badge").classList.toggle("ok", hasInput);
   $("run-search").disabled = !ready;
-  $("job-title").textContent = $("output-name").value.trim() || "Find matching places";
+  $("run-search").textContent = "Run Search";
+  if (!signedIn) {
+    $("run-search").title = "Get an account, then Run Search copies a Terminal command";
+  } else if (credited && hasInput && (selectedLane() === "scene" || onSite === false)) {
+    $("run-search").title = selectedLane() === "scene"
+      ? "Copies a Terminal command that searches the same way as VISION"
+      : "Copies a Terminal command that searches the shared index on this computer";
+  } else {
+    $("run-search").title = "";
+  }
+  $("job-title").textContent = $("output-name").value.trim() || "New search";
 }
 
 function coordinatesFrom(documentMap) {
@@ -615,6 +826,9 @@ function useQueryMap(documentMap, label) {
   queryMap = Array.isArray(documentMap)
     ? { name: "VISION Community", customCoordinates: documentMap }
     : documentMap;
+  queryMaps.set(selectedJob, { map: queryMap, label });
+  const owner = currentJob();
+  if (owner) owner.queryLabel = label;
   $("file-name").textContent = label;
   if (!Array.isArray(documentMap) && documentMap.name) {
     $("output-name").value = documentMap.name;
@@ -670,21 +884,28 @@ async function refresh(options = {}) {
   const scene = state.counts?.scene || { pending: 0, published: 0 };
   const object = state.counts?.object || { pending: 0, published: 0 };
   const indexed = (scene.published || 0) + (object.published || 0);
-  const pending = (scene.pending || 0) + (object.pending || 0);
-  $("index-label").textContent = `${number(indexed)} indexed · ${number(pending)} queued`;
+  const objectCount = Number(object.published || 0);
+  const objectLabel = `${number(objectCount)} ${objectCount === 1 ? "object" : "objects"}`;
+  $("index-label").textContent = objectCount
+    ? `${number(scene.published || 0)} scenes · ${objectLabel}`
+    : `${number(scene.published || 0)} scenes`;
+  const cutoff = $("import-cutoff");
+  if (cutoff && cutoff.options[0]) cutoff.options[0].textContent = `All imports · ${number(indexed)} locations`;
   paintBalance();
   const need = Math.max(0, Number(state.searchCost || 0) - Number(state.units || 0));
   if (!signedIn) {
-    $("search-status").textContent = "Get an account, click Start, and keep this tab in front.";
+    $("search-status").textContent = "Get an account from Index, then copy the scene command.";
   } else if (!lastMap) {
-    if (state.searchOnSite === false) {
+    if (selectedLane() === "scene" || state.searchOnSite === false) {
       $("search-status").textContent = need === 0
-        ? "The index is too large for this tab. Use the search command under Faster."
-        : `Keep this tab in front. ${number(need)} more until you can search on your computer.`;
+        ? (selectedLane() === "scene"
+          ? "Run Search copies a Terminal command. It uses the same four-view search as VISION."
+          : "Run Search copies a Terminal command. It searches the shared index on this computer.")
+        : `${number(indexed)} indexed locations · ${number(need)} more until you can search.`;
     } else {
       $("search-status").textContent = need === 0
-        ? "Search is ready. Press Search, then add the results to your map."
-        : `Keep this tab in front. ${number(need)} more until Search unlocks.`;
+        ? `${number(indexed)} indexed locations`
+        : `${number(indexed)} indexed locations · ${number(need)} more until Search unlocks.`;
     }
   }
   $("create-account").hidden = signedIn;
@@ -693,12 +914,16 @@ async function refresh(options = {}) {
   if (!($("process").dataset.busy && need === 0)) {
     $("build-label").textContent = document.hidden && $("process").dataset.busy
       ? "Bring this tab to the front — indexing slows in the background."
-      : "Keep this tab in front while indexing";
+      : ($("process").dataset.busy ? "Indexing" : "Ready");
   }
-  if (!signedIn) $("process-status").textContent = "Get an account, then click Start.";
+  if (!signedIn) $("process-status").textContent = "Get an account, then copy the scene command into Terminal.";
   else if ($("process-status").textContent === "Get an account, then click Start."
+    || $("process-status").textContent === "Get an account, then copy the place command into Terminal."
+    || $("process-status").textContent === "Get an account, then copy the scene command into Terminal."
     || $("process-status").textContent === "Create an account to begin.")
-    $("process-status").textContent = "Click Start. Keep this tab in front.";
+    $("process-status").textContent = selectedProcessLane() === "object"
+      ? "Click Start objects. Keep this tab in front."
+      : "Copy the scene command into Terminal. It keeps going until you stop it or the queue is empty.";
   if (!lite) {
     saveJobFromForm();
     renderCountries();
@@ -726,7 +951,7 @@ async function mapPool(items, limit, mapper) {
 
 $("add-job").addEventListener("click", () => {
   saveJobFromForm();
-  const job = newJob("Example search");
+  const job = newJob("");
   job.lane = selectedLane();
   jobs.push(job);
   selectedJob = job.id;
@@ -736,7 +961,7 @@ $("add-job").addEventListener("click", () => {
 
 $("output-name").addEventListener("input", () => {
   const job = jobs.find((item) => item.id === selectedJob);
-  if (job) job.name = $("output-name").value.trim() || "Example search";
+  if (job) job.name = $("output-name").value.trim();
   persistJobs();
   renderJobs();
   updateReady();
@@ -746,8 +971,10 @@ document.querySelectorAll('input[name="mode"]').forEach((input) => {
   input.addEventListener("change", () => {
     const job = jobs.find((item) => item.id === selectedJob);
     if (job) job.lane = selectedLane();
+    persistJobs();
     updateViewDirection();
     renderJobs();
+    updateCliCommand();
   });
 });
 
@@ -773,6 +1000,7 @@ document.querySelectorAll('input[name="generation"]').forEach((input) => {
     saveJobFromForm();
     updateFilterHelp();
     updateReady();
+    updateCliCommand();
   });
 });
 
@@ -784,6 +1012,7 @@ document.querySelectorAll('input[name="country-mode"]').forEach((input) => {
     renderCountries();
     updateFilterHelp();
     updateReady();
+    updateCliCommand();
   });
 });
 
@@ -817,11 +1046,43 @@ $("clear-countries").addEventListener("click", () => {
   updateReady();
 });
 
-["result-count", "max-per-country", "view-direction"].forEach((id) => {
-  $(id).addEventListener("change", () => {
+["result-count", "max-per-country", "view-direction", "reject-road", "exclude-previous"].forEach((id) => {
+  $(id)?.addEventListener("change", () => {
     saveJobFromForm();
+    updateBlendMeta();
     renderJobs();
+    updateCliCommand();
   });
+});
+
+$("duplicate-job")?.addEventListener("click", () => {
+  saveJobFromForm();
+  const source = currentJob();
+  if (!source) return;
+  const job = {
+    ...source,
+    id: crypto.randomUUID(),
+    name: source.name ? `${source.name} copy` : "",
+    excludeMap: source.excludeMap || null,
+  };
+  if (queryMaps.has(source.id)) queryMaps.set(job.id, queryMaps.get(source.id));
+  jobs.push(job);
+  selectedJob = job.id;
+  applyJobToForm(job);
+  persistJobs();
+  renderJobs();
+  updateReady();
+});
+
+$("open-index")?.addEventListener("click", () => $("index-sheet")?.showModal());
+$("close-index")?.addEventListener("click", () => $("index-sheet")?.close());
+$("show-outputs")?.addEventListener("click", () => {
+  const block = $("command-block");
+  if (block) block.open = true;
+  $("index-sheet")?.showModal();
+});
+document.querySelectorAll('input[name="object-confidence"]').forEach((input) => {
+  input.addEventListener("change", updateBlendMeta);
 });
 
 $("create-account").addEventListener("click", async () => {
@@ -837,7 +1098,9 @@ $("create-account").addEventListener("click", async () => {
       : `Write this code down or screenshot it. It is the only way back into this account: ${lastRecovery}`;
     if (copied) $("copy-recovery").textContent = "Copied";
     await refresh();
-    $("process-status").textContent = "Saved? Click Start. Keep this tab in front.";
+    $("process-status").textContent = selectedProcessLane() === "object"
+      ? "Saved? Click Start objects. Keep this tab in front."
+      : "Saved? Copy the scene command into Terminal. It keeps going until you stop it or the queue is empty.";
     updateCliCommand();
   } catch (error) {
     $("process-status").textContent = `Account error: ${explain(error)}`;
@@ -874,7 +1137,9 @@ $("recover-form").addEventListener("submit", async (event) => {
     await api("/api/recovery", "POST", { recoveryCode: $("recovery-code").value.trim() });
     $("recovery-once").hidden = true;
     await refresh();
-    $("process-status").textContent = "Welcome back. Click Start to keep going.";
+    $("process-status").textContent = selectedProcessLane() === "object"
+      ? "Welcome back. Click Start objects to keep going."
+      : "Welcome back. Copy the scene command into Terminal. It keeps going until you stop it or the queue is empty.";
     updateCliCommand();
   } catch (error) {
     $("process-status").textContent = `Recovery stopped: ${explain(error)}`;
@@ -902,10 +1167,29 @@ $("process").addEventListener("click", async () => {
   document.querySelectorAll('input[name="process-lane"]').forEach((input) => {
     input.disabled = true;
   });
-  button.textContent = choice === "object" ? "Indexing objects…" : choice === "both" ? "Indexing both…" : "Indexing places…";
-  $("build-label").textContent = "Keep this tab in front while indexing";
+  const browserLanes = lanes.filter((lane) => lane !== "scene");
+  if (lanes.includes("scene")) {
+    updateCliCommand();
+    const copied = await copyText(indexCommand("scene"), $("cli-command"));
+    $("process-status").textContent = copied
+      ? "Copied the VISION index command. Paste it into Terminal. It keeps going until you stop it or the queue is empty."
+      : "Select the index command, copy it, and paste it into Terminal. It keeps going until you stop it or the queue is empty.";
+  }
+  if (!browserLanes.length) {
+    delete button.dataset.busy;
+    document.querySelectorAll('input[name="process-lane"]').forEach((input) => {
+      input.disabled = false;
+    });
+    updateProcessHelp();
+    updateQueue();
+    return;
+  }
+  button.textContent = "Indexing objects…";
+  $("build-label").textContent = "Keep this tab in front while indexing objects";
+  localStorage.setItem(INDEXING_KEY, "objects");
   await holdWakeLock();
   let batchesSinceRefresh = 0;
+  let itemFailures = 0;
 
   async function processLane(lane) {
     const body = { lane, count: PACE_LEASE[lane][pace], pace };
@@ -930,6 +1214,7 @@ $("process").addEventListener("click", async () => {
     });
     const accepted = await api("/api/submissions", "POST", { leaseId: lease.leaseId, outputs });
     currentLeaseId = null;
+    itemFailures = 0;
     acceptedTotal += accepted.accepted;
     unitsTotal += accepted.unitsEarned;
     applyCredit(accepted.unitsEarned);
@@ -942,21 +1227,37 @@ $("process").addEventListener("click", async () => {
   }
 
   try {
+    let retry = 0;
     while (!pauseRequested) {
       let progressed = false;
       let lastEmpty = null;
-      for (const lane of lanes) {
+      for (const lane of browserLanes) {
         if (pauseRequested) break;
         try {
           await processLane(lane);
           progressed = true;
+          retry = 0;
         } catch (error) {
           if (error.message === "paused") throw error;
           if (error.message === "no_available_work") {
             lastEmpty = error;
             continue;
           }
-          throw error;
+          if (!indexingKeepsGoing(error)) throw error;
+          if (currentLeaseId && (error.message === "view_unavailable" || error.message === "verification_failed")) {
+            itemFailures += 1;
+            if (itemFailures >= 3) {
+              await api("/api/leases/release", "POST", { leaseId: currentLeaseId, skip: true }).catch(() => {});
+              currentLeaseId = null;
+              itemFailures = 0;
+            }
+          }
+          retry += 1;
+          const wait = [2000, 5000, 15000, 30000, 60000][Math.min(retry - 1, 4)];
+          $("process-status").textContent = "Still indexing. The last batch hit a problem, so this tab will try again.";
+          await new Promise((resolve) => setTimeout(resolve, wait));
+          if (pauseRequested) throw new Error("paused");
+          progressed = true;
         }
       }
       if (!progressed) {
@@ -964,16 +1265,26 @@ $("process").addEventListener("click", async () => {
         break;
       }
     }
+    localStorage.removeItem(INDEXING_KEY);
     $("process-status").textContent = `Paused after ${number(acceptedTotal)} ${noun}.`;
   } catch (error) {
-    if (currentLeaseId) {
+    if (currentLeaseId && error.message !== "paused") {
+      const skip = itemFailures >= 3 && (error.message === "view_unavailable" || error.message === "verification_failed");
+      await api("/api/leases/release", "POST", { leaseId: currentLeaseId, skip }).catch(() => {});
+      currentLeaseId = null;
+    } else if (currentLeaseId) {
       await api("/api/leases/release", "POST", { leaseId: currentLeaseId }).catch(() => {});
       currentLeaseId = null;
+    }
+    if (error.message === "paused" || error.message === "no_available_work") {
+      localStorage.removeItem(INDEXING_KEY);
     }
     if (error.message === "paused") {
       $("process-status").textContent = `Paused after ${number(acceptedTotal)} ${noun}.`;
     } else if (error.message === "no_available_work" && acceptedTotal) {
       $("process-status").textContent = `Caught up for now: ${number(acceptedTotal)} ${noun} finished.`;
+    } else if (error.message === "no_available_work") {
+      $("process-status").textContent = "No more objects are waiting right now.";
     } else {
       $("process-status").textContent = `Processing stopped: ${explain(error)}`;
     }
@@ -1015,7 +1326,9 @@ $("exclude-map").addEventListener("change", async () => {
         ? { name: "Previous map", customCoordinates: documentMap }
         : documentMap;
       job.excludeName = file.name;
+      job.excludePrevious = true;
     }
+    if ($("exclude-previous")) $("exclude-previous").checked = true;
     $("exclude-file-name").textContent = file.name;
   } catch (error) {
     const job = currentJob();
@@ -1053,8 +1366,12 @@ $("load-sample").addEventListener("click", async () => {
 
 $("clear-json").addEventListener("click", () => {
   queryMap = null;
+  queryMaps.delete(selectedJob);
+  const job = currentJob();
+  if (job) job.queryLabel = "";
   $("query-map").value = "";
   $("file-name").textContent = "No JSON yet";
+  saveJobFromForm();
   updateQueryInputs();
   renderJobs();
 });
@@ -1088,6 +1405,7 @@ function showResultActions(hasHits) {
   $("download-map").hidden = !hasHits;
   $("send-mma").hidden = !hasHits;
   $("copy-mma").hidden = !hasHits;
+  if ($("last-run")) $("last-run").hidden = !hasHits;
 }
 
 function mmaTarget() {
@@ -1187,7 +1505,7 @@ async function sendToMapMaking() {
     return;
   }
   const selected = $("mma-map-select")?.value || "__new__";
-  $("search-status").textContent = "Adding places to your map…";
+  $("search-status").textContent = "Adding scenes to your map…";
   $("send-mma").disabled = true;
   try {
     const result = await mmaSendMap(lastMap, {
@@ -1196,7 +1514,7 @@ async function sendToMapMaking() {
       newMap: selected === "__new__",
     });
     mmaSaveConnection(key, selected);
-    $("search-status").textContent = `Added ${result.added} places${result.name ? ` to ${result.name}` : ""}.`;
+    $("search-status").textContent = `Added ${result.added} scenes${result.name ? ` to ${result.name}` : ""}.`;
     if (result.url) {
       const link = document.createElement("a");
       link.href = result.url;
@@ -1232,6 +1550,26 @@ $("run-search").addEventListener("click", async () => {
   const button = $("run-search");
   button.disabled = true;
   saveJobFromForm();
+  if (!signedIn) {
+    $("index-sheet")?.showModal();
+    $("search-status").textContent = "Get an account from Index, then run the search again.";
+    updateReady();
+    return;
+  }
+  const credited = Number(state?.units || 0) >= Number(state?.searchCost || Infinity);
+  if (!credited) {
+    $("search-status").textContent = "Keep indexing until the bar is full. A search needs 100,000 scenes, or 10,000 objects.";
+    updateReady();
+    return;
+  }
+  if (selectedLane() === "scene" || state?.searchOnSite === false) {
+    try {
+      await copyComputerSearch();
+    } finally {
+      updateReady();
+    }
+    return;
+  }
   try {
     const result = await api("/api/searches", "POST", {
       idempotencyKey: crypto.randomUUID(),
@@ -1239,7 +1577,7 @@ $("run-search").addEventListener("click", async () => {
       queryMap: queryMap || undefined,
       prompt: typedPrompt() || undefined,
       descriptionWeight: selectedDescriptionWeight(),
-      excludeMap: currentJob()?.excludeMap || undefined,
+      excludeMap: ($("exclude-previous")?.checked && currentJob()?.excludeMap) || undefined,
       viewDirection: selectedLane() === "scene" ? ($("view-direction").value || "bestOfFour") : undefined,
       outputName: $("output-name").value.trim(),
       resultCount: Number($("result-count").value),
@@ -1270,11 +1608,11 @@ $("run-search").addEventListener("click", async () => {
     }
     $("search-status").textContent = hits.length
       ? (mmaTarget() === "local"
-        ? `${hits.length} matching ${selectedLane() === "object" ? "objects" : "places"}. Copy for the local app, or download the JSON.`
+        ? `${hits.length} matching ${selectedLane() === "object" ? "objects" : "scenes"}. Copy for the local app, or download the JSON.`
         : mmaStoredKey()
-          ? `${hits.length} matching ${selectedLane() === "object" ? "objects" : "places"}. Click Add to my map.`
-          : `${hits.length} matching ${selectedLane() === "object" ? "objects" : "places"}. Connect a map app, or download the JSON.`)
-      : "Nothing matched. Try Best of available views, or open More options.";
+          ? `${hits.length} matching ${selectedLane() === "object" ? "objects" : "scenes"}. Click Add to my map.`
+          : `${hits.length} matching ${selectedLane() === "object" ? "objects" : "scenes"}. Connect a map app, or download the JSON.`)
+      : "Nothing matched. Try Best of available views, or widen the filters.";
     await refresh();
   } catch (error) {
     $("search-status").textContent = `Search stopped: ${explain(error)}`;
@@ -1304,7 +1642,15 @@ renderJobs();
 updateProcessHelp();
 updateMmaTarget();
 restoreMapApp().catch(() => {});
-refresh().catch((error) => {
+refresh().then(() => {
+  if (localStorage.getItem(INDEXING_KEY) !== "objects") return;
+  if (!state?.accountId || $("process").dataset.busy) return;
+  if (selectedProcessLane() === "scene") {
+    const objectLane = document.querySelector('input[name="process-lane"][value="object"]');
+    if (objectLane) objectLane.checked = true;
+  }
+  $("process").click();
+}).catch((error) => {
   $("process-status").textContent = `Unable to reach the service: ${explain(error)}`;
 });
 

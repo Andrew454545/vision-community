@@ -327,6 +327,10 @@ def main() -> None:
     parser.add_argument("--max-per-country", type=int, default=25)
     parser.add_argument("--output-name")
     parser.add_argument("--view-direction", default="bestOfFour")
+    parser.add_argument("--country-mode", choices=("all", "include", "exclude"), default="all")
+    parser.add_argument("--countries", default="", help="comma-separated country names")
+    parser.add_argument("--camera-generations", default="", help="comma-separated camera generations")
+    parser.add_argument("--exclude", type=Path, help="previous map JSON; hide results within 25 m")
     args = parser.parse_args()
     try:
         origin_of(args.url)
@@ -338,6 +342,9 @@ def main() -> None:
         if not isinstance(stem, str) or not stem.strip():
             stem = "vision-community"
         output = args.output or Path(f"{stem.strip().replace(' ', '-')}.json")
+        countries = [part.strip() for part in args.countries.split(",") if part.strip()]
+        cameras = [part.strip() for part in args.camera_generations.split(",") if part.strip()]
+        exclude_map = json.loads(args.exclude.read_text(encoding="utf-8")) if args.exclude is not None else None
         report = local_search(
             url=args.url,
             query_map=query_map,
@@ -349,6 +356,10 @@ def main() -> None:
             max_per_country=args.max_per_country,
             output_name=args.output_name,
             view_direction=args.view_direction,
+            country_filter_mode=args.country_mode,
+            countries=countries,
+            camera_generations=cameras,
+            exclude_map=exclude_map,
             prompt=args.prompt,
             description_weight=args.description_weight,
             output=output,

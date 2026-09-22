@@ -97,7 +97,8 @@ class PublicSurfaceIdentityTest(unittest.TestCase):
         html = (ROOT / "community" / "web" / "index.html").read_text(encoding="utf-8")
         self.assertIn('id="prompt"', html)
         self.assertIn('name="description-weight"', html)
-        self.assertIn("What to search with", html)
+        self.assertIn("Search input", html)
+        self.assertIn(">Scene<", html)
         self.assertIn("descriptionEmbedding", worker)
         self.assertIn("mixEmbeddings", worker)
 
