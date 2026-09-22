@@ -554,7 +554,7 @@ function indexCommand(lane) {
   if (lane === "scene") {
     return `python3 -m community.vision_index --url ${origin} --pace ${pace}${extra} --recovery-code ${code}`;
   }
-  return `python3 -m community.contribute --url ${origin} --lane object --pace ${pace}${extra} --recovery-code ${code}`;
+  return `python3 -m community.object_index --url ${origin} --pace ${pace}${extra} --recovery-code ${code}`;
 }
 
 function cliCommand() {
@@ -676,21 +676,42 @@ function workForSelection() {
   };
 }
 
+function processPrompt() {
+  const choice = selectedProcessLane();
+  if (!signedIn) {
+    if (choice === "object") return "Get an account, then copy the object command into Terminal.";
+    if (choice === "both") return "Get an account, then copy both commands into Terminal.";
+    return "Get an account, then copy the scene command into Terminal.";
+  }
+  if (choice === "object") return "Copy the object command into Terminal. It keeps going until you stop it or the queue is empty.";
+  if (choice === "both") return "Copy both commands. Paste each one into its own Terminal window.";
+  return "Copy the scene command into Terminal. It keeps going until you stop it or the queue is empty.";
+}
+
 function updateProcessHelp() {
   const choice = selectedProcessLane();
   const help = $("process-lane-help");
   if (help) {
     if (choice === "object") {
-      help.textContent = "Objects use the six-face cube (front, back, left, right, up, down). Each finished object counts as 10 toward a search.";
+      help.textContent = "Objects use the same indexer as VISION: six-face cube, RF-DETR, YOLOE, and OWLv2. Copy the command into Terminal. Each finished object counts as 10 toward a search.";
     } else if (choice === "both") {
-      help.textContent = "Scenes use the VISION indexer in Terminal. Objects then run in this tab. Scenes count as 1. Objects count as 10.";
+      help.textContent = "Scenes and objects both use the VISION indexers in Terminal. Paste each command into its own Terminal window. Scenes count as 1. Objects count as 10.";
     } else {
       help.textContent = "Scenes use the same four-view indexer as VISION. Copy the command into Terminal. Each finished scene counts as 1 toward a search.";
     }
   }
   const start = $("process");
   if (start && !start.dataset.busy) {
-    start.textContent = choice === "object" ? "Start objects" : choice === "both" ? "Copy scene command and start objects" : "Copy scene command";
+    start.textContent = choice === "object" ? "Copy object command" : choice === "both" ? "Copy scene and object commands" : "Copy scene command";
+  }
+  const status = $("process-status");
+  if (status && (
+    status.textContent.startsWith("Get an account")
+    || status.textContent.startsWith("Create an account")
+    || status.textContent.startsWith("Copy the ")
+    || status.textContent.startsWith("Copy both ")
+  )) {
+    status.textContent = processPrompt();
   }
 }
 
@@ -916,14 +937,10 @@ async function refresh(options = {}) {
       ? "Bring this tab to the front — indexing slows in the background."
       : ($("process").dataset.busy ? "Indexing" : "Ready");
   }
-  if (!signedIn) $("process-status").textContent = "Get an account, then copy the scene command into Terminal.";
-  else if ($("process-status").textContent === "Get an account, then click Start."
-    || $("process-status").textContent === "Get an account, then copy the place command into Terminal."
-    || $("process-status").textContent === "Get an account, then copy the scene command into Terminal."
-    || $("process-status").textContent === "Create an account to begin.")
-    $("process-status").textContent = selectedProcessLane() === "object"
-      ? "Click Start objects. Keep this tab in front."
-      : "Copy the scene command into Terminal. It keeps going until you stop it or the queue is empty.";
+  if (!signedIn || $("process-status").textContent.startsWith("Get an account")
+    || $("process-status").textContent.startsWith("Create an account")) {
+    $("process-status").textContent = processPrompt();
+  }
   if (!lite) {
     saveJobFromForm();
     renderCountries();
@@ -1099,8 +1116,8 @@ $("create-account").addEventListener("click", async () => {
     if (copied) $("copy-recovery").textContent = "Copied";
     await refresh();
     $("process-status").textContent = selectedProcessLane() === "object"
-      ? "Saved? Click Start objects. Keep this tab in front."
-      : "Saved? Copy the scene command into Terminal. It keeps going until you stop it or the queue is empty.";
+      ? "Saved? Copy the object command into Terminal. It keeps going until you stop it or the queue is empty."
+      : "Saved? Copy the index command into Terminal. It keeps going until you stop it or the queue is empty.";
     updateCliCommand();
   } catch (error) {
     $("process-status").textContent = `Account error: ${explain(error)}`;
@@ -1138,8 +1155,8 @@ $("recover-form").addEventListener("submit", async (event) => {
     $("recovery-once").hidden = true;
     await refresh();
     $("process-status").textContent = selectedProcessLane() === "object"
-      ? "Welcome back. Click Start objects to keep going."
-      : "Welcome back. Copy the scene command into Terminal. It keeps going until you stop it or the queue is empty.";
+      ? "Welcome back. Copy the object command into Terminal. It keeps going until you stop it or the queue is empty."
+      : "Welcome back. Copy the index command into Terminal. It keeps going until you stop it or the queue is empty.";
     updateCliCommand();
   } catch (error) {
     $("process-status").textContent = `Recovery stopped: ${explain(error)}`;
@@ -1154,149 +1171,21 @@ $("pause").addEventListener("click", () => {
 $("process").addEventListener("click", async () => {
   const button = $("process");
   button.disabled = true;
-  button.dataset.busy = "1";
   pauseRequested = false;
-  const lanes = selectedProcessLanes();
+  updateCliCommand();
   const choice = selectedProcessLane();
-  const noun = laneNoun(choice, 2);
-  const pace = document.querySelector('input[name="pace"]:checked').value;
-  const workers = PACE_WORKERS[pace];
-  let acceptedTotal = 0;
-  let unitsTotal = 0;
-  let currentLeaseId = null;
-  document.querySelectorAll('input[name="process-lane"]').forEach((input) => {
-    input.disabled = true;
-  });
-  const browserLanes = lanes.filter((lane) => lane !== "scene");
-  if (lanes.includes("scene")) {
-    updateCliCommand();
-    const copied = await copyText(indexCommand("scene"), $("cli-command"));
-    $("process-status").textContent = copied
-      ? "Copied the VISION index command. Paste it into Terminal. It keeps going until you stop it or the queue is empty."
-      : "Select the index command, copy it, and paste it into Terminal. It keeps going until you stop it or the queue is empty.";
-  }
-  if (!browserLanes.length) {
-    delete button.dataset.busy;
-    document.querySelectorAll('input[name="process-lane"]').forEach((input) => {
-      input.disabled = false;
-    });
-    updateProcessHelp();
-    updateQueue();
-    return;
-  }
-  button.textContent = "Indexing objects…";
-  $("build-label").textContent = "Keep this tab in front while indexing objects";
-  localStorage.setItem(INDEXING_KEY, "objects");
-  await holdWakeLock();
-  let batchesSinceRefresh = 0;
-  let itemFailures = 0;
-
-  async function processLane(lane) {
-    const body = { lane, count: PACE_LEASE[lane][pace], pace };
-    const part = selectedPart();
-    if (part) body.part = part;
-    const lease = await api("/api/leases", "POST", body);
-    if (lease.work) {
-      state = {
-        ...(state || {}),
-        work: lane === "scene" ? lease.work : state?.work,
-        workByLane: { ...(state?.workByLane || {}), [lane]: lease.work },
-      };
-      updateQueue();
-    }
-    currentLeaseId = lease.leaseId;
-    const laneNounText = laneNoun(lane, 2);
-    let processed = 0;
-    const outputs = await mapPool(lease.items, workers, async (item) => {
-      processed += 1;
-      $("process-status").textContent = `Working on ${laneNounText}… ${acceptedTotal + processed} finished in this session`;
-      return window.VISIONVisual.processItem(item);
-    });
-    const accepted = await api("/api/submissions", "POST", { leaseId: lease.leaseId, outputs });
-    currentLeaseId = null;
-    itemFailures = 0;
-    acceptedTotal += accepted.accepted;
-    unitsTotal += accepted.unitsEarned;
-    applyCredit(accepted.unitsEarned);
-    $("process-status").textContent = `${number(acceptedTotal)} ${noun} finished. Keep this tab in front.`;
-    batchesSinceRefresh += 1;
-    if (batchesSinceRefresh >= REFRESH_EVERY_BATCHES) {
-      batchesSinceRefresh = 0;
-      await refresh({ lite: true });
-    }
-  }
-
-  try {
-    let retry = 0;
-    while (!pauseRequested) {
-      let progressed = false;
-      let lastEmpty = null;
-      for (const lane of browserLanes) {
-        if (pauseRequested) break;
-        try {
-          await processLane(lane);
-          progressed = true;
-          retry = 0;
-        } catch (error) {
-          if (error.message === "paused") throw error;
-          if (error.message === "no_available_work") {
-            lastEmpty = error;
-            continue;
-          }
-          if (!indexingKeepsGoing(error)) throw error;
-          if (currentLeaseId && (error.message === "view_unavailable" || error.message === "verification_failed")) {
-            itemFailures += 1;
-            if (itemFailures >= 3) {
-              await api("/api/leases/release", "POST", { leaseId: currentLeaseId, skip: true }).catch(() => {});
-              currentLeaseId = null;
-              itemFailures = 0;
-            }
-          }
-          retry += 1;
-          const wait = [2000, 5000, 15000, 30000, 60000][Math.min(retry - 1, 4)];
-          $("process-status").textContent = "Still indexing. The last batch hit a problem, so this tab will try again.";
-          await new Promise((resolve) => setTimeout(resolve, wait));
-          if (pauseRequested) throw new Error("paused");
-          progressed = true;
-        }
-      }
-      if (!progressed) {
-        if (lastEmpty) throw lastEmpty;
-        break;
-      }
-    }
-    localStorage.removeItem(INDEXING_KEY);
-    $("process-status").textContent = `Paused after ${number(acceptedTotal)} ${noun}.`;
-  } catch (error) {
-    if (currentLeaseId && error.message !== "paused") {
-      const skip = itemFailures >= 3 && (error.message === "view_unavailable" || error.message === "verification_failed");
-      await api("/api/leases/release", "POST", { leaseId: currentLeaseId, skip }).catch(() => {});
-      currentLeaseId = null;
-    } else if (currentLeaseId) {
-      await api("/api/leases/release", "POST", { leaseId: currentLeaseId }).catch(() => {});
-      currentLeaseId = null;
-    }
-    if (error.message === "paused" || error.message === "no_available_work") {
-      localStorage.removeItem(INDEXING_KEY);
-    }
-    if (error.message === "paused") {
-      $("process-status").textContent = `Paused after ${number(acceptedTotal)} ${noun}.`;
-    } else if (error.message === "no_available_work" && acceptedTotal) {
-      $("process-status").textContent = `Caught up for now: ${number(acceptedTotal)} ${noun} finished.`;
-    } else if (error.message === "no_available_work") {
-      $("process-status").textContent = "No more objects are waiting right now.";
-    } else {
-      $("process-status").textContent = `Processing stopped: ${explain(error)}`;
-    }
-  } finally {
-    delete button.dataset.busy;
-    document.querySelectorAll('input[name="process-lane"]').forEach((input) => {
-      input.disabled = false;
-    });
-    await releaseWakeLock();
-    await refresh().catch(() => {});
-    updateQueue();
-  }
+  const copied = await copyText(cliCommand(), $("cli-command"));
+  const copiedText = choice === "both"
+    ? "Copied both commands. Paste each one into its own Terminal window. They keep going until you stop them or the queue is empty."
+    : choice === "object"
+      ? "Copied the VISION object index command. Paste it into Terminal. It keeps going until you stop it or the queue is empty."
+      : "Copied the VISION index command. Paste it into Terminal. It keeps going until you stop it or the queue is empty.";
+  $("process-status").textContent = copied
+    ? copiedText
+    : "Select the index command, copy it, and paste it into Terminal. It keeps going until you stop it or the queue is empty.";
+  button.disabled = false;
+  updateProcessHelp();
+  updateQueue();
 });
 
 $("choose-json").addEventListener("click", () => $("query-map").click());
@@ -1643,13 +1532,7 @@ updateProcessHelp();
 updateMmaTarget();
 restoreMapApp().catch(() => {});
 refresh().then(() => {
-  if (localStorage.getItem(INDEXING_KEY) !== "objects") return;
-  if (!state?.accountId || $("process").dataset.busy) return;
-  if (selectedProcessLane() === "scene") {
-    const objectLane = document.querySelector('input[name="process-lane"][value="object"]');
-    if (objectLane) objectLane.checked = true;
-  }
-  $("process").click();
+  localStorage.removeItem(INDEXING_KEY);
 }).catch((error) => {
   $("process-status").textContent = `Unable to reach the service: ${explain(error)}`;
 });

@@ -187,6 +187,16 @@ class CommunityClient:
             raise ContributeError("submit_failed", status)
         return data
 
+    def submit_object(self, lease_id: str, outputs: list[dict], object_index: dict) -> dict:
+        status, data, _ = self.request(
+            "POST",
+            "/api/submissions",
+            {"leaseId": lease_id, "outputs": outputs, "objectIndex": object_index},
+        )
+        if status != 200:
+            raise ContributeError("submit_failed", status)
+        return data
+
     def release(self, lease_id: str, *, skip: bool = False) -> dict:
         status, data, _ = self.request("POST", "/api/leases/release", {"leaseId": lease_id, "skip": skip})
         if status != 200:
@@ -293,7 +303,9 @@ def contribute(
     persist_session: bool = False,
     progress=None,
 ) -> dict:
-    if lane not in {"scene", "object"}:
+    if lane == "object":
+        raise ContributeError("use_object_index")
+    if lane != "scene":
         raise ContributeError("invalid_lane")
     size = CLI_LEASE_CAP[lane][pace]
     if count is not None:
@@ -427,7 +439,7 @@ def _stderr_progress(index: int, total: int, item: dict) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--url", default=DEFAULT_URL)
-    parser.add_argument("--lane", choices=("scene", "object"), default="scene")
+    parser.add_argument("--lane", choices=("scene",), default="scene")
     parser.add_argument("--pace", choices=("slow", "medium", "max"), default="medium")
     parser.add_argument("--count", type=int, help="locations per lease (default: 16/64/128 scene, 8/32/64 object)")
     parser.add_argument("--batches", type=int, help="stop after this many leases; default is until the queue is empty")

@@ -4,9 +4,11 @@ The public site is a **shared indexing queue**. Place indexing runs the same
 `mma-vision index-four-views` program as the local VISION app: the same
 11-column TSV, the same SigLIP model directory, and the same version-4 record
 (4 quarter-turn views, 3080 bytes). The browser cannot run that model, so the
-place command is Terminal-only. Object indexing can still use the browser or
-`python3 -m community.contribute --lane object`. `community-visual-v1` remains
-the recomputed credit proof for objects. A place submission stores the
+scene command is Terminal-only. Object indexing runs the same
+`vision-object index-segment` program as the VISION app: a 12-column TSV, the
+hybrid RF-DETR / YOLOE / OWLv2 runtime, and a version-4 six-face index. The
+browser cannot run that model, so the object command is Terminal-only too.
+`community-visual-v1` is no longer the object credit proof. A place submission stores the
 3080-byte record only after its length and checksum match; those bytes are not
 mixed into the visual-v1 search index. Community `import-shard` still accepts
 the VISION indexer TSV so the established corpus can enter the queue as pose
@@ -64,5 +66,6 @@ the durable copy of segments, not a query engine you have to rent.
 ## Verification
 
 Invented test panos are always recomputed from the identity-seed extractor.
-Street View batches are processed on volunteer machines; the Worker re-fetches
-one location per lease as an audit. That is not RF-DETR/OWLv2.
+Street View scene and object batches are indexed on volunteer machines by the
+VISION programs. The Worker checks the record shape and checksum. It does not
+recompute SigLIP or RF-DETR.

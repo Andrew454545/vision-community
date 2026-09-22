@@ -262,11 +262,11 @@
         <label><input type="radio" name="process-lane" value="object"><span>Objects</span></label>
         <label><input type="radio" name="process-lane" value="both"><span>Both</span></label>
       </div>
-      <p class="rail-copy" id="process-lane-help">Scenes use the same indexer as VISION. Copy the command and paste it into Terminal. It keeps going until you stop it. Objects use the six-face cube in this tab and keep going too.</p>
+      <p class="rail-copy" id="process-lane-help">Scenes use the same indexer as VISION. Copy the command and paste it into Terminal. It keeps going until you stop it. Objects use the same object indexer as VISION and keep going too.</p>
       <button id="process" class="primary" type="button" disabled>Copy scene command</button>
       <button id="pause" class="compact-btn" type="button" disabled>Pause</button>
       <p class="status" id="process-status">Get an account, then copy the scene command into Terminal.</p>
-      <p class="rail-copy">Scene indexing runs in Terminal, the same way as VISION. Leave that window open. If VISION is already indexing on this computer, keep speed on Gentle.</p>
+      <p class="rail-copy">Scene and object indexing run in Terminal, the same way as VISION. Leave that window open. Object indexing uses VISION's 25% duty. If VISION is already indexing on this computer, keep speed on Gentle.</p>
       <p class="rail-copy" id="batch-label">You will get your own batch. Other people get different batches.</p>
       <div class="progress" role="progressbar" aria-labelledby="progress-label">
         <div id="progress-fill"></div>
@@ -321,7 +321,7 @@
 
       <details class="more" id="command-block">
         <summary>Index and search command</summary>
-        <p class="rail-copy">Scenes have to run in Terminal so they use the same indexer as VISION. Paste this after you have an account. The command keeps going until you stop it or the queue is empty.</p>
+        <p class="rail-copy">Scenes and objects have to run in Terminal so they use the same indexers as VISION. Paste this after you have an account. The command keeps going until you stop it or the queue is empty.</p>
         <pre class="cli" id="cli-command">python3 -m community.vision_index --pace slow --recovery-code YOUR_CODE</pre>
         <button id="copy-cli" class="compact-btn" type="button">Copy command</button>
         <pre class="cli" id="local-search-command">python3 -m community.local_search --prompt "red barn in snow" --recovery-code YOUR_CODE</pre>

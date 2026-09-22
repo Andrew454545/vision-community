@@ -240,6 +240,10 @@ class CommunityService:
             connection.execute("ALTER TABLE published_index ADD COLUMN four_view_sha256 TEXT")
         if "four_view_key" not in index_cols:
             connection.execute("ALTER TABLE published_index ADD COLUMN four_view_key TEXT")
+        if "object_index_sha256" not in index_cols:
+            connection.execute("ALTER TABLE published_index ADD COLUMN object_index_sha256 TEXT")
+        if "object_index_key" not in index_cols:
+            connection.execute("ALTER TABLE published_index ADD COLUMN object_index_key TEXT")
         lease_cols = {row[1] for row in connection.execute("PRAGMA table_info(leases)")}
         if "generation" not in lease_cols:
             connection.execute("ALTER TABLE leases ADD COLUMN generation INTEGER")
@@ -1340,7 +1344,125 @@ class CommunityService:
             "viewStrategy": "vision-pano-v1" if uses_street_views(pano) else "identity-seed",
         }
 
-    def submit(self, account_id: str, lease_id: str, outputs: list[dict], *, now: int | None = None) -> dict:
+    def _submit_object_index(
+        self,
+        account_id: str,
+        lease_id: str,
+        outputs: list[dict],
+        object_index: dict,
+        *,
+        now: int | None = None,
+    ) -> dict:
+        from .object_index import (
+            OBJECT_INDEX_MODEL,
+            VisionIndexError,
+            decode_object_submission,
+            validate_object_index,
+        )
+
+        if not isinstance(lease_id, str) or not isinstance(outputs, list) or not isinstance(object_index, dict):
+            raise ServiceError("invalid_submission")
+        now = int(time.time()) if now is None else now
+        supplied = {}
+        for output in outputs:
+            if not isinstance(output, dict) or type(output.get("locationId")) is not int:
+                raise ServiceError("invalid_submission")
+            digest = output.get("outputSha256")
+            if output["locationId"] in supplied or not isinstance(digest, str) or len(digest) != 64:
+                raise ServiceError("invalid_submission")
+            if output.get("model") != OBJECT_INDEX_MODEL:
+                raise ServiceError("verification_failed", 422)
+            supplied[output["locationId"]] = digest
+        try:
+            manifest, files, source_tsv = decode_object_submission(object_index)
+        except VisionIndexError as error:
+            raise ServiceError("verification_failed", 422) from error
+        with self._connection() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            lease = connection.execute(
+                "SELECT * FROM leases WHERE id=? AND account_id=?", (lease_id, account_id)
+            ).fetchone()
+            if lease is None:
+                raise ServiceError("unknown_lease", 404)
+            if lease["state"] == "submitted":
+                accepted = connection.execute(
+                    "SELECT COUNT(*) FROM lease_items WHERE lease_id=?", (lease_id,)
+                ).fetchone()[0]
+                return {"accepted": accepted, "unitsEarned": 0, "replayed": True}
+            if lease["state"] != "active" or lease["expires_at"] <= now or lease["lane"] != "object":
+                raise ServiceError("expired_lease", 409)
+            rows = connection.execute(
+                """SELECT l.* FROM locations l JOIN lease_items i ON i.location_id=l.id
+                   WHERE i.lease_id=? ORDER BY l.id""",
+                (lease_id,),
+            ).fetchall()
+            if set(supplied) != {row["id"] for row in rows}:
+                raise ServiceError("incomplete_submission")
+            for row in rows:
+                if row["state"] != "leased" or row["active_lease"] != lease_id or row["lane"] != "object":
+                    raise ServiceError("lease_lost", 409)
+            lease_items = [
+                {
+                    "locationId": row["id"],
+                    "panoId": row["asset_id"],
+                    "lat": row["lat"],
+                    "lng": row["lon"],
+                }
+                for row in rows
+            ]
+            try:
+                verified = validate_object_index(
+                    manifest, files, source_tsv, lease_items, lease_id=lease_id
+                )
+            except VisionIndexError as error:
+                raise ServiceError("verification_failed", 422) from error
+            if {item["locationId"] for item in verified} != set(supplied):
+                raise ServiceError("verification_failed", 422)
+            for item in verified:
+                if not hmac.compare_digest(supplied[item["locationId"]], item["outputSha256"]):
+                    raise ServiceError("verification_failed", 422)
+            prefix = f"object-index-v4/{lease_id}/"
+            dest = self.artifacts / prefix
+            dest.mkdir(parents=True, exist_ok=True)
+            (dest / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+            (dest / "locations.tsv").write_bytes(source_tsv)
+            for name, payload in files.items():
+                (dest / name).write_bytes(payload)
+            earned = sum(UNITS_PER_LOCATION[row["lane"]] for row in rows)
+            connection.executemany(
+                """UPDATE locations SET state='published', active_lease=NULL,
+                   lease_until=NULL, output_sha256=?, contributor_id=? WHERE id=?""",
+                [(item["outputSha256"], account_id, item["locationId"]) for item in verified],
+            )
+            connection.executemany(
+                """INSERT INTO published_index
+                   (location_id, index_text, output_sha256, published_at, embedding,
+                    object_index_sha256, object_index_key)
+                   VALUES (?, '', ?, ?, NULL, ?, ?)""",
+                [
+                    (item["locationId"], item["outputSha256"], now, manifest["sourceSha256"], prefix)
+                    for item in verified
+                ],
+            )
+            connection.execute("UPDATE leases SET state='submitted' WHERE id=?", (lease_id,))
+            connection.execute("UPDATE accounts SET units=units+? WHERE id=?", (earned, account_id))
+            connection.execute(
+                "INSERT INTO ledger (account_id, units, reason, reference) VALUES (?, ?, 'verified_work', ?)",
+                (account_id, earned, f"lease:{lease_id}"),
+            )
+        return {"accepted": len(rows), "unitsEarned": earned, "replayed": False, "segments": []}
+
+    def submit(
+        self,
+        account_id: str,
+        lease_id: str,
+        outputs: list[dict],
+        *,
+        now: int | None = None,
+        object_index: dict | None = None,
+    ) -> dict:
+        if object_index is not None:
+            return self._submit_object_index(account_id, lease_id, outputs, object_index, now=now)
         if not isinstance(lease_id, str) or not isinstance(outputs, list) or len(outputs) > MAX_LEASE_SIZE:
             raise ServiceError("invalid_submission")
         now = int(time.time()) if now is None else now
@@ -1403,6 +1525,8 @@ class CommunityService:
             for row in items:
                 if row["state"] != "leased" or row["active_lease"] != lease_id:
                     raise ServiceError("lease_lost", 409)
+                if row["lane"] == "object":
+                    raise ServiceError("object_index_required", 422)
                 payload = supplied[row["id"]]
                 if four_view:
                     if row["lane"] != "scene":

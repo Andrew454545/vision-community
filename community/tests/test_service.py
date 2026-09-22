@@ -89,13 +89,13 @@ class CommunityServiceTest(unittest.TestCase):
         self.assertEqual(self.service.status(account)["units"], 4)
 
     def test_expired_work_can_be_reassigned_but_old_lease_cannot_publish(self):
-        old = self.service.lease(self.first["accountId"], "object", 1, now=100)
-        new = self.service.lease(self.second["accountId"], "object", 1, now=100 + 30 * 60)
+        old = self.service.lease(self.first["accountId"], "scene", 1, now=100)
+        new = self.service.lease(self.second["accountId"], "scene", 1, now=100 + 30 * 60)
         self.assertEqual(old["items"][0]["locationId"], new["items"][0]["locationId"])
         with self.assertRaisesRegex(ServiceError, "expired_lease"):
             self.service.submit(self.first["accountId"], old["leaseId"], outputs_for(old), now=2000)
         result = self.service.submit(self.second["accountId"], new["leaseId"], outputs_for(new), now=2000)
-        self.assertEqual(result["unitsEarned"], 10)
+        self.assertEqual(result["unitsEarned"], 1)
 
     def test_shared_index_requires_search_credit_for_every_account(self):
         first_id = self.first["accountId"]
