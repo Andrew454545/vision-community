@@ -3,6 +3,10 @@
 This talks to a Community server (loopback or the hosted prototype). Street View
 thumbnails are fetched on this computer, then discarded. The site is only the
 queue, credits, and search desk. This runs community-visual-v1, not VISION.app.
+
+With no --batches limit it keeps going until the queue is empty or you press
+Control-C. A failed batch is retried. A place that cannot be read is skipped
+so the rest of the queue can continue.
 """
 
 from __future__ import annotations
@@ -23,6 +27,18 @@ from .worker import ProcessingWorker
 
 DEFAULT_URL = "https://vision-community.visioncommunity.workers.dev"
 RETRY_STATUSES = {429, 502, 503, 504}
+RETRYABLE_CODES = {
+    "network_error",
+    "lease_failed",
+    "submit_failed",
+    "expired_lease",
+    "lease_lost",
+    "http_error",
+    "view_unavailable",
+    "verification_failed",
+    "internal_error",
+    "index_unavailable",
+}
 
 
 class ContributeError(RuntimeError):
@@ -171,10 +187,17 @@ class CommunityClient:
             raise ContributeError("submit_failed", status)
         return data
 
-    def release(self, lease_id: str) -> dict:
-        status, data, _ = self.request("POST", "/api/leases/release", {"leaseId": lease_id})
+    def release(self, lease_id: str, *, skip: bool = False) -> dict:
+        status, data, _ = self.request("POST", "/api/leases/release", {"leaseId": lease_id, "skip": skip})
         if status != 200:
             raise ContributeError("release_failed", status)
+        return data
+
+    def renew(self, lease_id: str) -> dict:
+        status, data, _ = self.request("POST", "/api/leases/renew", {"leaseId": lease_id})
+        if status != 200:
+            code = data.get("error") if isinstance(data, dict) else None
+            raise ContributeError(str(code or "renew_failed"), status)
         return data
 
     def authorize_local_search(self, body: dict) -> dict:
@@ -302,6 +325,8 @@ def contribute(
     units = 0
     processed_batches = 0
     lease = None
+    stalls = 0
+    batch_failures = 0
     try:
         while True:
             if batches is not None and processed_batches >= batches:
@@ -312,7 +337,13 @@ def contribute(
                 if error.code == "no_available_work":
                     lease = None
                     break
-                raise
+                if batches is not None or error.code not in RETRYABLE_CODES:
+                    raise
+                stalls += 1
+                print(f"still indexing; retrying after {error.code}", file=sys.stderr, flush=True)
+                time.sleep(min(60, stalls * 2))
+                continue
+            stalls = 0
             try:
                 outputs = worker.as_submission(
                     worker.process_lease(
@@ -321,13 +352,22 @@ def contribute(
                     )
                 )
                 result = session.submit(lease["leaseId"], outputs)
-            except Exception:
+            except Exception as error:
+                code = error.code if isinstance(error, ContributeError) else ""
+                skip = batch_failures >= 2 and code in {"", "view_unavailable", "verification_failed"}
                 try:
-                    session.release(lease["leaseId"])
+                    session.release(lease["leaseId"], skip=skip)
                 except ContributeError:
                     pass
                 lease = None
-                raise
+                if batches is not None:
+                    raise
+                batch_failures += 1
+                stalls += 1
+                print("still indexing; the last batch will be tried again", file=sys.stderr, flush=True)
+                time.sleep(min(60, stalls * 2))
+                continue
+            batch_failures = 0
             accepted += int(result.get("accepted") or 0)
             units += int(result.get("unitsEarned") or 0)
             processed_batches += 1

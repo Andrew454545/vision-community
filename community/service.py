@@ -15,6 +15,7 @@ from pathlib import Path
 
 from .catalog import file_sha256, iter_jobs_from_path, load_jobs, parse_indexer_line
 from .features import MODEL_ID, embedding_for, mean_embeddings, normalize_view_direction, render_faces, sha256_hex, wrap_heading
+from .four_view import VISION_FOUR_VIEW_MODEL, valid_four_view_record
 from .pano import QUERY_VIEW_CAP, ViewError, lease_cap, render_location_faces, uses_street_views
 from .prompt import description_embedding, mix_embeddings, parse_prompt, snap_description_weight
 from .parts import (
@@ -47,6 +48,7 @@ from .verify import VerificationError, locations_to_recompute, verify_output
 DEFAULT_SEARCH_COST = 100_000
 MAX_LEASE_SIZE = 1_000
 LEASE_SECONDS = 30 * 60
+CLI_LEASE_SECONDS = 6 * 60 * 60
 UNITS_PER_LOCATION = {"scene": 1, "object": 10}
 RECOVERY_PEPPER_HEADER = "VISION-COMMUNITY-RECOVERY-V1"
 
@@ -234,6 +236,10 @@ class CommunityService:
             connection.execute("ALTER TABLE published_index ADD COLUMN embedding BLOB")
         if "segment_id" not in index_cols:
             connection.execute("ALTER TABLE published_index ADD COLUMN segment_id TEXT")
+        if "four_view_sha256" not in index_cols:
+            connection.execute("ALTER TABLE published_index ADD COLUMN four_view_sha256 TEXT")
+        if "four_view_key" not in index_cols:
+            connection.execute("ALTER TABLE published_index ADD COLUMN four_view_key TEXT")
         lease_cols = {row[1] for row in connection.execute("PRAGMA table_info(leases)")}
         if "generation" not in lease_cols:
             connection.execute("ALTER TABLE leases ADD COLUMN generation INTEGER")
@@ -824,7 +830,7 @@ class CommunityService:
                 "separateParts": True,
                 "summary": (
                     f"{part_count} separate batches are available. "
-                    f"Start to get your own batch so other people index different "
+                    f"You get your own batch, so other people are not indexing the same "
                     f"{'objects' if lane == 'object' else 'places'}."
                 ),
             }
@@ -1055,11 +1061,11 @@ class CommunityService:
                 row = connection.execute(
                     """SELECT id, asset_id, capture, lane, model, label, generation, source, rights, attribution,
                               lat, lon, heading, pitch, zoom, country, camera_generation, catalog_shard,
-                              state, lease_until
+                              state, lease_until, queue_state
                        FROM locations WHERE asset_id=? AND capture=? AND lane=? AND model=?""",
                     (job["assetId"], job["capture"], job["lane"], job["model"]),
                 ).fetchone()
-                if row is None or row["state"] == "published":
+                if row is None or row["state"] == "published" or row["queue_state"] == "skipped":
                     continue
                 if row["state"] == "leased" and row["lease_until"] and int(row["lease_until"]) > now:
                     continue
@@ -1092,7 +1098,7 @@ class CommunityService:
         if client is not None:
             count = min(count, lease_cap(lane, pace or "medium", client))
         now = int(time.time()) if now is None else now
-        expires_at = now + LEASE_SECONDS
+        expires_at = now + (CLI_LEASE_SECONDS if client == "cli" else LEASE_SECONDS)
         work = None
         with self._connection() as connection:
             connection.execute("BEGIN IMMEDIATE")
@@ -1146,12 +1152,6 @@ class CommunityService:
                         chunk.extend(row for row in extra if row["id"] not in seen)
                     if not chunk:
                         self._release_exhausted_shard(connection, lane, int(shard["shard_id"]))
-                        current = connection.execute(
-                            "SELECT * FROM pose_catalog WHERE lane=? AND shard_id=?",
-                            (lane, shard["shard_id"]),
-                        ).fetchone()
-                        if current is not None and int(current["next_row"]) < int(current["row_count"]):
-                            break
                         continue
                     seen = {row["id"] for row in rows}
                     for row in chunk:
@@ -1239,7 +1239,7 @@ class CommunityService:
             items.append(item)
         return items
 
-    def release_lease(self, account_id: str, lease_id: str, *, now: int | None = None) -> dict:
+    def release_lease(self, account_id: str, lease_id: str, *, now: int | None = None, skip: bool = False) -> dict:
         if not isinstance(lease_id, str) or not lease_id:
             raise ServiceError("invalid_lease_request")
         now = int(time.time()) if now is None else now
@@ -1252,15 +1252,54 @@ class CommunityService:
                 raise ServiceError("unknown_lease", 404)
             if lease["state"] == "submitted":
                 return {"released": 0, "alreadySubmitted": True}
-            released = connection.execute(
-                """UPDATE locations SET state='pending', active_lease=NULL, lease_until=NULL
-                   WHERE active_lease=? AND state='leased'""",
-                (lease_id,),
-            ).rowcount
+            if skip:
+                released = connection.execute(
+                    """UPDATE locations SET state='pending', active_lease=NULL, lease_until=NULL,
+                       queue_state='skipped' WHERE active_lease=? AND state='leased'""",
+                    (lease_id,),
+                ).rowcount
+            else:
+                released = connection.execute(
+                    """UPDATE locations SET state='pending', active_lease=NULL, lease_until=NULL
+                       WHERE active_lease=? AND state='leased'""",
+                    (lease_id,),
+                ).rowcount
             connection.execute(
                 "UPDATE leases SET state='expired' WHERE id=? AND state='active'", (lease_id,)
             )
-        return {"released": int(released or 0), "leaseId": lease_id}
+        return {"released": int(released or 0), "leaseId": lease_id, "skipped": bool(skip)}
+
+    def renew_lease(self, account_id: str, lease_id: str, *, now: int | None = None) -> dict:
+        if not isinstance(lease_id, str) or not lease_id:
+            raise ServiceError("invalid_lease_request")
+        now = int(time.time()) if now is None else now
+        expires_at = now + CLI_LEASE_SECONDS
+        with self._connection() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            lease = connection.execute(
+                "SELECT * FROM leases WHERE id=? AND account_id=?", (lease_id, account_id)
+            ).fetchone()
+            if lease is None:
+                raise ServiceError("unknown_lease", 404)
+            if lease["state"] == "submitted":
+                return {"renewed": False, "alreadySubmitted": True, "leaseId": lease_id}
+            held = connection.execute(
+                """SELECT COUNT(*) FROM locations
+                   WHERE active_lease=? AND state!='published'""",
+                (lease_id,),
+            ).fetchone()[0]
+            if not held:
+                raise ServiceError("expired_lease", 409)
+            connection.execute(
+                "UPDATE leases SET state='active', expires_at=? WHERE id=?",
+                (expires_at, lease_id),
+            )
+            connection.execute(
+                """UPDATE locations SET state='leased', lease_until=?
+                   WHERE active_lease=? AND state!='published'""",
+                (expires_at, lease_id),
+            )
+        return {"renewed": True, "expiresAt": expires_at, "leaseId": lease_id}
 
     def views(self, account_id: str, params: dict) -> dict:
         with self._connection() as connection:
@@ -1354,12 +1393,36 @@ class CommunityService:
             ).fetchall()
             if set(supplied) != {row["id"] for row in items}:
                 raise ServiceError("incomplete_submission")
+            models = {payload.get("model") for payload in supplied.values()}
+            four_view = models == {VISION_FOUR_VIEW_MODEL}
+            if VISION_FOUR_VIEW_MODEL in models and not four_view:
+                raise ServiceError("invalid_submission")
             verified = {}
             audit = locations_to_recompute(items)
+            four_view_key = None
             for row in items:
                 if row["state"] != "leased" or row["active_lease"] != lease_id:
                     raise ServiceError("lease_lost", 409)
                 payload = supplied[row["id"]]
+                if four_view:
+                    if row["lane"] != "scene":
+                        raise ServiceError("verification_failed", 422)
+                    embedding = payload["embedding"]
+                    if not valid_four_view_record(embedding):
+                        raise ServiceError("verification_failed", 422)
+                    digest = sha256_hex(embedding)
+                    if not hmac.compare_digest(payload["digest"], digest):
+                        raise ServiceError("verification_failed", 422)
+                    embed_digest = payload.get("embeddingSha256")
+                    if isinstance(embed_digest, str) and not hmac.compare_digest(embed_digest, digest):
+                        raise ServiceError("verification_failed", 422)
+                    verified[row["id"]] = {
+                        "digest": digest,
+                        "index_text": "",
+                        "embedding": None,
+                        "four_view": bytes(embedding),
+                    }
+                    continue
                 if row["model"] == MODEL_ID:
                     try:
                         embedding = verify_output(
@@ -1405,6 +1468,12 @@ class CommunityService:
                         "embedding": None,
                     }
             earned = sum(UNITS_PER_LOCATION[row["lane"]] for row in items)
+            if four_view:
+                blob = b"".join(verified[row["id"]]["four_view"] for row in items)
+                four_view_key = f"four-view-v4/{lease_id}.i8"
+                dest = self.artifacts / four_view_key
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                dest.write_bytes(blob)
             connection.executemany(
                 """UPDATE locations SET state='published', active_lease=NULL,
                    lease_until=NULL, output_sha256=?, contributor_id=? WHERE id=?""",
@@ -1412,8 +1481,8 @@ class CommunityService:
             )
             connection.executemany(
                 """INSERT INTO published_index
-                   (location_id, index_text, output_sha256, published_at, embedding)
-                   VALUES (?, ?, ?, ?, ?)""",
+                   (location_id, index_text, output_sha256, published_at, embedding, four_view_sha256, four_view_key)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
                 [
                     (
                         row["id"],
@@ -1421,6 +1490,8 @@ class CommunityService:
                         verified[row["id"]]["digest"],
                         now,
                         verified[row["id"]]["embedding"],
+                        sha256_hex(verified[row["id"]]["four_view"]) if verified[row["id"]].get("four_view") else None,
+                        four_view_key if verified[row["id"]].get("four_view") else None,
                     )
                     for row in items
                 ],

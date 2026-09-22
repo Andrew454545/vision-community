@@ -121,6 +121,7 @@ async function ready(env) {
   }
   await migratePoseCatalog(env);
   await migrateWorkParts(env);
+  await migrateFourView(env);
   const count = await env.DB.prepare("SELECT COUNT(*) AS n FROM locations").first();
   if (!count || count.n > 0) return;
   const statements = SEED_LOCATIONS.map((row) =>
@@ -149,6 +150,37 @@ async function migratePoseCatalog(env) {
 
 async function tableColumns(env, table) {
   return ((await env.DB.prepare(`PRAGMA table_info(${table})`).all()).results || []).map((row) => row.name);
+}
+
+async function migrateFourView(env) {
+  const cols = await tableColumns(env, "published_index");
+  if (!cols.includes("four_view_sha256")) {
+    await env.DB.prepare("ALTER TABLE published_index ADD COLUMN four_view_sha256 TEXT").run();
+  }
+  if (!cols.includes("four_view_key")) {
+    await env.DB.prepare("ALTER TABLE published_index ADD COLUMN four_view_key TEXT").run();
+  }
+}
+
+const FOUR_VIEW_MODEL = "vision-four-view-v4";
+const FOUR_VIEW_BYTES = 3080;
+const FOUR_VIEW_VIEWS = 4;
+const FOUR_VIEW_VIEW_BYTES = 770;
+
+function positiveFiniteF16(bytes, offset) {
+  const value = bytes[offset] | (bytes[offset + 1] << 8);
+  const exponent = (value >> 10) & 0x1f;
+  const sign = value >> 15;
+  if (exponent === 0x1f || sign !== 0) return false;
+  return value !== 0;
+}
+
+function validFourViewRecord(bytes) {
+  if (!bytes || bytes.length !== FOUR_VIEW_BYTES) return false;
+  for (let view = 0; view < FOUR_VIEW_VIEWS; view += 1) {
+    if (!positiveFiniteF16(bytes, view * FOUR_VIEW_VIEW_BYTES)) return false;
+  }
+  return true;
 }
 
 async function migrateWorkParts(env) {
@@ -279,7 +311,7 @@ async function workStatus(env, account, lane) {
       lane,
       partCount: count,
       separateParts: true,
-      summary: `${count} separate batches are available. Start to get your own batch so other people index different ${lane === "object" ? "objects" : "places"}.`,
+      summary: `${count} separate batches are available. You get your own batch, so other people are not indexing the same ${lane === "object" ? "objects" : "places"}.`,
     };
   }
   return workFromShard(env, lane, shard);
@@ -535,10 +567,10 @@ async function materializeCatalog(env, lane, count, now, shard) {
          WHERE asset_id=? AND capture=? AND lane=? AND model=? AND catalog_shard IS NULL`
       ).bind(shardId, job.assetId, job.capture, job.lane, job.model).run();
       const row = await env.DB.prepare(
-        `SELECT id, asset_id, capture, lane, model, generation, attribution, lat, lon, heading, pitch, zoom, country, camera_generation, catalog_shard, state, lease_until
+        `SELECT id, asset_id, capture, lane, model, generation, attribution, lat, lon, heading, pitch, zoom, country, camera_generation, catalog_shard, state, lease_until, queue_state
          FROM locations WHERE asset_id=? AND capture=? AND lane=? AND model=?`
       ).bind(job.assetId, job.capture, job.lane, job.model).first();
-      if (!row || row.state === "published") continue;
+      if (!row || row.state === "published" || row.queue_state === "skipped") continue;
       if (row.state === "leased" && row.lease_until && row.lease_until > now) continue;
       claimed.push(row);
       if (claimed.length >= count) break;
@@ -647,10 +679,6 @@ async function lease(env, account, body) {
       }
       if (!chunk.length) {
         await releaseExhaustedShard(env, lane, assigned.shard_id);
-        const current = await env.DB.prepare(
-          "SELECT * FROM pose_catalog WHERE lane=? AND shard_id=?"
-        ).bind(lane, assigned.shard_id).first();
-        if (current && current.next_row < current.row_count) break;
         continue;
       }
       const seen = new Set(items.map((row) => row.id));
@@ -670,7 +698,7 @@ async function lease(env, account, body) {
   }
   if (!items.length) return error("no_available_work", 409);
   const leaseId = randomHex(16);
-  const expires = now + LEASE_SECONDS;
+  const expires = now + (client === "cli" ? 6 * 60 * 60 : LEASE_SECONDS);
   const statements = [
     env.DB.prepare("INSERT INTO leases (id, account_id, lane, expires_at, state, generation, pace) VALUES (?, ?, ?, ?, 'active', ?, ?)").bind(
       leaseId, account, lane, expires, (items[0].generation || 0) + 1, pace
@@ -717,11 +745,75 @@ async function releaseLease(env, account, body) {
   const leaseRow = await env.DB.prepare("SELECT * FROM leases WHERE id=? AND account_id=?").bind(leaseId, account).first();
   if (!leaseRow) return error("unknown_lease", 404);
   if (leaseRow.state === "submitted") return json({ released: 0, alreadySubmitted: true, leaseId });
-  const released = await env.DB.prepare(
-    "UPDATE locations SET state='pending', active_lease=NULL, lease_until=NULL WHERE active_lease=? AND state='leased'"
-  ).bind(leaseId).run();
+  const skip = body.skip === true;
+  const released = skip
+    ? await env.DB.prepare(
+      "UPDATE locations SET state='pending', active_lease=NULL, lease_until=NULL, queue_state='skipped' WHERE active_lease=? AND state='leased'"
+    ).bind(leaseId).run()
+    : await env.DB.prepare(
+      "UPDATE locations SET state='pending', active_lease=NULL, lease_until=NULL WHERE active_lease=? AND state='leased'"
+    ).bind(leaseId).run();
   await env.DB.prepare("UPDATE leases SET state='expired' WHERE id=? AND state='active'").bind(leaseId).run();
-  return json({ released: released?.meta?.changes || 0, leaseId });
+  return json({ released: released?.meta?.changes || 0, leaseId, skipped: skip });
+}
+
+async function renewLease(env, account, body) {
+  const leaseId = body.leaseId;
+  if (typeof leaseId !== "string" || !leaseId) return error("invalid_lease_request");
+  const now = Math.floor(Date.now() / 1000);
+  const leaseRow = await env.DB.prepare("SELECT * FROM leases WHERE id=? AND account_id=?").bind(leaseId, account).first();
+  if (!leaseRow) return error("unknown_lease", 404);
+  if (leaseRow.state === "submitted") return json({ renewed: false, alreadySubmitted: true, leaseId });
+  const held = await env.DB.prepare(
+    "SELECT COUNT(*) AS n FROM locations WHERE active_lease=? AND state!='published'"
+  ).bind(leaseId).first();
+  if (!held || !held.n) return error("expired_lease", 409);
+  const expires = now + 6 * 60 * 60;
+  await env.DB.batch([
+    env.DB.prepare("UPDATE leases SET state='active', expires_at=? WHERE id=?").bind(expires, leaseId),
+    env.DB.prepare(
+      "UPDATE locations SET state='leased', lease_until=? WHERE active_lease=? AND state!='published'"
+    ).bind(expires, leaseId),
+  ]);
+  return json({ renewed: true, expiresAt: expires, leaseId });
+}
+
+async function submitFourView(env, account, leaseId, items, supplied, now) {
+  if (!env.INDEX) return error("index_unavailable", 503);
+  const verified = [];
+  for (const row of items) {
+    if (row.lane !== "scene") return error("verification_failed", 422);
+    if (row.state !== "leased" || row.active_lease !== leaseId) return error("lease_lost", 409);
+    const payload = supplied.get(row.id);
+    const embedding = payload.embedding;
+    if (!validFourViewRecord(embedding)) return error("verification_failed", 422);
+    const digest = await sha256Hex(embedding);
+    if (!equalHex(payload.digest, digest)) return error("verification_failed", 422);
+    if (payload.embeddingSha256 && !equalHex(payload.embeddingSha256, digest)) return error("verification_failed", 422);
+    verified.push({ row, embedding, digest });
+  }
+  const blob = new Uint8Array(verified.length * FOUR_VIEW_BYTES);
+  verified.forEach((item, index) => blob.set(item.embedding, index * FOUR_VIEW_BYTES));
+  const key = `four-view-v4/${leaseId}.i8`;
+  await env.INDEX.put(key, blob);
+  const earned = items.reduce((sum, row) => sum + UNITS[row.lane], 0);
+  const statements = [
+    env.DB.prepare("UPDATE leases SET state='submitted' WHERE id=?").bind(leaseId),
+    env.DB.prepare("UPDATE accounts SET units=units+? WHERE id=?").bind(earned, account),
+    env.DB.prepare("INSERT INTO ledger (account_id, units, reason, reference) VALUES (?, ?, 'verified_work', ?)").bind(account, earned, `lease:${leaseId}`),
+  ];
+  for (const item of verified) {
+    statements.push(env.DB.prepare(
+      "UPDATE locations SET state='published', active_lease=NULL, lease_until=NULL, output_sha256=?, contributor_id=? WHERE id=?"
+    ).bind(item.digest, account, item.row.id));
+    statements.push(env.DB.prepare(
+      `INSERT INTO published_index
+        (location_id, index_text, output_sha256, published_at, embedding, four_view_sha256, four_view_key)
+       VALUES (?, '', ?, ?, NULL, ?, ?)`
+    ).bind(item.row.id, item.digest, now, item.digest, key));
+  }
+  await env.DB.batch(statements);
+  return json({ accepted: items.length, unitsEarned: earned, replayed: false, segments: [] });
 }
 
 async function submit(env, account, body) {
@@ -749,6 +841,11 @@ async function submit(env, account, body) {
     supplied.set(output.locationId, { digest, embedding, embeddingSha256: output.embeddingSha256, model: output.model });
   }
   if (supplied.size !== items.length || items.some((row) => !supplied.has(row.id))) return error("incomplete_submission");
+  const suppliedModels = [...supplied.values()].map((item) => item.model);
+  if (suppliedModels.includes(FOUR_VIEW_MODEL)) {
+    if (!suppliedModels.every((model) => model === FOUR_VIEW_MODEL)) return error("invalid_submission");
+    return submitFourView(env, account, leaseId, items, supplied, now);
+  }
   const audit = locationsToRecompute(items);
   const verified = [];
   for (const row of items) {
@@ -1367,6 +1464,7 @@ export default {
       const account = await accountId(env, request);
       if (!account) return error("unauthorized", 401);
       if (url.pathname === "/api/leases/release") return releaseLease(env, account, body);
+      if (url.pathname === "/api/leases/renew") return renewLease(env, account, body);
       if (url.pathname === "/api/leases") return lease(env, account, body);
       if (url.pathname === "/api/submissions") return submit(env, account, body);
       if (url.pathname === "/api/searches") return search(env, account, body);

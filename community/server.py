@@ -176,7 +176,12 @@ def handler_for(service: CommunityService):
                 if route == "/api/leases/release":
                     return self._json(
                         200,
-                        service.release_lease(account_id, data.get("leaseId")),
+                        service.release_lease(account_id, data.get("leaseId"), skip=data.get("skip") is True),
+                    )
+                if route == "/api/leases/renew":
+                    return self._json(
+                        200,
+                        service.renew_lease(account_id, data.get("leaseId")),
                     )
                 if route == "/api/leases":
                     return self._json(

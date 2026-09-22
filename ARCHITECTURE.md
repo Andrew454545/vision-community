@@ -1,13 +1,16 @@
 # Architecture decision (2026-09-19)
 
-The public site is a **shared indexing queue**. Volunteers process exclusive
-locations (browser or `python3 -m community.contribute`). Published poses export
-as the 11-column TSV the local VISION indexer already consumes. The owner then
-indexes those rows in VISION.app and searches them there. Browser
-`community-visual-v1` embeddings are a credit proof for the queue; they are not
-merged into the SigLIP / RF-DETR index. Community `import-shard` also accepts
-that same VISION indexer TSV so the established corpus can enter the queue as
-pose metadata only.
+The public site is a **shared indexing queue**. Place indexing runs the same
+`mma-vision index-four-views` program as the local VISION app: the same
+11-column TSV, the same SigLIP model directory, and the same version-4 record
+(4 quarter-turn views, 3080 bytes). The browser cannot run that model, so the
+place command is Terminal-only. Object indexing can still use the browser or
+`python3 -m community.contribute --lane object`. `community-visual-v1` remains
+the recomputed credit proof for objects. A place submission stores the
+3080-byte record only after its length and checksum match; those bytes are not
+mixed into the visual-v1 search index. Community `import-shard` still accepts
+the VISION indexer TSV so the established corpus can enter the queue as pose
+metadata only.
 
 ## What is stored
 
@@ -17,10 +20,10 @@ pose metadata only.
 - Credits, leases, and search authorization in trusted server code.
 
 Pixels exist only in RAM while a volunteer processes a location. JPEG/PNG
-bytes, tile URLs, and API keys are rejected by the importer. The recommended
-indexer is `python3 -m community.contribute`, which fetches Street View on the
-volunteer machine. The Worker audits one Street View location per submitted
-batch.
+bytes, tile URLs, and API keys are rejected by the importer. The place indexer is `python3 -m community.vision_index`. It fetches Street
+View inside `mma-vision` and writes a version-4 index outside the live VISION
+remainder job. The Worker stores that record in R2 and checks its shape and
+checksum. It does not recompute SigLIP.
 
 ## Search output
 
