@@ -1,9 +1,10 @@
 # Architecture decision (2026-09-19)
 
-The public site is a **shared indexing queue**. Place indexing runs the same
-`mma-vision index-four-views` program as the local VISION app: the same
-11-column TSV, the same SigLIP model directory, and the same version-4 record
-(4 quarter-turn views, 3080 bytes). The browser cannot run that model, so the
+The public site is a **shared indexing queue**. Place indexing runs
+`mma-vision index-four-views` with the same 11-column TSV, the same SigLIP
+model directory, and the same version-4 record (4 quarter-turn views, 3080
+bytes). Community uses the fp32 image model on one CPU thread, because the
+VISION app's CoreML run can change a few stored values between passes. The browser cannot run that model, so the
 scene command is Terminal-only. Object indexing runs the same
 `vision-object index-segment` program as the VISION app: a 12-column TSV, the
 hybrid RF-DETR / YOLOE / OWLv2 runtime, and a version-4 six-face index. The

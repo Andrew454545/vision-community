@@ -41,7 +41,9 @@ If you were given the project folder and want it to go faster, see [CONTRIBUTING
 
 The queue is the local 20.96M already-indexed VISION poses (metadata only) plus
 the ALL LOCATIONS tail. Scene indexing runs `mma-vision index-four-views` on
-the volunteer computer, using that computer's SigLIP model. Object indexing
+the volunteer computer, using the fp32 SigLIP model on one CPU thread. That
+keeps the stored scene bytes the same from run to run and from computer to
+computer. Object indexing
 runs `vision-object index-segment` with the hybrid RF-DETR, YOLOE, and OWLv2
 models. `python3 -m community.bootstrap` downloads them into the usual VISION
 folders. Set `VISION_FOUR_VIEW_BINARY`, `VISION_MODEL_DIR`,
