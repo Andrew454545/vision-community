@@ -353,6 +353,12 @@ async function status(env, account, options = {}) {
     laneCounts.pending = (laneCounts.pending || 0) + remaining;
   }
   const visual = await env.DB.prepare("SELECT COUNT(*) AS n FROM published_index WHERE embedding IS NOT NULL").first();
+  const objectIndexes = await env.DB.prepare(
+    "SELECT COUNT(DISTINCT i.object_index_key) AS n FROM published_index i JOIN locations l ON l.id=i.location_id WHERE l.lane='object' AND i.object_index_key IS NOT NULL"
+  ).first();
+  const sceneIndexes = await env.DB.prepare(
+    "SELECT COUNT(DISTINCT i.four_view_key) AS n FROM published_index i JOIN locations l ON l.id=i.location_id WHERE l.lane='scene' AND i.four_view_key IS NOT NULL"
+  ).first();
   const result = {
     operational: true,
     demo: false,
@@ -367,6 +373,8 @@ async function status(env, account, options = {}) {
     searchOnSite: (visual?.n || 0) <= SITE_SEARCH_CAP,
     model: MODEL_ID,
     visualPublished: visual?.n || 0,
+    objectIndexes: objectIndexes?.n || 0,
+    sceneIndexes: sceneIndexes?.n || 0,
     countries: [],
     cameraGenerations: [],
     output: "map-making.app JSON",
@@ -1108,6 +1116,83 @@ async function indexShard(env, account, url) {
   });
 }
 
+const OBJECT_INDEX_KEY = /^object-index-v4\/[0-9a-f]{32}\/[A-Za-z0-9._-]{1,80}$/;
+
+async function objectIndexCatalog(env, account, url) {
+  const paid = await requirePaidSearch(env, account, url.searchParams.get("searchId") || "");
+  if (!paid || !env.INDEX) return error("unknown_search", 404);
+  const groups = new Map();
+  let cursor;
+  for (let page = 0; page < 20; page += 1) {
+    const listed = await env.INDEX.list({ prefix: "object-index-v4/", cursor, limit: 500 });
+    for (const object of listed.objects || []) {
+      const match = OBJECT_INDEX_KEY.exec(object.key);
+      if (!match) continue;
+      const prefix = object.key.slice(0, object.key.lastIndexOf("/") + 1);
+      const group = groups.get(prefix) || { prefix, files: [] };
+      group.files.push({ key: object.key, size: object.size || 0 });
+      groups.set(prefix, group);
+    }
+    if (!listed.truncated) break;
+    cursor = listed.cursor;
+  }
+  return json({ indexes: [...groups.values()] });
+}
+
+async function objectIndexFile(env, account, url) {
+  const paid = await requirePaidSearch(env, account, url.searchParams.get("searchId") || "");
+  if (!paid || !env.INDEX) return error("unknown_search", 404);
+  const key = url.searchParams.get("key") || "";
+  if (!OBJECT_INDEX_KEY.test(key)) return error("invalid_index", 400);
+  const object = await env.INDEX.get(key);
+  if (!object) return error("not_found", 404);
+  return new Response(object.body, {
+    headers: { ...HEADERS, "content-type": "application/octet-stream" },
+  });
+}
+
+const SCENE_INDEX_KEY = /^four-view-v4\/[0-9a-f]{32}\.i8$/;
+
+async function sceneIndexCatalog(env, account, url) {
+  const paid = await requirePaidSearch(env, account, url.searchParams.get("searchId") || "");
+  if (!paid) return error("unknown_search", 404);
+  const rows = (await env.DB.prepare(
+    `SELECT i.four_view_key, l.id, l.asset_id, l.lat, l.lon, l.heading, l.pitch, l.zoom, l.country, l.camera_generation
+     FROM published_index i JOIN locations l ON l.id=i.location_id
+     WHERE i.four_view_key IS NOT NULL AND l.lane='scene'
+     ORDER BY i.four_view_key, l.id`
+  ).all()).results || [];
+  const groups = new Map();
+  for (const row of rows) {
+    const group = groups.get(row.four_view_key) || { key: row.four_view_key, locations: [] };
+    group.locations.push({
+      locationId: row.id,
+      lat: row.lat || 0,
+      lng: row.lon || 0,
+      heading: row.heading || 0,
+      pitch: row.pitch || 0,
+      zoom: row.zoom || 0,
+      panoId: row.asset_id,
+      country: row.country || "",
+      cameraGeneration: row.camera_generation || "",
+    });
+    groups.set(row.four_view_key, group);
+  }
+  return json({ indexes: [...groups.values()] });
+}
+
+async function sceneIndexFile(env, account, url) {
+  const paid = await requirePaidSearch(env, account, url.searchParams.get("searchId") || "");
+  if (!paid || !env.INDEX) return error("unknown_search", 404);
+  const key = url.searchParams.get("key") || "";
+  if (!SCENE_INDEX_KEY.test(key)) return error("invalid_index", 400);
+  const object = await env.INDEX.get(key);
+  if (!object) return error("not_found", 404);
+  return new Response(object.body, {
+    headers: { ...HEADERS, "content-type": "application/octet-stream" },
+  });
+}
+
 function normalizeFilters(body) {
   const allGenerations = ["badcam", "gen1", "gen2", "gen3", "gen4", "trekker"];
   let mode = ["all", "include", "exclude"].includes(body.countryFilterMode) ? body.countryFilterMode : "all";
@@ -1536,6 +1621,30 @@ export default {
         const account = await accountId(env, request);
         if (!account) return error("unauthorized", 401);
         return indexShard(env, account, url);
+      }
+      if (url.pathname === "/api/object-indexes" && request.method === "GET") {
+        if (!sameOrigin(request)) return error("cross_origin_request", 403);
+        const account = await accountId(env, request);
+        if (!account) return error("unauthorized", 401);
+        return objectIndexCatalog(env, account, url);
+      }
+      if (url.pathname === "/api/object-index-file" && request.method === "GET") {
+        if (!sameOrigin(request)) return error("cross_origin_request", 403);
+        const account = await accountId(env, request);
+        if (!account) return error("unauthorized", 401);
+        return objectIndexFile(env, account, url);
+      }
+      if (url.pathname === "/api/scene-indexes" && request.method === "GET") {
+        if (!sameOrigin(request)) return error("cross_origin_request", 403);
+        const account = await accountId(env, request);
+        if (!account) return error("unauthorized", 401);
+        return sceneIndexCatalog(env, account, url);
+      }
+      if (url.pathname === "/api/scene-index-file" && request.method === "GET") {
+        if (!sameOrigin(request)) return error("cross_origin_request", 403);
+        const account = await accountId(env, request);
+        if (!account) return error("unauthorized", 401);
+        return sceneIndexFile(env, account, url);
       }
       if (request.method !== "POST") return error("not_found", 404);
       if (!sameOrigin(request)) return error("cross_origin_request", 403);

@@ -87,10 +87,15 @@ descriptor is not the scene or object credit proof.
 Fast search at 200 million locations runs **on the user's computer**. The site
 is only the queue and credit desk. Workers Free cannot scan 200M vectors, so
 there is no paid search host to buy. Scene search is `python3 -m
-community.vision_index --search`, the same four-view search as VISION, over
-indexes on that computer. Object search is `python3 -m community.local_search`
-over the shared visual index. While that visual index is still small, the
-website can run an object search in the tab.
+community.vision_index --search`, the same four-view search as VISION. It reads
+indexes on that computer and, after the search is paid for, downloads finished
+scene indexes from the queue. Object search is `python3 -m community.object_index
+--search`, the same object search as VISION. It reads indexes on that computer
+and downloads finished object indexes from the queue after the search is paid
+for. On a computer where VISION is already indexing objects, Community uses
+that same `vision-object` program. Finished object indexes are then added to
+the local VISION app's object catalog. Scene indexes stay in the Community
+search: the running remainder catalog owns scene discovery.
 
 ## Invariants
 
@@ -125,7 +130,8 @@ What still needs a person:
 3. **Later, when the corpus is real:** custom domain if you want one; keep
    GitHub private. Never touch `geonections-images`. Do not upload the 20.96M
    VISION embeddings. Search already costs 100,000 units. Large searches run
-   on the user's computer (`python3 -m community.local_search`). Do not buy a
+   on the user's computer (`python3 -m community.vision_index --search` and
+   `python3 -m community.object_index --search`). Do not buy a
    search VM.
 
 The hosted site is the shared queue and credit desk. Search at 200 million

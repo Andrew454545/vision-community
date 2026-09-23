@@ -8,6 +8,7 @@ embeddings only. It does not persist Street View imagery.
 from __future__ import annotations
 
 import json
+import math
 
 from .features import MODEL_ID
 from .rank import canonicalize_country
@@ -15,6 +16,12 @@ from .rank import canonicalize_country
 
 MAX_REFERENCE_EXAMPLES = 100
 RESULT_PRUNE_METERS = 100
+SCENE_MODEL_NAME = "SigLIP B/16 224"
+OBJECT_LANE_MODELS = {
+    "common": "RF-DETR Medium 1.10.0",
+    "hot": "YOLOE-26L 8.4.143",
+    "semantic": "OWLv2 Base Patch16 + PQ128",
+}
 
 
 class MMAError(Exception):
@@ -98,6 +105,63 @@ def parse_map(document: dict) -> dict:
     if not examples:
         raise MMAError("empty_mma_map")
     return {"name": name, "examples": examples}
+
+
+def vision_round(value: float) -> float:
+    """Match VISION's 7-decimal score rounding."""
+    scaled = float(value) * 10_000_000
+    if scaled >= 0:
+        rounded = math.floor(scaled + 0.5)
+    else:
+        rounded = math.ceil(scaled - 0.5)
+    return rounded / 10_000_000
+
+
+def object_model_name(lane: str | None) -> str:
+    return OBJECT_LANE_MODELS.get(lane or "", SCENE_MODEL_NAME)
+
+
+def search_location_extra(
+    *,
+    country: str,
+    camera_generation: str,
+    score: float,
+    min_score: float,
+    rank: int,
+    query_name: str,
+    mode: str,
+    heading_offset: int,
+    source_index: int,
+    processed_locations: int,
+    model: str,
+    object_class: str | None = None,
+    object_class_id: int | None = None,
+    object_lane: str | None = None,
+    object_confidence: float | None = None,
+    object_support: int | None = None,
+    object_box_area: float | None = None,
+) -> dict:
+    country = canonicalize_country(country)
+    return {
+        "tags": [country] if country else [""],
+        "visionCameraGeneration": camera_generation or "unknown",
+        "visionScore": vision_round(score),
+        "visionMinScore": vision_round(min_score),
+        "visionRank": int(rank),
+        "visionQuery": query_name,
+        "visionQueryMode": mode,
+        "visionHeadingOffset": int(heading_offset),
+        "visionSourceIndex": int(source_index),
+        "visionProcessedLocations": int(processed_locations),
+        "visionModel": model,
+        "visionPruneMeters": RESULT_PRUNE_METERS,
+        "visionObjectClass": object_class,
+        "visionObjectClassId": object_class_id,
+        "visionObjectLane": object_lane,
+        "visionObjectConfidence": None if object_confidence is None else vision_round(object_confidence),
+        "visionObjectSupport": object_support,
+        "visionObjectBoxArea": None if object_box_area is None else vision_round(object_box_area),
+    }
 
 
 def location_record(

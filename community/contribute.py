@@ -229,6 +229,54 @@ class CommunityClient:
             raise ContributeError("index_unavailable", status)
         return data
 
+    def object_index_catalog(self, search_id: str) -> dict:
+        query = urllib.parse.urlencode({"searchId": search_id})
+        status, data, _ = self.request("GET", f"/api/object-indexes?{query}")
+        if status != 200 or not isinstance(data, dict):
+            raise ContributeError("index_unavailable", status)
+        return data
+
+    def object_index_file(self, search_id: str, key: str) -> bytes:
+        query = urllib.parse.urlencode({"searchId": search_id, "key": key})
+        request = urllib.request.Request(
+            self.origin + f"/api/object-index-file?{query}",
+            headers={
+                "Origin": self.origin,
+                "Authorization": f"Bearer {self.token}",
+                "User-Agent": "VISION-Community-contribute/1",
+            },
+            method="GET",
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=120) as response:
+                return response.read()
+        except urllib.error.HTTPError as error:
+            raise ContributeError("index_unavailable", error.code) from error
+
+    def scene_index_catalog(self, search_id: str) -> dict:
+        query = urllib.parse.urlencode({"searchId": search_id})
+        status, data, _ = self.request("GET", f"/api/scene-indexes?{query}")
+        if status != 200 or not isinstance(data, dict):
+            raise ContributeError("index_unavailable", status)
+        return data
+
+    def scene_index_file(self, search_id: str, key: str) -> bytes:
+        query = urllib.parse.urlencode({"searchId": search_id, "key": key})
+        request = urllib.request.Request(
+            self.origin + f"/api/scene-index-file?{query}",
+            headers={
+                "Origin": self.origin,
+                "Authorization": f"Bearer {self.token}",
+                "User-Agent": "VISION-Community-contribute/1",
+            },
+            method="GET",
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=120) as response:
+                return response.read()
+        except urllib.error.HTTPError as error:
+            raise ContributeError("index_unavailable", error.code) from error
+
     def index_manifest(self, *, search_id: str, lane: str) -> dict:
         query = urllib.parse.urlencode({"searchId": search_id, "lane": lane})
         status, data, _ = self.request("GET", f"/api/index-manifest?{query}")

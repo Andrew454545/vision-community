@@ -18,6 +18,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import secrets
 import subprocess
 import sys
@@ -42,7 +43,7 @@ from .four_view import (
     VIEWS_PER_LOCATION,
     valid_four_view_record,
 )
-from .mma import RESULT_PRUNE_METERS, build_map, dump_map
+from .mma import RESULT_PRUNE_METERS, SCENE_MODEL_NAME, build_map, dump_map, search_location_extra
 from .pano import CLI_LEASE_CAP
 from .prompt import snap_description_weight
 from .rank import cap_by_country, clamp_max_per_country, clamp_result_count, canonicalize_country, exclude_used
@@ -718,6 +719,13 @@ def index_from_queue(
     return report
 
 
+def default_shared_scene_dir() -> Path:
+    override = os.environ.get("VISION_COMMUNITY_SHARED_SCENES")
+    if override:
+        return Path(override)
+    return Path.home() / "Library/Application Support/vision-community/shared-index/scenes"
+
+
 def discover_indexes(work_dir: Path) -> list[Path]:
     work_dir = Path(work_dir)
     found = []
@@ -729,6 +737,41 @@ def discover_indexes(work_dir: Path) -> list[Path]:
             if child.is_dir() and (child / "index" / "manifest.json").is_file():
                 found.append(child)
     return found
+
+
+def import_published_scenes(session: CommunityClient, search_id: str, destination: Path) -> int:
+    """Turn stored four-view records back into the shard directory VISION searches."""
+    destination = Path(destination)
+    assert_not_live_vision_path(destination)
+    catalog = session.scene_index_catalog(search_id)
+    imported = 0
+    for entry in catalog.get("indexes") or []:
+        key = str(entry.get("key") or "")
+        lease_id = Path(key).stem
+        locations = entry.get("locations") if isinstance(entry.get("locations"), list) else []
+        if not re.fullmatch(r"[0-9a-f]{32}", lease_id) or not locations:
+            continue
+        blob = session.scene_index_file(search_id, key)
+        if len(blob) != len(locations) * BYTES_PER_LOCATION:
+            continue
+        target = destination / lease_id
+        index_dir = target / "index"
+        index_dir.mkdir(parents=True, exist_ok=True)
+        lines = [
+            location_tsv_line(item)
+            for item in locations
+            if isinstance(item, dict)
+        ]
+        if len(lines) != len(locations):
+            continue
+        (target / "locations.tsv").write_text("\n".join(lines) + "\n", encoding="utf-8")
+        (index_dir / "shard-000000.i8").write_bytes(blob)
+        (index_dir / "manifest.json").write_text(
+            json.dumps({"indexedLocations": len(lines), "bytesPerLocation": BYTES_PER_LOCATION, "version": 4}),
+            encoding="utf-8",
+        )
+        imported += 1
+    return imported
 
 
 def load_tsv_table(path: Path) -> list[list[str]]:
@@ -748,7 +791,7 @@ def hits_from_output(payload: dict):
                 yield name, hit
 
 
-def map_from_search(payload: dict, locations_tsv: Path, *, prompt: str) -> dict | None:
+def map_from_search(payload: dict, locations_tsv: Path, *, prompt: str, min_score: float | None = None) -> dict | None:
     from .features import wrap_heading
 
     table = load_tsv_table(locations_tsv)
@@ -769,6 +812,7 @@ def map_from_search(payload: dict, locations_tsv: Path, *, prompt: str) -> dict 
         score = float(hit.get("similarity") or hit.get("score") or 0)
         country = canonicalize_country(str(location.get("country") or (row[8] if row else "") or ""))
         camera = str(location.get("cameraGeneration") or (row[9] if row else "") or "")
+        source_index = index if isinstance(index, int) else 0
         coordinates.append(
             {
                 "lat": float(lat),
@@ -777,17 +821,19 @@ def map_from_search(payload: dict, locations_tsv: Path, *, prompt: str) -> dict 
                 "pitch": float(location.get("pitch", row[5] if row else 0) or 0),
                 "zoom": float(location.get("zoom", row[6] if row else 0) or 0),
                 "panoId": pano,
-                "extra": {
-                    "tags": [country] if country else [],
-                    "visionCameraGeneration": camera or "unknown",
-                    "visionScore": round(score, 7),
-                    "visionRank": rank,
-                    "visionQuery": name or prompt,
-                    "visionQueryMode": "scene",
-                    "visionHeadingOffset": offset * 90,
-                    "visionModel": VISION_FOUR_VIEW_MODEL,
-                    "visionPruneMeters": RESULT_PRUNE_METERS,
-                },
+                "extra": search_location_extra(
+                    country=country,
+                    camera_generation=camera,
+                    score=score,
+                    min_score=0 if min_score is None else min_score,
+                    rank=rank,
+                    query_name=name or prompt,
+                    mode="scene",
+                    heading_offset=offset * 90,
+                    source_index=source_index,
+                    processed_locations=len(table),
+                    model=SCENE_MODEL_NAME,
+                ),
             }
         )
     if not coordinates:
@@ -803,10 +849,16 @@ def finish_scene_coordinates(
     exclude_map=None,
     output_name: str = "",
     prompt: str = "",
+    processed_locations: int | None = None,
 ) -> dict | None:
     from .service import ServiceError, _exclude_points
 
-    ordered = sorted(coordinates, key=lambda item: item.get("extra", {}).get("visionScore") or 0, reverse=True)
+    def scene_order(item: dict):
+        extra = item.get("extra") or {}
+        source_index = extra.get("visionSourceIndex")
+        return (-(extra.get("visionScore") or 0), source_index if isinstance(source_index, int) else 0)
+
+    ordered = sorted(coordinates, key=scene_order)
     if exclude_map is not None:
         try:
             points = _exclude_points(exclude_map)
@@ -822,7 +874,10 @@ def finish_scene_coordinates(
     for rank, item in enumerate(limited, start=1):
         row = dict(item)
         row.pop("country", None)
-        row.setdefault("extra", {})["visionRank"] = rank
+        extra = row.setdefault("extra", {})
+        extra["visionRank"] = rank
+        if processed_locations is not None:
+            extra["visionProcessedLocations"] = int(processed_locations)
         cleaned.append(row)
     if not cleaned:
         return None
@@ -845,12 +900,21 @@ def search_indexes(
     country_mode: str = "all",
     countries: list[str] | None = None,
     camera_generations: list[str] | None = None,
+    import_cutoff: int | None = None,
     output_name: str = "",
     description_weight: int | None = None,
     examples: list[dict] | None = None,
     exclude_map=None,
+    extra_roots: list[Path] | None = None,
 ) -> dict:
-    runs = discover_indexes(work_dir)
+    runs = []
+    seen = set()
+    for root in [work_dir, *(extra_roots or [])]:
+        for run_dir in discover_indexes(root):
+            if run_dir in seen:
+                continue
+            seen.add(run_dir)
+            runs.append(run_dir)
     if not runs:
         raise VisionIndexError("index_missing")
     program = Path(binary) if binary is not None else default_binary()
@@ -862,32 +926,38 @@ def search_indexes(
     active = runner or default_runner
     maps = []
     searched = 0
+    processed_locations = 0
+    cursor = 0
     for run_dir in runs:
         locations = run_dir / "locations.tsv"
         index_dir = run_dir / "index"
         if not locations.is_file():
             continue
+        indexed = sum(1 for line in locations.read_text(encoding="utf-8").splitlines() if line.strip())
+        source_start = cursor
+        cursor += indexed
+        if import_cutoff is not None and source_start < int(import_cutoff):
+            continue
         for path in (locations, index_dir, run_dir):
             assert_not_live_vision_path(path)
         spec = run_dir / "search-input.json"
         output = run_dir / "search-output.json"
-        write_json(
-            spec,
-            search_input(
-                prompt,
-                view_direction=view_direction,
-                result_count=result_count,
-                max_per_country=max_per_country,
-                reject_road_names=reject_road_names,
-                country_mode=country_mode,
-                countries=countries,
-                camera_generations=camera_generations,
-                output_name=output_name,
-                description_weight=description_weight,
-                examples=examples,
-                excluding=exclude_map is not None,
-            ),
+        request = search_input(
+            prompt,
+            view_direction=view_direction,
+            result_count=result_count,
+            max_per_country=max_per_country,
+            reject_road_names=reject_road_names,
+            country_mode=country_mode,
+            countries=countries,
+            camera_generations=camera_generations,
+            output_name=output_name,
+            description_weight=description_weight,
+            examples=examples,
+            excluding=exclude_map is not None,
         )
+        minimum = float(request["queries"][0]["minSimilarity"])
+        write_json(spec, request)
         env = os.environ.copy()
         env["RAYON_NUM_THREADS"] = "1"
         env["VISION_ORT_THREADS"] = "1"
@@ -917,12 +987,15 @@ def search_indexes(
         )
         payload = json.loads(output.read_text(encoding="utf-8"))
         searched += 1
-        built = map_from_search(payload, locations, prompt=prompt)
+        processed_locations += indexed
+        built = map_from_search(payload, locations, prompt=prompt, min_score=minimum)
         if built is not None:
             maps.append(built)
     coordinates = []
     for document in maps:
         coordinates.extend(document.get("customCoordinates") or [])
+    if not searched:
+        raise VisionIndexError("index_missing")
     return {
         "ok": True,
         "model": VISION_FOUR_VIEW_MODEL,
@@ -934,6 +1007,7 @@ def search_indexes(
             exclude_map=exclude_map,
             output_name=output_name,
             prompt=prompt,
+            processed_locations=processed_locations,
         ),
     }
 
@@ -960,7 +1034,7 @@ def main() -> None:
     parser.add_argument("--model-dir", type=Path, dest="model_dir")
     parser.add_argument("--search", action="store_true")
     parser.add_argument("--prompt", default="")
-    parser.add_argument("--result-count", type=int, default=50)
+    parser.add_argument("--result-count", type=int, default=200)
     parser.add_argument("--max-per-country", type=int, default=25)
     parser.add_argument("--description-weight", type=int, default=50)
     parser.add_argument("--output-name", default="")
@@ -971,6 +1045,7 @@ def main() -> None:
     parser.add_argument("--countries", default="")
     parser.add_argument("--camera-generations", default="")
     parser.add_argument("--reject-road-names", action="store_true")
+    parser.add_argument("--import-cutoff", type=int, default=None)
     args = parser.parse_args()
     work_dir = args.work_dir or default_work_dir()
     try:
@@ -982,8 +1057,8 @@ def main() -> None:
             if not prompt and not examples:
                 raise VisionIndexError("invalid_query")
             target = args.index_dir.parent if args.index_dir is not None else work_dir
-            if not discover_indexes(target):
-                raise VisionIndexError("index_missing")
+            shared = default_shared_scene_dir()
+            assert_not_live_vision_path(shared)
             session_path = args.session_file or default_session_path()
             code = args.recovery_code or os.environ.get("VISION_COMMUNITY_RECOVERY")
             stored = load_session(session_path, args.url)
@@ -996,8 +1071,31 @@ def main() -> None:
             account = client.me()
             if int(account.get("units") or 0) < int(account.get("searchCost") or 100000):
                 raise VisionIndexError("insufficient_credit")
+            remote = int(account.get("sceneIndexes") or 0)
+            if not discover_indexes(target) and not discover_indexes(shared) and remote <= 0:
+                raise VisionIndexError("index_missing")
             countries = [part.strip() for part in args.countries.split(",") if part.strip()]
             cameras = [part.strip() for part in args.camera_generations.split(",") if part.strip()]
+            search_body = {
+                "lane": "scene",
+                "prompt": prompt,
+                "outputName": args.output_name,
+                "viewDirection": args.view_direction,
+                "resultCount": args.result_count,
+                "maxPerCountry": args.max_per_country,
+                "descriptionWeight": args.description_weight,
+                "countryFilterMode": args.country_mode,
+                "countries": countries,
+                "cameraGenerations": cameras,
+                "queryMap": query_map,
+                "excludeMap": exclude_map,
+                "rejectRoadNames": args.reject_road_names,
+                "idempotencyKey": secrets.token_hex(16),
+            }
+            authorized = None
+            if remote:
+                authorized = client.authorize_local_search(search_body)
+                import_published_scenes(client, str(authorized.get("searchId") or ""), shared)
             result = search_indexes(
                 target,
                 prompt,
@@ -1011,28 +1109,14 @@ def main() -> None:
                 view_direction=args.view_direction,
                 result_count=args.result_count,
                 reject_road_names=args.reject_road_names,
+                import_cutoff=args.import_cutoff,
                 country_mode=args.country_mode,
                 countries=countries,
                 camera_generations=cameras,
+                extra_roots=[shared],
             )
-            authorized = client.authorize_local_search(
-                {
-                    "lane": "scene",
-                    "prompt": prompt,
-                    "outputName": args.output_name,
-                    "viewDirection": args.view_direction,
-                    "resultCount": args.result_count,
-                    "maxPerCountry": args.max_per_country,
-                    "descriptionWeight": args.description_weight,
-                    "countryFilterMode": args.country_mode,
-                    "countries": countries,
-                    "cameraGenerations": cameras,
-                    "queryMap": query_map,
-                    "excludeMap": exclude_map,
-                    "rejectRoadNames": args.reject_road_names,
-                    "idempotencyKey": secrets.token_hex(16),
-                }
-            )
+            if authorized is None:
+                authorized = client.authorize_local_search(search_body)
             if not authorized.get("local"):
                 raise VisionIndexError("search_failed")
             print(dump_map(result["map"] or build_map(prompt, [])))

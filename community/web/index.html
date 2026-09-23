@@ -150,7 +150,7 @@
           <select id="import-cutoff">
             <option value="">All imports</option>
           </select>
-          <p class="hint">Every indexed import participates in this search.</p>
+          <p class="hint" id="import-cutoff-help">Every indexed import participates in this search.</p>
 
           <p class="filter-kicker">Camera generation</p>
           <div class="gen-grid" id="generations">
@@ -324,8 +324,8 @@
         <p class="rail-copy">Scenes and objects have to run in Terminal so they use the same indexers as VISION. Paste this after you have an account. The command keeps going until you stop it or the queue is empty.</p>
         <pre class="cli" id="cli-command">python3 -m community.vision_index --pace slow --recovery-code YOUR_CODE</pre>
         <button id="copy-cli" class="compact-btn" type="button">Copy command</button>
-        <pre class="cli" id="local-search-command">python3 -m community.local_search --prompt "red barn in snow" --recovery-code YOUR_CODE</pre>
-        <p class="hint">Scene search uses <code>python3 -m community.vision_index --search</code>, the same four-view search as VISION. Object search uses <code>python3 -m community.local_search</code>. Then add the JSON to a map: <code>python3 -m community.send_mma result.json --new-map</code></p>
+        <pre class="cli" id="local-search-command">python3 -m community.object_index --search --prompt "red barn" --confidence balanced --recovery-code YOUR_CODE</pre>
+        <p class="hint">Scene search uses <code>python3 -m community.vision_index --search</code>, the same four-view search as VISION. Object search uses <code>python3 -m community.object_index --search</code>, the same object search as VISION. Then add the JSON to a map: <code>python3 -m community.send_mma result.json --new-map</code></p>
         <button id="copy-local-search" class="compact-btn" type="button">Copy search command</button>
       </details>
     </div>

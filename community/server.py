@@ -144,6 +144,38 @@ def handler_for(service: CommunityService):
                             lane=query.get("lane") or "scene",
                         ),
                     )
+                if route == "/api/object-indexes":
+                    self._same_origin()
+                    query = {key: values[-1] for key, values in parse_qs(parsed.query, keep_blank_values=True).items()}
+                    return self._json(
+                        200,
+                        service.list_object_indexes(self._account(), query.get("searchId") or ""),
+                    )
+                if route == "/api/object-index-file":
+                    self._same_origin()
+                    query = {key: values[-1] for key, values in parse_qs(parsed.query, keep_blank_values=True).items()}
+                    body = service.object_index_bytes(
+                        self._account(),
+                        query.get("searchId") or "",
+                        query.get("key") or "",
+                    )
+                    return self._send(200, body, "application/octet-stream")
+                if route == "/api/scene-indexes":
+                    self._same_origin()
+                    query = {key: values[-1] for key, values in parse_qs(parsed.query, keep_blank_values=True).items()}
+                    return self._json(
+                        200,
+                        service.list_scene_indexes(self._account(), query.get("searchId") or ""),
+                    )
+                if route == "/api/scene-index-file":
+                    self._same_origin()
+                    query = {key: values[-1] for key, values in parse_qs(parsed.query, keep_blank_values=True).items()}
+                    body = service.scene_index_bytes(
+                        self._account(),
+                        query.get("searchId") or "",
+                        query.get("key") or "",
+                    )
+                    return self._send(200, body, "application/octet-stream")
                 static = STATIC.get(route)
                 if static is None:
                     raise ServiceError("not_found", 404)
