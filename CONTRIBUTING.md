@@ -2,10 +2,10 @@
 
 Scenes use the same four-view indexer as the VISION app. Objects use the same hybrid object indexer (RF-DETR, YOLOE, and OWLv2). Those programs cannot run inside the browser, so both run in Terminal.
 
-1. On a new Mac, download this project, open Terminal in that folder, and run `python3 -m community.bootstrap` once.
+1. On a new computer, download this project, open a terminal in that folder, and run `python3 -m community.bootstrap` once. On Windows, use `python` if `python3` is not recognized.
 2. Open the site.
 3. Click **Get a free account**. Write down or screenshot the code. That code is your only login.
-4. Click **Copy scene command**, or switch to Objects and click **Copy object command**. Open Terminal, paste, and press Return. Leave that window open.
+4. Click **Copy scene command**, or switch to Objects and click **Copy object command**. Open Terminal, or PowerShell on Windows, paste, and press Return. Leave that window open.
 5. When the bar reaches 100,000, copy the search command and run it in Terminal.
 6. Connect [map-making.app](https://map-making.app) with an API key to add the results to a map, or copy/download the JSON and drop it onto the local Map Making App.
 

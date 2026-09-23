@@ -6,14 +6,20 @@
       "path": "automation/runtime/current/.vision-build/four-view-index/release/mma-vision",
       "bytes": 35324112,
       "sha256": "4e3a42023797d878d6f16abc2dc1b400f9ddf94bd48b8bf9a4040ab8b5c59181",
-      "executable": true
+      "executable": true,
+      "platforms": [
+        "darwin-arm64"
+      ]
     },
     {
       "asset": "vision-object",
       "path": "object-runtime/vision-object",
       "bytes": 23527808,
       "sha256": "29ad87e50d368ee57e33fc1a07b9ec53acae187a2f6dc0ed9aa058a28f7965c0",
-      "executable": true
+      "executable": true,
+      "platforms": [
+        "darwin-arm64"
+      ]
     },
     {
       "asset": "siglip-text_model.onnx",
@@ -104,6 +110,71 @@
       "path": "models/object-hybrid-v1/yoloe-26l-hot.onnx",
       "bytes": 111928313,
       "sha256": "fff4e85756a808d36a791d4baede733715fa9d53ce7c308ab13aee0809a7f17b"
+    },
+    {
+      "asset": "mma-vision-windows-x86_64.exe",
+      "path": "bin/mma-vision.exe",
+      "bytes": 30068736,
+      "sha256": "d3bc3cbf7a19d696a27ec7832b0659c9849d7efd7dfe122e6771d01e7a66ee20",
+      "platforms": [
+        "windows-x86_64"
+      ],
+      "executable": true
+    },
+    {
+      "asset": "vision-object-windows-x86_64.exe",
+      "path": "bin/vision-object.exe",
+      "bytes": 29734912,
+      "sha256": "db73e1b5082410db07dbd6fcb0f968d303f84d544be75ecffdd9f34ccaeb9e54",
+      "platforms": [
+        "windows-x86_64"
+      ],
+      "executable": true
+    },
+    {
+      "asset": "windows-directml.dll",
+      "path": "bin/DirectML.dll",
+      "bytes": 18527776,
+      "sha256": "9c9e6d822561c6c41b90e6994b3e8857cf1d66dbfb1e0c4c799c7c89b4e92da1",
+      "platforms": [
+        "windows-x86_64"
+      ]
+    },
+    {
+      "asset": "windows-msvcp140.dll",
+      "path": "bin/MSVCP140.dll",
+      "bytes": 557728,
+      "sha256": "0f885b509a685d2bbfa652fed26b5fb31d88fbdab0a978c641d1c7b8aa460aa9",
+      "platforms": [
+        "windows-x86_64"
+      ]
+    },
+    {
+      "asset": "windows-msvcp140_1.dll",
+      "path": "bin/MSVCP140_1.dll",
+      "bytes": 35952,
+      "sha256": "bfad5aef4c63a669e3c140655cdfdf395b6c979b400a447bd5dcb65ed8826c3d",
+      "platforms": [
+        "windows-x86_64"
+      ]
+    },
+    {
+      "asset": "windows-vcruntime140.dll",
+      "path": "bin/VCRUNTIME140.dll",
+      "bytes": 124544,
+      "sha256": "d5e4d9a3e835fa679450145d6a7d94e36573a509317111904d9b3712c30d9066",
+      "platforms": [
+        "windows-x86_64"
+      ]
+    },
+    {
+      "asset": "windows-vcruntime140_1.dll",
+      "path": "bin/VCRUNTIME140_1.dll",
+      "bytes": 49792,
+      "sha256": "1f2d41c4aa5db0bc33ebf7b66d72943a817d7ce6cbe880502a9403823633093f",
+      "platforms": [
+        "windows-x86_64"
+      ]
     }
   ]
 }

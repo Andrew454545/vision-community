@@ -65,6 +65,35 @@ LIVE_PATH_MARKERS = (
     "scheduled-sources",
     "object-hybrid-v1/coreml-cache",
 )
+
+
+def vision_support_root() -> Path:
+    override = os.environ.get("VISION_COMMUNITY_RUNTIME_ROOT")
+    if override:
+        return Path(override).expanduser()
+    if sys.platform == "win32":
+        local = os.environ.get("LOCALAPPDATA")
+        base = Path(local) if local else Path.home() / "AppData" / "Local"
+        return base / "VISION"
+    if sys.platform == "darwin":
+        return Path.home() / "Library/Application Support/VISION"
+    return Path.home() / ".local/share/VISION"
+
+
+def community_support_root() -> Path:
+    if sys.platform == "win32":
+        local = os.environ.get("LOCALAPPDATA")
+        base = Path(local) if local else Path.home() / "AppData" / "Local"
+        return base / "vision-community"
+    if sys.platform == "darwin":
+        return Path.home() / "Library/Application Support/vision-community"
+    return Path.home() / ".local/share/vision-community"
+
+
+def program_name(stem: str) -> str:
+    if sys.platform == "win32" and not stem.endswith(".exe"):
+        return f"{stem}.exe"
+    return stem
 # Batch shape is fixed. A sealed VISION shard matched these settings byte for
 # byte; embedding one picture at a time flipped bytes. Pace only changes
 # scheduling priority so a computer already running VISION can stay responsive.
@@ -86,9 +115,12 @@ def default_binary() -> Path:
     override = os.environ.get("VISION_FOUR_VIEW_BINARY")
     if override:
         return Path(override)
+    if sys.platform == "win32":
+        return vision_support_root() / "bin" / program_name("mma-vision")
     return (
-        Path.home()
-        / "Library/Application Support/VISION/automation/runtime/current/.vision-build/four-view-index/release/mma-vision"
+        vision_support_root()
+        / "automation/runtime/current/.vision-build/four-view-index/release"
+        / program_name("mma-vision")
     )
 
 
@@ -96,14 +128,14 @@ def default_model_dir() -> Path:
     override = os.environ.get("VISION_MODEL_DIR")
     if override:
         return Path(override)
-    return Path.home() / "Library/Application Support/VISION/models/siglip-b16-224-canonical"
+    return vision_support_root() / "models/siglip-b16-224-canonical"
 
 
 def default_work_dir() -> Path:
     override = os.environ.get("VISION_COMMUNITY_FOUR_VIEW_WORK")
     if override:
         return Path(override)
-    return Path.home() / "Library/Application Support/vision-community/four-view"
+    return community_support_root() / "four-view"
 
 
 def assert_not_live_vision_path(path: Path) -> None:
@@ -372,7 +404,7 @@ def default_runner(argv: list[str], env: dict, cwd: Path):
 
 def command_prefix(binary: Path, *, nice_level: int | None, use_nice: bool) -> list[str]:
     argv = [str(binary)]
-    if use_nice and nice_level is not None:
+    if use_nice and nice_level is not None and sys.platform != "win32":
         argv = ["nice", "-n", str(int(nice_level)), *argv]
     return argv
 
@@ -723,7 +755,7 @@ def default_shared_scene_dir() -> Path:
     override = os.environ.get("VISION_COMMUNITY_SHARED_SCENES")
     if override:
         return Path(override)
-    return Path.home() / "Library/Application Support/vision-community/shared-index/scenes"
+    return community_support_root() / "shared-index/scenes"
 
 
 def discover_indexes(work_dir: Path) -> list[Path]:

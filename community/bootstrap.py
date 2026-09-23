@@ -1,9 +1,9 @@
-"""Install the Mac indexer programs used by the Terminal commands.
+"""Install the indexer programs used by the Terminal commands.
 
 The scene program, the object program, and their model folders are not stored
-in git. On a new Mac this downloads the published copies into the same
-Application Support folders the commands already look in. It does not write
-the live remainder queue, a scheduled object list, or a shared CoreML cache.
+in git. This downloads the published copy for this computer into the folders
+the commands already look in. It does not write the live remainder queue, a
+scheduled object list, or a shared CoreML cache.
 """
 
 from __future__ import annotations
@@ -11,12 +11,13 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import platform
 import sys
 import urllib.error
 import urllib.request
 from pathlib import Path
 
-from .vision_index import LIVE_PATH_MARKERS
+from .vision_index import LIVE_PATH_MARKERS, vision_support_root
 
 
 RELEASE = "https://github.com/Andrew454545/vision-community/releases/download/mac-runtime-1"
@@ -41,10 +42,40 @@ def load_manifest(path: Path | None = None) -> dict:
 
 
 def vision_root() -> Path:
-    override = os.environ.get("VISION_COMMUNITY_RUNTIME_ROOT")
-    if override:
-        return Path(override).expanduser()
-    return Path.home() / "Library/Application Support/VISION"
+    return vision_support_root()
+
+
+def runtime_platform(system: str | None = None, machine: str | None = None) -> str:
+    system_name = sys.platform if system is None else system
+    machine_name = platform.machine() if machine is None else machine
+    if system_name == "win32":
+        system_name = "windows"
+    elif system_name.startswith("linux"):
+        system_name = "linux"
+    elif system_name != "darwin":
+        raise BootstrapError("unsupported_platform")
+    machine_name = machine_name.lower()
+    if machine_name in ("amd64", "x86_64"):
+        arch = "x86_64"
+    elif machine_name in ("arm64", "aarch64"):
+        arch = "arm64"
+    else:
+        raise BootstrapError("unsupported_platform")
+    return f"{system_name}-{arch}"
+
+
+def files_for_platform(manifest: dict, platform_name: str) -> list:
+    chosen = []
+    for entry in manifest["files"]:
+        platforms = entry.get("platforms")
+        if isinstance(platforms, list) and platform_name not in platforms:
+            continue
+        chosen.append(entry)
+    has_scene = any(item.get("executable") and str(item.get("asset", "")).startswith("mma-vision") for item in chosen)
+    has_object = any(item.get("executable") and str(item.get("asset", "")).startswith("vision-object") for item in chosen)
+    if not has_scene or not has_object:
+        raise BootstrapError("unsupported_platform")
+    return chosen
 
 
 def destination(root: Path, relative: str) -> Path:
@@ -101,9 +132,15 @@ def download_file(url: str, partial: Path, entry: dict) -> None:
         raise BootstrapError("runtime_mismatch")
 
 
-def install_runtime(manifest: dict, root: Path, *, release: str = RELEASE) -> list[str]:
+def install_runtime(
+    manifest: dict,
+    root: Path,
+    *,
+    release: str = RELEASE,
+    platform_name: str | None = None,
+) -> list[str]:
     actions = []
-    for entry in manifest["files"]:
+    for entry in files_for_platform(manifest, platform_name or runtime_platform()):
         path = destination(root, entry["path"])
         asset = entry["asset"]
         if _already_installed(path, entry):
@@ -146,7 +183,7 @@ def main() -> int:
     if installed:
         print(f"Ready. Installed {len(installed)} files.")
     else:
-        print("Ready. The indexer programs are already on this Mac.")
+        print("Ready. The indexer programs are already on this computer.")
     print("Next: open the site, get an account, then paste the scene or object command in this folder.")
     return 0
 

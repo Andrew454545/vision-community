@@ -10,9 +10,9 @@ Each verified scene location earns 1 unit. Each verified object location earns
 10,000 object locations). New accounts start at zero. There is no trial, owner,
 or API bypass.
 
-## Start on a new Mac
+## Start on a new computer
 
-The indexer programs run on Apple silicon. Python 3.9 or newer is required.
+Works on an Apple silicon Mac or a Windows PC. Python 3.9 or newer is required. Intel Macs and Linux are not in this download.
 
 1. On this GitHub page, choose **Code**, then **Download ZIP**, and unzip it.
 2. Open Terminal, move into the unzipped folder, and run:
@@ -21,7 +21,7 @@ The indexer programs run on Apple silicon. Python 3.9 or newer is required.
 python3 -m community.bootstrap
 ```
 
-That installs the Python requirement and downloads the scene program, the object program, and their model folders. It does not copy a live VISION queue or a CoreML cache.
+On Windows, open PowerShell and use `python` instead of `python3` if `python3` is not recognized. That installs the Python requirement and downloads the scene program, the object program, and their model folders for this computer. It does not copy a live VISION queue or a CoreML cache.
 
 3. Open the site, get an account, and paste the scene or object command in that same folder.
 
