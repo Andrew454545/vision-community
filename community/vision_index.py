@@ -94,13 +94,14 @@ def program_name(stem: str) -> str:
     if sys.platform == "win32" and not stem.endswith(".exe"):
         return f"{stem}.exe"
     return stem
-# Batch shape is fixed. A sealed VISION shard matched these settings byte for
-# byte; embedding one picture at a time flipped bytes. Pace only changes
+# Batch shape is fixed. A sealed VISION shard matched a batch of 16 byte for
+# byte; embedding one picture at a time flipped bytes. Inference stays on one
+# thread so the stored bytes do not change between runs. Pace only changes
 # scheduling priority so a computer already running VISION can stay responsive.
 PACE = {
-    "slow": {"threads": 4, "nice": 19, "concurrency": 8, "chunk": 16, "batch": 16, "sessions": 1, "duty": 100, "thermal": 2},
-    "medium": {"threads": 4, "nice": 8, "concurrency": 8, "chunk": 16, "batch": 16, "sessions": 1, "duty": 100, "thermal": 2},
-    "max": {"threads": 4, "nice": 0, "concurrency": 8, "chunk": 16, "batch": 16, "sessions": 1, "duty": 100, "thermal": 2},
+    "slow": {"threads": 1, "nice": 19, "concurrency": 8, "chunk": 16, "batch": 16, "sessions": 1, "duty": 100, "thermal": 2},
+    "medium": {"threads": 1, "nice": 8, "concurrency": 8, "chunk": 16, "batch": 16, "sessions": 1, "duty": 100, "thermal": 2},
+    "max": {"threads": 1, "nice": 0, "concurrency": 8, "chunk": 16, "batch": 16, "sessions": 1, "duty": 100, "thermal": 2},
 }
 
 
@@ -115,13 +116,10 @@ def default_binary() -> Path:
     override = os.environ.get("VISION_FOUR_VIEW_BINARY")
     if override:
         return Path(override)
-    if sys.platform == "win32":
-        return vision_support_root() / "bin" / program_name("mma-vision")
-    return (
-        vision_support_root()
-        / "automation/runtime/current/.vision-build/four-view-index/release"
-        / program_name("mma-vision")
-    )
+    # The VISION app's CoreML scene indexer changes a few stored values between
+    # runs. Community uses the CPU fp32 build, pinned to one thread, so the same
+    # picture gets the same stored bytes on every computer.
+    return vision_support_root() / "bin" / program_name("mma-vision")
 
 
 def default_model_dir() -> Path:
@@ -517,8 +515,10 @@ def index_locations_tsv(
         raise VisionIndexError("vision_input_missing")
     active = runner or default_runner
     env = os.environ.copy()
-    env["RAYON_NUM_THREADS"] = str(settings["threads"])
-    env["VISION_ORT_THREADS"] = str(settings["threads"])
+    env["RAYON_NUM_THREADS"] = "1"
+    env["VISION_ORT_THREADS"] = "1"
+    env["OMP_NUM_THREADS"] = "1"
+    env["ORT_NUM_THREADS"] = "1"
     env["TMPDIR"] = str(work)
     layout_stdout, _stderr = run_binary(
         program,
@@ -993,6 +993,8 @@ def search_indexes(
         env = os.environ.copy()
         env["RAYON_NUM_THREADS"] = "1"
         env["VISION_ORT_THREADS"] = "1"
+        env["OMP_NUM_THREADS"] = "1"
+        env["ORT_NUM_THREADS"] = "1"
         env["TMPDIR"] = str(run_dir)
         run_binary(
             program,

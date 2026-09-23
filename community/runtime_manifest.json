@@ -3,9 +3,9 @@
   "files": [
     {
       "asset": "mma-vision",
-      "path": "automation/runtime/current/.vision-build/four-view-index/release/mma-vision",
-      "bytes": 35324112,
-      "sha256": "4e3a42023797d878d6f16abc2dc1b400f9ddf94bd48b8bf9a4040ab8b5c59181",
+      "path": "bin/mma-vision",
+      "bytes": 35059824,
+      "sha256": "be0d98af2fab5e96f3cd6397365cfb2523dad66a93612a2b23358a8ae91419f2",
       "executable": true,
       "platforms": [
         "darwin-arm64"
@@ -114,8 +114,8 @@
     {
       "asset": "mma-vision-windows-x86_64.exe",
       "path": "bin/mma-vision.exe",
-      "bytes": 30068736,
-      "sha256": "d3bc3cbf7a19d696a27ec7832b0659c9849d7efd7dfe122e6771d01e7a66ee20",
+      "bytes": 30071808,
+      "sha256": "4cbb67ecb02b7dfb8df93db81dccbb538fe8f07fb66fc00d4f5b93fe67ac83d5",
       "platforms": [
         "windows-x86_64"
       ],
