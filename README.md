@@ -10,9 +10,24 @@ Each verified scene location earns 1 unit. Each verified object location earns
 10,000 object locations). New accounts start at zero. There is no trial, owner,
 or API bypass.
 
-## How to use the site
+## Start on a new Mac
+
+The indexer programs run on Apple silicon. Python 3.9 or newer is required.
+
+1. On this GitHub page, choose **Code**, then **Download ZIP**, and unzip it.
+2. Open Terminal, move into the unzipped folder, and run:
+
+```sh
+python3 -m community.bootstrap
+```
+
+That installs the Python requirement and downloads the scene program, the object program, and their model folders. It does not copy a live VISION queue or a CoreML cache.
+
+3. Open the site, get an account, and paste the scene or object command in that same folder.
 
 https://vision-community.visioncommunity.workers.dev
+
+## How to use the site
 
 Scenes and objects are indexed in Terminal with the same programs as the VISION app. The browser cannot run those models.
 
@@ -28,9 +43,10 @@ The queue is the local 20.96M already-indexed VISION poses (metadata only) plus
 the ALL LOCATIONS tail. Scene indexing runs `mma-vision index-four-views` on
 the volunteer computer, using that computer's SigLIP model. Object indexing
 runs `vision-object index-segment` with the hybrid RF-DETR, YOLOE, and OWLv2
-models. Set `VISION_FOUR_VIEW_BINARY`, `VISION_MODEL_DIR`,
-`VISION_OBJECT_BINARY`, and `VISION_OBJECT_MODEL_DIR` when those files are not
-in the usual VISION folders. The models and programs are not stored in this repo.
+models. `python3 -m community.bootstrap` downloads them into the usual VISION
+folders. Set `VISION_FOUR_VIEW_BINARY`, `VISION_MODEL_DIR`,
+`VISION_OBJECT_BINARY`, and `VISION_OBJECT_MODEL_DIR` only when you already
+have those files somewhere else.
 
 Local equivalent:
 
@@ -127,9 +143,9 @@ What still needs a person:
    local indexer is stopped or has passed that cursor. Do not shrink the file
    while `mma-vision` is running.
 
-3. **Later, when the corpus is real:** custom domain if you want one; keep
-   GitHub private. Never touch `geonections-images`. Do not upload the 20.96M
-   VISION embeddings. Search already costs 100,000 units. Large searches run
+3. **Later, when the corpus is real:** custom domain if you want one. Never
+   touch `geonections-images`. Do not upload the 20.96M VISION embeddings.
+   Search already costs 100,000 units. Large searches run
    on the user's computer (`python3 -m community.vision_index --search` and
    `python3 -m community.object_index --search`). Do not buy a
    search VM.

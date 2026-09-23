@@ -1,0 +1,109 @@
+{
+  "version": 1,
+  "files": [
+    {
+      "asset": "mma-vision",
+      "path": "automation/runtime/current/.vision-build/four-view-index/release/mma-vision",
+      "bytes": 35324112,
+      "sha256": "4e3a42023797d878d6f16abc2dc1b400f9ddf94bd48b8bf9a4040ab8b5c59181",
+      "executable": true
+    },
+    {
+      "asset": "vision-object",
+      "path": "object-runtime/vision-object",
+      "bytes": 23527808,
+      "sha256": "29ad87e50d368ee57e33fc1a07b9ec53acae187a2f6dc0ed9aa058a28f7965c0",
+      "executable": true
+    },
+    {
+      "asset": "siglip-text_model.onnx",
+      "path": "models/siglip-b16-224-canonical/text_model.onnx",
+      "bytes": 441332132,
+      "sha256": "3aa7fdbd20eaa8740cce17bf82913de641fcb632a768fed59f661cdcd0c32553"
+    },
+    {
+      "asset": "siglip-tokenizer.json",
+      "path": "models/siglip-b16-224-canonical/tokenizer.json",
+      "bytes": 2398744,
+      "sha256": "4a17c975210be5ab4c36b47d8dae4eefb866dbfb1e676e394aad85dc30a3ae08"
+    },
+    {
+      "asset": "siglip-vision_model.onnx",
+      "path": "models/siglip-b16-224-canonical/vision_model.onnx",
+      "bytes": 99499129,
+      "sha256": "ef14a954f3d57e1806666432bd9785004c1dc27100aa260eee0cb0f10a5de058"
+    },
+    {
+      "asset": "siglip-vision_model_fp32.onnx",
+      "path": "models/siglip-b16-224-canonical/vision_model_fp32.onnx",
+      "bytes": 371819850,
+      "sha256": "f89d41bac7f4d4b87e010a467d93f98689d708916ed22f5a07f96fdfa26f475f"
+    },
+    {
+      "asset": "object-hybrid-object-runtime.json",
+      "path": "models/object-hybrid-v1/hybrid-object-runtime.json",
+      "bytes": 3249,
+      "sha256": "ea6466c65fc39ec2b3ab8387def163aad550c9289debc856a1adcfc0367f6728"
+    },
+    {
+      "asset": "object-object-model.json",
+      "path": "models/object-hybrid-v1/object-model.json",
+      "bytes": 628,
+      "sha256": "78ff4a39eb70353d71c0b9a06a850b06d79a43e60eea97d1e6bf0f4698b7a26f"
+    },
+    {
+      "asset": "object-owlv2-merges.txt",
+      "path": "models/object-hybrid-v1/owlv2-merges.txt",
+      "bytes": 524619,
+      "sha256": "9fd691f7c8039210e0fced15865466c65820d09b63988b0174bfe25de299051a"
+    },
+    {
+      "asset": "object-owlv2-pq128-codebook.bin",
+      "path": "models/object-hybrid-v1/owlv2-pq128-codebook.bin",
+      "bytes": 524288,
+      "sha256": "f28e0e9aeb8bfcd547cad3d2a3d9aa546de74b647cd1cc058a5911bd7dafeb25"
+    },
+    {
+      "asset": "object-owlv2-text-encoder.onnx",
+      "path": "models/object-hybrid-v1/owlv2-text-encoder.onnx",
+      "bytes": 253720547,
+      "sha256": "64cd38a2ca30d0e99a6305b1c30309e887d34679168ea38df1bfa5db68038e51"
+    },
+    {
+      "asset": "object-owlv2-tokenizer.json",
+      "path": "models/object-hybrid-v1/owlv2-tokenizer.json",
+      "bytes": 3642505,
+      "sha256": "9d1402bd9f4784e9c77a7e9a342ecc45cb6c4e12b2310e35a2ed3f7b74d05701"
+    },
+    {
+      "asset": "object-owlv2-vision-proposals.onnx",
+      "path": "models/object-hybrid-v1/owlv2-vision-proposals.onnx",
+      "bytes": 364925576,
+      "sha256": "4bf7560487a328fa25a0de51c607ce87d32c95289f5a25930ca4897568f2ac58"
+    },
+    {
+      "asset": "object-owlv2-vocab.json",
+      "path": "models/object-hybrid-v1/owlv2-vocab.json",
+      "bytes": 1059962,
+      "sha256": "e089ad92ba36837a0d31433e555c8f45fe601ab5c221d4f607ded32d9f7a4349"
+    },
+    {
+      "asset": "object-rfdetr-medium-576-b4.onnx",
+      "path": "models/object-hybrid-v1/rfdetr-medium-576-b4.onnx",
+      "bytes": 120795497,
+      "sha256": "00cc60ba7e18ea6b5afeca7d8d3d4a07be0d1e9969dbd1799719a4f802882fd2"
+    },
+    {
+      "asset": "object-yoloe-26l-hot-prompts.npz",
+      "path": "models/object-hybrid-v1/yoloe-26l-hot-prompts.npz",
+      "bytes": 4486,
+      "sha256": "62705fffc47c45eb0b4ed5fd3050e7f8148bc4e352e87ac2d4ffde7343a4bd10"
+    },
+    {
+      "asset": "object-yoloe-26l-hot.onnx",
+      "path": "models/object-hybrid-v1/yoloe-26l-hot.onnx",
+      "bytes": 111928313,
+      "sha256": "fff4e85756a808d36a791d4baede733715fa9d53ce7c308ab13aee0809a7f17b"
+    }
+  ]
+}
