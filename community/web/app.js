@@ -542,16 +542,23 @@ function selectedPart() {
   return Number.isInteger(part) && part > 0 ? part : null;
 }
 
+function pythonCommand() {
+  const platform = navigator.platform || "";
+  const agent = navigator.userAgent || "";
+  return /Win/.test(platform) || /Windows/.test(agent) ? "python" : "python3";
+}
+
 function indexCommand(lane) {
   const origin = window.location.origin;
   const pace = document.querySelector('input[name="pace"]:checked')?.value || "medium";
   const code = lastRecovery || $("recovery-code")?.value.trim() || "YOUR_CODE";
   const part = selectedPart();
   const extra = part ? ` --part ${part}` : "";
+  const python = pythonCommand();
   if (lane === "scene") {
-    return `python3 -m community.vision_index --url ${origin} --pace ${pace}${extra} --recovery-code ${code}`;
+    return `${python} -m community.vision_index --url ${origin} --pace ${pace}${extra} --recovery-code ${code}`;
   }
-  return `python3 -m community.object_index --url ${origin} --pace ${pace}${extra} --recovery-code ${code}`;
+  return `${python} -m community.object_index --url ${origin} --pace ${pace}${extra} --recovery-code ${code}`;
 }
 
 function cliCommand() {
@@ -583,7 +590,7 @@ function updateImportCutoffHelp() {
 function sceneSearchCommand() {
   const origin = window.location.origin;
   const code = lastRecovery || $("recovery-code")?.value.trim() || "YOUR_CODE";
-  const parts = ["python3 -m community.vision_index", "--url", origin, "--search"];
+  const parts = [`${pythonCommand()} -m community.vision_index`, "--url", origin, "--search"];
   const prompt = typedPrompt();
   if (queryMap) parts.push("--query", "vision-query.json");
   if (prompt) parts.push("--prompt", shellQuote(prompt));
@@ -615,7 +622,7 @@ function localSearchCommand() {
   if (selectedLane() === "scene") return sceneSearchCommand();
   const origin = window.location.origin;
   const code = lastRecovery || $("recovery-code")?.value.trim() || "YOUR_CODE";
-  const parts = ["python3 -m community.object_index", "--url", origin, "--search"];
+  const parts = [`${pythonCommand()} -m community.object_index`, "--url", origin, "--search"];
   const prompt = typedPrompt();
   parts.push("--prompt", shellQuote(prompt || "a street view panorama"));
   parts.push("--confidence", document.querySelector('input[name="object-confidence"]:checked')?.value || "balanced");

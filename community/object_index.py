@@ -41,9 +41,12 @@ from .pano import CLI_LEASE_CAP
 from .vision_index import (
     VisionIndexError,
     assert_not_live_vision_path,
+    community_support_root,
     keep_lease_alive,
     location_tsv_line,
+    program_name,
     run_binary,
+    vision_support_root,
 )
 
 
@@ -102,7 +105,14 @@ PACE_NICE = {"slow": 19, "medium": 8, "max": 0}
 
 
 def installed_object_binary() -> Path:
-    return Path.home() / "Library/Application Support/VISION/object-runtime/vision-object"
+    if sys.platform == "win32":
+        return vision_support_root() / "bin" / program_name("vision-object")
+    return vision_support_root() / "object-runtime" / program_name("vision-object")
+
+
+def object_uses_cpu(platform_name: str | None = None) -> bool:
+    """Mac builds include CoreML. Windows and Linux builds run the same models on CPU."""
+    return (sys.platform if platform_name is None else platform_name) != "darwin"
 
 
 def file_sha256(path: Path) -> str:
@@ -120,7 +130,8 @@ def running_indexer_executable(lines) -> Path | None:
         if "index-segment" not in line or "vision-object" not in line:
             continue
         for part in line.split():
-            if not part.endswith("/vision-object"):
+            name = Path(part).name.lower()
+            if name not in ("vision-object", "vision-object.exe"):
                 continue
             if "vision-community" in part:
                 continue
@@ -131,12 +142,15 @@ def running_indexer_executable(lines) -> Path | None:
 def process_commands() -> list[str]:
     import subprocess
 
-    completed = subprocess.run(
-        ["ps", "-axww", "-o", "command="],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    try:
+        completed = subprocess.run(
+            ["ps", "-axww", "-o", "command="],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError:
+        return []
     return completed.stdout.splitlines()
 
 
@@ -144,7 +158,7 @@ def copy_object_binary(source: Path) -> Path:
     """Copy a running indexer out of its live folder so Community can execute it."""
     source = Path(source)
     digest = file_sha256(source)
-    destination_dir = Path.home() / "Library/Application Support/vision-community/bin"
+    destination_dir = community_support_root() / "bin"
     destination = destination_dir / f"vision-object-{digest[:16]}"
     if destination.is_file() and file_sha256(destination) == digest:
         return destination
@@ -181,14 +195,14 @@ def default_model_dir() -> Path:
     override = os.environ.get("VISION_OBJECT_MODEL_DIR")
     if override:
         return Path(override)
-    return Path.home() / "Library/Application Support/VISION/models/object-hybrid-v1"
+    return vision_support_root() / "models/object-hybrid-v1"
 
 
 def default_work_dir() -> Path:
     override = os.environ.get("VISION_COMMUNITY_OBJECT_WORK")
     if override:
         return Path(override)
-    return Path.home() / "Library/Application Support/vision-community/object-index"
+    return community_support_root() / "object-index"
 
 
 def class_file_name(class_id: int, name: str) -> str:
@@ -252,7 +266,7 @@ def index_segment_arguments(
     model_cache: Path,
 ) -> list[str]:
     model_dir = Path(model_dir)
-    return [
+    arguments = [
         "index-segment",
         "--model", str(model_dir / "rfdetr-medium-576-b4.onnx"),
         "--model-manifest", str(model_dir / "object-model.json"),
@@ -266,6 +280,9 @@ def index_segment_arguments(
         "--checkpoint-every", str(CHECKPOINT_EVERY),
         "--model-cache", str(model_cache),
     ]
+    if object_uses_cpu():
+        arguments.append("--cpu")
+    return arguments
 
 
 def verify_arguments(
@@ -927,7 +944,7 @@ def default_shared_dir() -> Path:
     override = os.environ.get("VISION_COMMUNITY_SHARED_INDEX")
     if override:
         return Path(override)
-    return Path.home() / "Library/Application Support/vision-community/shared-index/objects"
+    return community_support_root() / "shared-index/objects"
 
 
 def _plural(name: str) -> str:
@@ -1243,14 +1260,14 @@ def import_published_objects(session: CommunityClient, search_id: str, destinati
 
 
 def default_object_registry() -> Path:
-    return Path.home() / "Library/Application Support/VISION/object-indexes/current.json"
+    return vision_support_root() / "object-indexes/current.json"
 
 
 def default_app_object_dir() -> Path:
     override = os.environ.get("VISION_COMMUNITY_APP_OBJECTS")
     if override:
         return Path(override)
-    return Path.home() / "Library/Application Support/vision-community/vision-app-objects"
+    return community_support_root() / "vision-app-objects"
 
 
 def community_global_start(source_id: str, count: int) -> int:
