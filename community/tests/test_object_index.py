@@ -294,3 +294,250 @@ class ObjectIndexTest(unittest.TestCase):
         self.assertIn("object_index_required", worker)
         self.assertIn("validateObjectIndex", worker)
         self.assertIn("skip=skip", (ROOT / "community/object_index.py").read_text(encoding="utf-8"))
+        self.assertIn('"--search"', app)
+        self.assertIn("--confidence", app)
+        self.assertIn("--import-cutoff", app)
+        self.assertIn("--reject-road-names", app)
+        self.assertIn("/api/object-indexes", worker)
+        self.assertIn("objectIndexes", worker)
+
+    def test_object_prompt_routes_like_vision(self):
+        from community.object_index import query_plan
+
+        car = query_plan("car")
+        self.assertEqual(car["route"], "common")
+        self.assertEqual(car["classIds"], [3])
+        nest = query_plan("bird nest")
+        self.assertEqual(nest["route"], "hot")
+        self.assertEqual(nest["hotConceptId"], 0)
+        clock = query_plan("clock")
+        self.assertEqual(clock["route"], "hot")
+        self.assertEqual(clock["hotConceptId"], 1)
+        red = query_plan("red airplane")
+        self.assertEqual(red["route"], "semantic")
+        self.assertEqual(red["semanticText"], "red airplane")
+
+    def test_object_search_uses_the_vision_binary(self):
+        from community.object_index import discover_object_sources, search_object_indexes
+
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            index = root / "lease"
+            index.mkdir()
+            (index / "locations.tsv").write_text("header\n", encoding="utf-8")
+            (index / "manifest.json").write_text(json.dumps({
+                "completed": True,
+                "sourceId": "abc",
+                "globalStart": 0,
+                "indexedLocations": 1,
+            }), encoding="utf-8")
+            sources = discover_object_sources(root)
+            self.assertEqual(sources[0]["indexedLocations"], 1)
+
+            def runner(argv, _env, _cwd):
+                out = Path(argv[argv.index("--output") + 1])
+                out.write_text(json.dumps({
+                    "totalLocations": 1,
+                    "queries": [{"hits": [{
+                        "similarity": 0.9,
+                        "location": {
+                            "lat": 1, "lng": 2, "heading": 10, "pitch": 0, "zoom": 1,
+                            "panoId": "ClPNSqYQCEm2Mow-ZQD6PA", "country": "Greece",
+                        },
+                        "object": {
+                            "classId": 3, "className": "car", "lane": "common",
+                            "heading": 40, "pitch": 5, "zoom": 2,
+                            "confidence": 0.4, "supportCount": 2, "bboxArea": 0.02,
+                        },
+                    }]}],
+                }), encoding="utf-8")
+                return 0, "", ""
+
+            document = search_object_indexes(
+                sources,
+                "car",
+                output_dir=root / "search",
+                confidence="highRecall",
+                runner=runner,
+                binary=root / "vision-object",
+                model_dir=root / "model",
+                model_cache=root / "cache",
+            )
+            hit = document["customCoordinates"][0]
+            self.assertEqual(hit["heading"], 40)
+            self.assertEqual(hit["pitch"], 5)
+            self.assertEqual(hit["extra"]["visionModel"], "RF-DETR Medium 1.10.0")
+            self.assertEqual(hit["extra"]["visionObjectClass"], "car")
+            self.assertEqual(hit["extra"]["visionObjectLane"], "common")
+            self.assertEqual(hit["extra"]["visionObjectClassId"], 3)
+            self.assertEqual(hit["extra"]["visionObjectSupport"], 2)
+            self.assertEqual(hit["extra"]["visionObjectBoxArea"], 0.02)
+            self.assertEqual(hit["extra"]["visionObjectConfidence"], 0.4)
+            self.assertEqual(hit["extra"]["visionMinScore"], 0.03)
+            self.assertEqual(hit["extra"]["visionQueryMode"], "objects")
+            self.assertEqual(hit["extra"]["tags"], ["Greece"])
+            spec = json.loads((root / "search" / "object-search-input.json").read_text(encoding="utf-8"))
+            self.assertEqual(spec["queries"][0]["minimumConfidence"], 0.03)
+            self.assertEqual(spec["queries"][0]["route"], "common")
+            self.assertEqual(spec["queries"][0]["rejectRoadNames"], False)
+            self.assertNotIn("minimumGlobalLocation", spec["queries"][0])
+            self.assertEqual(spec["cpu"], False)
+            self.assertTrue(str(spec["modelCache"]).endswith("cache"))
+
+    def test_paid_search_downloads_a_finished_object_index(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            service = CommunityService(root / "db.sqlite", artifacts=root / "artifacts", search_cost=4, operational=True)
+            account = service.create_account()["accountId"]
+            lease = "ab" * 16
+            stored = root / "artifacts" / "object-index-v4" / lease
+            stored.mkdir(parents=True)
+            (stored / "manifest.json").write_bytes(b'{"completed":true}')
+            (stored / "locations.tsv").write_bytes(b"header\n")
+            with sqlite3.connect(service.database) as connection:
+                connection.execute("UPDATE accounts SET units=4 WHERE id=?", (account,))
+            paid = service.search(
+                account,
+                None,
+                "object-search-1",
+                lane="object",
+                prompt="car",
+                execute="local",
+            )
+            catalog = service.list_object_indexes(account, paid["searchId"])
+            self.assertEqual(catalog["indexes"][0]["prefix"], f"object-index-v4/{lease}/")
+            body = service.object_index_bytes(account, paid["searchId"], f"object-index-v4/{lease}/manifest.json")
+            self.assertEqual(body, b'{"completed":true}')
+            with self.assertRaisesRegex(ServiceError, "unknown_search"):
+                service.list_object_indexes(account, "missing-search")
+            self.assertGreaterEqual(service.status()["objectIndexes"], 0)
+
+    def test_object_hits_keep_score_then_location_order(self):
+        from community.object_index import map_from_object_search
+
+        document = map_from_object_search(
+            {
+                "totalLocations": 2,
+                "queries": [{"name": "cars", "hits": [
+                    {
+                        "similarity": 0.5,
+                        "locationIndex": 2,
+                        "location": {"lat": 1, "lng": 2, "panoId": "aaa", "country": "Greece"},
+                        "object": {
+                            "classId": 3, "className": "car", "lane": "common",
+                            "confidence": 0.2, "supportCount": 1, "bboxArea": 0.01,
+                            "heading": 1, "pitch": 0, "zoom": 1,
+                        },
+                    },
+                    {
+                        "similarity": 0.5,
+                        "locationIndex": 1,
+                        "location": {"lat": 3, "lng": 4, "panoId": "zzz", "country": "Italy"},
+                        "object": {
+                            "className": "clock", "lane": "hot",
+                            "confidence": 0.3, "supportCount": 4, "bboxArea": 0.02,
+                            "heading": 2, "pitch": 0, "zoom": 1,
+                        },
+                    },
+                ]}],
+            },
+            prompt="car",
+            output_name="",
+            result_count=200,
+            max_per_country=25,
+            min_score=0.08,
+        )
+        rows = document["customCoordinates"]
+        self.assertEqual([row["panoId"] for row in rows], ["zzz", "aaa"])
+        self.assertEqual(rows[0]["extra"]["visionModel"], "YOLOE-26L 8.4.143")
+        self.assertIsNone(rows[0]["extra"]["visionObjectClassId"])
+        self.assertEqual(rows[1]["extra"]["visionModel"], "RF-DETR Medium 1.10.0")
+        self.assertEqual(rows[0]["extra"]["visionRank"], 1)
+        self.assertEqual(rows[1]["extra"]["visionRank"], 2)
+
+    def test_running_indexer_binary_is_the_one_already_indexing(self):
+        from community.object_index import running_indexer_executable
+
+        lines = [
+            "/tmp/vision-community/bin/vision-object index-segment --output-dir /tmp/out",
+            "/opt/VISION/object-runtime-legacy-mixed-20260914/vision-object index-segment --duty 25",
+        ]
+        found = running_indexer_executable(lines)
+        self.assertEqual(found.name, "vision-object")
+        self.assertIn("object-runtime-legacy-mixed-20260914", str(found))
+
+    def test_local_app_catalog_keeps_official_sources_and_restamps_ids(self):
+        from community.object_index import (
+            community_global_start,
+            global_id_record,
+            publish_local_object_indexes,
+        )
+
+        source_id = "community-" + ("ab" * 16)
+        start = community_global_start(source_id, 1)
+        self.assertEqual(json.loads(json.dumps(start)), start)
+        self.assertLess(start, 2**53)
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            index = root / "proof" / "index"
+            index.mkdir(parents=True)
+            (root / "proof" / "locations.tsv").write_text(
+                "map\t1\t39.4\t20.8\t257\t0\t0\tpano\tGreece\tgen4\tno road name\t0\n",
+                encoding="utf-8",
+            )
+            (index / "global-location-ids.bin").write_bytes(global_id_record(0))
+            (index / "manifest.json").write_text(json.dumps({
+                "completed": True,
+                "version": 4,
+                "sourceId": source_id,
+                "globalStart": 0,
+                "indexedLocations": 1,
+                "modelSha256": "ab" * 32,
+                "runtimeIdentity": "cd" * 32,
+                "globalIds": {"file": "global-location-ids.bin", "records": 1, "bytes": 12, "recordBytes": 12, "sha256": "11" * 32},
+            }), encoding="utf-8")
+            registry = root / "current.json"
+            registry.write_text(json.dumps({
+                "version": 2,
+                "feature": "vision-object-index",
+                "runtimeIdentity": "cd" * 32,
+                "sources": [{
+                    "id": "official-segment",
+                    "label": "Official",
+                    "globalStart": 17300000,
+                    "indexedLocations": 10,
+                }],
+            }), encoding="utf-8")
+            registered = publish_local_object_indexes(
+                [root / "proof"],
+                registry_path=registry,
+                destination=root / "staged",
+            )
+            self.assertEqual(registered, 1)
+            catalog = json.loads(registry.read_text(encoding="utf-8"))
+            self.assertEqual(catalog["runtimeIdentity"], "cd" * 32)
+            self.assertEqual([source["id"] for source in catalog["sources"]], ["official-segment", source_id])
+            community = catalog["sources"][1]
+            self.assertEqual(community["globalStart"], start)
+            self.assertEqual(community["capabilities"], [
+                "common", "hot", "semantic", "exactAim", "fullSphere", "explicitGlobalIds",
+            ])
+            staged_tsv = Path(community["sourceTsv"]).read_text(encoding="utf-8")
+            self.assertTrue(staged_tsv.rstrip("\n").endswith("\t" + str(start)))
+            overlap = root / "overlap.json"
+            overlap.write_text(json.dumps({
+                "version": 2,
+                "feature": "vision-object-index",
+                "sources": [{
+                    "id": "official-high",
+                    "label": "Official",
+                    "globalStart": start,
+                    "indexedLocations": 1,
+                }],
+            }), encoding="utf-8")
+            self.assertEqual(publish_local_object_indexes(
+                [root / "proof"],
+                registry_path=overlap,
+                destination=root / "staged-again",
+            ), 0)
+            self.assertEqual(json.loads(overlap.read_text(encoding="utf-8"))["sources"][0]["id"], "official-high")

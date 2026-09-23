@@ -5,9 +5,11 @@ The browser cannot run that model. This command shells out to
 runtime (RF-DETR Medium, YOLOE-26L, OWLv2 PQ128), and the same version-4
 six-face index.
 
-It will not write the live VISION object index, its scheduled TSV, or the
-CoreML cache that index is using. Pace only changes process priority. The
-duty cycle stays at 25 percent, which is the VISION object indexer's duty.
+It will not write the live VISION segment files, scheduled TSV, checkpoint,
+or the CoreML cache that index is using. Finished community indexes are
+added to the local app's object catalog beside the official sources. Pace
+only changes process priority. The duty cycle stays at 25 percent, which is
+the VISION object indexer's duty.
 """
 
 from __future__ import annotations
@@ -18,6 +20,8 @@ import hashlib
 import json
 import math
 import os
+import secrets
+import shutil
 import sys
 import threading
 import time
@@ -56,6 +60,16 @@ COMMON_MODEL_SHA256 = "00cc60ba7e18ea6b5afeca7d8d3d4a07be0d1e9969dbd1799719a4f80
 RUNTIME_IDENTITY = "58ee8c307523d3ac06da85d18fd3ad303d6a0442d4edc071918be5e2890b9353"
 CODEBOOK_SHA256 = "f28e0e9aeb8bfcd547cad3d2a3d9aa546de74b647cd1cc058a5911bd7dafeb25"
 GLOBAL_START = 0
+COMMUNITY_GLOBAL_BASE = 2**32
+COMMUNITY_GLOBAL_STRIDE = 2**16
+OBJECT_CAPABILITIES = [
+    "common",
+    "hot",
+    "semantic",
+    "exactAim",
+    "fullSphere",
+    "explicitGlobalIds",
+]
 DUTY_CYCLE_PERCENT = 25
 CHECKPOINT_EVERY = 10
 RECORD_BYTES = 32
@@ -87,11 +101,80 @@ HOT_FLOORS = (0.01, 0.03)
 PACE_NICE = {"slow": 19, "medium": 8, "max": 0}
 
 
+def installed_object_binary() -> Path:
+    return Path.home() / "Library/Application Support/VISION/object-runtime/vision-object"
+
+
+def file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with Path(path).open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def running_indexer_executable(lines) -> Path | None:
+    """Return the vision-object that is already indexing on this computer."""
+    found = None
+    for line in lines:
+        if "index-segment" not in line or "vision-object" not in line:
+            continue
+        for part in line.split():
+            if not part.endswith("/vision-object"):
+                continue
+            if "vision-community" in part:
+                continue
+            found = Path(part)
+    return found
+
+
+def process_commands() -> list[str]:
+    import subprocess
+
+    completed = subprocess.run(
+        ["ps", "-axww", "-o", "command="],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return completed.stdout.splitlines()
+
+
+def copy_object_binary(source: Path) -> Path:
+    """Copy a running indexer out of its live folder so Community can execute it."""
+    source = Path(source)
+    digest = file_sha256(source)
+    destination_dir = Path.home() / "Library/Application Support/vision-community/bin"
+    destination = destination_dir / f"vision-object-{digest[:16]}"
+    if destination.is_file() and file_sha256(destination) == digest:
+        return destination
+    destination_dir.mkdir(parents=True, exist_ok=True)
+    temporary = destination.with_suffix(".tmp")
+    shutil.copy2(source, temporary)
+    temporary.chmod(0o755)
+    os.replace(temporary, destination)
+    return destination
+
+
 def default_binary() -> Path:
     override = os.environ.get("VISION_OBJECT_BINARY")
     if override:
         return Path(override)
-    return Path.home() / "Library/Application Support/VISION/object-runtime/vision-object"
+    installed = installed_object_binary()
+    running = running_indexer_executable(process_commands())
+    if running is None or not running.is_file():
+        return installed
+    try:
+        if installed.is_file() and running.resolve() == installed.resolve():
+            return installed
+    except OSError:
+        pass
+    if installed.is_file() and file_sha256(running) == file_sha256(installed):
+        return installed
+    try:
+        return copy_object_binary(running)
+    except OSError:
+        return installed
 
 
 def default_model_dir() -> Path:
@@ -806,7 +889,663 @@ def index_from_queue(
     if created is not None:
         report["accountId"] = created.get("accountId")
         report["recoveryCode"] = created.get("recoveryCode")
+    if runner is None and processed:
+        _publish_finished_object_indexes([work_dir, default_shared_dir()])
     return report
+
+
+CONFIDENCE_FLOORS = {"highRecall": 0.03, "balanced": 0.08, "precise": 0.20}
+CLASS_ALIASES = {
+    1: ("people", "human", "humans"),
+    2: ("bike", "bikes", "cycle", "cycles"),
+    3: ("automobile", "automobiles", "vehicle", "vehicles"),
+    4: ("motorbike", "motorbikes"),
+    5: ("plane", "planes", "aircraft", "aeroplane", "aeroplanes", "jet", "jets"),
+    16: ("birds",),
+    17: ("cats", "kitten", "kittens"),
+    18: ("dogs", "puppy", "puppies"),
+    37: ("ball", "balls"),
+    63: ("sofa", "sofas"),
+    64: ("plant", "plants", "houseplant", "houseplants"),
+    72: ("television", "televisions"),
+    77: ("phone", "phones", "smartphone", "smartphones", "mobile phone"),
+    82: ("fridge", "fridges"),
+    89: ("hair dryer", "hair dryers"),
+}
+HOT_ALIASES = (
+    ("bird nest", "bird nests", "nest", "nests"),
+    ("clock", "clocks"),
+)
+QUERY_GLUE = frozenset({
+    "a", "an", "and", "anywhere", "find", "me", "object", "objects", "or",
+    "pano", "panorama", "show", "the", "things",
+})
+PLURAL_EXCEPTIONS = {"person": "people", "mouse": "mice", "sheep": "sheep", "knife": "knives"}
+
+
+def default_shared_dir() -> Path:
+    override = os.environ.get("VISION_COMMUNITY_SHARED_INDEX")
+    if override:
+        return Path(override)
+    return Path.home() / "Library/Application Support/vision-community/shared-index/objects"
+
+
+def _plural(name: str) -> str:
+    if name in PLURAL_EXCEPTIONS:
+        return PLURAL_EXCEPTIONS[name]
+    if name.endswith(("ch", "sh", "s", "x", "z")):
+        return name + "es"
+    if name.endswith("y") and len(name) > 1 and name[-2] not in "aeiou":
+        return name[:-1] + "ies"
+    return name + "s"
+
+
+def _class_phrases(class_id: int, name: str) -> tuple[str, ...]:
+    return (name, _plural(name), *CLASS_ALIASES.get(class_id, ()))
+
+
+def _normalized_prompt(prompt: str) -> str:
+    flattened = "".join(character if character.isalnum() else " " for character in prompt.lower())
+    return " ".join(flattened.split())
+
+
+def query_plan(prompt: str) -> dict:
+    """Route an object prompt the same way VISION does."""
+    text = prompt.strip()
+    normalized = _normalized_prompt(text)
+    for concept_id, phrases in enumerate(HOT_ALIASES):
+        if normalized in phrases:
+            return {"route": "hot", "classIds": [], "hotConceptId": concept_id, "semanticText": None}
+    remaining = f" {normalized} "
+    phrases = []
+    for class_id, name in OBJECT_CLASSES:
+        for phrase in _class_phrases(class_id, name):
+            phrases.append((phrase, class_id))
+    phrases.sort(key=lambda item: (-len(item[0].split()), item[0]))
+    found = set()
+    for phrase, class_id in phrases:
+        needle = f" {phrase} "
+        if needle in remaining:
+            found.add(class_id)
+            remaining = remaining.replace(needle, " ")
+    leftover = set(remaining.split())
+    if found and leftover <= QUERY_GLUE:
+        return {
+            "route": "common",
+            "classIds": [class_id for class_id, _name in OBJECT_CLASSES if class_id in found],
+            "hotConceptId": None,
+            "semanticText": None,
+        }
+    return {"route": "semantic", "classIds": [], "hotConceptId": None, "semanticText": text}
+
+
+def discover_object_sources(root: Path) -> list[dict]:
+    root = Path(root)
+    manifests = []
+    direct = root / "manifest.json"
+    if direct.is_file():
+        manifests.append(direct)
+    if root.is_dir():
+        for child in sorted(root.iterdir()):
+            for candidate in (child / "manifest.json", child / "index" / "manifest.json"):
+                if candidate.is_file():
+                    manifests.append(candidate)
+    sources = []
+    seen = set()
+    for manifest_path in manifests:
+        if manifest_path in seen:
+            continue
+        seen.add(manifest_path)
+        manifest = _read_json(manifest_path)
+        if not manifest or manifest.get("completed") is not True:
+            continue
+        index_dir = manifest_path.parent
+        source_tsv = index_dir / "locations.tsv"
+        if not source_tsv.is_file():
+            parent_tsv = index_dir.parent / "locations.tsv"
+            source_tsv = parent_tsv if parent_tsv.is_file() else source_tsv
+        if not source_tsv.is_file():
+            continue
+        for path in (manifest_path, index_dir, source_tsv):
+            assert_not_live_vision_path(path)
+        sources.append({
+            "id": str(manifest.get("sourceId") or index_dir.name),
+            "sourceTsv": str(source_tsv),
+            "indexDir": str(index_dir),
+            "manifestPath": str(manifest_path),
+            "globalStart": int(manifest.get("globalStart") or 0),
+            "indexedLocations": int(manifest.get("indexedLocations") or 0),
+        })
+    return [source for source in sources if source["indexedLocations"] > 0]
+
+
+def object_search_input(
+    prompt: str,
+    sources: list[dict],
+    *,
+    confidence: str = "balanced",
+    result_count: int = 200,
+    max_per_country: int = 25,
+    country_mode: str = "all",
+    countries: list[str] | None = None,
+    camera_generations: list[str] | None = None,
+    reject_road_names: bool = False,
+    minimum_global_location: int | None = None,
+    output_name: str = "",
+    model_dir: Path,
+    model_cache: Path,
+) -> dict:
+    if confidence not in CONFIDENCE_FLOORS:
+        raise VisionIndexError("invalid_confidence")
+    plan = query_plan(prompt)
+    if not prompt.strip():
+        raise VisionIndexError("invalid_query")
+    names = [item for item in (countries or []) if item]
+    requested = max(1, int(result_count))
+    per_country = max(1, int(max_per_country))
+    candidate_count = requested if per_country >= requested else min(10000, requested * 4)
+    query = {
+        "name": output_name.strip() or "VISION Community",
+        "query": prompt.strip(),
+        "classIds": plan["classIds"],
+        "route": plan["route"],
+        "hotConceptId": plan["hotConceptId"],
+        "semanticText": plan["semanticText"],
+        "minimumConfidence": CONFIDENCE_FLOORS[confidence],
+        "resultCount": candidate_count,
+        "cameraGenerations": list(camera_generations or []),
+        "includeCountries": names if country_mode == "include" else [],
+        "excludeCountries": names if country_mode == "exclude" else [],
+        "rejectRoadNames": bool(reject_road_names),
+    }
+    if minimum_global_location is not None:
+        query["minimumGlobalLocation"] = int(minimum_global_location)
+    return {
+        "contractVersion": 2,
+        "runId": "vision-community-object-search",
+        "queries": [query],
+        "sources": sources,
+        "resultPruneMeters": 100,
+        "runtimeManifest": str(Path(model_dir) / "hybrid-object-runtime.json"),
+        "modelCache": str(model_cache),
+        "cpu": False,
+    }
+
+
+def map_from_object_search(
+    payload: dict,
+    *,
+    prompt: str,
+    output_name: str,
+    result_count: int,
+    max_per_country: int,
+    min_score: float = 0.08,
+) -> dict:
+    from .features import wrap_heading
+    from .mma import build_map, object_model_name, search_location_extra
+    from .rank import canonicalize_country, cap_by_country, clamp_max_per_country, clamp_result_count
+
+    queries = payload.get("queries") if isinstance(payload, dict) else None
+    query = queries[0] if isinstance(queries, list) and queries and isinstance(queries[0], dict) else {}
+    hits = query.get("hits") if isinstance(query.get("hits"), list) else []
+    processed = int(payload.get("totalLocations") or 0)
+    title = output_name.strip() or (query.get("name") if isinstance(query.get("name"), str) else "") or prompt.strip() or "VISION Community"
+    records = []
+    for hit in hits:
+        if not isinstance(hit, dict):
+            continue
+        location = hit.get("location") if isinstance(hit.get("location"), dict) else {}
+        found = hit.get("object") if isinstance(hit.get("object"), dict) else {}
+        pano = location.get("panoId") or location.get("pano_id") or ""
+        if not pano:
+            continue
+        score = float(hit.get("similarity") or 0)
+        source_index = hit.get("locationIndex")
+        source_index = int(source_index) if isinstance(source_index, int) else 0
+        country = canonicalize_country(str(location.get("country") or ""))
+        lane = found.get("lane") if isinstance(found.get("lane"), str) else None
+        class_id = found.get("classId")
+        records.append({
+            "score": score,
+            "source_index": source_index,
+            "country": country,
+            "row": {
+                "lat": float(location.get("lat") or 0),
+                "lng": float(location.get("lng") or 0),
+                "heading": wrap_heading(float(found.get("heading") if found.get("heading") is not None else location.get("heading") or 0)),
+                "pitch": float(found.get("pitch") if found.get("pitch") is not None else location.get("pitch") or 0),
+                "zoom": float(found.get("zoom") if found.get("zoom") is not None else location.get("zoom") or 0),
+                "panoId": str(pano),
+                "extra": search_location_extra(
+                    country=country,
+                    camera_generation=str(location.get("cameraGeneration") or location.get("camera_generation") or ""),
+                    score=score,
+                    min_score=min_score,
+                    rank=1,
+                    query_name=title,
+                    mode="objects",
+                    heading_offset=0,
+                    source_index=source_index,
+                    processed_locations=processed,
+                    model=object_model_name(lane),
+                    object_class=found.get("className") if isinstance(found.get("className"), str) else None,
+                    object_class_id=int(class_id) if isinstance(class_id, int) else None,
+                    object_lane=lane,
+                    object_confidence=float(found["confidence"]) if found.get("confidence") is not None else None,
+                    object_support=int(found["supportCount"]) if found.get("supportCount") is not None else None,
+                    object_box_area=float(found["bboxArea"]) if found.get("bboxArea") is not None else None,
+                ),
+            },
+        })
+    records.sort(key=lambda item: (-item["score"], item["source_index"]))
+    limited = cap_by_country(
+        [item["row"] | {"country": item["country"], "score": item["score"]} for item in records],
+        clamp_result_count(result_count),
+        clamp_max_per_country(max_per_country),
+    )
+    coordinates = []
+    for rank, item in enumerate(limited, start=1):
+        row = {key: value for key, value in item.items() if key not in {"country", "score"}}
+        row.setdefault("extra", {})["visionRank"] = rank
+        coordinates.append(row)
+    return build_map(title, coordinates)
+
+
+def search_object_indexes(
+    sources: list[dict],
+    prompt: str,
+    *,
+    output_dir: Path,
+    confidence: str = "balanced",
+    result_count: int = 200,
+    max_per_country: int = 25,
+    country_mode: str = "all",
+    countries: list[str] | None = None,
+    camera_generations: list[str] | None = None,
+    reject_road_names: bool = False,
+    minimum_global_location: int | None = None,
+    output_name: str = "",
+    binary: Path | None = None,
+    model_dir: Path | None = None,
+    model_cache: Path | None = None,
+    runner=None,
+) -> dict:
+    if not sources:
+        raise VisionIndexError("index_missing")
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    program = Path(binary) if binary is not None else default_binary()
+    model = Path(model_dir) if model_dir is not None else default_model_dir()
+    cache = Path(model_cache) if model_cache is not None else output_dir / "coreml-cache"
+    assert_not_live_vision_path(cache)
+    cache.mkdir(parents=True, exist_ok=True)
+    spec = output_dir / "object-search-input.json"
+    result_path = output_dir / "object-search-result.json"
+    payload = object_search_input(
+        prompt,
+        sources,
+        confidence=confidence,
+        result_count=result_count,
+        max_per_country=max_per_country,
+        country_mode=country_mode,
+        countries=countries,
+        camera_generations=camera_generations,
+        reject_road_names=reject_road_names,
+        minimum_global_location=minimum_global_location,
+        output_name=output_name,
+        model_dir=model,
+        model_cache=cache,
+    )
+    spec.write_text(json.dumps(payload), encoding="utf-8")
+    stdout, _stderr = run_binary(
+        program,
+        ["search", "--input", str(spec), "--output", str(result_path)],
+        env=os.environ.copy(),
+        cwd=output_dir,
+        runner=runner or _default_runner,
+        nice_level=19,
+        use_nice=runner is None,
+    )
+    if result_path.is_file():
+        report = json.loads(result_path.read_text(encoding="utf-8"))
+    else:
+        report = json.loads(stdout[stdout.find("{") : stdout.rfind("}") + 1] or "{}")
+    return map_from_object_search(
+        report,
+        prompt=prompt,
+        output_name=output_name,
+        result_count=result_count,
+        max_per_country=max_per_country,
+        min_score=CONFIDENCE_FLOORS[confidence],
+    )
+
+
+def import_published_objects(session: CommunityClient, search_id: str, destination: Path) -> int:
+    """Download finished object indexes into a folder the object search reads."""
+    destination = Path(destination)
+    assert_not_live_vision_path(destination)
+    catalog = session.object_index_catalog(search_id)
+    imported = 0
+    for entry in catalog.get("indexes") or []:
+        prefix = str(entry.get("prefix") or "")
+        lease_id = prefix.strip("/").split("/")[-1]
+        target = destination / lease_id
+        target.mkdir(parents=True, exist_ok=True)
+        for item in entry.get("files") or []:
+            key = str(item.get("key") or "")
+            name = Path(key).name
+            if not name or name.startswith("."):
+                continue
+            target.joinpath(name).write_bytes(session.object_index_file(search_id, key))
+        if (target / "manifest.json").is_file() and (target / "locations.tsv").is_file():
+            imported += 1
+    return imported
+
+
+def default_object_registry() -> Path:
+    return Path.home() / "Library/Application Support/VISION/object-indexes/current.json"
+
+
+def default_app_object_dir() -> Path:
+    override = os.environ.get("VISION_COMMUNITY_APP_OBJECTS")
+    if override:
+        return Path(override)
+    return Path.home() / "Library/Application Support/vision-community/vision-app-objects"
+
+
+def community_global_start(source_id: str, count: int) -> int:
+    """Place a community index above the official corpus without overlapping another lease."""
+    lease = source_id.removeprefix("community-")
+    if lease == source_id or len(lease) < 9 or any(ch not in "0123456789abcdef" for ch in lease):
+        raise VisionIndexError("invalid_lease")
+    if count < 1 or count > COMMUNITY_GLOBAL_STRIDE:
+        raise VisionIndexError("invalid_lease")
+    start = COMMUNITY_GLOBAL_BASE + int(lease[:9], 16) * COMMUNITY_GLOBAL_STRIDE
+    if start + count >= 2**53:
+        raise VisionIndexError("invalid_lease")
+    return start
+
+
+def restamp_global_ids(tsv: str, records: bytes, old_start: int, new_start: int) -> tuple[str, bytes]:
+    if len(records) % 12 != 0:
+        raise VisionIndexError("verification_failed")
+    rewritten = []
+    for offset in range(0, len(records), 12):
+        chunk = records[offset : offset + 12]
+        old = int.from_bytes(chunk[:8], "little")
+        if chunk != global_id_record(old):
+            raise VisionIndexError("verification_failed")
+        rewritten.append(global_id_record(new_start + (old - int(old_start))))
+    lines = []
+    for line in tsv.splitlines():
+        if not line:
+            continue
+        fields = line.split("\t")
+        if len(fields) < 12:
+            raise VisionIndexError("verification_failed")
+        old = int(fields[11])
+        fields[11] = str(new_start + (old - int(old_start)))
+        lines.append("\t".join(fields))
+    if len(lines) != len(records) // 12:
+        raise VisionIndexError("verification_failed")
+    return "\n".join(lines) + "\n", b"".join(rewritten)
+
+
+def _tsv_column_count(path: Path) -> int:
+    with Path(path).open(encoding="utf-8") as handle:
+        line = handle.readline()
+    if not line.strip():
+        return 0
+    return len(line.rstrip("\n").split("\t"))
+
+
+def stage_app_object_index(index_dir: Path, destination_root: Path) -> dict | None:
+    """Copy a finished index and give it a global range the official catalog will not use."""
+    index_dir = Path(index_dir)
+    manifest = _read_json(index_dir / "manifest.json")
+    if not manifest or manifest.get("completed") is not True or int(manifest.get("version") or 0) != 4:
+        return None
+    source_id = str(manifest.get("sourceId") or "")
+    count = int(manifest.get("indexedLocations") or 0)
+    try:
+        new_start = community_global_start(source_id, count)
+    except VisionIndexError:
+        return None
+    source_tsv = index_dir / "locations.tsv"
+    if not source_tsv.is_file():
+        source_tsv = index_dir.parent / "locations.tsv"
+    global_ids = index_dir / "global-location-ids.bin"
+    if not source_tsv.is_file() or not global_ids.is_file():
+        return None
+    for path in (index_dir, source_tsv, destination_root):
+        assert_not_live_vision_path(path)
+    staged = Path(destination_root) / source_id
+    if staged.exists():
+        shutil.rmtree(staged)
+    staged_index = staged / "index"
+    staged_index.mkdir(parents=True)
+    for item in index_dir.iterdir():
+        if item.is_file() and item.name != "locations.tsv":
+            shutil.copy2(item, staged_index / item.name)
+    tsv_text, records = restamp_global_ids(
+        source_tsv.read_text(encoding="utf-8"),
+        global_ids.read_bytes(),
+        int(manifest.get("globalStart") or 0),
+        new_start,
+    )
+    staged_tsv = staged / "locations.tsv"
+    staged_tsv.write_text(tsv_text, encoding="utf-8")
+    (staged_index / "global-location-ids.bin").write_bytes(records)
+    staged_manifest_path = staged_index / "manifest.json"
+    staged_manifest = json.loads(staged_manifest_path.read_text(encoding="utf-8"))
+    tsv_bytes = staged_tsv.read_bytes()
+    staged_tsv_path = str(staged_tsv.resolve())
+    staged_manifest["sourceTsv"] = staged_tsv_path
+    staged_manifest["sourceBytes"] = len(tsv_bytes)
+    staged_manifest["sourceSha256"] = sha256_hex(tsv_bytes)
+    staged_manifest["globalStart"] = new_start
+    staged_manifest["minimumGlobalLocation"] = new_start
+    staged_manifest["maximumGlobalLocation"] = new_start + count - 1
+    global_meta = staged_manifest.get("globalIds")
+    if isinstance(global_meta, dict):
+        global_meta["records"] = count
+        global_meta["bytes"] = len(records)
+        global_meta["sha256"] = sha256_hex(records)
+    staged_manifest_path.write_text(json.dumps(staged_manifest, indent=2) + "\n", encoding="utf-8")
+    columns = _tsv_column_count(staged_tsv)
+    return {
+        "id": source_id,
+        "label": f"Community {source_id.removeprefix('community-')[:8]}",
+        "globalStart": new_start,
+        "indexedLocations": count,
+        "sourceTsv": staged_tsv_path,
+        "indexDir": str(staged_index.resolve()),
+        "manifestPath": str(staged_manifest_path.resolve()),
+        "sourceColumnCount": columns,
+        "cameraMetadataVerified": columns >= 10,
+        "roadNamesKnownAbsent": columns < 11,
+        "indexVersion": 4,
+        "modelIdentity": staged_manifest.get("modelSha256"),
+        "runtimeIdentity": staged_manifest.get("runtimeIdentity"),
+        "capabilities": list(OBJECT_CAPABILITIES),
+    }
+
+
+def _ranges_overlap(left: dict, right: dict) -> bool:
+    left_start = int(left["globalStart"])
+    right_start = int(right["globalStart"])
+    return left_start < right_start + int(right["indexedLocations"]) and right_start < left_start + int(left["indexedLocations"])
+
+
+def publish_object_catalog(entries: list[dict], registry_path: Path) -> int:
+    registry_path = Path(registry_path)
+    if not registry_path.is_file():
+        raise VisionIndexError("vision_registry_missing")
+    original = registry_path.read_text(encoding="utf-8")
+    catalog = json.loads(original)
+    sources = catalog.get("sources")
+    if catalog.get("version") != 2 or catalog.get("feature") != "vision-object-index" or not isinstance(sources, list):
+        raise VisionIndexError("vision_registry_unusable")
+    official = [source for source in sources if not str(source.get("id") or "").startswith("community-")]
+    accepted = []
+    for entry in entries:
+        if any(_ranges_overlap(entry, source) for source in official + accepted):
+            continue
+        accepted.append(entry)
+    combined = sorted(official + accepted, key=lambda source: (int(source["globalStart"]), str(source["id"])))
+    previous_end = 0
+    for source in combined:
+        start = int(source["globalStart"])
+        count = int(source["indexedLocations"])
+        if start < previous_end or count < 1:
+            raise VisionIndexError("vision_registry_unusable")
+        previous_end = start + count
+    catalog["sources"] = combined
+    if registry_path.read_text(encoding="utf-8") != original:
+        raise VisionIndexError("vision_registry_changed")
+    temporary = registry_path.with_name(registry_path.name + ".community-tmp")
+    temporary.write_text(json.dumps(catalog, indent=2) + "\n", encoding="utf-8")
+    os.replace(temporary, registry_path)
+    return len(accepted)
+
+
+def publish_local_object_indexes(
+    roots: list[Path],
+    *,
+    registry_path: Path | None = None,
+    destination: Path | None = None,
+) -> int:
+    registry = Path(registry_path) if registry_path is not None else default_object_registry()
+    folder = Path(destination) if destination is not None else default_app_object_dir()
+    assert_not_live_vision_path(folder)
+    entries = []
+    seen = set()
+    for root in roots:
+        root = Path(root)
+        if not root.exists():
+            continue
+        assert_not_live_vision_path(root)
+        for source in discover_object_sources(root):
+            source_id = source["id"]
+            if source_id in seen:
+                continue
+            seen.add(source_id)
+            entry = stage_app_object_index(Path(source["indexDir"]), folder)
+            if entry is not None:
+                entries.append(entry)
+    if not entries:
+        return 0
+    if registry == default_object_registry():
+        backup = folder.parent / "object-registry-backup.json"
+        if registry.is_file() and not backup.exists():
+            backup.write_bytes(registry.read_bytes())
+    return publish_object_catalog(entries, registry)
+
+
+def _publish_finished_object_indexes(roots: list[Path]) -> None:
+    try:
+        count = publish_local_object_indexes(roots)
+    except VisionIndexError as error:
+        print(f"local VISION app was not updated ({error.code})", file=sys.stderr, flush=True)
+        return
+    if count:
+        print(f"added {count} object index{'es' if count != 1 else ''} to the local VISION app", file=sys.stderr, flush=True)
+
+
+def search_from_account(
+    *,
+    url: str,
+    prompt: str,
+    confidence: str = "balanced",
+    result_count: int = 200,
+    max_per_country: int = 25,
+    country_mode: str = "all",
+    countries: list[str] | None = None,
+    camera_generations: list[str] | None = None,
+    reject_road_names: bool = False,
+    minimum_global_location: int | None = None,
+    output_name: str = "",
+    recovery_code: str | None = None,
+    work_dir: Path,
+    shared_dir: Path,
+    session_path: Path | None = None,
+    binary: Path | None = None,
+    model_dir: Path | None = None,
+    runner=None,
+    client: CommunityClient | None = None,
+) -> dict:
+    work_dir = Path(work_dir)
+    shared_dir = Path(shared_dir)
+    assert_not_live_vision_path(work_dir)
+    assert_not_live_vision_path(shared_dir)
+    session = client or CommunityClient(url)
+    stored = load_session(session_path, url) if session_path is not None else None
+    code = recovery_code or os.environ.get("VISION_COMMUNITY_RECOVERY")
+    if not code and stored:
+        saved = stored.get("recoveryCode")
+        code = saved if isinstance(saved, str) and saved else None
+    if not code:
+        raise VisionIndexError("recovery_code_required")
+    session.recover(str(code))
+    account = session.me()
+    sources = discover_object_sources(work_dir) + discover_object_sources(shared_dir)
+    remote = int(account.get("objectIndexes") or 0)
+    if not sources and remote <= 0:
+        raise VisionIndexError("index_missing")
+    if int(account.get("units") or 0) < int(account.get("searchCost") or 100000):
+        raise VisionIndexError("insufficient_credit")
+    search_dir = work_dir / "search"
+    search_dir.mkdir(parents=True, exist_ok=True)
+    authorized = None
+    if remote:
+        authorized = session.authorize_local_search({
+            "lane": "object",
+            "prompt": prompt,
+            "outputName": output_name,
+            "resultCount": result_count,
+            "maxPerCountry": max_per_country,
+            "countryFilterMode": country_mode,
+            "countries": list(countries or []),
+            "cameraGenerations": list(camera_generations or []),
+            "objectConfidence": confidence,
+            "idempotencyKey": secrets.token_hex(16),
+        })
+        import_published_objects(session, str(authorized.get("searchId") or ""), shared_dir)
+        sources = discover_object_sources(work_dir) + discover_object_sources(shared_dir)
+    document = search_object_indexes(
+        sources,
+        prompt,
+        output_dir=search_dir,
+        confidence=confidence,
+        result_count=result_count,
+        max_per_country=max_per_country,
+        country_mode=country_mode,
+        countries=countries,
+        camera_generations=camera_generations,
+        reject_road_names=reject_road_names,
+        minimum_global_location=minimum_global_location,
+        output_name=output_name,
+        binary=binary,
+        model_dir=model_dir,
+        model_cache=work_dir / "coreml-cache",
+        runner=runner,
+    )
+    if runner is None:
+        _publish_finished_object_indexes([work_dir, shared_dir])
+    if authorized is None:
+        session.authorize_local_search({
+            "lane": "object",
+            "prompt": prompt,
+            "outputName": output_name,
+            "resultCount": result_count,
+            "maxPerCountry": max_per_country,
+            "countryFilterMode": country_mode,
+            "countries": list(countries or []),
+            "cameraGenerations": list(camera_generations or []),
+            "objectConfidence": confidence,
+            "idempotencyKey": secrets.token_hex(16),
+        })
+    return document
 
 
 def main() -> None:
@@ -822,8 +1561,53 @@ def main() -> None:
     parser.add_argument("--binary", type=Path)
     parser.add_argument("--model-dir", type=Path, dest="model_dir")
     parser.add_argument("--work-dir", type=Path, dest="work_dir")
+    parser.add_argument("--search", action="store_true")
+    parser.add_argument("--register-local", action="store_true", help="add finished object indexes to the local VISION app")
+    parser.add_argument("--prompt", default="")
+    parser.add_argument("--confidence", choices=tuple(CONFIDENCE_FLOORS), default="balanced")
+    parser.add_argument("--result-count", type=int, default=200)
+    parser.add_argument("--max-per-country", type=int, default=25)
+    parser.add_argument("--output-name", default="")
+    parser.add_argument("--country-mode", choices=("all", "include", "exclude"), default="all")
+    parser.add_argument("--countries", default="")
+    parser.add_argument("--camera-generations", default="")
+    parser.add_argument("--reject-road-names", action="store_true")
+    parser.add_argument("--import-cutoff", type=int, default=None)
     args = parser.parse_args()
+    work_dir = args.work_dir or default_work_dir()
     try:
+        if args.import_cutoff is not None and args.import_cutoff < 0:
+            raise VisionIndexError("invalid_query")
+        if args.register_local and not args.search:
+            registered = publish_local_object_indexes([work_dir, default_shared_dir()])
+            print(json.dumps({"ok": True, "registered": registered}))
+            return
+        if args.search:
+            from .mma import dump_map
+
+            countries = [part.strip() for part in args.countries.split(",") if part.strip()]
+            cameras = [part.strip() for part in args.camera_generations.split(",") if part.strip()]
+            document = search_from_account(
+                url=args.url,
+                prompt=args.prompt,
+                confidence=args.confidence,
+                result_count=args.result_count,
+                max_per_country=args.max_per_country,
+                country_mode=args.country_mode,
+                countries=countries,
+                camera_generations=cameras,
+                reject_road_names=args.reject_road_names,
+                minimum_global_location=args.import_cutoff,
+                output_name=args.output_name,
+                recovery_code=args.recovery_code,
+                work_dir=work_dir,
+                shared_dir=default_shared_dir(),
+                session_path=args.session_file or default_session_path(),
+                binary=args.binary,
+                model_dir=args.model_dir,
+            )
+            print(dump_map(document))
+            return
         report = index_from_queue(
             url=args.url,
             pace=args.pace,
@@ -837,7 +1621,7 @@ def main() -> None:
             binary=args.binary,
             model_dir=args.model_dir,
         )
-    except VisionIndexError as error:
+    except (VisionIndexError, ContributeError) as error:
         print(error.code, file=sys.stderr)
         raise SystemExit(1) from error
     print(json.dumps({key: value for key, value in report.items() if key != "recoveryCode"}))

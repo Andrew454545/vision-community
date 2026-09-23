@@ -8,6 +8,7 @@ from http.server import ThreadingHTTPServer
 from pathlib import Path
 
 from community.four_view import BYTES_PER_LOCATION, VISION_FOUR_VIEW_MODEL, valid_four_view_record
+from community.mma import SCENE_MODEL_NAME
 from community.server import handler_for
 from community.service import CommunityService
 from community.vision_index import (
@@ -258,7 +259,13 @@ class VisionIndexCommandTest(unittest.TestCase):
             self.assertEqual(result["indexes"], 1)
             hit = result["map"]["customCoordinates"][0]
             self.assertEqual(hit["panoId"], "pano")
-            self.assertEqual(hit["extra"]["visionModel"], VISION_FOUR_VIEW_MODEL)
+            self.assertEqual(hit["extra"]["visionModel"], SCENE_MODEL_NAME)
+            self.assertEqual(hit["extra"]["visionMinScore"], 0.01)
+            self.assertEqual(hit["extra"]["visionSourceIndex"], 0)
+            self.assertEqual(hit["extra"]["visionHeadingOffset"], 90)
+            self.assertEqual(hit["extra"]["visionProcessedLocations"], 1)
+            self.assertIsNone(hit["extra"]["visionObjectLane"])
+            self.assertIsNone(hit["extra"]["visionObjectClass"])
             self.assertEqual(hit["extra"]["tags"], ["Italy"])
             self.assertEqual(hit["heading"], 100)
 
@@ -274,11 +281,14 @@ class VisionIndexCommandTest(unittest.TestCase):
         self.assertIn("vision-community-indexing", app)
         self.assertIn("keeps going until you stop it", html)
         self.assertIn("copyComputerSearch", app)
-        self.assertIn("community.local_search", app)
-        self.assertIn("python3 -m community.vision_index", app)
+        self.assertIn("community.object_index", app)
         self.assertIn('"--search"', app)
+        self.assertIn("--confidence", app)
+        self.assertIn("python3 -m community.vision_index", app)
         self.assertIn("--max-per-country", app)
         self.assertIn("--reject-road-names", app)
+        self.assertIn("--import-cutoff", app)
+        self.assertNotIn("Road names are not in the object index yet.", app)
         self.assertIn("map-making.app/keys", html)
 
     def test_four_view_search_keeps_the_chosen_direction_and_countries(self):
@@ -324,6 +334,60 @@ class VisionIndexCommandTest(unittest.TestCase):
             exclude_map={"customCoordinates": [{"lat": 1, "lng": 1, "panoId": "old"}]},
         )
         self.assertEqual([item["panoId"] for item in excluded["customCoordinates"]], ["c"])
+
+    def test_scene_ties_follow_location_index(self):
+        hits = [
+            {"lat": 1, "lng": 1, "panoId": "later", "extra": {"tags": ["Italy"], "visionScore": 0.5, "visionSourceIndex": 4}},
+            {"lat": 2, "lng": 2, "panoId": "earlier", "extra": {"tags": ["France"], "visionScore": 0.5, "visionSourceIndex": 1}},
+        ]
+        ordered = finish_scene_coordinates(hits, result_count=10, max_per_country=25, prompt="barn")
+        self.assertEqual([item["panoId"] for item in ordered["customCoordinates"]], ["earlier", "later"])
+
+    def test_import_cutoff_skips_earlier_scene_indexes(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            searched = []
+
+            def runner(argv, _env, _cwd):
+                if "search-four-view-index" not in argv:
+                    return 1, "", "unexpected"
+                tsv = Path(argv[argv.index("--locations-tsv") + 1])
+                searched.append(tsv.parent.name)
+                output = Path(argv[argv.index("--output") + 1])
+                output.write_text(json.dumps({
+                    "queries": [{"name": "VISION Community", "hits": [{"locationIndex": 0, "similarity": 0.2, "viewOffset": 0}]}],
+                }), encoding="utf-8")
+                return 0, "", ""
+
+            for name, pano in (("a-early", "pano-a"), ("b-later", "pano-b")):
+                run = root / name
+                write_locations_tsv(
+                    [{
+                        "locationId": 1,
+                        "lat": 41.89,
+                        "lng": 12.49,
+                        "heading": 10,
+                        "panoId": pano,
+                        "country": "Italy",
+                        "cameraGeneration": "gen4",
+                    }],
+                    run / "locations.tsv",
+                )
+                index = run / "index"
+                index.mkdir()
+                (index / "manifest.json").write_text("{}", encoding="utf-8")
+            result = search_indexes(
+                root,
+                "a red door",
+                runner=runner,
+                use_nice=False,
+                binary=root / "mma-vision",
+                model_dir=root / "model",
+                import_cutoff=1,
+            )
+            self.assertEqual(searched, ["b-later"])
+            self.assertEqual(result["indexes"], 1)
+            self.assertEqual(result["map"]["customCoordinates"][0]["panoId"], "pano-b")
 
     def test_indexer_resumes_after_a_clean_pause(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -412,3 +476,39 @@ class VisionIndexCommandTest(unittest.TestCase):
             with self.assertRaises(Exception) as caught:
                 service.lease(account["accountId"], "scene", 1, pace="slow", client="cli")
             self.assertEqual(caught.exception.code, "no_available_work")
+
+    def test_paid_scene_records_rebuild_a_searchable_shard(self):
+        from community.vision_index import discover_indexes, import_published_scenes
+
+        lease = "cd" * 16
+        record = sample_record()
+        location = {
+            "locationId": 7,
+            "lat": 41.0,
+            "lng": 12.0,
+            "heading": 15,
+            "pitch": 0,
+            "zoom": 1,
+            "panoId": "ClPNSqYQCEm2Mow-ZQD6PA",
+            "country": "Italy",
+            "cameraGeneration": "gen4",
+        }
+
+        class Session:
+            def scene_index_catalog(self, _search_id):
+                return {"indexes": [{"key": f"four-view-v4/{lease}.i8", "locations": [location]}]}
+
+            def scene_index_file(self, _search_id, _key):
+                return record
+
+        with tempfile.TemporaryDirectory() as folder:
+            destination = Path(folder)
+            imported = import_published_scenes(Session(), "search", destination)
+            self.assertEqual(imported, 1)
+            runs = discover_indexes(destination)
+            self.assertEqual(len(runs), 1)
+            shard = (runs[0] / "index" / "shard-000000.i8").read_bytes()
+            self.assertEqual(shard, record)
+            line = (runs[0] / "locations.tsv").read_text(encoding="utf-8").split("\t")
+            self.assertEqual(line[7], "ClPNSqYQCEm2Mow-ZQD6PA")
+            self.assertEqual(line[8], "Italy")

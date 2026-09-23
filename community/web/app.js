@@ -365,11 +365,8 @@ function updateViewDirection() {
   if ($("detection-block")) $("detection-block").hidden = scene;
   const road = $("reject-road");
   if (road) {
-    road.disabled = !scene;
-    road.closest("label")?.setAttribute(
-      "title",
-      scene ? "" : "Road names are not in the object index yet.",
-    );
+    road.disabled = false;
+    road.closest("label")?.removeAttribute("title");
   }
   if ($("prompt")) {
     $("prompt").placeholder = scene
@@ -565,6 +562,24 @@ function shellQuote(value) {
   return `'${String(value).replaceAll("'", `'"'"'`)}'`;
 }
 
+function selectedImportCutoff() {
+  const value = Number($("import-cutoff")?.value);
+  return Number.isInteger(value) && value > 0 ? value : null;
+}
+
+function appendImportCutoff(parts) {
+  const cutoff = selectedImportCutoff();
+  if (cutoff) parts.push("--import-cutoff", String(cutoff));
+}
+
+function updateImportCutoffHelp() {
+  const help = $("import-cutoff-help");
+  if (!help) return;
+  help.textContent = selectedImportCutoff()
+    ? "Earlier imports are skipped; newly published imports remain included."
+    : "Every indexed import participates in this search.";
+}
+
 function sceneSearchCommand() {
   const origin = window.location.origin;
   const code = lastRecovery || $("recovery-code")?.value.trim() || "YOUR_CODE";
@@ -589,6 +604,7 @@ function sceneSearchCommand() {
     parts.push("--camera-generations", generations.join(","));
   }
   if ($("reject-road")?.checked) parts.push("--reject-road-names");
+  appendImportCutoff(parts);
   const job = currentJob();
   if ($("exclude-previous")?.checked && job?.excludeMap) parts.push("--exclude", "vision-exclude.json");
   parts.push("--recovery-code", code);
@@ -599,16 +615,12 @@ function localSearchCommand() {
   if (selectedLane() === "scene") return sceneSearchCommand();
   const origin = window.location.origin;
   const code = lastRecovery || $("recovery-code")?.value.trim() || "YOUR_CODE";
-  const lane = selectedLane();
-  const parts = ["python3 -m community.local_search", "--url", origin, "--lane", lane];
+  const parts = ["python3 -m community.object_index", "--url", origin, "--search"];
   const prompt = typedPrompt();
-  if (queryMap) parts.push("--query", "vision-query.json");
-  if (prompt) parts.push("--prompt", shellQuote(prompt));
-  if (!prompt && !queryMap) parts.push("--prompt", shellQuote("a street view panorama"));
-  if (queryMap && prompt) parts.push("--description-weight", String(selectedDescriptionWeight()));
+  parts.push("--prompt", shellQuote(prompt || "a street view panorama"));
+  parts.push("--confidence", document.querySelector('input[name="object-confidence"]:checked')?.value || "balanced");
   parts.push("--result-count", String(Number($("result-count")?.value) || 200));
   parts.push("--max-per-country", String(Number($("max-per-country")?.value) || 25));
-  if (lane === "scene") parts.push("--view-direction", $("view-direction")?.value || "bestOfFour");
   const name = $("output-name")?.value.trim();
   if (name) parts.push("--output-name", shellQuote(name));
   const mode = countryMode();
@@ -621,8 +633,8 @@ function localSearchCommand() {
   if (generations.length && generations.length < ALL_GENERATIONS.length) {
     parts.push("--camera-generations", generations.join(","));
   }
-  const job = currentJob();
-  if ($("exclude-previous")?.checked && job?.excludeMap) parts.push("--exclude", "vision-exclude.json");
+  if ($("reject-road")?.checked) parts.push("--reject-road-names");
+  appendImportCutoff(parts);
   parts.push("--recovery-code", code);
   return parts.join(" ");
 }
@@ -651,7 +663,7 @@ async function copyComputerSearch() {
   $("search-status").textContent = copied
     ? (scene
       ? "Copied. Paste it into Terminal. It uses the same four-view search as VISION and writes a map JSON."
-      : "Copied. Paste it into Terminal. It searches the shared index on this computer and writes a map JSON.")
+      : "Copied. Paste it into Terminal. It uses the same object search as VISION and writes a map JSON.")
     : "Select the search command, copy it, and paste it into Terminal.";
 }
 
@@ -921,7 +933,7 @@ async function refresh(options = {}) {
       $("search-status").textContent = need === 0
         ? (selectedLane() === "scene"
           ? "Run Search copies a Terminal command. It uses the same four-view search as VISION."
-          : "Run Search copies a Terminal command. It searches the shared index on this computer.")
+          : "Run Search copies a Terminal command. It uses the same object search as VISION.")
         : `${number(indexed)} indexed locations · ${number(need)} more until you can search.`;
     } else {
       $("search-status").textContent = need === 0
@@ -1063,10 +1075,11 @@ $("clear-countries").addEventListener("click", () => {
   updateReady();
 });
 
-["result-count", "max-per-country", "view-direction", "reject-road", "exclude-previous"].forEach((id) => {
+["result-count", "max-per-country", "view-direction", "reject-road", "exclude-previous", "import-cutoff"].forEach((id) => {
   $(id)?.addEventListener("change", () => {
     saveJobFromForm();
     updateBlendMeta();
+    updateImportCutoffHelp();
     renderJobs();
     updateCliCommand();
   });
@@ -1099,7 +1112,10 @@ $("show-outputs")?.addEventListener("click", () => {
   $("index-sheet")?.showModal();
 });
 document.querySelectorAll('input[name="object-confidence"]').forEach((input) => {
-  input.addEventListener("change", updateBlendMeta);
+  input.addEventListener("change", () => {
+    updateBlendMeta();
+    updateCliCommand();
+  });
 });
 
 $("create-account").addEventListener("click", async () => {
@@ -1451,7 +1467,7 @@ $("run-search").addEventListener("click", async () => {
     updateReady();
     return;
   }
-  if (selectedLane() === "scene" || state?.searchOnSite === false) {
+  if (selectedLane() === "scene" || selectedLane() === "object" || state?.searchOnSite === false) {
     try {
       await copyComputerSearch();
     } finally {

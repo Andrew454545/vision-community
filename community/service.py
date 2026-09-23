@@ -7,6 +7,7 @@ import hashlib
 import hmac
 import json
 import math
+import re
 import secrets
 import sqlite3
 import time
@@ -427,6 +428,16 @@ class CommunityService:
             visual_published = connection.execute(
                 "SELECT COUNT(*) FROM published_index WHERE embedding IS NOT NULL"
             ).fetchone()[0]
+            object_indexes = connection.execute(
+                """SELECT COUNT(DISTINCT i.object_index_key)
+                   FROM published_index i JOIN locations l ON l.id=i.location_id
+                   WHERE l.lane='object' AND i.object_index_key IS NOT NULL"""
+            ).fetchone()[0]
+            scene_indexes = connection.execute(
+                """SELECT COUNT(DISTINCT i.four_view_key)
+                   FROM published_index i JOIN locations l ON l.id=i.location_id
+                   WHERE l.lane='scene' AND i.four_view_key IS NOT NULL"""
+            ).fetchone()[0]
             countries = [] if lite else sorted({
                 canonicalize_country(row[0])
                 for row in connection.execute(
@@ -456,6 +467,8 @@ class CommunityService:
                 "r2": r2_public_status(),
                 "model": MODEL_ID,
                 "visualPublished": visual_published,
+                "objectIndexes": object_indexes,
+                "sceneIndexes": scene_indexes,
                 "publicCorpus": False,
                 "persistImagery": False,
                 "output": "map-making.app JSON",
@@ -491,6 +504,71 @@ class CommunityService:
         ).fetchone()
         if paid is None:
             raise ServiceError("unknown_search", 404)
+
+    def list_object_indexes(self, account_id: str, search_id: str) -> dict:
+        with self._connection() as connection:
+            self._require_paid_search(connection, account_id, search_id)
+        indexes = []
+        root = self.artifacts / "object-index-v4"
+        if root.is_dir():
+            for child in sorted(path for path in root.iterdir() if path.is_dir()):
+                if not re.fullmatch(r"[0-9a-f]{32}", child.name):
+                    continue
+                files = []
+                for path in sorted(item for item in child.iterdir() if item.is_file()):
+                    if path.stat().st_size <= 32 * 1024 * 1024:
+                        files.append({
+                            "key": f"object-index-v4/{child.name}/{path.name}",
+                            "size": path.stat().st_size,
+                        })
+                if files:
+                    indexes.append({"prefix": f"object-index-v4/{child.name}/", "files": files})
+        return {"indexes": indexes}
+
+    def object_index_bytes(self, account_id: str, search_id: str, key: str) -> bytes:
+        with self._connection() as connection:
+            self._require_paid_search(connection, account_id, search_id)
+        if not re.fullmatch(r"object-index-v4/[0-9a-f]{32}/[A-Za-z0-9._-]{1,80}", key or ""):
+            raise ServiceError("invalid_index", 400)
+        path = self.artifacts.joinpath(*str(key).split("/"))
+        if not path.is_file() or not path.resolve().is_relative_to(self.artifacts.resolve()):
+            raise ServiceError("not_found", 404)
+        return path.read_bytes()
+
+    def list_scene_indexes(self, account_id: str, search_id: str) -> dict:
+        with self._connection() as connection:
+            self._require_paid_search(connection, account_id, search_id)
+            rows = connection.execute(
+                """SELECT i.four_view_key, l.id, l.asset_id, l.lat, l.lon, l.heading,
+                          l.pitch, l.zoom, l.country, l.camera_generation
+                   FROM published_index i JOIN locations l ON l.id=i.location_id
+                   WHERE i.four_view_key IS NOT NULL AND l.lane='scene'
+                   ORDER BY i.four_view_key, l.id"""
+            ).fetchall()
+        grouped: dict[str, list] = {}
+        for row in rows:
+            grouped.setdefault(row["four_view_key"], []).append({
+                "locationId": row["id"],
+                "lat": row["lat"] or 0,
+                "lng": row["lon"] or 0,
+                "heading": row["heading"] or 0,
+                "pitch": row["pitch"] or 0,
+                "zoom": row["zoom"] or 0,
+                "panoId": row["asset_id"],
+                "country": row["country"] or "",
+                "cameraGeneration": row["camera_generation"] or "",
+            })
+        return {"indexes": [{"key": key, "locations": locations} for key, locations in grouped.items()]}
+
+    def scene_index_bytes(self, account_id: str, search_id: str, key: str) -> bytes:
+        with self._connection() as connection:
+            self._require_paid_search(connection, account_id, search_id)
+        if not re.fullmatch(r"four-view-v4/[0-9a-f]{32}\.i8", key or ""):
+            raise ServiceError("invalid_index", 400)
+        path = self.artifacts.joinpath(*str(key).split("/"))
+        if not path.is_file() or not path.resolve().is_relative_to(self.artifacts.resolve()):
+            raise ServiceError("not_found", 404)
+        return path.read_bytes()
 
     def published_snapshot(
         self,
