@@ -155,3 +155,9 @@ What still needs a person:
 The hosted site is the shared queue and credit desk. Search at 200 million
 locations runs on volunteers' computers after they unlock it. Search already
 costs 100,000 units with no bypass.
+# Windows calibration volunteers
+
+Helping Andrew test scene-index compatibility on a PC? Start with
+[the guided Windows calibration setup](calibration/START-HERE.md).
+It prepares its own Python/runtime, runs the fixed 1,024-location fixture three
+times, and packages results without a Community account or production submission.

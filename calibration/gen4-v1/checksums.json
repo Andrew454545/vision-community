@@ -1,0 +1,9 @@
+{
+  "canary-112.tsv": "e648c1e84ee6f79cbf04f467243b66293c1e229b7046d9e64d91399e6a62baa5",
+  "fixture-1024.tsv": "106c6bbbceb7b0c76892277c69dd7f1e88c7043584b1ca2313db216107aa5752",
+  "fixture-manifest.json": "31ce6884f56760ad631fd29382e244dcc5bfc9c900054be4aa610ad9761b55b8",
+  "generation-evidence.json": "839465b9ed0ea28988e1a4cdc07a4e4b435594b70f18fc680e92f8f9846cc636",
+  "historical-reference.i8": "d5de8fa26b175d07c96e7b78fccb53a09517d639ade666ef98c084f436a7e01d",
+  "local-vision-observation.json": "e285ad4282d16c756d655a1ec32efe445f9dabe27505930231493de4dcdd655c",
+  "record-hashes.json": "efda1d131dca60867189e99327eda0e70ac2f0c0bfc552ae86207711410cc02c"
+}
