@@ -56,7 +56,9 @@ class CalibrationTest(unittest.TestCase):
             self.assertEqual(runner.verify_output(root)[1]["locations"], 1024)
 
     def test_scene_only_asset_selection(self):
-        manifest = json.loads((runner.REPO / "community/runtime_manifest.json").read_text())
+        manifest_path = runner.REPO / "community/runtime_manifest.json"
+        self.assertEqual(runner.sha(manifest_path), runner.EXPECTED_RUNTIME_SHA256)
+        manifest = json.loads(manifest_path.read_text())
         assets = runner.scene_assets(manifest)
         self.assertEqual(len(assets), 10)
         self.assertFalse(any("object" in a["asset"] for a in assets))

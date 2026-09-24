@@ -19,3 +19,6 @@ jobs:
         if: runner.os == 'Windows'
         shell: powershell
         run: .\calibration\Start-WindowsCalibration.ps1 -AcceptDownloadsAndLiveImagery -BootstrapOnly
+      - name: Actual Windows scene executable and DLL layout check
+        if: runner.os == 'Windows'
+        run: python -B calibration/smoke_windows_runtime.py
