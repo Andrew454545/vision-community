@@ -2,10 +2,13 @@
 param(
     [switch]$AcceptDownloadsAndLiveImagery,
     [switch]$PrepareOnly,
-    [switch]$BootstrapOnly
+    [switch]$BootstrapOnly,
+    [ValidateSet('1', '2', '4', '1,2,4')]
+    [string]$Threads = '1'
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+$threadCounts = @($Threads.Split(',') | ForEach-Object { [int]$_ })
 
 if (-not $AcceptDownloadsAndLiveImagery) {
     throw 'Read calibration/START-HERE.md. Downloads and fixture-only live imagery require -AcceptDownloadsAndLiveImagery.'
@@ -26,7 +29,7 @@ function Write-JsonFile($Path, $Value) {
     [IO.File]::WriteAllText($Path, ($Value | ConvertTo-Json -Depth 12), $utf8)
 }
 Write-Host 'VISION scene calibration: no account or recovery code is needed.'
-Write-Host 'This downloads about 1 GB of runtime/model assets plus live imagery, and performs three full runs.'
+Write-Host "This downloads about 1 GB of runtime/model assets plus live imagery, and performs $($threadCounts.Count * 3) full runs."
 Write-Host "All temporary files and results stay here: $testRoot"
 
 try {
@@ -70,6 +73,8 @@ try {
         exit 0
     }
     $arguments = @('-B', (Join-Path $PSScriptRoot 'run_windows.py'), '--root', $testRoot, '--allow-downloads')
+    $arguments += '--threads'
+    $arguments += @($threadCounts | ForEach-Object { $_.ToString() })
     if ($PrepareOnly) { $arguments += '--prepare-only' }
     else { $arguments += '--allow-live-imagery' }
     & $python @arguments

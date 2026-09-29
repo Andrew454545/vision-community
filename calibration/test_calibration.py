@@ -5,6 +5,7 @@ import shutil
 import struct
 import tempfile
 import unittest
+from unittest.mock import patch
 
 spec = importlib.util.spec_from_file_location("calibration_runner", Path(__file__).with_name("run_windows.py"))
 runner = importlib.util.module_from_spec(spec)
@@ -12,6 +13,84 @@ spec.loader.exec_module(runner)
 
 
 class CalibrationTest(unittest.TestCase):
+    def test_decoded_metrics_respect_direction_signed_values_and_scale(self):
+        def record(values, scale=1):
+            return (struct.pack("<e", scale) + struct.pack("<768b", *(values + [0] * (768 - len(values))))) * 4
+
+        original = record([3, -4])
+        same_direction = runner.decoded_difference(record([3, -4], 2), original)
+        self.assertAlmostEqual(same_direction["cosine_similarity"]["mean"], 1)
+        self.assertAlmostEqual(same_direction["relative_l2_error"]["mean"], 1)
+        self.assertAlmostEqual(same_direction["candidate_to_reference_norm_ratio"]["mean"], 2)
+        self.assertAlmostEqual(same_direction["decoded_coordinate_mae"], 7 / 768)
+        opposite = runner.decoded_difference(record([-3, 4]), original)
+        self.assertAlmostEqual(opposite["cosine_similarity"]["min"], -1)
+        self.assertAlmostEqual(opposite["normalized_l2_distance"]["max"], 2)
+        orthogonal = runner.decoded_difference(record([4, 3]), original)
+        self.assertAlmostEqual(orthogonal["cosine_similarity"]["mean"], 0)
+        equivalent = runner.decoded_difference(record([6, -8], 0.5), original)
+        self.assertEqual(equivalent["decoded_coordinate_rmse"], 0)
+        self.assertEqual(equivalent["interpretation"], "DIAGNOSTIC_ONLY_NO_ACCEPTANCE_THRESHOLD")
+
+    def test_decoded_comparison_rejects_bad_geometry_scale_and_zero_norm(self):
+        valid = (struct.pack("<e", 1) + bytes([1]) * 768) * 4
+        for candidate in (b"", valid[:-1], valid + valid):
+            with self.assertRaisesRegex(ValueError, "incomparable_geometry"):
+                runner.decoded_difference(candidate, valid)
+        for scale in (0, -1, float("inf"), float("nan")):
+            with self.assertRaisesRegex(ValueError, "invalid_view_scale"):
+                runner.decoded_difference((struct.pack("<e", scale) + bytes([1]) * 768) * 4, valid)
+        with self.assertRaisesRegex(ValueError, "zero_norm_view"):
+            runner.decoded_difference((struct.pack("<e", 1) + bytes(768)) * 4, valid)
+
+    def test_thread_plan_balances_order_and_requires_explicit_valid_cells(self):
+        self.assertEqual(runner.trial_plan([1, 2, 4]),
+                         [(1, 1), (2, 1), (4, 1), (2, 2), (4, 2), (1, 2), (4, 3), (1, 3), (2, 3)])
+        self.assertEqual(runner.trial_plan([1]), [(1, 1), (1, 2), (1, 3)])
+        for counts in ([], [1, 1], [0], [8]):
+            with self.assertRaises(ValueError):
+                runner.trial_plan(counts)
+
+    def test_thread_cells_use_fresh_paths_and_keep_failed_trial_evidence(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            results = root / "results"
+            results.mkdir()
+            summary = {"requested_inference_threads": [1, 2], "runs": [], "production_approved": False}
+            calls = []
+
+            def indexer(_fixture, **kwargs):
+                calls.append(kwargs)
+                if len(calls) == 3:
+                    raise RuntimeError("simulated_indexer_failure")
+
+            blob = b"test payload"
+            with patch.object(runner, "verify_output", return_value=(blob, {"payload_sha256": "abc"})), \
+                 patch.object(runner, "compare_payloads", return_value={"diagnostic": True}):
+                with self.assertRaisesRegex(RuntimeError, "simulated_indexer_failure"):
+                    runner.run_trials(results, root, root / "binary", root / "model", summary, indexer=indexer)
+            self.assertEqual([call["inference_threads"] for call in calls], [1, 2, 2])
+            self.assertEqual(len({call["index_dir"] for call in calls}), 3)
+            self.assertEqual(summary["completed_runs"], 2)
+            self.assertEqual(summary["failed_runs"], 1)
+            self.assertEqual(summary["unstarted_runs"], 3)
+            self.assertFalse(summary["production_approved"])
+            self.assertIn("threads_2_vs_1_replica_1", summary["cross_thread_comparisons"])
+            failure = json.loads((results / "runs/threads-02/run-02/run-summary.json").read_text())
+            self.assertEqual(failure["error"], "simulated_indexer_failure")
+
+    def test_existing_runtime_is_verified_without_repair(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            path = root / "runtime.bin"
+            path.write_bytes(b"good")
+            assets = [{"path": "runtime.bin", "bytes": 4, "sha256": runner.sha(path)}]
+            runner.verify_existing_runtime(root, assets)
+            path.write_bytes(b"bad!")
+            with self.assertRaisesRegex(ValueError, "existing_runtime_checksum_mismatch"):
+                runner.verify_existing_runtime(root, assets)
+            self.assertEqual(path.read_bytes(), b"bad!")
+
     def test_real_fixture_integrity_and_canary(self):
         inventory = runner.verify_fixture()
         self.assertIn("historical-reference.i8", inventory)

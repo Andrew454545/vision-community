@@ -10,22 +10,39 @@ Each verified scene location earns 1 unit. Each verified object location earns
 10,000 object locations). New accounts start at zero. There is no trial, owner,
 or API bypass.
 
-## Start on a new computer
+## Start on a Windows PC
 
-Works on an Apple silicon Mac or a Windows PC. Python 3.9 or newer is required. Intel Macs and Linux are not in this download.
+Most contributors do not need Python or a terminal. Download the project ZIP,
+unzip it, and double-click **Start VISION.cmd**. The starter keeps Python and
+processing files in a private folder under your Windows user profile. It does
+not install software globally, require administrator access, change security
+settings, or create an account for you.
 
-1. On this GitHub page, choose **Code**, then **Download ZIP**, and unzip it.
-2. Open Terminal, move into the unzipped folder, and run:
+The guided window has four steps: prepare the PC, connect or create your
+account, run the short 112-location PC check, and start indexing. The short
+check is required for each PC before it receives regular work. Results wait for
+a trusted service audit before joining the shared search pool.
+
+Andrew's larger 1,024-location runs are a maintainer calibration study. They
+qualify the processing profile and are not repeated by every user. The project
+does not claim byte-for-byte equality across machines; trusted review compares
+decoded numerical results and the exact runtime identity.
+
+To stop, choose **Pause after this batch**. Keep the PC awake and connected.
+If a batch fails, its local report and completed work stay in the private VISION
+folder for review.
+
+### Advanced command-line setup
+
+The original Python workflow remains available for maintainers and Mac users.
+On a new computer, download and unzip the project, then run:
 
 ```sh
 python3 -m community.bootstrap
 ```
 
-On Windows, open PowerShell and use `python` instead of `python3` if `python3` is not recognized. That installs the Python requirement and downloads the scene program, the object program, and their model folders for this computer. It does not copy a live VISION queue or a CoreML cache.
-
-3. Open the site, get an account, and paste the scene or object command in that same folder.
-
-https://vision-community.visioncommunity.workers.dev
+On Windows, use the guided starter unless you are intentionally testing the
+advanced workflow.
 
 ## How to use the site
 
@@ -41,9 +58,9 @@ If you were given the project folder and want it to go faster, see [CONTRIBUTING
 
 The queue is the local 20.96M already-indexed VISION poses (metadata only) plus
 the ALL LOCATIONS tail. Scene indexing runs `mma-vision index-four-views` on
-the volunteer computer, using the fp32 SigLIP model on one CPU thread. That
-keeps the stored scene bytes the same from run to run and from computer to
-computer. Object indexing
+the volunteer computer. The approved runtime profile records its model,
+helper files, settings, and thread policy; results are compared numerically and
+then audited before publication. Object indexing
 runs `vision-object index-segment` with the hybrid RF-DETR, YOLOE, and OWLv2
 models. `python3 -m community.bootstrap` downloads them into the usual VISION
 folders. Set `VISION_FOUR_VIEW_BINARY`, `VISION_MODEL_DIR`,

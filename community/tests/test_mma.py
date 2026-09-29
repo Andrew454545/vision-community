@@ -169,7 +169,7 @@ class ShardImportAndHttpTest(unittest.TestCase):
             self.assertEqual(second["imported"], 0)
             import sqlite3
 
-            with sqlite3.connect(service.database) as connection:
+            with service._connection() as connection:
                 pending = connection.execute(
                     "SELECT COUNT(*) FROM locations WHERE queue_state='pending'"
                 ).fetchone()[0]

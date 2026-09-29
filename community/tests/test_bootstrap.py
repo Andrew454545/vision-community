@@ -1,6 +1,7 @@
 import hashlib
 import json
 import stat
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -79,7 +80,8 @@ class BootstrapTests(unittest.TestCase):
             self.assertEqual(first, ["installed mma-vision", "installed vision-object"])
             self.assertEqual(second, ["present mma-vision", "present vision-object"])
             self.assertEqual(path.read_bytes(), payload)
-            self.assertTrue(path.stat().st_mode & stat.S_IXUSR)
+            if sys.platform != "win32":
+                self.assertTrue(path.stat().st_mode & stat.S_IXUSR)
 
     def test_download_rejects_a_mismatched_file(self):
         payload = b"wrong"
@@ -108,6 +110,16 @@ class BootstrapTests(unittest.TestCase):
 
 
 class BootstrapPlatformTests(unittest.TestCase):
+    def test_scene_only_setup_keeps_shared_libraries_and_skips_object_models(self):
+        entries = files_for_platform(load_manifest(), "windows-x86_64", lane="scene")
+        assets = {entry["asset"] for entry in entries}
+        self.assertIn("mma-vision-windows-x86_64.exe", assets)
+        self.assertIn("windows-directml.dll", assets)
+        self.assertIn("siglip-vision_model_fp32.onnx", assets)
+        self.assertNotIn("vision-object-windows-x86_64.exe", assets)
+        self.assertFalse(any(name.startswith("object-") for name in assets))
+        self.assertEqual(len(assets), 10)
+
     def test_platform_names(self):
         self.assertEqual(runtime_platform("win32", "AMD64"), "windows-x86_64")
         self.assertEqual(runtime_platform("linux", "aarch64"), "linux-arm64")

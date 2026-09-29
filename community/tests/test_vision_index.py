@@ -1,9 +1,13 @@
 import base64
 import hashlib
 import json
+import os
+import subprocess
+import sys
 import tempfile
 import threading
 import unittest
+from unittest.mock import patch
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 
@@ -11,12 +15,18 @@ from community.four_view import BYTES_PER_LOCATION, VISION_FOUR_VIEW_MODEL, vali
 from community.mma import SCENE_MODEL_NAME
 from community.server import handler_for
 from community.service import CommunityService
+from community.scene_quality import ApprovedSceneReferences
+from community.tests.test_scene_quality import reference_policy
 from community.vision_index import (
     VisionIndexError,
+    default_runner,
     finish_scene_coordinates,
+    four_view_input,
+    index_is_complete,
     index_from_queue,
     index_locations_tsv,
     location_tsv_line,
+    require_complete_index,
     search_indexes,
     search_input,
     write_locations_tsv,
@@ -49,8 +59,12 @@ def fake_runner(argv, _env, _cwd):
         index_dir.mkdir(parents=True, exist_ok=True)
         blob = b"".join(sample_record(index + 1) for index in range(len(rows)))
         (index_dir / "shard-000000.i8").write_bytes(blob)
+        (index_dir / "shard-000000.mask").write_bytes(b"\x0f" * len(rows))
+        checkpoint = Path(argv[argv.index("--checkpoint") + 1])
+        checkpoint.write_text(json.dumps({"completed": True, "nextLocationIndex": len(rows), "incompleteLocations": 0}), encoding="utf-8")
         (index_dir / "manifest.json").write_text(
-            json.dumps({"indexedLocations": len(rows), "bytesPerLocation": 3080, "version": 4}),
+            json.dumps({"indexedLocations": len(rows), "bytesPerLocation": 3080, "version": 4,
+                        "viewsPerLocation": 4, "shardLocations": 50000}),
             encoding="utf-8",
         )
         return 0, "", ""
@@ -101,6 +115,114 @@ class FourViewRecordTest(unittest.TestCase):
 
 
 class VisionIndexCommandTest(unittest.TestCase):
+    def make_run(self, root, runner=fake_runner, **kwargs):
+        tsv = root / "locations.tsv"
+        if not tsv.is_file():
+            write_locations_tsv([{"locationId": 1, "lat": 1, "lng": 2, "panoId": "abc"}], tsv)
+        return index_locations_tsv(tsv, index_dir=root / "index", checkpoint=root / "checkpoint.json",
+                                   output=root / "output.json", model_dir=root / "model",
+                                   binary=root / "mma-vision", runner=runner, use_nice=False, **kwargs)
+
+    def test_windows_does_not_request_macos_temperature_status(self):
+        with patch("community.vision_index.sys.platform", "win32"):
+            self.assertIsNone(four_view_input(total=16, pace="slow", run_id="test")["thermalStateLimit"])
+        with patch("community.vision_index.sys.platform", "darwin"):
+            self.assertEqual(four_view_input(total=16, pace="slow", run_id="test")["thermalStateLimit"], 2)
+
+    def test_experimental_thread_count_is_explicit_and_preserves_batch_shape(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            environments = []
+            def runner(argv, env, cwd):
+                environments.append(env)
+                return fake_runner(argv, env, cwd)
+            report = self.make_run(root, runner=runner, inference_threads=3)
+            self.assertEqual(report["inferenceThreads"], 3)
+            self.assertEqual(report["qualityStatus"], "EXPLORATORY_NOT_APPROVED")
+            for environment in environments:
+                for name in ("RAYON_NUM_THREADS", "VISION_ORT_THREADS", "OMP_NUM_THREADS", "ORT_NUM_THREADS"):
+                    self.assertEqual(environment[name], "3")
+            spec = json.loads((root / "input.json").read_text())
+            self.assertEqual([spec[key] for key in ("embeddingBatchSize", "chunkSize", "concurrency", "imageEncoderSessions")], [16, 16, 8, 1])
+            self.assertTrue((root / "index-run.json").is_file())
+            with self.assertRaisesRegex(VisionIndexError, "checkpoint_configuration_mismatch"):
+                self.make_run(root, inference_threads=1)
+
+    def test_preallocated_data_and_completed_flag_are_not_proof_of_success(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            index = root / "index"
+            index.mkdir()
+            (index / "shard-000000.i8").write_bytes(sample_record())
+            self.assertFalse(index_is_complete(root / "checkpoint.json", index, 1))
+            (root / "checkpoint.json").write_text(json.dumps({"completed": True}))
+            with self.assertRaisesRegex(VisionIndexError, "incomplete_index"):
+                index_is_complete(root / "checkpoint.json", index, 1)
+
+    def test_incomplete_masks_are_rejected_and_failure_evidence_is_preserved(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            def runner(argv, env, cwd):
+                result = fake_runner(argv, env, cwd)
+                if "index-four-views" in argv:
+                    (root / "index" / "shard-000000.mask").write_bytes(b"\x07")
+                return result
+            with self.assertRaisesRegex(VisionIndexError, "incomplete_view_mask"):
+                self.make_run(root, runner=runner)
+            report = json.loads((root / "failure.json").read_text())
+            self.assertEqual(report["code"], "incomplete_view_mask")
+            self.assertTrue((root / "index" / "shard-000000.i8").exists())
+
+    def test_every_record_is_validated_before_success(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            write_locations_tsv([{"locationId": i, "lat": 1, "lng": 2, "panoId": "abc"} for i in (1, 2)], root / "locations.tsv")
+            def runner(argv, env, cwd):
+                result = fake_runner(argv, env, cwd)
+                if "index-four-views" in argv:
+                    (root / "index" / "shard-000000.i8").write_bytes(sample_record() + bytes(3080))
+                return result
+            with self.assertRaisesRegex(VisionIndexError, "invalid_embedding"):
+                self.make_run(root, runner=runner)
+
+    def test_clean_pauses_without_progress_stop_after_five_attempts(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            calls = []
+            def runner(argv, env, cwd):
+                if "index-four-views" in argv:
+                    calls.append(argv)
+                    return 0, "", ""
+                return fake_runner(argv, env, cwd)
+            with self.assertRaisesRegex(VisionIndexError, "vision_no_progress"):
+                self.make_run(root, runner=runner)
+            self.assertEqual(len(calls), 5)
+            self.assertEqual(json.loads((root / "failure.json").read_text())["noProgressAttempts"], 5)
+
+    def test_native_failures_stop_after_three_attempts(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            calls = []
+            def runner(argv, env, cwd):
+                if "index-four-views" in argv:
+                    calls.append(argv)
+                    return 1, "", "failed"
+                return fake_runner(argv, env, cwd)
+            with self.assertRaisesRegex(VisionIndexError, "vision_binary_failed"):
+                self.make_run(root, runner=runner)
+            self.assertEqual(len(calls), 3)
+
+    def test_process_timeout_is_fatal_and_preserves_its_logs(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            with patch("community.vision_index.INDEX_TIMEOUT_SECONDS", 0.2):
+                with self.assertRaisesRegex(VisionIndexError, "vision_binary_timeout"):
+                    default_runner([sys.executable, "-c", "import time; time.sleep(30)"], os.environ.copy(), root)
+            status = json.loads(next(root.glob("*.exit.json")).read_text())
+            self.assertEqual(status["status"], "TIMEOUT")
+            self.assertTrue(list(root.glob("*.stdout.log")))
+            self.assertTrue(list(root.glob("*.stderr.log")))
+
     def test_refuses_to_touch_the_live_vision_job(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
@@ -173,6 +295,7 @@ class VisionIndexCommandTest(unittest.TestCase):
                 search_cost=4,
                 artifacts=root / "artifacts",
                 segment_capacity=50,
+                scene_references=ApprovedSceneReferences(reference_policy(sample_record(1))),
             )
             service.import_jobs(json.loads(PROTOTYPE.read_text(encoding="utf-8")))
             server = ThreadingHTTPServer(("127.0.0.1", 0), handler_for(service))
@@ -438,7 +561,8 @@ class VisionIndexCommandTest(unittest.TestCase):
             root = Path(folder)
             document = json.loads(PROTOTYPE.read_text(encoding="utf-8"))
             document["locations"] = document["locations"][:2]
-            service = CommunityService(root / "db.sqlite", search_cost=4, artifacts=root / "artifacts")
+            service = CommunityService(root / "db.sqlite", search_cost=4, artifacts=root / "artifacts",
+                                       scene_references=ApprovedSceneReferences(reference_policy(sample_record(1))))
             service.import_jobs(document)
             server = ThreadingHTTPServer(("127.0.0.1", 0), handler_for(service))
             thread = threading.Thread(target=server.serve_forever, daemon=True)

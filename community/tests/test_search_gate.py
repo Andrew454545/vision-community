@@ -44,7 +44,7 @@ class SearchContributionGateTest(unittest.TestCase):
             self.assertTrue(snapshot["locations"][0]["embedding"])
             with self.assertRaisesRegex(ServiceError, "unknown_search"):
                 service.published_snapshot(unpaid, search_id=authorized["searchId"])
-            with sqlite3.connect(service.database) as connection:
+            with service._connection() as connection:
                 connection.execute("DELETE FROM ledger WHERE reference=?", (f"search:{authorized['searchId']}",))
             with self.assertRaisesRegex(ServiceError, "unknown_search"):
                 service.published_snapshot(paid, search_id=authorized["searchId"])

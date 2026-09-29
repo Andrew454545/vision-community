@@ -7,6 +7,7 @@ from community.all_locations_full import format_indexer_line, build_catalog
 from community.all_locations_tail import split_shards
 from community.parts import family_for_key, parse_part
 from community.service import CommunityService, ServiceError
+from community.tests.test_scene_quality import references_from_fixture_lines
 
 
 def write_lines(path: Path, rows: list[str]) -> None:
@@ -55,6 +56,7 @@ class ExclusiveCatalogPartsTest(unittest.TestCase):
             manifest = split_shards(source, shards, rows_per_shard=2, row_start=0)
             service = CommunityService(root / "db.sqlite", search_cost=4, artifacts=root / "artifacts", operational=True)
             service.append_pose_catalog(manifest, source_dir=shards, lanes=("scene",))
+            service.scene_references = references_from_fixture_lines(source.read_text().splitlines())
             first = service.create_account()["accountId"]
             second = service.create_account()["accountId"]
             a = service.lease(first, "scene", 1)
@@ -80,6 +82,7 @@ class ExclusiveCatalogPartsTest(unittest.TestCase):
             self.assertTrue(manifest["shards"][0]["key"].startswith(FULL_PREFIX))
             service = CommunityService(root / "db.sqlite", search_cost=4, artifacts=root / "artifacts", operational=True)
             service.append_pose_catalog(manifest, source_dir=dest, lanes=("scene",))
+            service.scene_references = references_from_fixture_lines([line])
             account = service.create_account()["accountId"]
             lease = service.lease(account, "scene", 1, part=1)
             item = lease["items"][0]
@@ -105,6 +108,7 @@ class ObjectAndSceneProcessingTest(unittest.TestCase):
             manifest = split_shards(source, shards, rows_per_shard=2, row_start=0)
             service = CommunityService(root / "db.sqlite", search_cost=4, artifacts=root / "artifacts", operational=True)
             service.append_pose_catalog(manifest, source_dir=shards, lanes=("scene", "object"))
+            service.scene_references = references_from_fixture_lines(source.read_text().splitlines())
             account = service.create_account()["accountId"]
             scene = service.lease(account, "scene", 1)
             objects = service.lease(account, "object", 1)

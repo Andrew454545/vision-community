@@ -247,7 +247,7 @@ class ObjectIndexTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             service = CommunityService(Path(folder) / "community.sqlite", search_cost=100)
             service.import_synthetic(json.loads(FIXTURE.read_text(encoding="utf-8"))["locations"])
-            with sqlite3.connect(service.database) as connection:
+            with service._connection() as connection:
                 connection.execute("UPDATE locations SET lat=1.25, lon=-2.5, country='Greece' WHERE lane='object'")
             account = service.create_account()["accountId"]
             lease = service.lease(account, "object", 1)
@@ -394,7 +394,7 @@ class ObjectIndexTest(unittest.TestCase):
             stored.mkdir(parents=True)
             (stored / "manifest.json").write_bytes(b'{"completed":true}')
             (stored / "locations.tsv").write_bytes(b"header\n")
-            with sqlite3.connect(service.database) as connection:
+            with service._connection() as connection:
                 connection.execute("UPDATE accounts SET units=4 WHERE id=?", (account,))
             paid = service.search(
                 account,

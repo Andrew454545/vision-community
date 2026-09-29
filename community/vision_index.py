@@ -24,6 +24,7 @@ import subprocess
 import sys
 import threading
 import time
+from functools import lru_cache
 from pathlib import Path
 
 from .contribute import (
@@ -94,15 +95,19 @@ def program_name(stem: str) -> str:
     if sys.platform == "win32" and not stem.endswith(".exe"):
         return f"{stem}.exe"
     return stem
-# Batch shape is fixed. A sealed VISION shard matched a batch of 16 byte for
-# byte; embedding one picture at a time flipped bytes. Inference stays on one
-# thread so the stored bytes do not change between runs. Pace only changes
-# scheduling priority so a computer already running VISION can stay responsive.
+# Keep the measured batch shape fixed. One inference thread is the conservative
+# baseline, not a guarantee of identical bytes across machines or live images.
+# Pace changes scheduling priority only; extra threads require calibration.
 PACE = {
     "slow": {"threads": 1, "nice": 19, "concurrency": 8, "chunk": 16, "batch": 16, "sessions": 1, "duty": 100, "thermal": 2},
     "medium": {"threads": 1, "nice": 8, "concurrency": 8, "chunk": 16, "batch": 16, "sessions": 1, "duty": 100, "thermal": 2},
     "max": {"threads": 1, "nice": 0, "concurrency": 8, "chunk": 16, "batch": 16, "sessions": 1, "duty": 100, "thermal": 2},
 }
+THREAD_ENVIRONMENT_KEYS = ("RAYON_NUM_THREADS", "VISION_ORT_THREADS", "OMP_NUM_THREADS", "ORT_NUM_THREADS")
+INDEX_TIMEOUT_SECONDS = 2 * 60 * 60
+MAX_INDEX_FAILURES = 3
+MAX_NO_PROGRESS = 5
+MAX_QUEUE_FAILURES = 5
 
 
 class VisionIndexError(RuntimeError):
@@ -116,9 +121,8 @@ def default_binary() -> Path:
     override = os.environ.get("VISION_FOUR_VIEW_BINARY")
     if override:
         return Path(override)
-    # The VISION app's CoreML scene indexer changes a few stored values between
-    # runs. Community uses the CPU fp32 build, pinned to one thread, so the same
-    # picture gets the same stored bytes on every computer.
+    # The CPU fp32 build is the measured Community candidate. Live-image trials
+    # showed differences; parity with Andrew's reference is not established.
     return vision_support_root() / "bin" / program_name("mma-vision")
 
 
@@ -273,7 +277,9 @@ def four_view_input(*, total: int, pace: str, run_id: str) -> dict:
         "embeddingBatchSize": settings["batch"],
         "imageEncoderSessions": settings["sessions"],
         "dutyCyclePercent": settings["duty"],
-        "thermalStateLimit": settings["thermal"],
+        # The current Windows binary exposes a macOS-only temperature check.
+        # Null avoids its permanent retry loop; OS/hardware protection remains.
+        "thermalStateLimit": None if sys.platform == "win32" else settings["thermal"],
         "seedResults": None,
     }
 
@@ -388,16 +394,66 @@ def write_json(path: Path, payload: dict) -> None:
     path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
 
 
+def inference_environment(work: Path, inference_threads: int = 1) -> dict:
+    if type(inference_threads) is not int or not 1 <= inference_threads <= 64:
+        raise VisionIndexError("invalid_inference_threads")
+    env = os.environ.copy()
+    for key in THREAD_ENVIRONMENT_KEYS:
+        env[key] = str(inference_threads)
+    env["TMPDIR"] = str(work)
+    return env
+
+
+@lru_cache(maxsize=64)
+def _identity_hash(path: str, size: int, modified_ns: int) -> str:
+    # Cache only within this process and invalidate on file metadata changes.
+    digest = hashlib.sha256()
+    with Path(path).open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def file_identity(path: Path) -> dict | None:
+    if not path.is_file():
+        return None
+    info = path.stat()
+    return {"bytes": info.st_size, "sha256": _identity_hash(str(path.resolve()), info.st_size, info.st_mtime_ns)}
+
+
 def default_runner(argv: list[str], env: dict, cwd: Path):
-    completed = subprocess.run(
-        argv,
-        env=env,
-        cwd=str(cwd),
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    return completed.returncode, completed.stdout, completed.stderr
+    """Bound one native process and preserve logs even on timeout or failure."""
+    cwd = Path(cwd)
+    stem = cwd / f"process-{time.time_ns()}-{secrets.token_hex(3)}"
+    stdout_path = stem.with_suffix(".stdout.log")
+    stderr_path = stem.with_suffix(".stderr.log")
+    timeout = 60 if "index-layout" in argv else INDEX_TIMEOUT_SECONDS
+    started = time.monotonic()
+    outcome = {"status": "STARTED", "timeoutSeconds": timeout}
+    try:
+        with stdout_path.open("wb") as stdout, stderr_path.open("wb") as stderr:
+            completed = subprocess.run(argv, env=env, cwd=str(cwd), stdout=stdout,
+                                       stderr=stderr, check=False, timeout=timeout)
+        outcome.update(status="EXITED", exitCode=completed.returncode)
+    except subprocess.TimeoutExpired as error:
+        # subprocess.run kills and waits for the direct native process first.
+        outcome["status"] = "TIMEOUT"
+        raise VisionIndexError("vision_binary_timeout") from error
+    except OSError as error:
+        outcome["status"] = "LAUNCH_FAILED"
+        raise VisionIndexError("vision_binary_launch_failed") from error
+    except KeyboardInterrupt:
+        outcome["status"] = "INTERRUPTED"
+        raise
+    finally:
+        outcome["wallSeconds"] = time.monotonic() - started
+        write_json(stem.with_suffix(".exit.json"), outcome)
+    # Layout stdout is a small JSON object; large indexing logs stay on disk.
+    def read_tail(path):
+        with path.open("rb") as handle:
+            handle.seek(max(0, path.stat().st_size - 1024 * 1024))
+            return handle.read().decode("utf-8", errors="replace")
+    return completed.returncode, read_tail(stdout_path), read_tail(stderr_path)
 
 
 def command_prefix(binary: Path, *, nice_level: int | None, use_nice: bool) -> list[str]:
@@ -427,23 +483,40 @@ def checkpoint_state(path: Path) -> dict | None:
 
 def index_is_complete(checkpoint: Path, index_dir: Path, total: int) -> bool:
     state = checkpoint_state(checkpoint)
-    if state is not None:
+    if state is None:
+        return False
+    if state.get("nextLocationIndex") != total or state.get("incompleteLocations") != 0:
         if state.get("completed") is True:
-            return True
-        try:
-            cursor = int(state.get("nextLocationIndex") or 0)
-            incomplete = int(state.get("incompleteLocations") or 0)
-        except (TypeError, ValueError):
-            cursor = 0
-            incomplete = 1
-        if cursor >= total and incomplete == 0:
-            return True
+            raise VisionIndexError("incomplete_index")
         return False
-    shard = Path(index_dir) / "shard-000000.i8"
-    try:
-        return shard.is_file() and shard.stat().st_size >= total * BYTES_PER_LOCATION
-    except OSError:
-        return False
+    return True
+
+
+def require_complete_index(checkpoint: Path, index_dir: Path, total: int) -> None:
+    """A preallocated shard or completed flag alone does not prove success."""
+    if not index_is_complete(checkpoint, index_dir, total):
+        raise VisionIndexError("incomplete_index")
+    manifest = checkpoint_state(Path(index_dir) / "manifest.json")
+    if manifest is None or manifest.get("indexedLocations") != total:
+        raise VisionIndexError("incomplete_index")
+    require_layout({**manifest, "feature": "four-view-index"})
+    if manifest.get("shardLocations") != SHARD_LOCATIONS:
+        raise VisionIndexError("wrong_vision_layout")
+    expected = {(f"shard-{number:06d}.i8") for number in range((total + SHARD_LOCATIONS - 1) // SHARD_LOCATIONS)}
+    if {path.name for path in Path(index_dir).glob("shard-*.i8")} != expected:
+        raise VisionIndexError("unexpected_shards")
+    for number in range(len(expected)):
+        count = min(SHARD_LOCATIONS, total - number * SHARD_LOCATIONS)
+        shard = Path(index_dir) / f"shard-{number:06d}.i8"
+        mask = shard.with_suffix(".mask")
+        if not mask.is_file() or mask.read_bytes() != b"\x0f" * count:
+            raise VisionIndexError("incomplete_view_mask")
+        if shard.stat().st_size != count * BYTES_PER_LOCATION:
+            raise VisionIndexError("short_embedding")
+        with shard.open("rb") as handle:
+            for _ in range(count):
+                if not valid_four_view_record(handle.read(BYTES_PER_LOCATION)):
+                    raise VisionIndexError("invalid_embedding")
 
 
 def keep_lease_alive(session: CommunityClient, lease_id: str, stop: threading.Event) -> None:
@@ -486,18 +559,20 @@ def index_locations_tsv(
     run_id: str = "vision-community-four-view-v4",
     runner=None,
     use_nice: bool = True,
+    inference_threads: int = 1,
+    progress_callback=None,
 ) -> dict:
     if pace not in PACE:
         raise VisionIndexError("invalid_pace")
-    locations_tsv = Path(locations_tsv)
-    index_dir = Path(index_dir)
-    checkpoint = Path(checkpoint)
-    output = Path(output)
+    locations_tsv = Path(locations_tsv).expanduser().resolve()
+    index_dir = Path(index_dir).expanduser().resolve()
+    checkpoint = Path(checkpoint).expanduser().resolve()
+    output = Path(output).expanduser().resolve()
     for path in (locations_tsv, index_dir, checkpoint, output):
         assert_not_live_vision_path(path)
     total = count_locations(locations_tsv)
-    model = Path(model_dir) if model_dir is not None else default_model_dir()
-    program = Path(binary) if binary is not None else default_binary()
+    model = (Path(model_dir) if model_dir is not None else default_model_dir()).expanduser().resolve()
+    program = (Path(binary) if binary is not None else default_binary()).expanduser().resolve()
     if runner is None:
         require_model_dir(model)
         if not program.is_file() or not os.access(program, os.X_OK):
@@ -508,74 +583,88 @@ def index_locations_tsv(
     work = index_dir.parent
     work.mkdir(parents=True, exist_ok=True)
     index_dir.mkdir(parents=True, exist_ok=True)
-    spec_path = Path(input_path) if input_path is not None else work / "input.json"
+    spec_path = Path(input_path).expanduser().resolve() if input_path is not None else work / "input.json"
+    expected_spec = four_view_input(total=total, pace=pace, run_id=run_id)
+    env = inference_environment(work, inference_threads)
+    provenance = {
+        "version": 1, "platform": sys.platform, "inferenceThreads": inference_threads,
+        "threadEnvironment": {key: env[key] for key in THREAD_ENVIRONMENT_KEYS},
+        "locations": file_identity(locations_tsv), "binary": file_identity(program),
+        "models": {name: file_identity(model / name) for name in REQUIRED_MODEL_FILES},
+        "input": expected_spec, "customRunner": runner is not None,
+        "qualityStatus": "EXPLORATORY_NOT_APPROVED",
+    }
+    provenance_path = work / "index-run.json"
     if not checkpoint.is_file():
-        write_json(spec_path, four_view_input(total=total, pace=pace, run_id=run_id))
+        # Never reuse preallocated or orphaned files without a matching checkpoint.
+        if any(index_dir.iterdir()):
+            raise VisionIndexError("unverified_checkpoint")
+        write_json(spec_path, expected_spec)
+        write_json(provenance_path, provenance)
     elif not spec_path.is_file():
         raise VisionIndexError("vision_input_missing")
+    elif checkpoint_state(spec_path) != expected_spec or checkpoint_state(provenance_path) != provenance:
+        raise VisionIndexError("checkpoint_configuration_mismatch")
     active = runner or default_runner
-    env = os.environ.copy()
-    env["RAYON_NUM_THREADS"] = "1"
-    env["VISION_ORT_THREADS"] = "1"
-    env["OMP_NUM_THREADS"] = "1"
-    env["ORT_NUM_THREADS"] = "1"
-    env["TMPDIR"] = str(work)
-    layout_stdout, _stderr = run_binary(
-        program,
-        ["index-layout"],
-        env=env,
-        cwd=work,
-        runner=active,
-        nice_level=settings["nice"],
-        use_nice=use_nice and runner is None,
-    )
-    require_layout(parse_json_stdout(layout_stdout))
-    restarts = 0
-    while not index_is_complete(checkpoint, index_dir, total):
-        before = checkpoint_state(checkpoint)
-        try:
-            run_binary(
-                program,
-                [
-                    "index-four-views",
-                    "--input",
-                    str(spec_path),
-                    "--model-dir",
-                    str(model),
-                    "--locations-tsv",
-                    str(locations_tsv),
-                    "--index-dir",
-                    str(index_dir),
-                    "--checkpoint",
-                    str(checkpoint),
-                    "--output",
-                    str(output),
-                ],
-                env=env,
-                cwd=work,
-                runner=active,
-                nice_level=settings["nice"],
-                use_nice=use_nice and runner is None,
-            )
-        except VisionIndexError:
-            restarts += 1
-            if runner is not None and restarts >= 5:
-                raise
-            print("still indexing; the VISION indexer paused and will resume", file=sys.stderr, flush=True)
-            if runner is None:
-                time.sleep(min(900, restarts * 5))
-            continue
-        if index_is_complete(checkpoint, index_dir, total):
-            break
-        after = checkpoint_state(checkpoint)
-        moved = (after or {}).get("nextLocationIndex") != (before or {}).get("nextLocationIndex")
-        restarts = 0 if moved else restarts + 1
-        if runner is not None and restarts >= 5:
-            raise VisionIndexError("vision_binary_failed")
-        print("still indexing; resuming from the last saved place", file=sys.stderr, flush=True)
-        if runner is None and not moved:
-            time.sleep(min(900, max(1, restarts) * 5))
-    record = read_location_record(index_dir, 0)
+    failures = stalled = attempts = 0
+    # Allow a clean checkpoint per chunk, but never an unbounded resume cycle.
+    max_attempts = (total + settings["chunk"] - 1) // settings["chunk"] + MAX_NO_PROGRESS
+
+    def progress(event):
+        if progress_callback is not None:
+            state = checkpoint_state(checkpoint) or {}
+            progress_callback({"event": event, "attempt": attempts, "totalLocations": total,
+                               "completedLocations": state.get("nextLocationIndex", 0)})
+
+    try:
+        layout_stdout, _stderr = run_binary(
+            program, ["index-layout"], env=env, cwd=work, runner=active,
+            nice_level=settings["nice"], use_nice=use_nice and runner is None,
+        )
+        require_layout(parse_json_stdout(layout_stdout))
+        while not index_is_complete(checkpoint, index_dir, total):
+            if attempts >= max_attempts:
+                raise VisionIndexError("vision_retry_limit")
+            attempts += 1
+            before = checkpoint_state(checkpoint) or {}
+            progress("indexing")
+            try:
+                run_binary(
+                    program,
+                    ["index-four-views", "--input", str(spec_path), "--model-dir", str(model),
+                     "--locations-tsv", str(locations_tsv), "--index-dir", str(index_dir),
+                     "--checkpoint", str(checkpoint), "--output", str(output)],
+                    env=env, cwd=work, runner=active, nice_level=settings["nice"],
+                    use_nice=use_nice and runner is None,
+                )
+            except VisionIndexError as error:
+                failures += 1
+                if error.code != "vision_binary_failed" or failures >= MAX_INDEX_FAILURES:
+                    raise
+                print("The indexer stopped; retrying from its saved checkpoint.", file=sys.stderr, flush=True)
+                if runner is None:
+                    time.sleep(min(30, failures * 5))
+                continue
+            if index_is_complete(checkpoint, index_dir, total):
+                break
+            after = checkpoint_state(checkpoint) or {}
+            moved = isinstance(after.get("nextLocationIndex"), int) and after["nextLocationIndex"] > before.get("nextLocationIndex", 0)
+            stalled = 0 if moved else stalled + 1
+            if stalled >= MAX_NO_PROGRESS:
+                raise VisionIndexError("vision_no_progress")
+            progress("resume")
+            if runner is None and not moved:
+                time.sleep(min(30, stalled * 5))
+        require_complete_index(checkpoint, index_dir, total)
+        record = read_location_record(index_dir, 0)
+        progress("complete")
+    except (Exception, KeyboardInterrupt) as error:
+        write_json(work / "failure.json", {
+            "ok": False, "code": getattr(error, "code", type(error).__name__),
+            "attempts": attempts, "failedAttempts": failures, "noProgressAttempts": stalled,
+            "totalLocations": total, "evidencePreserved": True,
+        })
+        raise
     return {
         "ok": True,
         "model": VISION_FOUR_VIEW_MODEL,
@@ -583,6 +672,9 @@ def index_locations_tsv(
         "bytesPerLocation": BYTES_PER_LOCATION,
         "indexDir": str(index_dir),
         "firstRecordSha256": hashlib.sha256(record).hexdigest(),
+        "inferenceThreads": inference_threads,
+        "attempts": attempts,
+        "qualityStatus": "EXPLORATORY_NOT_APPROVED",
     }
 
 
@@ -622,6 +714,7 @@ def index_from_queue(
     model_dir: Path | None = None,
     runner=None,
     use_nice: bool = True,
+    progress_callback=None,
 ) -> dict:
     if pace not in PACE:
         raise VisionIndexError("invalid_pace")
@@ -630,11 +723,13 @@ def index_from_queue(
     work_dir = Path(work_dir)
     assert_not_live_vision_path(work_dir)
     size = count if count is not None else CLI_LEASE_CAP["scene"][pace]
+    if type(size) is not int or size < 1:
+        raise VisionIndexError("invalid_count")
     session = client or CommunityClient(url)
     stored = load_session(session_path, url) if session_path is not None else None
-    if not recovery_code:
+    if not recovery_code and not session.token:
         recovery_code = os.environ.get("VISION_COMMUNITY_RECOVERY") or None
-    if not recovery_code and stored:
+    if not recovery_code and not session.token and stored:
         code = stored.get("recoveryCode")
         recovery_code = code if isinstance(code, str) and code else None
     created = None
@@ -666,11 +761,15 @@ def index_from_queue(
             if batches is not None or error.code not in RETRYABLE_CODES:
                 raise VisionIndexError(error.code, error.status) from error
             stalls += 1
+            if stalls >= MAX_QUEUE_FAILURES:
+                raise VisionIndexError(error.code, error.status) from error
             print(f"still indexing; retrying after {error.code}", file=sys.stderr, flush=True)
             time.sleep(min(60, stalls * 2))
             continue
         stalls = 0
         lease_id = str(lease.get("leaseId") or "")
+        if not re.fullmatch(r"[0-9a-f]{32}", lease_id):
+            raise VisionIndexError("invalid_lease")
         items = lease.get("items") if isinstance(lease.get("items"), list) else []
         run_dir = work_dir / lease_id
         stop = threading.Event()
@@ -691,13 +790,19 @@ def index_from_queue(
                 pace=pace,
                 runner=runner,
                 use_nice=use_nice,
+                progress_callback=progress_callback,
             )
             try:
                 session.renew(lease_id)
             except ContributeError:
                 pass
             result = session.submit(lease_id, outputs_for_items(items, run_dir / "index"))
-        except VisionIndexError:
+            # The guided desktop client asks the trusted verifier to audit a
+            # quarantined submission. CLI clients retain the existing submit
+            # response and never gain approval from this local branch.
+            if hasattr(session, "audit_submission") and result.get("pendingAudit"):
+                result = session.audit_submission(str(result.get("submissionId") or lease_id))
+        except (VisionIndexError, KeyboardInterrupt):
             stop.set()
             try:
                 session.release(lease_id)
@@ -707,26 +812,28 @@ def index_from_queue(
         except Exception as error:
             stop.set()
             code = error.code if isinstance(error, ContributeError) else ""
-            skip = batches is None and batch_failures >= 2 and code in {"", "verification_failed"}
             try:
-                session.release(lease_id, skip=skip)
+                session.release(lease_id)
             except ContributeError:
                 pass
-            if batches is not None:
-                raise
             batch_failures += 1
+            if batches is not None or batch_failures >= MAX_QUEUE_FAILURES or code not in RETRYABLE_CODES:
+                raise
             stalls += 1
             print("still indexing; the last batch will be tried again", file=sys.stderr, flush=True)
             time.sleep(min(60, stalls * 2))
             continue
         finally:
             stop.set()
+            beater.join(timeout=1)
         batch_failures = 0
         accepted += int(result.get("accepted") or 0)
         units += int(result.get("unitsEarned") or 0)
         processed += 1
         indexes.append(str(run_dir / "index"))
         print(f"indexed batch {processed}", file=sys.stderr, flush=True)
+        if progress_callback is not None:
+            progress_callback({"event": "batch", "batches": processed, "accepted": accepted, "unitsEarned": units})
     report = {
         "ok": True,
         "model": VISION_FOUR_VIEW_MODEL,
@@ -990,12 +1097,7 @@ def search_indexes(
         )
         minimum = float(request["queries"][0]["minSimilarity"])
         write_json(spec, request)
-        env = os.environ.copy()
-        env["RAYON_NUM_THREADS"] = "1"
-        env["VISION_ORT_THREADS"] = "1"
-        env["OMP_NUM_THREADS"] = "1"
-        env["ORT_NUM_THREADS"] = "1"
-        env["TMPDIR"] = str(run_dir)
+        env = inference_environment(run_dir)
         run_binary(
             program,
             [
@@ -1066,6 +1168,8 @@ def main() -> None:
     parser.add_argument("--work-dir", type=Path, dest="work_dir")
     parser.add_argument("--binary", type=Path)
     parser.add_argument("--model-dir", type=Path, dest="model_dir")
+    parser.add_argument("--inference-threads", type=int, default=1,
+                        help="experimental manual indexing only; queue contributions always use one inference thread")
     parser.add_argument("--search", action="store_true")
     parser.add_argument("--prompt", default="")
     parser.add_argument("--result-count", type=int, default=200)
@@ -1081,6 +1185,8 @@ def main() -> None:
     parser.add_argument("--reject-road-names", action="store_true")
     parser.add_argument("--import-cutoff", type=int, default=None)
     args = parser.parse_args()
+    if args.inference_threads != 1 and (args.locations_tsv is None or args.search):
+        parser.error("--inference-threads requires manual --locations-tsv indexing; it cannot be used for contributions or search")
     work_dir = args.work_dir or default_work_dir()
     try:
         if args.search:
@@ -1166,6 +1272,7 @@ def main() -> None:
                 binary=args.binary,
                 model_dir=args.model_dir,
                 pace=args.pace,
+                inference_threads=args.inference_threads,
             )
         else:
             report = index_from_queue(

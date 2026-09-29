@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>VISION · This PC</title><link rel="stylesheet" href="/style.css"><script src="/app.js" defer></script></head>
+<body><main>
+<header><div class="brand">VISION <span>COMMUNITY</span></div><span class="local">Running on this PC</span></header>
+<h1>Help build a searchable world.</h1>
+<p class="intro">Your PC processes locations. The shared service checks your results before adding them to the search pool.</p>
+<section class="status" aria-live="polite"><span id="phase">GETTING READY</span><h2 id="message">Checking this PC…</h2><p id="detail">Keep this page and the VISION starter window open.</p><div id="error" role="alert" hidden></div></section>
+<div class="steps">
+<section class="card"><div class="number">1</div><h2>Prepare your PC</h2><p>VISION downloads about 1 GB of processing files into its own private folder. It verifies each file before using it.</p><button id="prepare">Download and check files</button><p class="note">No Python installation or administrator access needed. The guided starter supports scene indexing on Intel and AMD Windows PCs.</p></section>
+<section class="card"><div class="number">2</div><h2>Connect your account</h2><p>Use an existing account code, or create a free account. Keep your code safe: it is the only way to restore your account.</p>
+<label for="code">Your account code</label><input type="password" id="code" autocomplete="off" maxlength="256" placeholder="Paste your saved code"><div class="buttons"><button id="connect">Connect account</button><button id="create" class="secondary">Create account</button></div>
+<div id="new-code" hidden><p><strong>Save this code before continuing.</strong> VISION does not save it on this PC.</p><output id="recovery"></output><button id="copy-code" class="secondary">Copy account code</button><button id="saved-code">I have saved my code</button></div><p id="account-status" class="note">Your code stays out of commands and diagnostic logs.</p></section>
+<section class="card"><div class="number">3</div><h2>Check this PC</h2><p>Run the short 112-location check. The service compares the result with Andrew’s approved processing profile before this PC can receive regular work.</p><button id="check-pc" disabled>Run the short PC check</button><p class="note">This check may take a few minutes and retrieves live imagery. It runs again when the processing files change.</p></section>
+<section class="card"><div class="number">4</div><h2>Start indexing</h2><p>Live imagery is retrieved and processed on this PC. Results wait for a service check before joining the shared search pool.</p><div class="buttons"><button id="start" disabled>Start indexing</button><button id="stop" class="secondary" disabled>Pause after this batch</button></div><p class="note">Pause finishes the current batch. Closing this page also stops new batches once the current batch finishes and the page has been disconnected for a minute.</p></section>
+</div>
+<section class="totals"><div><strong id="completed">0</strong><span>locations accepted this session</span></div><div><strong id="units">0</strong><span>units in your account</span></div><div><strong id="elapsed">0 min</strong><span>current indexing session</span></div></section>
+<details><summary>Where are my files?</summary><p>Processing files and diagnostic logs stay here:</p><code id="folder"></code><p>Nothing is installed globally. If a batch fails, its local files are kept for review. Review logs before sharing them.</p></details>
+<footer><a href="https://vision-community.visioncommunity.workers.dev" target="_blank" rel="noopener noreferrer">Open the search website</a><button id="quit" class="secondary">Close VISION</button></footer>
+</main></body></html>
