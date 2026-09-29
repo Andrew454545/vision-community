@@ -14,11 +14,15 @@ import shutil
 import threading
 import time
 
-from .contribute import DEFAULT_URL, load_session, save_session
+from .contribute import DEFAULT_URL, RETRY_STATUSES, ContributeError, load_session, save_session
 from .desktop import DesktopApp, DesktopClient, DesktopError
 
 WAIT_SECONDS = 1800
 MIN_FREE_BYTES = 5 * 1024**3
+
+
+class WorkerAlreadyRunning(BlockingIOError):
+    """Only a conflicting lock, not an unrelated filesystem failure."""
 
 
 def atomic_json(path: Path, value):
@@ -41,10 +45,16 @@ def single_instance(root):
             guard.write(b"0")
             guard.flush()
             guard.seek(0)
-            msvcrt.locking(guard.fileno(), msvcrt.LK_NBLCK, 1)
+            try:
+                msvcrt.locking(guard.fileno(), msvcrt.LK_NBLCK, 1)
+            except (BlockingIOError, PermissionError) as error:
+                raise WorkerAlreadyRunning("The folder is already in use") from error
         else:
             import fcntl
-            fcntl.flock(guard, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            try:
+                fcntl.flock(guard, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError as error:
+                raise WorkerAlreadyRunning("The folder is already in use") from error
         yield
 
 
@@ -135,7 +145,11 @@ class BackgroundContributor:
             except Exception as error:
                 self.app.record_failure(error)
                 code = getattr(error, "code", None) or str(error)
-                if code in {"scene_verification_unavailable", "network_error"}:
+                transient_response = (isinstance(error, ContributeError)
+                                      and error.status in RETRY_STATUSES
+                                      and code not in {"verification_failed", "scene_qualification_rejected",
+                                                       "scene_device_not_qualified"})
+                if code in {"scene_verification_unavailable", "network_error"} or transient_response:
                     self.status("waiting_for_service", "The verified Community service is unavailable. Retrying in 30 minutes; saved work is preserved.")
                 else:
                     # Do not repeatedly run expensive rejected checks or create accounts.
@@ -159,7 +173,7 @@ def main():
     try:
         with single_instance(worker.root):
             worker.run(once=args.once)
-    except (BlockingIOError, PermissionError):
+    except WorkerAlreadyRunning:
         # Another guided or background instance owns this folder.
         return
 

@@ -129,6 +129,8 @@ class DesktopApp:
     def record_failure(self, error):
         # No request contents, account identifiers, credentials, or raw process output.
         code = getattr(error, "code", None) or type(error).__name__
+        if isinstance(error, DesktopError) and str(error) in ERRORS:
+            code = str(error)
         if not isinstance(code, str) or len(code) > 100:
             code = type(error).__name__
         report = {"status": "INCOMPLETE", "error_type": type(error).__name__, "code": code,

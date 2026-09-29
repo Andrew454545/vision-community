@@ -4,11 +4,50 @@ import tempfile
 import unittest
 from unittest.mock import Mock, patch
 
-from community.background import BackgroundContributor, WAIT_SECONDS, single_instance
-from community.desktop import DesktopError
+from community.background import BackgroundContributor, WAIT_SECONDS, main, single_instance
+from community.contribute import ContributeError
+from community.desktop import DesktopApp, DesktopError
 
 
 class BackgroundTest(unittest.TestCase):
+    def test_transient_service_failures_retry_without_attention_marker(self):
+        for status in (429, 502, 503, 504):
+            with self.subTest(status=status), tempfile.TemporaryDirectory() as root:
+                worker, app = self.worker(root)
+                app.capabilities.side_effect = ContributeError("http_error", status)
+                worker.run(once=True)
+                self.assertFalse((Path(root) / "NEEDS-ATTENTION").exists())
+                app.capabilities.side_effect = None
+                worker.run(once=True)
+                app.indexer.assert_called_once()
+
+    def test_rejection_is_not_retried_even_with_transient_http_status(self):
+        with tempfile.TemporaryDirectory() as root:
+            worker, app = self.worker(root)
+            app.capabilities.side_effect = ContributeError("verification_failed", 503)
+            worker.run(once=True)
+            worker.run(once=True)
+            app.capabilities.assert_called_once()
+            self.assertTrue((Path(root) / "NEEDS-ATTENTION").exists())
+
+    def test_permission_error_during_work_is_not_hidden_as_duplicate_instance(self):
+        with tempfile.TemporaryDirectory() as root:
+            worker = Mock(root=Path(root))
+            worker.run.side_effect = PermissionError("Cannot save failure report")
+            with patch("sys.argv", ["background", "--root", root, "--accept-contributions"]), \
+                    patch("community.background.BackgroundContributor", return_value=worker):
+                with self.assertRaises(PermissionError):
+                    main()
+
+    def test_failure_report_retains_known_reason_without_raw_private_text(self):
+        with tempfile.TemporaryDirectory() as root:
+            app = DesktopApp(Path(root))
+            app.record_failure(DesktopError("scene_verification_unavailable"))
+            report = Path(root) / "desktop-failure.json"
+            self.assertEqual(json.loads(report.read_text())["code"], "scene_verification_unavailable")
+            app.record_failure(DesktopError("private credential example"))
+            self.assertNotIn("private credential example", report.read_text())
+
     def worker(self, root):
         app = Mock()
         app.client = None

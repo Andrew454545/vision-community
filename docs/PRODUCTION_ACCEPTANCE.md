@@ -35,9 +35,9 @@ measurements into automatic production approval.
 
 ## Blocking live indexing
 
-- [ ] Authorize unattended external contributions. Automatic approval review
-  rejected task installation because earlier calibration authorization excluded
-  accounts/uploads. No background task was installed by that rejected attempt.
+- [x] Authorize unattended external contributions. The user explicitly approved
+  anonymous account creation/reuse, downloads, imagery and verified submissions.
+  The earlier approval rejection is resolved; do not ask for this consent again.
 - [ ] Complete Cloudflare OAuth and load the registered MCP connections.
   A dashboard login alone did not complete this connection.
 - [ ] Deploy and test the trusted scene verifier and approved runtime policy.
@@ -50,6 +50,17 @@ measurements into automatic production approval.
 - [ ] Install the Windows task, observe one actual accepted batch, exercise
   pause/resume, forced exit, network loss, sleep/wake and logon recovery.
   Sleep/power-off suspends computation; after restart the user must sign in.
+  On 2026-09-29 registration succeeded but scheduled startup failed (Windows
+  results 0x80070002, 0x8007010B, then PowerShell 0xFFFD0000; direct windowless
+  Python still returned 0x80070002). The failing task was disabled. Direct Python
+  execution wrote `waiting_for_service`; it did not process a contribution.
+  File visibility differs between launch contexts as a possible explanation,
+  not a confirmed diagnosis. Preserve the startup report and resolve this on
+  the host before approving unattended operation. Do not repeat unchanged
+  scheduler probes on every development heartbeat.
+  The default Windows PowerShell test host also rejected scripts under its
+  execution policy. No policy was changed; helper tests pass under the existing
+  configured PowerShell host. A signed installer remains a release requirement.
 
 ## Remaining release gates
 

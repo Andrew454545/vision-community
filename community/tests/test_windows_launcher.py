@@ -11,7 +11,9 @@ import zipfile
 
 REPO = Path(__file__).resolve().parents[2]
 LAUNCHER = REPO / "windows" / "Start-Vision.ps1"
-POWERSHELL = Path(os.environ.get("SystemRoot", "C:/Windows")) / "System32/WindowsPowerShell/v1.0/powershell.exe"
+POWERSHELL = Path(os.environ.get("VISION_TEST_POWERSHELL") or
+                  str(Path(os.environ.get("SystemRoot", "C:/Windows")) /
+                      "System32/WindowsPowerShell/v1.0/powershell.exe"))
 
 
 def ps_string(value):
@@ -22,7 +24,7 @@ def ps_string(value):
 class WindowsLauncherTest(unittest.TestCase):
     def command(self, code, *, expected=0):
         result = subprocess.run(
-            [str(POWERSHELL), "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command",
+            [str(POWERSHELL), "-NoProfile", "-Command",
              ". " + ps_string(LAUNCHER) + "; " + code],
             capture_output=True, text=True, timeout=60,
         )
@@ -102,6 +104,52 @@ class WindowsLauncherTest(unittest.TestCase):
             root = Path(folder)
             (root / "instance.json").write_text(json.dumps({"pid": os.getpid(), "url": "https://example.com/"}))
             self.assertEqual(self.command("Open-VisionExisting " + ps_string(root)), "False")
+
+    def test_background_installer_preserves_startup_failure_without_scheduler_side_effects(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder) / "worker's folder"
+            source = Path(folder) / "source"
+            (source / "community").mkdir(parents=True)
+            (source / "windows").mkdir()
+            (source / "windows/Start-Vision.ps1").write_bytes(LAUNCHER.read_bytes())
+            for name in ("community/desktop.py", "community/bootstrap.py", "community/vision_index.py",
+                         "community/runtime_manifest.json", "community/desktop_web/index.html",
+                         "calibration/run_windows.py", "calibration/quality.py",
+                         "calibration/gen4-v1/checksums.json"):
+                target = source / name
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes((REPO / name).read_bytes())
+            (source / "community/__init__.py").write_text("")
+            (source / "community/background.py").write_text(
+                "def main():\n    raise RuntimeError('private diagnostic contents')\n")
+            runtime = Path(folder) / "python"
+            runtime.mkdir()
+            for name in ("python.exe", "pythonw.exe"):
+                (runtime / name).touch()
+            # Exercise the installer, replacing only Windows scheduler mutations.
+            mocks = """
+function New-ScheduledTaskAction { [CmdletBinding()] param($Execute,$Argument)
+    $global:CapturedAction = @{execute=$Execute;arguments=$Argument}; return $global:CapturedAction }
+function New-ScheduledTaskTrigger { @{} }
+function New-ScheduledTaskSettingsSet { @{} }
+function New-ScheduledTaskPrincipal { @{} }
+function New-ScheduledTask { @{} }
+function Register-ScheduledTask { }
+function Start-ScheduledTask { }
+"""
+            command = (mocks + "$messages = @(& " + ps_string(REPO / "windows/Install-Background.ps1") +
+                       " -Source " + ps_string(source) + " -Root " + ps_string(root) +
+                       " -Python " + ps_string(runtime / "python.exe") + " -AcceptContributions); " +
+                       "$global:CapturedAction | ConvertTo-Json -Compress")
+            action = json.loads(self.command(command))
+            self.assertEqual(Path(action["execute"]), runtime / "pythonw.exe")
+            self.assertIn('--root "' + str(root) + '"', action["arguments"])
+            result = subprocess.run([sys.executable, "-B", str(root / "run-background.py")],
+                                    cwd=folder, capture_output=True, timeout=30)
+            self.assertNotEqual(result.returncode, 0)
+            report = (root / "startup-failure.json").read_text()
+            self.assertEqual(json.loads(report)["error_type"], "RuntimeError")
+            self.assertNotIn("private diagnostic contents", report)
 
 
 if __name__ == "__main__":
