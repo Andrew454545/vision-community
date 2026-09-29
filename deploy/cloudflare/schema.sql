@@ -39,12 +39,35 @@ CREATE TABLE IF NOT EXISTS leases (
   expires_at INTEGER NOT NULL,
   state TEXT NOT NULL CHECK (state IN ('active', 'submitted', 'expired')),
   generation INTEGER,
-  pace TEXT
+  pace TEXT,
+  scene_qualification_id TEXT
 );
 CREATE TABLE IF NOT EXISTS lease_items (
   lease_id TEXT NOT NULL REFERENCES leases(id),
   location_id INTEGER NOT NULL REFERENCES locations(id),
   PRIMARY KEY (lease_id, location_id)
+);
+CREATE TABLE IF NOT EXISTS scene_qualifications (
+  id TEXT PRIMARY KEY,
+  account_id TEXT NOT NULL REFERENCES accounts(id),
+  profile_id TEXT NOT NULL,
+  policy_id TEXT NOT NULL,
+  canary_sha256 TEXT NOT NULL,
+  expires_at INTEGER NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS scene_qualifications_lookup
+  ON scene_qualifications (account_id, policy_id, profile_id, expires_at);
+CREATE TABLE IF NOT EXISTS scene_candidates (
+  lease_id TEXT PRIMARY KEY REFERENCES leases(id),
+  account_id TEXT NOT NULL REFERENCES accounts(id),
+  qualification_id TEXT NOT NULL REFERENCES scene_qualifications(id),
+  policy_id TEXT NOT NULL,
+  submission_sha256 TEXT NOT NULL,
+  artifact_key TEXT NOT NULL,
+  records_json TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  state TEXT NOT NULL CHECK (state IN ('pending', 'published', 'rejected'))
 );
 CREATE TABLE IF NOT EXISTS published_index (
   location_id INTEGER PRIMARY KEY REFERENCES locations(id),
