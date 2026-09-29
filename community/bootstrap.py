@@ -8,6 +8,7 @@ scheduled object list, or a shared CoreML cache.
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import os
@@ -64,16 +65,23 @@ def runtime_platform(system: str | None = None, machine: str | None = None) -> s
     return f"{system_name}-{arch}"
 
 
-def files_for_platform(manifest: dict, platform_name: str) -> list:
+def files_for_platform(manifest: dict, platform_name: str, *, lane: str = "all") -> list:
+    if lane not in {"all", "scene", "object"}:
+        raise BootstrapError("invalid_lane")
     chosen = []
     for entry in manifest["files"]:
         platforms = entry.get("platforms")
         if isinstance(platforms, list) and platform_name not in platforms:
             continue
+        asset = str(entry.get("asset", ""))
+        if lane == "scene" and (asset.startswith("object-") or asset.startswith("vision-object")):
+            continue
+        if lane == "object" and (asset.startswith("siglip-") or asset.startswith("mma-vision")):
+            continue
         chosen.append(entry)
     has_scene = any(item.get("executable") and str(item.get("asset", "")).startswith("mma-vision") for item in chosen)
     has_object = any(item.get("executable") and str(item.get("asset", "")).startswith("vision-object") for item in chosen)
-    if not has_scene or not has_object:
+    if (lane in {"all", "scene"} and not has_scene) or (lane in {"all", "object"} and not has_object):
         raise BootstrapError("unsupported_platform")
     return chosen
 
@@ -138,9 +146,14 @@ def install_runtime(
     *,
     release: str = RELEASE,
     platform_name: str | None = None,
+    lane: str = "all",
+    progress=None,
 ) -> list[str]:
     actions = []
-    for entry in files_for_platform(manifest, platform_name or runtime_platform()):
+    entries = files_for_platform(manifest, platform_name or runtime_platform(), lane=lane)
+    for number, entry in enumerate(entries, 1):
+        if progress:
+            progress(number, len(entries))
         path = destination(root, entry["path"])
         asset = entry["asset"]
         if _already_installed(path, entry):
@@ -173,9 +186,13 @@ def ensure_requirements() -> None:
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description="Download and verify the private VISION runtime.")
+    parser.add_argument("--lane", choices=("scene", "object", "all"), default="all")
+    args = parser.parse_args()
     try:
-        ensure_requirements()
-        actions = install_runtime(load_manifest(), vision_root())
+        if args.lane != "scene":
+            ensure_requirements()
+        actions = install_runtime(load_manifest(), vision_root(), lane=args.lane)
     except BootstrapError as error:
         print(error.code, file=sys.stderr)
         return 1

@@ -40,6 +40,8 @@ from .rank import (
     prune_nearby,
 )
 from .search import query_vector, ranked_search_embedding
+from .scene_quality import ApprovedSceneReferences, scene_capabilities
+from . import scene_pipeline
 from .segments import SegmentRegistry
 from .source import haversine_meters
 from .store import r2_public_status
@@ -121,6 +123,8 @@ class CommunityService:
         segment_capacity: int = 500_000,
         owner_account_id: str | None = None,
         operational: bool = False,
+        scene_references: ApprovedSceneReferences | None = None,
+        scene_verifier=None,
     ):
         if not isinstance(search_cost, int) or search_cost < 1:
             raise ValueError("search_cost must be a positive integer")
@@ -130,6 +134,8 @@ class CommunityService:
         self.database.parent.mkdir(parents=True, exist_ok=True)
         self.search_cost = search_cost
         self.operational = operational
+        self.scene_references = scene_references
+        self.scene_verifier = scene_verifier
         self.artifacts = Path(artifacts) if artifacts is not None else self.database.parent / "artifacts"
         self.registry = SegmentRegistry(self.artifacts / "index", capacity=segment_capacity)
         with self._connection() as connection:
@@ -202,6 +208,7 @@ class CommunityService:
             self._migrate(connection)
 
     def _migrate(self, connection: sqlite3.Connection) -> None:
+        scene_pipeline.migrate(connection)
         location_cols = {row[1] for row in connection.execute("PRAGMA table_info(locations)")}
         additions = {
             "source": "TEXT",
@@ -336,6 +343,25 @@ class CommunityService:
             raise
         finally:
             connection.close()
+
+    def capabilities(self) -> dict:
+        if scene_pipeline.configured(self.scene_verifier):
+            return {"version": 1, "sceneContributions": {
+                "ready": True, "reason": None, "model": VISION_FOUR_VIEW_MODEL,
+                "policyId": self.scene_verifier.policy_id, "scope": "audited-new-locations",
+                "deviceQualificationRequired": True, "canaryLocations": scene_pipeline.CANARY_LOCATIONS,
+                "verification": "trusted-profile-canary-and-submission-audit",
+            }}
+        return scene_capabilities(self.scene_references)
+
+    def qualify_scene_device(self, account_id, profile_id, canary):
+        return scene_pipeline.qualify(self, account_id, profile_id, canary)
+
+    def scene_qualification_status(self, account_id, profile_id):
+        return scene_pipeline.qualification_status(self, account_id, profile_id)
+
+    def audit_scene_submission(self, account_id, lease_id):
+        return scene_pipeline.audit(self, account_id, lease_id)
 
     def import_synthetic(self, records: list[dict]) -> int:
         """Admit only test records, with one canonical identity per lane/version."""
@@ -1147,7 +1173,7 @@ class CommunityService:
                        FROM locations WHERE asset_id=? AND capture=? AND lane=? AND model=?""",
                     (job["assetId"], job["capture"], job["lane"], job["model"]),
                 ).fetchone()
-                if row is None or row["state"] == "published" or row["queue_state"] == "skipped":
+                if row is None or row["state"] == "published" or row["queue_state"] != "pending":
                     continue
                 if row["state"] == "leased" and row["lease_until"] and int(row["lease_until"]) > now:
                     continue
@@ -1166,9 +1192,12 @@ class CommunityService:
         pace: str | None = None,
         client: str | None = None,
         part: int | None = None,
+        profile_id: str | None = None,
     ) -> dict:
         if lane not in UNITS_PER_LOCATION or type(count) is not int or not 1 <= count <= MAX_LEASE_SIZE:
             raise ServiceError("invalid_lease_request")
+        if lane == "scene" and self.operational and self.scene_references is None and not scene_pipeline.configured(self.scene_verifier):
+            raise ServiceError("scene_verification_unavailable", 503)
         if pace is not None and pace not in {"slow", "medium", "max"}:
             raise ServiceError("invalid_pace")
         if client is not None and client not in {"browser", "cli"}:
@@ -1184,6 +1213,10 @@ class CommunityService:
         work = None
         with self._connection() as connection:
             connection.execute("BEGIN IMMEDIATE")
+            qualification = None
+            if lane == "scene" and scene_pipeline.configured(self.scene_verifier):
+                qualification = scene_pipeline.active_qualification(connection, account_id, self.scene_verifier, now,
+                                                                    profile_id=profile_id)
             # An expired lease loses its claim before any task can be reassigned.
             connection.execute(
                 "UPDATE leases SET state='expired' WHERE state='active' AND expires_at<=?", (now,)
@@ -1195,11 +1228,17 @@ class CommunityService:
                 (account_id, lane, now),
             ).fetchone()
             if existing is not None:
+                if qualification is not None and existing["scene_qualification_id"] != qualification["id"]:
+                    raise ServiceError("scene_qualification_changed", 409)
                 rows = connection.execute(
                     """SELECT l.* FROM locations l JOIN lease_items i ON i.location_id=l.id
                        WHERE i.lease_id=? ORDER BY l.id""",
                     (existing["id"],),
                 ).fetchall()
+                if qualification is None and lane == "scene" and self.scene_references is not None and any(
+                    not self.scene_references.covers(row) for row in rows
+                ):
+                    raise ServiceError("scene_reference_not_approved", 409)
                 items = self._lease_items(rows, {row["id"]: int(row["generation"] or 0) for row in rows})
                 payload = {
                     "leaseId": existing["id"],
@@ -1253,6 +1292,10 @@ class CommunityService:
                 rows = list(self._pending_shared(connection, lane, now, count))
             if not rows:
                 raise ServiceError("no_available_work", 409)
+            if qualification is None and lane == "scene" and self.scene_references is not None and any(
+                not self.scene_references.covers(row) for row in rows
+            ):
+                raise ServiceError("scene_reference_not_approved", 409)
             generations = []
             for row in rows:
                 next_generation = int(row["generation"] or 0) + 1
@@ -1266,6 +1309,9 @@ class CommunityService:
                 "INSERT INTO lease_items (lease_id, location_id) VALUES (?, ?)",
                 [(lease_id, row["id"]) for row in rows],
             )
+            if qualification is not None:
+                connection.execute("UPDATE leases SET scene_qualification_id=? WHERE id=?",
+                                   (qualification["id"], lease_id))
             connection.executemany(
                 """UPDATE locations SET state='leased', active_lease=?, lease_until=?, generation=? WHERE id=?""",
                 [(lease_id, expires_at, generation, location_id) for generation, location_id in generations],
@@ -1333,6 +1379,9 @@ class CommunityService:
             if lease is None:
                 raise ServiceError("unknown_lease", 404)
             if lease["state"] == "submitted":
+                candidate = connection.execute("SELECT * FROM scene_candidates WHERE lease_id=?", (lease_id,)).fetchone()
+                if candidate is not None:
+                    return scene_pipeline.candidate_result(candidate)
                 return {"released": 0, "alreadySubmitted": True}
             if skip:
                 released = connection.execute(
@@ -1466,6 +1515,9 @@ class CommunityService:
                 accepted = connection.execute(
                     "SELECT COUNT(*) FROM lease_items WHERE lease_id=?", (lease_id,)
                 ).fetchone()[0]
+                candidate = connection.execute("SELECT * FROM scene_candidates WHERE lease_id=?", (lease_id,)).fetchone()
+                if candidate is not None:
+                    return scene_pipeline.candidate_result(candidate)
                 return {"accepted": accepted, "unitsEarned": 0, "replayed": True}
             if lease["state"] != "active" or lease["expires_at"] <= now or lease["lane"] != "object":
                 raise ServiceError("expired_lease", 409)
@@ -1580,6 +1632,9 @@ class CommunityService:
             if lease is None:
                 raise ServiceError("unknown_lease", 404)
             if lease["state"] == "submitted":
+                candidate = connection.execute("SELECT * FROM scene_candidates WHERE lease_id=?", (lease_id,)).fetchone()
+                if candidate is not None:
+                    return scene_pipeline.candidate_result(candidate)
                 accepted = connection.execute(
                     "SELECT COUNT(*) FROM lease_items WHERE lease_id=?", (lease_id,)
                 ).fetchone()[0]
@@ -1597,6 +1652,11 @@ class CommunityService:
             four_view = models == {VISION_FOUR_VIEW_MODEL}
             if VISION_FOUR_VIEW_MODEL in models and not four_view:
                 raise ServiceError("invalid_submission")
+            pipeline = four_view and scene_pipeline.configured(self.scene_verifier)
+            if four_view and self.scene_references is None and not pipeline:
+                raise ServiceError("scene_verification_unavailable", 503)
+            if self.operational and any(row["lane"] == "scene" for row in items) and not four_view:
+                raise ServiceError("unsupported_model", 422)
             verified = {}
             audit = locations_to_recompute(items)
             four_view_key = None
@@ -1615,6 +1675,8 @@ class CommunityService:
                     digest = sha256_hex(embedding)
                     if not hmac.compare_digest(payload["digest"], digest):
                         raise ServiceError("verification_failed", 422)
+                    if not pipeline and not self.scene_references.verify(row, digest):
+                        raise ServiceError("scene_reference_not_approved", 422)
                     embed_digest = payload.get("embeddingSha256")
                     if isinstance(embed_digest, str) and not hmac.compare_digest(embed_digest, digest):
                         raise ServiceError("verification_failed", 422)
@@ -1670,6 +1732,8 @@ class CommunityService:
                         "embedding": None,
                     }
             earned = sum(UNITS_PER_LOCATION[row["lane"]] for row in items)
+            if pipeline:
+                return scene_pipeline.stage(self, connection, account_id, lease, items, verified, now)
             if four_view:
                 blob = b"".join(verified[row["id"]]["four_view"] for row in items)
                 four_view_key = f"four-view-v4/{lease_id}.i8"

@@ -13,6 +13,8 @@ import {
 } from "./pano.js";
 import { SEED_LOCATIONS } from "./seed.js";
 import { OBJECT_INDEX_MODEL, validateObjectIndex } from "./objectIndex.js";
+import { loadSceneReferences, sceneCapabilities } from "./sceneQuality.js";
+import { SCENE_PIPELINE_SCHEMA, verifierConfigured, pipelineCapabilities, activeQualification, qualificationStatus, qualifyDevice, auditScene, stageScene } from "./scenePipeline.js";
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS accounts (
@@ -32,7 +34,8 @@ CREATE TABLE IF NOT EXISTS locations (
 CREATE INDEX IF NOT EXISTS locations_queue ON locations (lane, state, lease_until, id);
 CREATE TABLE IF NOT EXISTS leases (
   id TEXT PRIMARY KEY, account_id TEXT NOT NULL, lane TEXT NOT NULL,
-  expires_at INTEGER NOT NULL, state TEXT NOT NULL, generation INTEGER, pace TEXT
+  expires_at INTEGER NOT NULL, state TEXT NOT NULL, generation INTEGER, pace TEXT,
+  scene_qualification_id TEXT
 );
 CREATE TABLE IF NOT EXISTS lease_items (
   lease_id TEXT NOT NULL, location_id INTEGER NOT NULL, PRIMARY KEY (lease_id, location_id)
@@ -89,6 +92,7 @@ function error(code, status = 400) {
 
 function viewFailure(err) {
   const code = err && err.message;
+  if (err && Number.isInteger(err.status) && code) return error(code, err.status);
   if (code === "view_unavailable" || code === "invalid_thumbnail") return error("view_unavailable", 422);
   if (code === "not_a_street_pano" || code === "invalid_pano_id") return error("invalid_pano_id");
   return null;
@@ -123,6 +127,13 @@ async function ready(env) {
   await migratePoseCatalog(env);
   await migrateWorkParts(env);
   await migrateFourView(env);
+  for (const statement of SCENE_PIPELINE_SCHEMA.split(";").map((item) => item.trim()).filter(Boolean)) {
+    await env.DB.prepare(statement).run();
+  }
+  const leaseColumns = await tableColumns(env, "leases");
+  if (!leaseColumns.includes("scene_qualification_id")) {
+    await env.DB.prepare("ALTER TABLE leases ADD COLUMN scene_qualification_id TEXT").run();
+  }
   const count = await env.DB.prepare("SELECT COUNT(*) AS n FROM locations").first();
   if (!count || count.n > 0) return;
   const statements = SEED_LOCATIONS.map((row) =>
@@ -647,6 +658,11 @@ async function lease(env, account, body) {
   const lane = body.lane;
   const pace = body.pace || "medium";
   if (!UNITS[lane] || typeof body.count !== "number" || body.count < 1 || body.count > MAX_LEASE) return error("invalid_lease_request");
+  const references = lane === "scene" ? await loadSceneReferences(env) : null;
+  if (lane === "scene" && !references && !verifierConfigured(env)) return error("scene_verification_unavailable", 503);
+  const qualification = lane === "scene" && verifierConfigured(env)
+    ? await activeQualification(env, account, Math.floor(Date.now() / 1000), null, body.profileId || null)
+    : null;
   if (!["slow", "medium", "max"].includes(pace)) return error("invalid_pace");
   const requestedPart = parsePart(body.part);
   if (requestedPart === undefined) return error("invalid_part");
@@ -661,6 +677,8 @@ async function lease(env, account, body) {
     const held = (await env.DB.prepare(
       `SELECT l.* FROM locations l JOIN lease_items i ON i.location_id=l.id WHERE i.lease_id=? ORDER BY l.id`
     ).bind(existing.id).all()).results || [];
+    if (references && held.some((row) => !references.covers(row))) return error("scene_reference_not_approved", 409);
+    if (qualification && existing.scene_qualification_id !== qualification.id) return error("scene_qualification_changed", 409);
     const payload = [];
     for (const row of held) payload.push(await leaseItemFromRow(row, row.generation || 1));
     const work = await workStatus(env, account, lane);
@@ -677,6 +695,9 @@ async function lease(env, account, body) {
   const remaining = await env.DB.prepare(
     "SELECT 1 AS ok FROM pose_catalog WHERE lane=? AND next_row < row_count LIMIT 1"
   ).bind(lane).first();
+  // Catalog materialization advances a cursor outside a transaction. Until a
+  // trusted audit service exists, only an operator-prepared approved pool runs.
+  if (references && remaining) return error("scene_reference_pool_unprepared", 409);
   let items = [];
   let activeShard = null;
   if (remaining) {
@@ -712,11 +733,12 @@ async function lease(env, account, body) {
     items = await pendingShared(env, lane, now, count);
   }
   if (!items.length) return error("no_available_work", 409);
+  if (references && items.some((row) => !references.covers(row))) return error("scene_reference_not_approved", 409);
   const leaseId = randomHex(16);
   const expires = now + (client === "cli" ? 6 * 60 * 60 : LEASE_SECONDS);
   const statements = [
-    env.DB.prepare("INSERT INTO leases (id, account_id, lane, expires_at, state, generation, pace) VALUES (?, ?, ?, ?, 'active', ?, ?)").bind(
-      leaseId, account, lane, expires, (items[0].generation || 0) + 1, pace
+    env.DB.prepare("INSERT INTO leases (id, account_id, lane, expires_at, state, generation, pace, scene_qualification_id) VALUES (?, ?, ?, ?, 'active', ?, ?, ?)").bind(
+      leaseId, account, lane, expires, (items[0].generation || 0) + 1, pace, qualification?.id || null
     ),
   ];
   const payload = [];
@@ -794,6 +816,20 @@ async function renewLease(env, account, body) {
 }
 
 async function submitFourView(env, account, leaseId, items, supplied, now) {
+  if (verifierConfigured(env)) {
+    const verified = [];
+    for (const row of items) {
+      if (row.lane !== "scene" || row.state !== "leased" || row.active_lease !== leaseId) return error("lease_lost", 409);
+      const payload = supplied.get(row.id);
+      if (!payload || !validFourViewRecord(payload.embedding)) return error("verification_failed", 422);
+      const digest = await sha256Hex(payload.embedding);
+      if (!equalHex(payload.digest, digest)) return error("verification_failed", 422);
+      verified.push({ row, embedding: payload.embedding, digest });
+    }
+    return json(await stageScene(env, account, leaseId, verified, now));
+  }
+  const references = await loadSceneReferences(env);
+  if (!references) return error("scene_verification_unavailable", 503);
   if (!env.INDEX) return error("index_unavailable", 503);
   const verified = [];
   for (const row of items) {
@@ -804,6 +840,7 @@ async function submitFourView(env, account, leaseId, items, supplied, now) {
     if (!validFourViewRecord(embedding)) return error("verification_failed", 422);
     const digest = await sha256Hex(embedding);
     if (!equalHex(payload.digest, digest)) return error("verification_failed", 422);
+    if (!references.verify(row, digest)) return error("scene_reference_not_approved", 422);
     if (payload.embeddingSha256 && !equalHex(payload.embeddingSha256, digest)) return error("verification_failed", 422);
     verified.push({ row, embedding, digest });
   }
@@ -936,6 +973,9 @@ async function submit(env, account, body) {
     if (!suppliedModels.every((model) => model === FOUR_VIEW_MODEL)) return error("invalid_submission");
     return submitFourView(env, account, leaseId, items, supplied, now);
   }
+  // Public scene work cannot downgrade to the prototype extractor to bypass
+  // independently approved reference verification.
+  if (items.some((row) => row.lane === "scene")) return error("unsupported_model", 422);
   const audit = locationsToRecompute(items);
   const verified = [];
   for (const row of items) {
@@ -1578,6 +1618,9 @@ function hexToQuery(hex) {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    if (url.pathname === "/api/capabilities" && request.method === "GET") {
+      return json(verifierConfigured(env) ? pipelineCapabilities(env) : sceneCapabilities(await loadSceneReferences(env)));
+    }
     if (!url.pathname.startsWith("/api/")) {
       const response = await env.ASSETS.fetch(request);
       const headers = new Headers(response.headers);
@@ -1597,6 +1640,12 @@ export default {
         const account = await accountId(env, request);
         if (!account) return error("unauthorized", 401);
         return json(await status(env, account, { lite: url.searchParams.get("lite") === "1" }));
+      }
+      if (url.pathname === "/api/scene-qualifications" && request.method === "GET") {
+        const account = await accountId(env, request);
+        if (!account) return error("unauthorized", 401);
+        if (!verifierConfigured(env)) return error("scene_verification_unavailable", 503);
+        return json(await qualificationStatus(env, account, url.searchParams.get("profileId")));
       }
       if (url.pathname === "/api/views" && request.method === "GET") {
         if (!sameOrigin(request)) return error("cross_origin_request", 403);
@@ -1654,6 +1703,13 @@ export default {
       if (url.pathname === "/api/recovery") return recover(env, request, body);
       const account = await accountId(env, request);
       if (!account) return error("unauthorized", 401);
+      if (url.pathname === "/api/scene-qualifications") {
+        if (!verifierConfigured(env)) return error("scene_verification_unavailable", 503);
+        return json(await qualifyDevice(env, account, body, validFourViewRecord));
+      }
+      if (url.pathname === "/api/scene-audits") {
+        return json(await auditScene(env, account, body.submissionId));
+      }
       if (url.pathname === "/api/leases/release") return releaseLease(env, account, body);
       if (url.pathname === "/api/leases/renew") return renewLease(env, account, body);
       if (url.pathname === "/api/leases") return lease(env, account, body);

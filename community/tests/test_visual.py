@@ -212,7 +212,7 @@ class VisualPipelineTest(unittest.TestCase):
         }
         added = self.service.import_jobs(near)
         self.assertEqual(added, 1)
-        with sqlite3.connect(self.service.database) as connection:
+        with self.service._connection() as connection:
             state = connection.execute(
                 "SELECT queue_state FROM locations WHERE asset_id=?", ("synthetic:visual:near",)
             ).fetchone()[0]
