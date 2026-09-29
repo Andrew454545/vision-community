@@ -1085,7 +1085,7 @@ def object_search_input(
         "resultPruneMeters": 100,
         "runtimeManifest": str(Path(model_dir) / "hybrid-object-runtime.json"),
         "modelCache": str(model_cache),
-        "cpu": False,
+        "cpu": object_uses_cpu(),
     }
 
 

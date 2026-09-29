@@ -40,6 +40,17 @@ def _tsv(rows: list[str]) -> str:
 
 
 class AllLocationsTailTest(unittest.TestCase):
+    def test_tail_preserves_utf8_crlf_and_missing_final_newline(self):
+        from community.all_locations_tail import _tail_lines
+        with tempfile.TemporaryDirectory() as folder:
+            source = Path(folder) / "source.tsv"
+            payload = ("x" * 70000 + "\r\n" + "café\r\nlast").encode("utf-8")
+            source.write_bytes(payload)
+            self.assertEqual(_tail_lines(source, 2), "café\r\nlast".encode("utf-8"))
+            self.assertEqual(_tail_lines(source, 9), payload)
+            source.write_bytes(b"")
+            self.assertEqual(_tail_lines(source, 2), b"")
+
     def test_copy_tail_keeps_source_and_last_rows(self):
         with tempfile.TemporaryDirectory() as folder:
             source = Path(folder) / "source.tsv"

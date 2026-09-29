@@ -1,5 +1,9 @@
 # VISION Community: production design
 
+The current release gates and owner requirements are maintained in
+[Production acceptance](docs/PRODUCTION_ACCEPTANCE.md). That checklist supersedes
+older corpus-access and unconditional cost assumptions below.
+
 The running code imports panorama **metadata** (IDs and pose), never imagery.
 Search queries and results use map-making.app `customCoordinates` JSON. Credits,
 leases, and verification stay on trusted server code. A 200M index-only corpus

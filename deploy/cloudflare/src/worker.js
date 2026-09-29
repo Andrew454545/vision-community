@@ -12,6 +12,7 @@ import {
   QUERY_VIEW_CAP, renderLocationFaces, leaseCap, usesStreetViews,
 } from "./pano.js";
 import { SEED_LOCATIONS } from "./seed.js";
+import { contributedArtifact, contributedObjectPrefixes } from "./publication.js";
 import { OBJECT_INDEX_MODEL, validateObjectIndex } from "./objectIndex.js";
 import { loadSceneReferences, sceneCapabilities } from "./sceneQuality.js";
 import { SCENE_PIPELINE_SCHEMA, verifierConfigured, pipelineCapabilities, activeQualification, qualificationStatus, qualifyDevice, auditScene, stageScene } from "./scenePipeline.js";
@@ -930,7 +931,7 @@ async function submitObjectIndex(env, account, leaseId, items, supplied, objectI
     }
   }
   const prefix = `object-index-v4/${leaseId}/`;
-  await env.INDEX.put(`${prefix}manifest.json`, JSON.stringify(objectIndex.manifest));
+  await env.INDEX.put(`${prefix}manifest.json`, JSON.stringify({ ...objectIndex.manifest, sourceTsv: "locations.tsv" }));
   await env.INDEX.put(`${prefix}locations.tsv`, sourceTsv);
   for (const [name, bytes] of Object.entries(files)) {
     await env.INDEX.put(`${prefix}${name}`, bytes);
@@ -1177,6 +1178,7 @@ async function objectIndexCatalog(env, account, url) {
   const paid = await requirePaidSearch(env, account, url.searchParams.get("searchId") || "");
   if (!paid || !env.INDEX) return error("unknown_search", 404);
   const groups = new Map();
+  const published = await contributedObjectPrefixes(env.DB);
   let cursor;
   for (let page = 0; page < 20; page += 1) {
     const listed = await env.INDEX.list({ prefix: "object-index-v4/", cursor, limit: 500 });
@@ -1184,6 +1186,7 @@ async function objectIndexCatalog(env, account, url) {
       const match = OBJECT_INDEX_KEY.exec(object.key);
       if (!match) continue;
       const prefix = object.key.slice(0, object.key.lastIndexOf("/") + 1);
+      if (!published.has(prefix)) continue;
       const group = groups.get(prefix) || { prefix, files: [] };
       group.files.push({ key: object.key, size: object.size || 0 });
       groups.set(prefix, group);
@@ -1199,6 +1202,7 @@ async function objectIndexFile(env, account, url) {
   if (!paid || !env.INDEX) return error("unknown_search", 404);
   const key = url.searchParams.get("key") || "";
   if (!OBJECT_INDEX_KEY.test(key)) return error("invalid_index", 400);
+  if (!await contributedArtifact(env.DB, key, "object")) return error("not_found", 404);
   const object = await env.INDEX.get(key);
   if (!object) return error("not_found", 404);
   return new Response(object.body, {
@@ -1215,6 +1219,7 @@ async function sceneIndexCatalog(env, account, url) {
     `SELECT i.four_view_key, l.id, l.asset_id, l.lat, l.lon, l.heading, l.pitch, l.zoom, l.country, l.camera_generation
      FROM published_index i JOIN locations l ON l.id=i.location_id
      WHERE i.four_view_key IS NOT NULL AND l.lane='scene'
+       AND l.state='published' AND l.contributor_id IS NOT NULL
      ORDER BY i.four_view_key, l.id`
   ).all()).results || [];
   const groups = new Map();
@@ -1241,6 +1246,7 @@ async function sceneIndexFile(env, account, url) {
   if (!paid || !env.INDEX) return error("unknown_search", 404);
   const key = url.searchParams.get("key") || "";
   if (!SCENE_INDEX_KEY.test(key)) return error("invalid_index", 400);
+  if (!await contributedArtifact(env.DB, key, "scene")) return error("not_found", 404);
   const object = await env.INDEX.get(key);
   if (!object) return error("not_found", 404);
   return new Response(object.body, {

@@ -267,12 +267,14 @@
       <button id="process" class="primary" type="button" disabled>Copy scene command</button>
       <button id="pause" class="compact-btn" type="button" disabled>Pause</button>
       <p class="status" id="process-status">Get an account, then copy the scene command into Terminal.</p>
-      <p class="rail-copy">Scene and object indexing run in Terminal, the same way as VISION. Leave that window open. Object indexing uses VISION's 25% duty. If VISION is already indexing on this computer, keep speed on Gentle.</p>
+      <p class="rail-copy">On Windows, open <strong>Start VISION.cmd</strong> in the downloaded project folder for guided scene setup. Other supported computers can use the commands below. Windows object processing is still being validated.</p>
+      <details><summary>Advanced setup for Mac</summary><p>In the downloaded project folder, run <code>python3 -m community.bootstrap</code>, then use the indexing command. Keep the computer awake.</p></details>
       <p class="rail-copy" id="batch-label">You will get your own batch. Other people get different batches.</p>
       <div class="progress" role="progressbar" aria-labelledby="progress-label">
         <div id="progress-fill"></div>
       </div>
       <p id="progress-label">0 of 100,000 toward a search</p>
+      <p class="rail-copy">You can keep contributing after earning a search. Unused search credits stay in your account for later. Save your private account code so you can recover them.</p>
       <div class="balance">
         <span id="units-label">Toward a search</span>
         <strong id="units">0</strong>

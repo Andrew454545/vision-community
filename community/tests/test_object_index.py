@@ -381,7 +381,8 @@ class ObjectIndexTest(unittest.TestCase):
             self.assertEqual(spec["queries"][0]["route"], "common")
             self.assertEqual(spec["queries"][0]["rejectRoadNames"], False)
             self.assertNotIn("minimumGlobalLocation", spec["queries"][0])
-            self.assertEqual(spec["cpu"], False)
+            from community.object_index import object_uses_cpu
+            self.assertEqual(spec["cpu"], object_uses_cpu())
             self.assertTrue(str(spec["modelCache"]).endswith("cache"))
 
     def test_paid_search_downloads_a_finished_object_index(self):
@@ -394,8 +395,13 @@ class ObjectIndexTest(unittest.TestCase):
             stored.mkdir(parents=True)
             (stored / "manifest.json").write_bytes(b'{"completed":true}')
             (stored / "locations.tsv").write_bytes(b"header\n")
+            service.import_synthetic(json.loads(FIXTURE.read_text(encoding="utf-8"))["locations"])
             with service._connection() as connection:
                 connection.execute("UPDATE accounts SET units=4 WHERE id=?", (account,))
+                location_id = connection.execute("SELECT id FROM locations WHERE lane='object' LIMIT 1").fetchone()[0]
+                connection.execute("UPDATE locations SET state='published', contributor_id=? WHERE id=?", (account, location_id))
+                connection.execute("INSERT INTO published_index (location_id, index_text, output_sha256, published_at, object_index_key) VALUES (?, '', ?, 1, ?)",
+                                   (location_id, "a" * 64, f"object-index-v4/{lease}/"))
             paid = service.search(
                 account,
                 None,

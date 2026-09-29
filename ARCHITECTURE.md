@@ -1,5 +1,9 @@
 # Architecture decision (2026-09-19)
 
+> Historical design notes. The current requirements and unresolved local-search
+> credit-enforcement tradeoff are in [Production acceptance](docs/PRODUCTION_ACCEPTANCE.md).
+> Capacity and cost statements below are estimates, not verified launch claims.
+
 The public site is a **shared indexing queue**. Place indexing runs
 `mma-vision index-four-views` with the same 11-column TSV, the same SigLIP
 model directory, and the same version-4 record (4 quarter-turn views, 3080
