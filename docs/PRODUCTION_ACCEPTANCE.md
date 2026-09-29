@@ -38,8 +38,10 @@ measurements into automatic production approval.
 - [x] Authorize unattended external contributions. The user explicitly approved
   anonymous account creation/reuse, downloads, imagery and verified submissions.
   The earlier approval rejection is resolved; do not ask for this consent again.
-- [ ] Complete Cloudflare OAuth and load the registered MCP connections.
-  A dashboard login alone did not complete this connection.
+- [x] Cloudflare API access is connected. On 2026-09-29, read-only checks
+  confirmed the `Geonections Account`, the `vision-community` Worker, its
+  `vision-community` D1 database, and its `vision-community` R2 binding. The
+  excluded `geonections-images` bucket was not accessed.
 - [ ] Deploy and test the trusted scene verifier and approved runtime policy.
   The live `/api/capabilities` returned `not_found` on 2026-09-29.
 - [ ] Complete the PC qualification against that policy. Never bypass it.
@@ -93,9 +95,14 @@ measurements into automatic production approval.
   infinite supply of useful new work; wait for new work without re-crediting it.
 - [ ] Storage publication atomicity, backup/restore, deletion, secret rotation,
   service failure recovery, resource/cost measurements and live staging tests.
-- [ ] Inventory the existing Community bucket and ledger read-only after access
-  is available. Plan any removal of legacy indexes explicitly; do not delete
-  existing data merely to enforce the new publication policy.
+- [x] Read-only inventory completed on 2026-09-29. The confirmed Community
+  bucket is in ENAM and has only Cloudflare's seven-day incomplete-upload
+  cleanup rule. The D1 database has 17 anonymous accounts, 101,123 locations,
+  29,664 published scene indexes, 1,854 ledger rows, and no searches; sampled
+  aggregate checks found no published rows without a contributor or source.
+  No object contents or records from the excluded bucket were read. Plan any
+  removal of legacy indexes explicitly; do not delete existing data merely to
+  enforce the new publication policy.
 
 ## Architecture decision still required
 

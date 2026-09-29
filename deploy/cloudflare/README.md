@@ -9,9 +9,11 @@ Use the staging template before enabling any contributor traffic:
 1. Copy `wrangler.staging.toml.example` to `wrangler.staging.toml` and fill in a
    separate D1 database, R2 bucket, private `SCENE_VERIFIER` service binding,
    unique rate-limit namespace, and reviewed `SCENE_POLICY_ID`.
-2. Apply `schema.sql` to the staging database. Existing databases should apply
-   `migrations/0002_scene_pipeline.sql`; if the lease column already exists,
-   run the table/index statements from that file without repeating the ALTER.
+2. Apply `schema.sql` to a new staging database. Existing databases should
+   apply `migrations/0002_scene_pipeline.sql` and
+   `migrations/0003_object_coverage.sql`; if the lease column already exists,
+   run the table/index statements from migration 0002 without repeating the
+   `ALTER`.
 3. Deploy with `npx wrangler deploy --config wrangler.staging.toml`.
 4. Check `/api/capabilities`: scene contributions must show `ready: true`, the
    expected policy ID, and `deviceQualificationRequired: true`.
