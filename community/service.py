@@ -534,11 +534,19 @@ class CommunityService:
     def list_object_indexes(self, account_id: str, search_id: str) -> dict:
         with self._connection() as connection:
             self._require_paid_search(connection, account_id, search_id)
+            published = {row[0] for row in connection.execute(
+                """SELECT DISTINCT i.object_index_key FROM published_index i
+                   JOIN locations l ON l.id=i.location_id
+                   WHERE l.lane='object' AND l.state='published'
+                     AND l.contributor_id IS NOT NULL AND i.object_index_key IS NOT NULL"""
+            )}
         indexes = []
         root = self.artifacts / "object-index-v4"
         if root.is_dir():
             for child in sorted(path for path in root.iterdir() if path.is_dir()):
                 if not re.fullmatch(r"[0-9a-f]{32}", child.name):
+                    continue
+                if f"object-index-v4/{child.name}/" not in published:
                     continue
                 files = []
                 for path in sorted(item for item in child.iterdir() if item.is_file()):
@@ -556,6 +564,14 @@ class CommunityService:
             self._require_paid_search(connection, account_id, search_id)
         if not re.fullmatch(r"object-index-v4/[0-9a-f]{32}/[A-Za-z0-9._-]{1,80}", key or ""):
             raise ServiceError("invalid_index", 400)
+        with self._connection() as connection:
+            published = connection.execute(
+                """SELECT 1 FROM published_index i JOIN locations l ON l.id=i.location_id
+                   WHERE i.object_index_key=? AND l.lane='object' AND l.state='published'
+                     AND l.contributor_id IS NOT NULL LIMIT 1""", (key.rsplit('/', 1)[0] + '/',)
+            ).fetchone()
+            if published is None:
+                raise ServiceError("not_found", 404)
         path = self.artifacts.joinpath(*str(key).split("/"))
         if not path.is_file() or not path.resolve().is_relative_to(self.artifacts.resolve()):
             raise ServiceError("not_found", 404)
@@ -569,6 +585,7 @@ class CommunityService:
                           l.pitch, l.zoom, l.country, l.camera_generation
                    FROM published_index i JOIN locations l ON l.id=i.location_id
                    WHERE i.four_view_key IS NOT NULL AND l.lane='scene'
+                     AND l.state='published' AND l.contributor_id IS NOT NULL
                    ORDER BY i.four_view_key, l.id"""
             ).fetchall()
         grouped: dict[str, list] = {}
@@ -591,6 +608,14 @@ class CommunityService:
             self._require_paid_search(connection, account_id, search_id)
         if not re.fullmatch(r"four-view-v4/[0-9a-f]{32}\.i8", key or ""):
             raise ServiceError("invalid_index", 400)
+        with self._connection() as connection:
+            published = connection.execute(
+                """SELECT 1 FROM published_index i JOIN locations l ON l.id=i.location_id
+                   WHERE i.four_view_key=? AND l.lane='scene' AND l.state='published'
+                     AND l.contributor_id IS NOT NULL LIMIT 1""", (key,)
+            ).fetchone()
+            if published is None:
+                raise ServiceError("not_found", 404)
         path = self.artifacts.joinpath(*str(key).split("/"))
         if not path.is_file() or not path.resolve().is_relative_to(self.artifacts.resolve()):
             raise ServiceError("not_found", 404)
@@ -1554,7 +1579,8 @@ class CommunityService:
             prefix = f"object-index-v4/{lease_id}/"
             dest = self.artifacts / prefix
             dest.mkdir(parents=True, exist_ok=True)
-            (dest / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+            # The absolute source path can contain the contributor's real name.
+            (dest / "manifest.json").write_text(json.dumps({**manifest, "sourceTsv": "locations.tsv"}), encoding="utf-8")
             (dest / "locations.tsv").write_bytes(source_tsv)
             for name, payload in files.items():
                 (dest / name).write_bytes(payload)

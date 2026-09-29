@@ -1,5 +1,10 @@
 # VISION Community
 
+**Preview: public contribution approval is not live yet.** The PC starter
+checks the service before creating an account or accepting work. See the
+[release checklist](docs/PRODUCTION_ACCEPTANCE.md) for what is verified and
+what still needs to be completed.
+
 Anonymous, contribution-gated visual search. Volunteers process locations.
 The service stores **panorama metadata and embeddings only**, then outputs
 **map-making.app JSON**. Street View imagery is not saved. Open the downloaded
@@ -12,8 +17,15 @@ or API bypass.
 
 ## Start on a Windows PC
 
-Most contributors do not need Python or a terminal. Download the project ZIP,
-unzip it, and double-click **Start VISION.cmd**. The starter keeps Python and
+1. On this GitHub page, choose **Code**, then **Download ZIP**.
+2. Open the downloaded ZIP and choose **Extract all**.
+3. Open the extracted folder and double-click **Start VISION.cmd**.
+4. Follow the window: **Prepare this PC**, save your private account code,
+   then run the **PC check**.
+5. When your PC is approved, choose **Start indexing**. Choose **Pause after
+   this batch** when you want to stop.
+
+Most contributors do not need Python or a terminal. The starter keeps Python and
 processing files in a private folder under your Windows user profile. It does
 not install software globally, require administrator access, change security
 settings, or create an account for you.
@@ -32,6 +44,16 @@ To stop, choose **Pause after this batch**. Keep the PC awake and connected.
 If a batch fails, its local report and completed work stay in the private VISION
 folder for review.
 
+You can keep processing after earning a search. Unused credits stay in your
+account; keep your private recovery code to access them on another device.
+The shared search index contains published user contributions, not a supplied
+copy of the maintainer's private index.
+
+Unattended Windows processing is available for maintainer testing through the
+[background setup guide](docs/BACKGROUND_PROCESSING.md). It resumes after you
+sign into Windows and waits when no work is available. A sleeping or powered-off
+computer cannot process locations.
+
 ### Advanced command-line setup
 
 The original Python workflow remains available for maintainers and Mac users.
@@ -46,11 +68,16 @@ advanced workflow.
 
 ## How to use the site
 
-Scenes and objects are indexed in Terminal with the same programs as the VISION app. The browser cannot run those models.
+The website shows your account and search credits. Processing runs on your
+computer. Use the guided Windows starter above for scenes. Object processing on
+Windows and Linux still needs a published, validated runtime.
 
-1. Click **Get a free account**. Write down the code it shows you.
-2. Click **Copy scene command** (or **Copy object command**). Open Terminal, paste, and press Return. Leave that window open. Each finished scene fills 1 toward a search. Each finished object fills 10.
-3. When the bar is full, copy the search command and run it in Terminal. Connect map-making.app under **Connect a map app** to add the JSON to a map, or copy/download it for the local Map Making App.
+1. Connect using your private account code. No name or email is needed.
+2. Contribute locations using the local app. Verified scenes earn 1 unit;
+   verified object locations earn 10. Pending checks do not earn credits yet.
+3. Use saved credits when you want a search. The current search workflow still
+   uses a command; a guided search window is a release requirement. Exported
+   results open in map-making.app.
 
 A search needs **100,000 places** (or 10,000 objects). There is no shortcut. An example search is already loaded, so you do not need a JSON file unless you have one from VISION.
 

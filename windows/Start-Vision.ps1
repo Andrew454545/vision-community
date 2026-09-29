@@ -11,6 +11,15 @@ $script:VisionPythonUrl = 'https://www.python.org/ftp/python/3.14.7/python-3.14.
 $script:VisionPythonHash = 'd297e5ff019966817ad8502465176139f2d3d840fa4ed84b13bed399a6ab1f15'
 $script:VisionUtf8 = New-Object System.Text.UTF8Encoding($false)
 
+function Get-VisionFileHash([string]$Path) {
+    # Works even when a parent PowerShell Core process supplies a module path
+    # that hides Windows PowerShell's Get-FileHash cmdlet.
+    $stream = [IO.File]::OpenRead($Path)
+    $hasher = [Security.Cryptography.SHA256]::Create()
+    try { return [BitConverter]::ToString($hasher.ComputeHash($stream)).Replace('-', '').ToLowerInvariant() }
+    finally { $hasher.Dispose(); $stream.Dispose() }
+}
+
 function Write-VisionJson([string]$Path, $Value) {
     [IO.File]::WriteAllText($Path, ($Value | ConvertTo-Json -Depth 10), $script:VisionUtf8)
 }
@@ -28,9 +37,9 @@ function Get-VisionSourceFiles([string]$Source) {
     # Only named public source and fixture files enter the private app snapshot.
     # Never copy a whole checkout, .git, accounts, databases, logs or local data.
     $modules = @('__init__', 'admin', 'all_locations_full', 'all_locations_tail',
-        'bootstrap', 'catalog', 'contribute', 'desktop', 'features', 'four_view',
+        'background', 'bootstrap', 'catalog', 'contribute', 'desktop', 'features', 'four_view',
         'indexed_local', 'local_search', 'measure', 'mma', 'mma_cloud', 'object_index',
-        'pano', 'parts', 'pc_canary', 'prompt', 'rank', 'scene_quality', 'search',
+        'pano', 'parts', 'pc_canary', 'prompt', 'rank', 'scene_pipeline', 'scene_quality', 'search',
         'seal_index', 'segments', 'send_mma', 'server', 'service', 'source', 'store',
         'verify', 'vision_handoff', 'vision_index', 'worker')
     $relative = @($modules | ForEach-Object { 'community/{0}.py' -f $_ })
@@ -57,7 +66,7 @@ function Get-VisionSourceFiles([string]$Source) {
             $parent = Split-Path -Parent $parent
         }
         Assert-VisionRegularPath $path
-        [pscustomobject]@{ Relative = $name; Path = $path; Sha256 = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant() }
+        [pscustomobject]@{ Relative = $name; Path = $path; Sha256 = (Get-VisionFileHash $path) }
     }
 }
 
@@ -79,7 +88,7 @@ function Copy-VisionSource([string]$Source, [string]$Root) {
             $destination = Join-Path $stage $file.Relative
             [IO.Directory]::CreateDirectory((Split-Path -Parent $destination)) | Out-Null
             Copy-Item -LiteralPath $file.Path -Destination $destination
-            if ((Get-FileHash -LiteralPath $destination -Algorithm SHA256).Hash.ToLowerInvariant() -ne $file.Sha256) {
+            if ((Get-VisionFileHash $destination) -ne $file.Sha256) {
                 throw 'The project files changed during setup. Close other setup windows and try again.'
             }
         }
@@ -91,7 +100,7 @@ function Copy-VisionSource([string]$Source, [string]$Root) {
         $path = Join-Path $target $file.Relative
         Assert-VisionRegularPath $path
         if (-not (Test-Path -LiteralPath $path -PathType Leaf) -or
-            (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant() -ne $file.Sha256) {
+            (Get-VisionFileHash $path) -ne $file.Sha256) {
             throw 'A private VISION application file failed its check. It was not started; please share the setup report with the maintainer.'
         }
     }
@@ -120,7 +129,7 @@ function Test-VisionPythonFiles([string]$Archive, [string]$Directory) {
             $hasher = [Security.Cryptography.SHA256]::Create()
             try { $expected = [BitConverter]::ToString($hasher.ComputeHash($stream)).Replace('-', '').ToLowerInvariant() }
             finally { $hasher.Dispose(); $stream.Dispose() }
-            if ((Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant() -ne $expected) { return $false }
+            if ((Get-VisionFileHash $path) -ne $expected) { return $false }
             $expectedFiles += 1
         }
         if (@(Get-ChildItem -LiteralPath $Directory -Force).Count -ne $expectedFiles) { return $false }
@@ -139,12 +148,12 @@ function Get-VisionPython([string]$Root) {
         Write-Host 'Downloading the small private Python runtime...'
         $ProgressPreference = 'SilentlyContinue'
         Invoke-WebRequest -UseBasicParsing -Uri $script:VisionPythonUrl -OutFile $partial
-        if ((Get-FileHash -LiteralPath $partial -Algorithm SHA256).Hash.ToLowerInvariant() -ne $script:VisionPythonHash) {
+        if ((Get-VisionFileHash $partial) -ne $script:VisionPythonHash) {
             throw 'The Python download failed its checksum check. Nothing from it was executed. The failed download and report were kept.'
         }
         Move-Item -LiteralPath $partial -Destination $archive
     }
-    if ((Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant() -ne $script:VisionPythonHash) {
+    if ((Get-VisionFileHash $archive) -ne $script:VisionPythonHash) {
         throw 'The saved Python download failed its checksum check. It was not executed; please share the setup report with the maintainer.'
     }
     $pythonParent = Join-Path $Root 'python'
