@@ -1,0 +1,33 @@
+# Copy this file to wrangler.staging.toml and replace the placeholders.
+# Keep the production wrangler.toml fail-closed until the verifier is deployed,
+# reviewed, and exercised against the staging Worker.
+name = "vision-community-staging"
+main = "src/worker.js"
+compatibility_date = "2026-09-19"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "vision-community-staging"
+database_id = "REPLACE_WITH_STAGING_D1_ID"
+
+[[r2_buckets]]
+binding = "INDEX"
+bucket_name = "vision-community-staging"
+
+# The verifier must be a private Worker/service binding. Do not replace this
+# with a public URL or accept client-provided approval decisions.
+[[services]]
+binding = "SCENE_VERIFIER"
+service = "vision-scene-verifier-staging"
+
+[vars]
+SCENE_POLICY_ID = "REPLACE_WITH_REVIEWED_POLICY_ID"
+
+[assets]
+directory = "../../community/web"
+binding = "ASSETS"
+html_handling = "auto-trailing-slash"
+not_found_handling = "404-page"
+run_worker_first = true
