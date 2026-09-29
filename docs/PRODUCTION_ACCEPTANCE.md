@@ -66,7 +66,12 @@ measurements into automatic production approval.
 
 - [ ] Strict official Gen4 object admission, processing, publication and search,
   using trusted historical-capture validation. A client-supplied generation
-  label or a well-formed panorama ID alone is insufficient evidence.
+  label or a well-formed panorama ID alone is insufficient evidence. The local
+  service and Worker now fail closed: object leases, publication downloads and
+  search indexes require an `object_coverage` receipt naming the pinned
+  `official-gen4-historical-v1` validator and a 64-character evidence digest.
+  Generic pose catalogs cannot create this receipt. A trusted coverage importer
+  and live staging test still need to be deployed before this can be checked off.
 - [ ] Publish checksum-pinned Windows/Linux object binaries and runtime assets;
   compare all RF-DETR, YOLOE and OWLv2 lanes with the reference results.
 - [ ] Audit object submissions using trusted inference. Current structural

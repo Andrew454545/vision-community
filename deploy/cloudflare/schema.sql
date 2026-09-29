@@ -32,6 +32,13 @@ CREATE TABLE IF NOT EXISTS locations (
   UNIQUE (asset_id, capture, lane, model)
 );
 CREATE INDEX IF NOT EXISTS locations_queue ON locations (lane, state, lease_until, id);
+-- Written only by the trusted historical-coverage import, never by volunteers.
+CREATE TABLE IF NOT EXISTS object_coverage (
+  location_id INTEGER PRIMARY KEY REFERENCES locations(id),
+  validator TEXT NOT NULL,
+  evidence_sha256 TEXT NOT NULL,
+  validated_at INTEGER NOT NULL
+);
 CREATE TABLE IF NOT EXISTS leases (
   id TEXT PRIMARY KEY,
   account_id TEXT NOT NULL REFERENCES accounts(id),
