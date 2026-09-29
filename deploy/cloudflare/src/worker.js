@@ -86,8 +86,23 @@ function json(value, status = 200, extra = {}) {
   return new Response(JSON.stringify(value), { status, headers: { ...HEADERS, ...extra } });
 }
 
-function error(code, status = 400) {
-  return json({ error: code }, status);
+function error(code, status = 400, extra = {}) {
+  return json({ error: code }, status, extra);
+}
+
+const MAX_JSON_BODY_BYTES = 8 * 1024 * 1024;
+
+async function rateLimit(env, request, account, route) {
+  if (typeof env.API_RATE_LIMITER?.limit !== "function") return true;
+  const actor = account || `anonymous:${request.headers.get("CF-Connecting-IP") || "unknown"}`;
+  try {
+    const result = await env.API_RATE_LIMITER.limit({ key: `${actor}:${route}` });
+    return result?.success === true;
+  } catch {
+    // A configured limiter that cannot be reached must fail closed. The
+    // binding is optional in the prototype config and required in staging.
+    return false;
+  }
 }
 
 function viewFailure(err) {
@@ -1697,12 +1712,27 @@ export default {
       }
       if (request.method !== "POST") return error("not_found", 404);
       if (!sameOrigin(request)) return error("cross_origin_request", 403);
-      const body = await request.json().catch(() => null);
-      if (!body || typeof body !== "object") return error("invalid_json");
-      if (url.pathname === "/api/accounts") return createAccount(env, request);
-      if (url.pathname === "/api/recovery") return recover(env, request, body);
+      const contentLength = request.headers.get("Content-Length");
+      if (contentLength !== null && (!/^\d+$/.test(contentLength) || Number(contentLength) > MAX_JSON_BODY_BYTES)) {
+        return error("request_too_large", 413);
+      }
+      const rawBody = await request.arrayBuffer();
+      if (rawBody.byteLength > MAX_JSON_BODY_BYTES) return error("request_too_large", 413);
+      const body = (() => {
+        try { return JSON.parse(new TextDecoder().decode(rawBody)); } catch { return null; }
+      })();
+      if (!body || typeof body !== "object" || Array.isArray(body)) return error("invalid_json");
+      if (url.pathname === "/api/accounts") {
+        if (!(await rateLimit(env, request, null, url.pathname))) return error("rate_limited", 429, { "retry-after": "60" });
+        return createAccount(env, request);
+      }
+      if (url.pathname === "/api/recovery") {
+        if (!(await rateLimit(env, request, null, url.pathname))) return error("rate_limited", 429, { "retry-after": "60" });
+        return recover(env, request, body);
+      }
       const account = await accountId(env, request);
       if (!account) return error("unauthorized", 401);
+      if (!(await rateLimit(env, request, account, url.pathname))) return error("rate_limited", 429, { "retry-after": "60" });
       if (url.pathname === "/api/scene-qualifications") {
         if (!verifierConfigured(env)) return error("scene_verification_unavailable", 503);
         return json(await qualifyDevice(env, account, body, validFourViewRecord));
