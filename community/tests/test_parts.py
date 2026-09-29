@@ -93,7 +93,7 @@ class ExclusiveCatalogPartsTest(unittest.TestCase):
 
 
 class ObjectAndSceneProcessingTest(unittest.TestCase):
-    def test_object_and_scene_keep_separate_batches(self):
+    def test_generic_pose_catalog_never_releases_unverified_object_batches(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             source = root / "tail.tsv"
@@ -111,15 +111,12 @@ class ObjectAndSceneProcessingTest(unittest.TestCase):
             service.scene_references = references_from_fixture_lines(source.read_text().splitlines())
             account = service.create_account()["accountId"]
             scene = service.lease(account, "scene", 1)
-            objects = service.lease(account, "object", 1)
             self.assertEqual(scene["items"][0]["lane"], "scene")
-            self.assertEqual(objects["items"][0]["lane"], "object")
-            self.assertEqual(scene["items"][0]["assetId"], objects["items"][0]["assetId"])
             self.assertIn("same places", scene["work"]["summary"])
-            self.assertIn("same objects", objects["work"]["summary"])
+            with self.assertRaisesRegex(ServiceError, "no_available_work"):
+                service.lease(account, "object", 1)
             status = service.status(account)
             self.assertEqual(status["workByLane"]["scene"]["lane"], "scene")
-            self.assertEqual(status["workByLane"]["object"]["lane"], "object")
 
 
 if __name__ == "__main__":

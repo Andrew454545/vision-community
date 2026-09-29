@@ -54,6 +54,7 @@ LEASE_SECONDS = 30 * 60
 CLI_LEASE_SECONDS = 6 * 60 * 60
 UNITS_PER_LOCATION = {"scene": 1, "object": 10}
 RECOVERY_PEPPER_HEADER = "VISION-COMMUNITY-RECOVERY-V1"
+OFFICIAL_GEN4_VALIDATOR = "official-gen4-historical-v1"
 
 
 class ServiceError(Exception):
@@ -203,6 +204,12 @@ class CommunityService:
                     imported INTEGER NOT NULL,
                     imported_at INTEGER NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS object_coverage (
+                    location_id INTEGER PRIMARY KEY REFERENCES locations(id),
+                    validator TEXT NOT NULL,
+                    evidence_sha256 TEXT NOT NULL,
+                    validated_at INTEGER NOT NULL
+                );
                 """
             )
             self._migrate(connection)
@@ -233,6 +240,7 @@ class CommunityService:
             """CREATE INDEX IF NOT EXISTS locations_nearby
                ON locations (lane, capture, model, lat, lon)"""
         )
+
         account_cols = {row[1] for row in connection.execute("PRAGMA table_info(accounts)")}
         if "recovery_hash" not in account_cols:
             connection.execute("ALTER TABLE accounts ADD COLUMN recovery_hash TEXT")
@@ -328,6 +336,33 @@ class CommunityService:
                  )"""
         )
 
+    def certify_official_gen4_objects(self, location_ids: list[int], evidence_sha256: str, *,
+                                      validator: str = OFFICIAL_GEN4_VALIDATOR) -> int:
+        """Record a trusted historical-coverage decision made outside volunteer input.
+
+        This deliberately is not an HTTP operation. The caller must have checked a
+        signed/catalogued official-coverage receipt before it can release object work.
+        """
+        if (not isinstance(location_ids, list) or not location_ids or
+                any(type(location_id) is not int for location_id in location_ids) or
+                not isinstance(evidence_sha256, str) or not re.fullmatch(r"[0-9a-f]{64}", evidence_sha256) or
+                validator != OFFICIAL_GEN4_VALIDATOR):
+            raise ServiceError("invalid_object_coverage")
+        now = int(time.time())
+        with self._connection() as connection:
+            rows = connection.execute(
+                f"SELECT id FROM locations WHERE id IN ({','.join('?' for _ in location_ids)}) "
+                "AND lane='object' AND camera_generation='gen4'",
+                location_ids,
+            ).fetchall()
+            if {row["id"] for row in rows} != set(location_ids):
+                raise ServiceError("object_coverage_requires_official_gen4")
+            connection.executemany(
+                "INSERT OR REPLACE INTO object_coverage (location_id, validator, evidence_sha256, validated_at) VALUES (?, ?, ?, ?)",
+                [(location_id, validator, evidence_sha256, now) for location_id in location_ids],
+            )
+        return len(location_ids)
+
     @contextmanager
     def _connection(self):
         connection = sqlite3.connect(str(self.database), timeout=30)
@@ -379,13 +414,25 @@ class CommunityService:
             checked.append(tuple(fields))
         with self._connection() as connection:
             connection.execute("BEGIN IMMEDIATE")
-            before = connection.total_changes
+            before = connection.execute("SELECT COUNT(*) FROM locations").fetchone()[0]
             connection.executemany(
                 """INSERT OR IGNORE INTO locations
                    (asset_id, capture, lane, model, label) VALUES (?, ?, ?, ?, ?)""",
                 checked,
             )
-            return connection.total_changes - before
+            # Synthetic fixtures have no relation to real imagery or Community
+            # admission. Marking only these test rows lets contract tests cover
+            # object processing without weakening the production gate.
+            connection.execute(
+                "UPDATE locations SET camera_generation='gen4' WHERE lane='object' AND asset_id LIKE 'synthetic:%'"
+            )
+            connection.execute(
+                """INSERT OR IGNORE INTO object_coverage (location_id, validator, evidence_sha256, validated_at)
+                   SELECT id, ?, ?, 0 FROM locations
+                   WHERE lane='object' AND asset_id LIKE 'synthetic:%'""",
+                (OFFICIAL_GEN4_VALIDATOR, "0" * 64),
+            )
+            return connection.execute("SELECT COUNT(*) FROM locations").fetchone()[0] - before
 
     def _recovery_hash(self, recovery_code: str) -> str:
         return hashlib.sha256(f"{RECOVERY_PEPPER_HEADER}\n{recovery_code}".encode("utf-8")).hexdigest()
@@ -538,7 +585,9 @@ class CommunityService:
                 """SELECT DISTINCT i.object_index_key FROM published_index i
                    JOIN locations l ON l.id=i.location_id
                    WHERE l.lane='object' AND l.state='published'
-                     AND l.contributor_id IS NOT NULL AND i.object_index_key IS NOT NULL"""
+                     AND l.contributor_id IS NOT NULL AND i.object_index_key IS NOT NULL
+                     AND EXISTS (SELECT 1 FROM object_coverage c WHERE c.location_id=l.id AND c.validator=?)""",
+                (OFFICIAL_GEN4_VALIDATOR,),
             )}
         indexes = []
         root = self.artifacts / "object-index-v4"
@@ -568,7 +617,9 @@ class CommunityService:
             published = connection.execute(
                 """SELECT 1 FROM published_index i JOIN locations l ON l.id=i.location_id
                    WHERE i.object_index_key=? AND l.lane='object' AND l.state='published'
-                     AND l.contributor_id IS NOT NULL LIMIT 1""", (key.rsplit('/', 1)[0] + '/',)
+                     AND l.contributor_id IS NOT NULL
+                     AND EXISTS (SELECT 1 FROM object_coverage c WHERE c.location_id=l.id AND c.validator=?)
+                   LIMIT 1""", (key.rsplit('/', 1)[0] + '/', OFFICIAL_GEN4_VALIDATOR)
             ).fetchone()
             if published is None:
                 raise ServiceError("not_found", 404)
@@ -1076,8 +1127,10 @@ class CommunityService:
                       state, lease_until
                FROM locations WHERE lane=? AND catalog_shard=? AND COALESCE(queue_state, 'pending')='pending'
                  AND (state='pending' OR (state='leased' AND lease_until<=?))
+                 AND (lane!='object' OR EXISTS (SELECT 1 FROM object_coverage c
+                                                WHERE c.location_id=locations.id AND c.validator=?))
                ORDER BY id LIMIT ?""",
-            (lane, shard_id, now, count),
+            (lane, shard_id, now, OFFICIAL_GEN4_VALIDATOR, count),
         ).fetchall()
 
     def _pending_shared(
@@ -1093,8 +1146,10 @@ class CommunityService:
                       state, lease_until
                FROM locations WHERE lane=? AND COALESCE(queue_state, 'pending')='pending'
                  AND (state='pending' OR (state='leased' AND lease_until<=?))
+                 AND (lane!='object' OR EXISTS (SELECT 1 FROM object_coverage c
+                                                WHERE c.location_id=locations.id AND c.validator=?))
                ORDER BY id LIMIT ?""",
-            (lane, now, count),
+            (lane, now, OFFICIAL_GEN4_VALIDATOR, count),
         ).fetchall()
 
     def _release_exhausted_shard(self, connection: sqlite3.Connection, lane: str, shard_id: int) -> None:
@@ -1280,7 +1335,9 @@ class CommunityService:
             lease_id = secrets.token_hex(16)
             rows: list = []
             active_shard = None
-            if self._catalog_remaining(connection, lane):
+            # The generic pose catalog has no historical coverage receipt. Object
+            # work can only use rows admitted through object_coverage.
+            if lane != "object" and self._catalog_remaining(connection, lane):
                 hops = 0
                 while len(rows) < count and hops < 32:
                     hops += 1
@@ -1317,6 +1374,13 @@ class CommunityService:
                 rows = list(self._pending_shared(connection, lane, now, count))
             if not rows:
                 raise ServiceError("no_available_work", 409)
+            if lane == "object":
+                certified = connection.execute(
+                    f"SELECT location_id FROM object_coverage WHERE validator=? AND location_id IN ({','.join('?' for _ in rows)})",
+                    [OFFICIAL_GEN4_VALIDATOR, *(row["id"] for row in rows)],
+                ).fetchall()
+                if {row["location_id"] for row in certified} != {row["id"] for row in rows}:
+                    raise ServiceError("object_coverage_required", 409)
             if qualification is None and lane == "scene" and self.scene_references is not None and any(
                 not self.scene_references.covers(row) for row in rows
             ):
@@ -1556,6 +1620,12 @@ class CommunityService:
             for row in rows:
                 if row["state"] != "leased" or row["active_lease"] != lease_id or row["lane"] != "object":
                     raise ServiceError("lease_lost", 409)
+            certified = connection.execute(
+                f"SELECT location_id FROM object_coverage WHERE validator=? AND location_id IN ({','.join('?' for _ in rows)})",
+                [OFFICIAL_GEN4_VALIDATOR, *(row["id"] for row in rows)],
+            ).fetchall()
+            if {row["location_id"] for row in certified} != {row["id"] for row in rows}:
+                raise ServiceError("object_coverage_required", 409)
             lease_items = [
                 {
                     "locationId": row["id"],

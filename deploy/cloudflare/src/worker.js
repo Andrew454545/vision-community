@@ -63,7 +63,13 @@ CREATE TABLE IF NOT EXISTS index_shards (
   r2_key TEXT PRIMARY KEY, lane TEXT NOT NULL, location_count INTEGER NOT NULL,
   bytes INTEGER NOT NULL, sha256 TEXT NOT NULL, created_at INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS object_coverage (
+  location_id INTEGER PRIMARY KEY REFERENCES locations(id),
+  validator TEXT NOT NULL, evidence_sha256 TEXT NOT NULL, validated_at INTEGER NOT NULL
+);
 `;
+
+const OFFICIAL_GEN4_VALIDATOR = "official-gen4-historical-v1";
 
 const HEADERS = {
   "content-type": "application/json",
@@ -559,8 +565,9 @@ async function pendingForShard(env, lane, shardId, now, count) {
      FROM locations WHERE lane=? AND catalog_shard=? AND COALESCE(queue_state,'pending')='pending'
        AND asset_id NOT LIKE 'Prototype%' AND asset_id NOT LIKE 'synthetic:%' AND asset_id NOT LIKE 'CommunityPano%'
        AND (state='pending' OR (state='leased' AND lease_until<=?))
+       AND (lane!='object' OR EXISTS (SELECT 1 FROM object_coverage c WHERE c.location_id=locations.id AND c.validator=?))
      ORDER BY id LIMIT ?`
-  ).bind(lane, shardId, now, count).all()).results || [];
+  ).bind(lane, shardId, now, OFFICIAL_GEN4_VALIDATOR, count).all()).results || [];
 }
 
 async function pendingShared(env, lane, now, count) {
@@ -569,8 +576,9 @@ async function pendingShared(env, lane, now, count) {
      FROM locations WHERE lane=? AND COALESCE(queue_state,'pending')='pending'
        AND asset_id NOT LIKE 'Prototype%' AND asset_id NOT LIKE 'synthetic:%' AND asset_id NOT LIKE 'CommunityPano%'
        AND (state='pending' OR (state='leased' AND lease_until<=?))
+       AND (lane!='object' OR EXISTS (SELECT 1 FROM object_coverage c WHERE c.location_id=locations.id AND c.validator=?))
      ORDER BY id LIMIT ?`
-  ).bind(lane, now, count).all()).results || [];
+  ).bind(lane, now, OFFICIAL_GEN4_VALIDATOR, count).all()).results || [];
 }
 
 async function materializeCatalog(env, lane, count, now, shard) {
@@ -708,7 +716,7 @@ async function lease(env, account, body) {
       work,
     });
   }
-  const remaining = await env.DB.prepare(
+  const remaining = lane === "object" ? null : await env.DB.prepare(
     "SELECT 1 AS ok FROM pose_catalog WHERE lane=? AND next_row < row_count LIMIT 1"
   ).bind(lane).first();
   // Catalog materialization advances a cursor outside a transaction. Until a
@@ -890,6 +898,10 @@ async function submitObjectIndex(env, account, leaseId, items, supplied, objectI
   if (items.some((row) => row.lane !== "object" || row.state !== "leased" || row.active_lease !== leaseId)) {
     return error("lease_lost", 409);
   }
+  const covered = (await env.DB.prepare(
+    `SELECT location_id FROM object_coverage WHERE validator=? AND location_id IN (${items.map(() => "?").join(",")})`
+  ).bind(OFFICIAL_GEN4_VALIDATOR, ...items.map((row) => row.id)).all()).results || [];
+  if (covered.length !== items.length) return error("object_coverage_required", 409);
   let sourceTsv;
   try {
     sourceTsv = base64ToBytes(objectIndex.sourceTsv);

@@ -248,8 +248,15 @@ class ObjectIndexTest(unittest.TestCase):
             service = CommunityService(Path(folder) / "community.sqlite", search_cost=100)
             service.import_synthetic(json.loads(FIXTURE.read_text(encoding="utf-8"))["locations"])
             with service._connection() as connection:
-                connection.execute("UPDATE locations SET lat=1.25, lon=-2.5, country='Greece' WHERE lane='object'")
+                connection.execute("UPDATE locations SET lat=1.25, lon=-2.5, country='Greece', camera_generation='gen4' WHERE lane='object'")
             account = service.create_account()["accountId"]
+            with service._connection() as connection:
+                connection.execute("DELETE FROM object_coverage")
+            with self.assertRaisesRegex(ServiceError, "no_available_work"):
+                service.lease(account, "object", 1)
+            with service._connection() as connection:
+                ids = [row[0] for row in connection.execute("SELECT id FROM locations WHERE lane='object'")]
+            self.assertEqual(service.certify_official_gen4_objects(ids, "a" * 64), len(ids))
             lease = service.lease(account, "object", 1)
             source = Path(folder) / "locations.tsv"
             manifest, files, tsv = contract_bundle(lease["items"], lease["leaseId"], source)
@@ -281,6 +288,18 @@ class ObjectIndexTest(unittest.TestCase):
                     "indexText": "not the object index",
                     "outputSha256": "ab" * 32,
                 }])
+
+    def test_object_coverage_refuses_a_claimed_generation_without_a_trusted_receipt(self):
+        with tempfile.TemporaryDirectory() as folder:
+            service = CommunityService(Path(folder) / "community.sqlite")
+            service.import_synthetic(json.loads(FIXTURE.read_text(encoding="utf-8"))["locations"])
+            with service._connection() as connection:
+                object_id = connection.execute("SELECT id FROM locations WHERE lane='object' LIMIT 1").fetchone()[0]
+                connection.execute("UPDATE locations SET camera_generation='gen4' WHERE id=?", (object_id,))
+            with self.assertRaisesRegex(ServiceError, "invalid_object_coverage"):
+                service.certify_official_gen4_objects([object_id], "not-a-hash")
+            with self.assertRaisesRegex(ServiceError, "object_coverage_requires_official_gen4"):
+                service.certify_official_gen4_objects([object_id + 999], "b" * 64)
 
     def test_site_and_worker_use_the_object_indexer(self):
         app = (ROOT / "community/web/app.js").read_text(encoding="utf-8")
@@ -399,9 +418,10 @@ class ObjectIndexTest(unittest.TestCase):
             with service._connection() as connection:
                 connection.execute("UPDATE accounts SET units=4 WHERE id=?", (account,))
                 location_id = connection.execute("SELECT id FROM locations WHERE lane='object' LIMIT 1").fetchone()[0]
-                connection.execute("UPDATE locations SET state='published', contributor_id=? WHERE id=?", (account, location_id))
+                connection.execute("UPDATE locations SET state='published', contributor_id=?, camera_generation='gen4' WHERE id=?", (account, location_id))
                 connection.execute("INSERT INTO published_index (location_id, index_text, output_sha256, published_at, object_index_key) VALUES (?, '', ?, 1, ?)",
                                    (location_id, "a" * 64, f"object-index-v4/{lease}/"))
+            service.certify_official_gen4_objects([location_id], "c" * 64)
             paid = service.search(
                 account,
                 None,
