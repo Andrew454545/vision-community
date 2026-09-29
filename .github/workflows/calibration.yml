@@ -1,0 +1,24 @@
+name: calibration
+on:
+  push:
+    branches: [main, codex/windows-calibration-setup]
+  pull_request:
+jobs:
+  fixture-and-runner:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+      - run: python -B -m unittest discover -s calibration -p test_calibration.py -v
+      - name: Actual embedded Python bootstrap without models or imagery
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: .\calibration\Start-WindowsCalibration.ps1 -AcceptDownloadsAndLiveImagery -BootstrapOnly
+      - name: Actual Windows scene executable and DLL layout check
+        if: runner.os == 'Windows'
+        run: python -B calibration/smoke_windows_runtime.py
