@@ -1,0 +1,41 @@
+{
+  "observed_at_utc": "2026-09-24T02:42:21.498055+00:00",
+  "scope": "Current installed application and existing scene metadata; does not attest configuration used to generate historical reference records",
+  "application_version": "1.1.0",
+  "application_build": "2",
+  "os": "macOS 27.0 (26A428)",
+  "architecture": "arm64",
+  "hardware_model": "NOT_ATTESTED",
+  "installed_app_sha256": "179dfaa2cfe2feab2e14f191a5a1e873257ff14bd5760b936b6c189df9f49095",
+  "installed_scene_binary_sha256": "4e3a42023797d878d6f16abc2dc1b400f9ddf94bd48b8bf9a4040ab8b5c59181",
+  "community_installed_macos_scene_binary_sha256": "be0d98af2fab5e96f3cd6397365cfb2523dad66a93612a2b23358a8ae91419f2",
+  "scene_configuration_observed": {
+    "chunkSize": 20,
+    "concurrency": 20,
+    "embeddingBatchSize": 20,
+    "imageEncoderSessions": 1,
+    "dutyCyclePercent": 31.25,
+    "thermalStateLimit": 1,
+    "shardLocations": 50000
+  },
+  "input_spec_sha256": "dfb6a0b356439f2d43833eb60690d73eb4ea0b31f3154a2dd2deeaab85c067ad",
+  "runtime_log_observation_from_2026_09_23": "Latest inspected standard-profile startup reported ONNX Runtime global threads 3, spinning disabled, CoreML registration; per-operation execution placement NOT_ATTESTED",
+  "model_files_sha256": {
+    "text_model.onnx": "3aa7fdbd20eaa8740cce17bf82913de641fcb632a768fed59f661cdcd0c32553",
+    "tokenizer.json": "4a17c975210be5ab4c36b47d8dae4eefb866dbfb1e676e394aad85dc30a3ae08",
+    "vision_model.onnx": "ef14a954f3d57e1806666432bd9785004c1dc27100aa260eee0cb0f10a5de058",
+    "vision_model_fp32.onnx": "f89d41bac7f4d4b87e010a467d93f98689d708916ed22f5a07f96fdfa26f475f"
+  },
+  "active_image_model_selection": "NOT_ATTESTED",
+  "inference_precision": "NOT_ATTESTED",
+  "detailed_preprocessing": "NOT_ATTESTED",
+  "historical_reference_repeatability": "NOT_ATTESTED",
+  "current_reference_repeatability": "NOT_ATTESTED",
+  "source_pixels": "SOURCE_PIXELS_NOT_FROZEN",
+  "search_query_packet": "NOT_ATTESTED",
+  "non_exact_acceptance_thresholds": "NOT_ESTABLISHED",
+  "community_commit": "b0bb3c8ccf10cd5ead5c0e163d00d9afc406daaf",
+  "community_source_archive_sha256": "d410e5b3ea4157de77ff7c3271bb883e7777c3f961dc898d7ab48e5a51e92210",
+  "community_runtime_manifest_sha256": "b086083e00e527164b0433579a34d7a8141b05ed492081a4c1aa2f14a9164e87",
+  "community_configuration_gap": "Observed VISION batch/chunk 20, fetch 20, ORT threads 3, CoreML registration versus pinned Community batch/chunk 16, fetch 8, forced threads 1 and CPU binary. Same record geometry and matching installed model assets do not resolve this gap."
+}
