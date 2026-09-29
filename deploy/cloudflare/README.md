@@ -7,8 +7,8 @@ unavailable and cannot publish contributor scene output.
 Use the staging template before enabling any contributor traffic:
 
 1. Copy `wrangler.staging.toml.example` to `wrangler.staging.toml` and fill in a
-   separate D1 database, R2 bucket, private `SCENE_VERIFIER` service binding, and
-   reviewed `SCENE_POLICY_ID`.
+   separate D1 database, R2 bucket, private `SCENE_VERIFIER` service binding,
+   unique rate-limit namespace, and reviewed `SCENE_POLICY_ID`.
 2. Apply `schema.sql` to the staging database. Existing databases should apply
    `migrations/0002_scene_pipeline.sql`; if the lease column already exists,
    run the table/index statements from that file without repeating the ALTER.
@@ -18,6 +18,12 @@ Use the staging template before enabling any contributor traffic:
 5. Run the 112-location qualification and one rejected plus one approved audit
    in staging. Confirm rejected work never appears in `published_index` or the
    ledger, and replaying an approved audit earns zero additional units.
+
+The staging template enables Cloudflare's native 120-request-per-minute
+per-account/per-route limiter. It is an abuse control only; D1 transactions
+remain authoritative for leases, credits, and replay protection. If the
+limiter binding is absent, the Worker still runs for local prototype use, but
+that configuration is not suitable for public contributor traffic.
 
 The verifier service must authenticate the operator policy and Andrew’s reviewed
 reference set. Never accept approval decisions from the browser, expose the

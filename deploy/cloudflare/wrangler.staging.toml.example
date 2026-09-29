@@ -22,6 +22,16 @@ bucket_name = "vision-community-staging"
 binding = "SCENE_VERIFIER"
 service = "vision-scene-verifier-staging"
 
+# Cloudflare's native limiter is best-effort per location. It is an abuse
+# control, not the credit ledger or a correctness mechanism.
+[[ratelimits]]
+name = "API_RATE_LIMITER"
+namespace_id = "REPLACE_WITH_UNIQUE_RATE_LIMIT_NAMESPACE"
+
+  [ratelimits.simple]
+  limit = 120
+  period = 60
+
 [vars]
 SCENE_POLICY_ID = "REPLACE_WITH_REVIEWED_POLICY_ID"
 

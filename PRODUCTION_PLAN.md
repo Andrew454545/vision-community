@@ -76,8 +76,9 @@ and verify.
   persist JPEG/PNG bytes or tile URLs.
 - Port and verify the existing scene/object workers and ranked search to a
   deployable runtime, then compare outputs and ranking to the Mac app.
-- Add abuse limits, backups and restore tests, TLS, monitoring, key rotation,
-  and a data deletion policy before exposing the service publicly.
+- Configure the staging Worker’s native per-account/per-route rate limiter and
+  keep request bodies bounded. Backups and restore tests, TLS, monitoring, key
+  rotation, and a data deletion policy remain required before public exposure.
 
 The work pool is finite. Once all useful locations are indexed, new users
 cannot earn searches from those same locations without wasting work. Before
