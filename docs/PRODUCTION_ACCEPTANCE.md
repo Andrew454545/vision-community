@@ -20,6 +20,14 @@ measurements into automatic production approval.
 
 ## Completed in this pass
 
+- Added an offline deletion-aware restore safeguard. Independently pinned current
+  receipts repair a new copy of an old SQLite backup, revoke restored access,
+  remove private searches, close restored balances, preserve contributed indexes
+  and install current late-write fences. Original backups remain unchanged;
+  failures preserve redacted reports without a completion marker. Twelve new
+  synthetic tests and all 67 server/browser/verifier tests pass. This does not
+  perform a Cloudflare restore, reconcile other post-backup credits, or complete
+  live disaster recovery. See [PRIVATE_RESTORE.md](PRIVATE_RESTORE.md).
 - Added hosted account deletion with typed confirmation, atomic session and
   recovery revocation, credit closure, removal of private search results,
   unfinished-work release and database fences against delayed writes. Browser
@@ -245,8 +253,10 @@ recorded evidence:
   of IP/search logging, public artifact metadata and maintainer identity audit.
   Removing names from a UI does not erase Git history or provider records.
   Account deletion and delayed-write protection are now tested locally; live
-  rollout, backup/deletion-aware restore, wider orphan cleanup and provider
-  logging/retention review remain outstanding.
+  rollout, independent durable deletion-receipt storage, a complete staging
+  restore/import, wider orphan cleanup and provider logging/retention review
+  remain outstanding. The offline privacy-repair rehearsal is implemented and
+  tested; it does not satisfy the complete restore gate.
 - [ ] Ledger concurrency, replay and failure tests; no credit expiry or cap
   unless the owner explicitly chooses one. A finite queue cannot guarantee an
   infinite supply of useful new work; wait for new work without re-crediting it.

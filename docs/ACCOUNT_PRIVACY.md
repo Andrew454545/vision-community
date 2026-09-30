@@ -53,8 +53,12 @@ removed. Other paths are marked `needs_review`, never deleted by this routine.
 Published indexes and input catalogs are outside this cleanup operation.
 
 Deletion of active records does not instantly erase Cloudflare backup copies.
-The release still needs a documented backup retention period and a tested
-restore procedure that reapplies deletion records before exposing old data.
+An [offline restore safeguard](PRIVATE_RESTORE.md) now reapplies independently
+pinned current deletion receipts to a new private SQLite copy before exposure.
+It revokes restored access, removes private results and preserves contributions;
+synthetic tests cover rollback, repeat repair and immutable outputs. The release
+still needs a documented backup retention period, independent durable receipt
+storage and a complete staging restore/import exercise before reopening D1.
 The operator must also resolve unreferenced storage produced by interrupted or
 already in-flight uploads. That wider storage-retention policy is not completed
 by the account-deletion button or its quarantine cleanup queue.
