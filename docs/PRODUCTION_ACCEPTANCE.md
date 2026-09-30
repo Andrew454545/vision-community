@@ -80,8 +80,21 @@ measurements into automatic production approval.
   independent approval pins, per-record artifact verification, stable ordinals
   across appended updates, account-identifier minimization, durable files and
   manifest-last publication. Seven tests cover admission, tampering, corruption,
-  path boundaries, privacy, update history and preserved failures. Live export,
-  object snapshot support and hosted inference remain unimplemented.
+  path boundaries, privacy, update history and preserved failures. Live export
+  and hosted inference remain unimplemented.
+- Added the corresponding offline object snapshot sealer. It requires published
+  contributions, trusted Gen4 coverage receipts and a separate audit pin for
+  each complete feature bundle. Object publication digests alone identify
+  global-ID records and cannot prove model inference. The sealer checks native
+  files, preserves approved feature history and source ordinals, minimizes
+  private metadata, retains declared view-quality evidence hashes, bounds
+  resources and preserves failures without a completed marker. Seventeen
+  synthetic tests cover those boundaries; they do not certify object models.
+  See [OBJECT_SEARCH_SNAPSHOTS.md](OBJECT_SEARCH_SNAPSHOTS.md). Trusted live
+  object auditing, portable binaries, live export and hosted inference remain
+  release requirements. All 250 Python tests pass on this Windows host after
+  the final changes. The initial temporary-directory permission failure is
+  preserved outside the repository; no security policy was changed.
 - Windows snapshots now require and include the completed-submission delivery
   journal. An isolated Python import test checks the actual packaged guided and
   background applications so missing modules cannot be hidden by the checkout.
