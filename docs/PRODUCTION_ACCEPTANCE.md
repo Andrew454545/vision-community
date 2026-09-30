@@ -1,6 +1,6 @@
 # Production acceptance and continuation
 
-Updated 2026-09-29. This checklist defines completion; "perfect" is not a
+Updated 2026-09-30. This checklist defines completion; "perfect" is not a
 testable release claim. Check off a requirement only with test or deployment
 evidence. Preserve earlier calibration failures and do not turn exploratory
 measurements into automatic production approval.
@@ -81,6 +81,21 @@ measurements into automatic production approval.
 
 ## Blocking live indexing
 
+On 2026-09-30, all 233 Python checks and 37 server/browser checks passed for
+the day/night and recovery changes. The updated private Windows task passed
+fresh paused startup, automatic resume to its unavailable-service wait, and
+an actual graceful installer handover without force-stopping the new worker.
+Exactly one native worker remained enabled and Running. This is startup and
+handover evidence only: zero production locations were accepted, and no
+qualification check was bypassed. The earlier intermediate scheduler-interval
+test failure was preserved and resolved before the final checks.
+
+The user requested that `max` eventually use parallel processing like the
+reference application. It currently runs continuous single-thread batches.
+Do not advertise all-core processing or enable an unqualified thread count.
+The controlled 1/2/4-thread quality/ranking and throughput gate below remains
+open; unchanged input pixels and a fresh reference comparison are needed.
+
 - [x] Authorize unattended external contributions. The user explicitly approved
   anonymous account creation/reuse, downloads, imagery and verified submissions.
   The earlier approval rejection is resolved; do not ask for this consent again.
@@ -92,7 +107,7 @@ measurements into automatic production approval.
   A private verifier is now implemented for staging: it independently compares
   the 112-location output with a checksum-pinned reference in a separate,
   private policy bucket and fails closed for every unreviewed submission. It
-  still needs the owner-reviewed calibration policy and a live staging exercise.
+  still needs an independently validated calibration policy and a live staging exercise.
   The live `/api/capabilities` returned `not_found` on 2026-09-29.
 - [ ] Complete the PC qualification against that policy. Never bypass it.
 - [ ] Confirm the source of real work: the shared Community queue or a supplied
@@ -123,6 +138,58 @@ measurements into automatic production approval.
   configured PowerShell host. A signed installer remains a release requirement.
 
 ## Remaining release gates
+
+### Long-running Windows processing
+
+The background worker is intended to remain available over days or weeks,
+without Codex polling. Its operating contract is described in the
+[background guide](BACKGROUND_PROCESSING.md):
+
+- The default daily schedule is medium from 08:00 to 22:00 and max overnight,
+  using the PC's local clock. Each period can instead use slow, medium, max or
+  pause. There is no separate weekday/weekend schedule.
+- Pacing changes at safe batch boundaries. Medium rests for the preceding
+  batch's processing duration; slow rests three times as long; max adds no
+  deliberate pacing pause. These are approximate active-time targets, not CPU
+  percentage caps. They preserve the single inference thread and qualified
+  model/runtime configuration.
+- Service and empty-queue waits use the chosen retry interval, defaulting to
+  30 minutes. Recognized indexing interruptions have increasing delays capped
+  at six hours, with retry state preserved across restart. Rejected trust,
+  invalid account data and failures requiring review stop with retained
+  evidence; recovery does not mean bypassing approval or retrying everything.
+- The Windows idle-sleep request covers processing and deliberate pacing
+  rests. Manual/scheduled pauses and unavailable-service waits allow normal
+  idle sleep. `-AllowSleep`/`--no-keep-awake` disables the request. No power-plan
+  change or scheduled wake is implied; sleep, shutdown and lack of sign-in
+  still prevent computation.
+- Updating an installed snapshot uses a safe `STOP-AFTER-BATCH` handover. A
+  busy worker may require the installer to be rerun after its batch finishes;
+  applying settings must not force-kill active inference or discard a lease.
+- Pending delivery is bounded at 64 batches, but historical indexes, logs,
+  journal rows and evidence can still grow. The 5 GB free-space guard is not a
+  total disk quota or a cleanup policy. Preserve unsent/rejected work and
+  account recovery while resolving storage pressure.
+
+The old scheduled worker's idle recovery evidence does not validate these new
+schedule controls. Do not convert the following into completed claims without
+recorded evidence:
+
+- [ ] Confirm the installed task's actual options and fresh status match the
+  selected day/night schedule, retry interval and sleep preference.
+- [ ] Exercise daytime/nighttime boundaries, an overnight interval, scheduled
+  pause/resume and changes while a batch is active, using the local clock.
+- [ ] Observe idle-sleep requests across paced rests and their release during
+  pauses/service waits; separately exercise real sleep/wake and Windows sign-in.
+- [ ] Verify delayed indexing retries survive process exit/restart without a
+  rapid retry loop, while permanent failures still preserve evidence and stop.
+- [ ] Exercise safe installer handover and removal during idle and active work,
+  preserving account, checkpoint, delivery and failure files.
+- [ ] Run an extended qualified workload with measured disk growth,
+  temperature, memory, network interruptions and actual accepted batches before
+  claiming dependable days/weeks operation.
+
+### Other release requirements
 
 - [ ] Strict official Gen4 object admission, processing, publication and search,
   using trusted historical-capture validation. A client-supplied generation

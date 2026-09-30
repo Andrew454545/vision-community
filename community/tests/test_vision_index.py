@@ -6,12 +6,14 @@ import subprocess
 import sys
 import tempfile
 import threading
+import time
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 
 from community.four_view import BYTES_PER_LOCATION, VISION_FOUR_VIEW_MODEL, valid_four_view_record
+from community.contribute import ContributeError
 from community.mma import SCENE_MODEL_NAME
 from community.server import handler_for
 from community.service import CommunityService
@@ -222,6 +224,163 @@ class VisionIndexCommandTest(unittest.TestCase):
             self.assertEqual(status["status"], "TIMEOUT")
             self.assertTrue(list(root.glob("*.stdout.log")))
             self.assertTrue(list(root.glob("*.stderr.log")))
+
+    def test_windows_native_process_uses_background_priority_without_changing_threads(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            environment = {"RAYON_NUM_THREADS": "1", "VISION_ORT_THREADS": "1"}
+            completed = subprocess.CompletedProcess(["mma-vision.exe", "index-layout"], 0)
+            with patch("community.vision_index.sys.platform", "win32"), \
+                    patch("community.vision_index.subprocess.BELOW_NORMAL_PRIORITY_CLASS", 0x4000, create=True), \
+                    patch("community.vision_index.subprocess.CREATE_NO_WINDOW", 0x08000000, create=True), \
+                    patch("community.vision_index.subprocess.run", return_value=completed) as process:
+                default_runner(["mma-vision.exe", "index-layout"], environment, root)
+            self.assertEqual(process.call_args.kwargs["creationflags"], 0x08004000)
+            self.assertIs(process.call_args.kwargs["env"], environment)
+            self.assertEqual(environment, {"RAYON_NUM_THREADS": "1", "VISION_ORT_THREADS": "1"})
+            self.assertEqual(json.loads(next(root.glob("*.exit.json")).read_text())["status"], "EXITED")
+
+    def test_non_windows_runner_does_not_pass_windows_creation_flags(self):
+        with tempfile.TemporaryDirectory() as folder:
+            completed = subprocess.CompletedProcess(["mma-vision", "index-layout"], 0)
+            with patch("community.vision_index.sys.platform", "linux"), \
+                    patch("community.vision_index.subprocess.run", return_value=completed) as process:
+                default_runner(["mma-vision", "index-layout"], {}, Path(folder))
+            self.assertNotIn("creationflags", process.call_args.kwargs)
+
+    def local_session(self, root):
+        service = CommunityService(root / "db.sqlite", artifacts=root / "artifacts",
+                                   scene_references=ApprovedSceneReferences(reference_policy(sample_record(1))))
+        document = json.loads(PROTOTYPE.read_text(encoding="utf-8"))
+        document["locations"] = document["locations"][:1]
+        service.import_jobs(document)
+        account = service.create_account()["accountId"]
+        clock = [int(time.time())]
+        session = Mock(spec=["token", "lease", "renew", "submit", "release", "me"])
+        session.token = "test-session"
+        session.lease.side_effect = lambda lane, count, pace, part=None: service.lease(
+            account, lane, count, pace=pace, part=part, client="cli", now=clock[0])
+        session.renew.side_effect = lambda lease: service.renew_lease(account, lease, now=clock[0])
+        session.submit.side_effect = lambda lease, outputs: service.submit(account, lease, outputs, now=clock[0])
+        session.release.side_effect = lambda lease: service.release_lease(account, lease, now=clock[0])
+        session.me.side_effect = lambda: service.status(account)
+        return session, clock
+
+    def queue_run(self, root, session, runner):
+        return index_from_queue(url="http://127.0.0.1", client=session, pace="slow", batches=1,
+                                count=1, work_dir=root / "work", binary=root / "mma-vision",
+                                model_dir=root / "models", runner=runner, use_nice=False)
+
+    def test_native_retry_resumes_same_active_lease_and_preserves_failure_report(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            session, _clock = self.local_session(root)
+            attempts = []
+
+            def failing_runner(argv, env, cwd):
+                if "index-four-views" in argv:
+                    checkpoint = Path(argv[argv.index("--checkpoint") + 1])
+                    checkpoint.write_text(json.dumps({"completed": False, "nextLocationIndex": 0,
+                                                      "incompleteLocations": 1}))
+                    attempts.append(checkpoint)
+                    return 1, "", "temporary native failure"
+                return fake_runner(argv, env, cwd)
+
+            with self.assertRaisesRegex(VisionIndexError, "vision_binary_failed"):
+                self.queue_run(root, session, failing_runner)
+            session.release.assert_not_called()
+            session.submit.assert_not_called()
+            checkpoint = attempts[0]
+            failure = (checkpoint.parent / "failure.json").read_bytes()
+            self.assertEqual(json.loads(failure)["failedAttempts"], 3)
+
+            def recovered_runner(argv, env, cwd):
+                if "index-four-views" in argv:
+                    self.assertEqual(Path(argv[argv.index("--checkpoint") + 1]), checkpoint)
+                    self.assertEqual(json.loads(checkpoint.read_text())["nextLocationIndex"], 0)
+                return fake_runner(argv, env, cwd)
+
+            report = self.queue_run(root, session, recovered_runner)
+            self.assertEqual(report["accepted"], 1)
+            self.assertEqual(session.submit.call_args.args[0], checkpoint.parent.name)
+            self.assertEqual((checkpoint.parent / "failure.json").read_bytes(), failure)
+            self.assertEqual(len(list((root / "work").iterdir())), 1)
+
+    def test_expired_saved_lease_uses_new_work_directory_without_submitting_old_checkpoint(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            session, clock = self.local_session(root)
+            checkpoints = []
+
+            def interrupted_runner(argv, env, cwd):
+                if "index-four-views" in argv:
+                    path = Path(argv[argv.index("--checkpoint") + 1])
+                    path.write_text(json.dumps({"completed": False, "nextLocationIndex": 0,
+                                                "incompleteLocations": 1}))
+                    checkpoints.append(path)
+                    raise VisionIndexError("vision_binary_timeout")
+                return fake_runner(argv, env, cwd)
+
+            with self.assertRaisesRegex(VisionIndexError, "vision_binary_timeout"):
+                self.queue_run(root, session, interrupted_runner)
+            stale_checkpoint = checkpoints[0]
+            stale_bytes = stale_checkpoint.read_bytes()
+            clock[0] += 6 * 60 * 60 + 1
+            report = self.queue_run(root, session, fake_runner)
+            self.assertEqual(report["accepted"], 1)
+            self.assertNotEqual(session.submit.call_args.args[0], stale_checkpoint.parent.name)
+            self.assertEqual(stale_checkpoint.read_bytes(), stale_bytes)
+            self.assertTrue((stale_checkpoint.parent / "failure.json").is_file())
+
+    def test_explicit_lost_lease_on_renew_never_submits_completed_records(self):
+        for code in ("expired_lease", "lease_lost", "unknown_lease"):
+            with self.subTest(code=code), tempfile.TemporaryDirectory() as folder:
+                root = Path(folder)
+                session, _clock = self.local_session(root)
+                session.renew.side_effect = ContributeError(code, 409)
+                with self.assertRaisesRegex(VisionIndexError, code) as caught:
+                    self.queue_run(root, session, fake_runner)
+                self.assertEqual(caught.exception.status, 409)
+                session.submit.assert_not_called()
+                session.release.assert_called_once()
+                self.assertTrue(list((root / "work").glob("*/checkpoint.json")))
+
+    def test_renew_trust_and_account_failures_stop_before_submission(self):
+        for code, status in (("unauthorized", 401), ("scene_qualification_changed", 409),
+                             ("verification_failed", 503), ("renew_failed", 0)):
+            with self.subTest(code=code), tempfile.TemporaryDirectory() as folder:
+                root = Path(folder)
+                session, _clock = self.local_session(root)
+                session.renew.side_effect = ContributeError(code, status)
+                with self.assertRaisesRegex(ContributeError, code):
+                    self.queue_run(root, session, fake_runner)
+                session.submit.assert_not_called()
+
+    def test_transient_renew_failure_still_allows_authoritative_submission_check(self):
+        for code, status in (("network_error", 0), ("http_error", 503), ("renew_failed", 502)):
+            with self.subTest(code=code), tempfile.TemporaryDirectory() as folder:
+                root = Path(folder)
+                session, _clock = self.local_session(root)
+                session.renew.side_effect = ContributeError(code, status)
+                self.assertEqual(self.queue_run(root, session, fake_runner)["accepted"], 1)
+                session.submit.assert_called_once()
+
+    def test_transient_native_errors_and_interrupt_keep_lease_but_corruption_releases(self):
+        failures = [VisionIndexError(code) for code in (
+            "vision_binary_failed", "vision_binary_timeout", "vision_no_progress", "vision_retry_limit",
+        )] + [KeyboardInterrupt()]
+        for failure in failures + [VisionIndexError("invalid_embedding")]:
+            with self.subTest(failure=type(failure).__name__, code=str(failure)), tempfile.TemporaryDirectory() as folder:
+                root = Path(folder)
+                session, _clock = self.local_session(root)
+                with patch("community.vision_index.index_locations_tsv", side_effect=failure):
+                    with self.assertRaises(type(failure)):
+                        self.queue_run(root, session, fake_runner)
+                session.submit.assert_not_called()
+                if str(failure) == "invalid_embedding":
+                    session.release.assert_called_once()
+                else:
+                    session.release.assert_not_called()
 
     def test_refuses_to_touch_the_live_vision_job(self):
         with tempfile.TemporaryDirectory() as folder:

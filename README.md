@@ -1,8 +1,9 @@
 # VISION Community
 
-**Preview: public contribution approval is not live yet.** The PC starter
-checks the service before creating an account or accepting work. See the
-[release checklist](docs/PRODUCTION_ACCEPTANCE.md) for what is verified and
+**Preview: public contribution approval and the validated online search engine
+are not live yet.** The PC starter checks the service before creating an
+account or accepting work. See the [release checklist](docs/PRODUCTION_ACCEPTANCE.md)
+for what is verified and
 what still needs to be completed.
 
 Anonymous, contribution-gated visual search. Volunteers process locations.
@@ -51,8 +52,9 @@ copy of the maintainer's private index.
 
 Unattended Windows processing is available for maintainer testing through the
 [background setup guide](docs/BACKGROUND_PROCESSING.md). It resumes after you
-sign into Windows and waits when no work is available. A sleeping or powered-off
-computer cannot process locations.
+sign into Windows and waits when no work is available. The guide explains how
+to choose daytime and nighttime activity, including overnight-only processing.
+A sleeping or powered-off computer cannot process locations.
 
 ### Advanced command-line setup
 
@@ -76,7 +78,8 @@ Windows and Linux still needs a published, validated runtime.
 2. Contribute locations using the local app. Verified scenes earn 1 unit;
    verified object locations earn 10. Pending checks do not earn credits yet.
 3. Use saved credits to search in the browser. One completed online search
-   spends one credit. Retrying an interrupted request recovers its result.
+   spends 100,000 units. Retrying the same interrupted request recovers its
+   result without another charge.
    Exported results open in map-making.app. Hosted search is still awaiting its
    validated engine; while unavailable, credits remain saved.
 
@@ -84,9 +87,10 @@ A search needs **100,000 places** (or 10,000 objects). There is no shortcut. An 
 
 If you were given the project folder and want it to go faster, see [CONTRIBUTING.md](CONTRIBUTING.md). Most people can ignore that.
 
-The queue is the local 20.96M already-indexed VISION poses (metadata only) plus
-the ALL LOCATIONS tail. Scene indexing runs `mma-vision index-four-views` on
-the volunteer computer. The approved runtime profile records its model,
+The work queue contains imported panorama identities and poses. Queue metadata
+does not make a location searchable: a verified user contribution must be
+published first. Scene indexing runs `mma-vision index-four-views` on the
+volunteer computer. The approved runtime profile records its model,
 helper files, settings, and thread policy; results are compared numerically and
 then audited before publication. Object indexing
 runs `vision-object index-segment` with the hybrid RF-DETR, YOLOE, and OWLv2
@@ -95,7 +99,7 @@ folders. Set `VISION_FOUR_VIEW_BINARY`, `VISION_MODEL_DIR`,
 `VISION_OBJECT_BINARY`, and `VISION_OBJECT_MODEL_DIR` only when you already
 have those files somewhere else.
 
-Local equivalent:
+For a local development prototype:
 
 ```sh
 PYTHONDONTWRITEBYTECODE=1 python3 -m community.server --prototype
@@ -113,21 +117,16 @@ PYTHONDONTWRITEBYTECODE=1 python3 -m community.server --metadata
 descriptor self-test. `--demo` is the old fixture/label prototype and must not
 be shipped as the product.
 
-Open `http://127.0.0.1:8765`. Create an anonymous account, process a batch, then
-search by uploading a map-making.app JSON (the same `customCoordinates` format
-the local VISION app exports). Scene search can use the same view directions as
-VISION.app: best of four, saved pan, opposite, left/right, saved axis, and
-cross-axis. Optionally exclude a previous map within 25 m. Download the result
-JSON and open it on map-making.app.
+Open `http://127.0.0.1:8765` to inspect the local prototype. The local server and
+command-line search helpers retain development and diagnostic behavior; they
+are not the hosted contribution and credit workflow. Real PC contributions
+require the trusted qualification and audit service.
 
-Process exclusive place batches with the same four-view program as VISION.
-Street View is fetched by that program, not proxied through the site. The
-command keeps going until the queue is empty or you press Control-C:
-
-```sh
-PYTHONDONTWRITEBYTECODE=1 python3 -m community.vision_index --url https://vision-community.visioncommunity.workers.dev --pace slow --recovery-code YOUR_CODE
-PYTHONDONTWRITEBYTECODE=1 python3 -m community.vision_index --url https://vision-community.visioncommunity.workers.dev --search --prompt "red barn in snow" --recovery-code YOUR_CODE
-```
+The browser search interface supports prompts and map-making.app examples,
+scene view directions, country filters and excluding a previous map. Its online
+engine must be validated against VISION before these are advertised as matching
+the reference application's results. Search results export as map-making.app
+JSON; users do not download the shared search index.
 
 ```sh
 PYTHONDONTWRITEBYTECODE=1 python3 -m community.admin check --db community/.data/demo.sqlite
@@ -145,20 +144,24 @@ programs and is not stored. Invented test IDs (`Prototype…`, `CommunityPano…
 are still recomputed with the old `community-visual-v1` descriptor. That
 descriptor is not the scene or object credit proof.
 
-## Storage at 200 million locations
+## Shared storage and online search
 
-Fast search at 200 million locations runs **on the user's computer**. The site
-is only the queue and credit desk. Workers Free cannot scan 200M vectors, so
-there is no paid search host to buy. Scene search is `python3 -m
-community.vision_index --search`, the same four-view search as VISION. It reads
-indexes on that computer and, after the search is paid for, downloads finished
-scene indexes from the queue. Object search is `python3 -m community.object_index
---search`, the same object search as VISION. It reads indexes on that computer
-and downloads finished object indexes from the queue after the search is paid
-for. On a computer where VISION is already indexing objects, Community uses
-that same `vision-object` program. Finished object indexes are then added to
-the local VISION app's object catalog. Scene indexes stay in the Community
-search: the running remainder catalog owns scene discovery.
+Users process locations locally and bank credits from verified contributions.
+Search runs online through the website against published contributions only.
+The maintainer's private index and unprocessed queue metadata are not part of
+the searchable pool.
+
+The server owns account balances, verifies search results and records the result
+with its credit charge. The browser can recover the same request after an
+interruption. When the search engine is unavailable or its output cannot be
+verified, the request does not spend credit. The updated hosted-service code
+rejects shared-index downloads and the old paid local-search route.
+
+The repository includes the online search gateway and its checks, but a
+validated hosted inference engine still needs to be deployed. It will need
+an approved snapshot of contributed indexes. Storage, compute costs, latency
+and memory must be measured before promising performance at 200 million
+locations; index-only storage estimates are not a complete hosting budget.
 
 ## Invariants
 
@@ -168,39 +171,22 @@ search: the running remainder catalog owns scene discovery.
 - Imagery bytes and tile URLs are rejected. Only metadata and embeddings persist.
 - Search debit and JSON emission happen in trusted server code.
 
-## Remaining owner-only steps
+## Remaining maintainer steps
 
-Volunteer processing, the ALL LOCATIONS tail queue, exclusive leases, and
-VISION-matching Street View views are already running on the hosted prototype.
-What still needs a person:
+1. Review the full calibration evidence against Andrew's reference, approve
+   measured processing profiles, and deploy the trusted PC qualification and
+   contribution-audit service. Do not invent numerical approval thresholds.
+2. Exercise real approved contributions and recovery on the supported devices.
+   Publish verified outputs into the shared pool without importing the
+   maintainer's private corpus or using unrelated storage.
+3. Build and validate the hosted search engine against an approved snapshot of
+   those contributions. Compare rankings with VISION and measure hosting costs
+   and performance before enabling public search.
+4. Complete the deployment, backup, privacy and long-run checks in the
+   [release checklist](docs/PRODUCTION_ACCEPTANCE.md). Local tests and a running
+   background task do not establish production readiness.
 
-1. **Index published poses in VISION.app.** After volunteers process, export
-   the 11-column TSV and point the local four-view / object indexer at it
-   (isolated sidecar directory, not the live remainder run):
-
-   ```sh
-   PYTHONDONTWRITEBYTECODE=1 python3 -m community.admin export-vision \
-     --from-d1-remote --to community/.data/vision-handoff-live
-   ```
-
-   Scene credit requires the four-view record. Object credit requires the
-   version-4 object index. `community-visual-v1` is only the old test descriptor.
-
-2. **Cut the live remainder TSV** at `reservedFromLocationIndex` only after the
-   local indexer is stopped or has passed that cursor. Do not shrink the file
-   while `mma-vision` is running.
-
-3. **Later, when the corpus is real:** custom domain if you want one. Never
-   touch `geonections-images`. Do not upload the 20.96M VISION embeddings.
-   Search already costs 100,000 units. Large searches run
-   on the user's computer (`python3 -m community.vision_index --search` and
-   `python3 -m community.object_index --search`). Do not buy a
-   search VM.
-
-The hosted site is the shared queue and credit desk. Search at 200 million
-locations runs on volunteers' computers after they unlock it. Search already
-costs 100,000 units with no bypass.
-# Windows calibration volunteers
+## Windows calibration volunteers
 
 Helping Andrew test scene-index compatibility on a PC? Start with
 [the guided Windows calibration setup](calibration/START-HERE.md).
