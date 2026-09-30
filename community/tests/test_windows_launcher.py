@@ -74,7 +74,7 @@ class WindowsLauncherTest(unittest.TestCase):
             private = root / "private"
             source.mkdir()
             private.mkdir()
-            public = ["community/desktop.py", "community/bootstrap.py", "community/vision_index.py",
+            public = ["community/desktop.py", "community/bootstrap.py", "community/vision_index.py", "community/submission_outbox.py",
                       "community/runtime_manifest.json", "community/desktop_web/index.html",
                       "calibration/run_windows.py", "calibration/quality.py", "calibration/gen4-v1/checksums.json"]
             secrets = [".git/config", ".env", "community/.data/account.json", "community/tests/test_private.py",
@@ -99,6 +99,19 @@ class WindowsLauncherTest(unittest.TestCase):
             (snapshot / "community/desktop.py").write_text("changed source")
             self.command(code, expected=1)
 
+    def test_actual_private_snapshot_can_import_both_guided_and_background_apps(self):
+        with tempfile.TemporaryDirectory() as folder:
+            snapshot = Path(self.command("Copy-VisionSource " + ps_string(REPO) + " " + ps_string(folder)))
+            # -I removes the checkout/caller from Python's import search path;
+            # every Community dependency must come from the packaged snapshot.
+            code = ("import sys; from pathlib import Path; "
+                    "root = Path(" + repr(str(snapshot)) + "); sys.path.insert(0, str(root)); "
+                    "import community.desktop, community.background; "
+                    "assert all(Path(module.__file__).is_relative_to(root) for name, module in sys.modules.items() "
+                    "if name == 'community' or name.startswith('community.'))")
+            result = subprocess.run([sys.executable, "-I", "-B", "-c", code], capture_output=True, text=True, timeout=30)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
     def test_running_instance_must_use_loopback_url(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
@@ -112,7 +125,7 @@ class WindowsLauncherTest(unittest.TestCase):
             (source / "community").mkdir(parents=True)
             (source / "windows").mkdir()
             (source / "windows/Start-Vision.ps1").write_bytes(LAUNCHER.read_bytes())
-            for name in ("community/desktop.py", "community/bootstrap.py", "community/vision_index.py",
+            for name in ("community/desktop.py", "community/bootstrap.py", "community/vision_index.py", "community/submission_outbox.py",
                          "community/runtime_manifest.json", "community/desktop_web/index.html",
                          "calibration/run_windows.py", "calibration/quality.py",
                          "calibration/gen4-v1/checksums.json"):
