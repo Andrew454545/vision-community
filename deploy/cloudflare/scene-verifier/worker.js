@@ -140,6 +140,10 @@ async function loadReference(env, policy) {
   const bytes = await boundedBytes(object.body, CANARY_LOCATIONS * RECORD_BYTES);
   if (bytes.length !== CANARY_LOCATIONS * RECORD_BYTES || await sha256(bytes) !== policy.referenceSha256) return null;
   for (let offset = 0; offset < bytes.length; offset += RECORD_BYTES) if (!validRecord(bytes, offset)) return null;
+  // A damaged operator reference is a service failure, not a failed PC test.
+  for (let offset = 0; offset < bytes.length; offset += VIEW_BYTES) {
+    if (!bytes.subarray(offset + 2, offset + VIEW_BYTES).some(value => value !== 0)) return null;
+  }
   return bytes;
 }
 
@@ -152,7 +156,8 @@ async function qualification(env, body) {
   const candidate = canaryBytes(canary);
   if (!candidate || canary.outputSha256 !== await sha256(candidate)) return response({ approved: false }, 422);
   const reference = await loadReference(env, policy);
-  const metrics = reference ? canaryMetrics(candidate, reference) : null;
+  if (!reference) return response({ error: "scene_verifier_unavailable" }, 503);
+  const metrics = canaryMetrics(candidate, reference);
   if (!metrics || metrics.minimumViewCosine < policy.thresholds.minimumViewCosine || metrics.maximumViewRelativeL2 > policy.thresholds.maximumViewRelativeL2) return response({ approved: false }, 422);
   const canarySha256 = await sha256(new TextEncoder().encode(JSON.stringify(canary)));
   if (body.canarySha256 !== canarySha256) return response({ approved: false }, 422);

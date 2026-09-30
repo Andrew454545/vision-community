@@ -46,3 +46,4 @@ jobs:
         run: |
           node node_modules/wrangler/bin/wrangler.js deploy --dry-run --outdir .local-test-build
           node tools/check-local-runtime.mjs node_modules/miniflare/dist/src/index.js .local-test-build/worker.js
+          node tools/check-local-verifier.mjs node_modules/miniflare/dist/src/index.js
