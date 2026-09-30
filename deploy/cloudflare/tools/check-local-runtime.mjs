@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { pathToFileURL } from "node:url";
 
-const [miniflarePath, bundlePath, compatibilityDate = "2026-09-29"] = process.argv.slice(2);
+const [miniflarePath, bundlePath, compatibilityDate = "2026-09-19"] = process.argv.slice(2);
 if (!miniflarePath || !bundlePath) throw Error("Specify the local Miniflare entry and dry-run Worker bundle.");
 const { Miniflare, convertV4MiniflareOptions } = await import(pathToFileURL(resolve(miniflarePath)).href);
 const pins = { SEARCH_POLICY_ID: "synthetic-local-test-only", SEARCH_RUNTIME_SHA256: "b".repeat(64),
@@ -31,7 +31,8 @@ try {
   const created = await mf.dispatchFetch("https://community.test/api/accounts", {
     method: "POST", headers: { "content-type": "application/json", origin: "https://community.test" }, body: "{}" });
   assert.equal(created.status, 201);
-  const account = (await created.json()).accountId;
+  const credentials = await created.json();
+  const account = credentials.accountId;
   const session = created.headers.get("set-cookie").split(";")[0];
   await db.prepare("UPDATE accounts SET units=200000 WHERE id=?").bind(account).run();
   const request = { accountId: account, idempotencyKey: "concurrent-local-search", lane: "scene", prompt: "red door", resultCount: 200 };
@@ -65,5 +66,44 @@ try {
   assert.equal((await failed.json()).error, "internal_error");
   assert.equal((await db.prepare("SELECT units FROM accounts WHERE id=?").bind(account).first()).units, 100000);
   assert.equal((await db.prepare("SELECT COUNT(*) AS n FROM ledger").first()).n, 2);
-  console.log("Cloudflare local runtime passed: concurrent search settlement, last-credit spending, request replay, retired downloads and database-failure rollback.");
+  await db.exec("DROP TRIGGER failed_result;");
+  assert.equal((await (await mf.dispatchFetch("https://community.test/api/me", { headers: { cookie: session } })).json()).accountDeletionAvailable, true);
+  const deletionBody = { accountId: account, confirmation: "DELETE", idempotencyKey: "d".repeat(64) };
+  const deletion = (body = deletionBody, origin = "https://community.test", cookie = session) =>
+    mf.dispatchFetch("https://community.test/api/account/delete", { method: "POST",
+      headers: { "content-type": "application/json", origin, cookie }, body: JSON.stringify(body) });
+  assert.equal((await deletion(deletionBody, "https://unrelated.test")).status, 403);
+  assert.equal((await deletion({ ...deletionBody, confirmation: "delete" })).status, 400);
+  const deleted = await deletion();
+  assert.equal(deleted.status, 200);
+  assert.match(deleted.headers.get("set-cookie"), /Max-Age=0/);
+  assert.equal((await deleted.json()).unitsForfeited, 100000);
+  assert.equal((await mf.dispatchFetch("https://community.test/api/me", { headers: { cookie: session } })).status, 401);
+  assert.equal((await post(request)).status, 401);
+  const recovery = await mf.dispatchFetch("https://community.test/api/recovery", { method: "POST",
+    headers: { "content-type": "application/json", origin: "https://community.test" },
+    body: JSON.stringify({ recoveryCode: credentials.recoveryCode }) });
+  assert.equal(recovery.status, 401);
+  // Simulate retry after losing the response, with no session cookie.
+  assert.equal((await deletion(deletionBody, "https://community.test", "")).status, 200);
+  assert.equal((await deletion({ ...deletionBody, idempotencyKey: "e".repeat(64) }, "https://community.test", "")).status, 401);
+  assert.equal((await db.prepare("SELECT COUNT(*) AS n FROM searches WHERE account_id=?").bind(account).first()).n, 0);
+  assert.equal((await db.prepare("SELECT COUNT(*) AS n FROM ledger WHERE reason='account_deleted'").first()).n, 1);
+  assert.equal((await db.prepare("SELECT COUNT(*) AS n FROM published_index").first()).n, 1);
+  // Exercise the actual scheduled handler against local R2, with a damaged
+  // published path that must be kept and a valid unpublished cleanup retry.
+  const r2 = await mf.getR2Bucket("INDEX");
+  const key = `scene-quarantine/${"f".repeat(32)}/${"a".repeat(64)}.i8`;
+  await r2.put(key, "private quarantine");
+  await r2.put("four-view-v4/local.i8", "retained contributed index");
+  for (const path of [key, "four-view-v4/local.i8"]) {
+    await db.prepare("INSERT INTO account_cleanup VALUES (?,?,1,'pending')").bind(path, account).run();
+  }
+  const worker = await mf.getWorker();
+  await worker.scheduled({ cron: "0 * * * *" });
+  assert.equal(await r2.get(key), null);
+  assert.ok(await r2.get("four-view-v4/local.i8"));
+  assert.equal((await db.prepare("SELECT state FROM account_cleanup WHERE artifact_key=?").bind(key).first()).state, "removed");
+  assert.equal((await db.prepare("SELECT state FROM account_cleanup WHERE artifact_key='four-view-v4/local.i8'").first()).state, "needs_review");
+  console.log("Cloudflare local runtime passed: concurrent search settlement, replay, rollback, deletion, recovery revocation, receipt retry and scheduled quarantine cleanup.");
 } finally { await mf.dispose(); }

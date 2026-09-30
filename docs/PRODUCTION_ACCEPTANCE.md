@@ -20,6 +20,17 @@ measurements into automatic production approval.
 
 ## Completed in this pass
 
+- Added hosted account deletion with typed confirmation, atomic session and
+  recovery revocation, credit closure, removal of private search results,
+  unfinished-work release and database fences against delayed writes. Browser
+  receipts recover lost responses and preserve other accounts' journals;
+  confirmed deletion prevents delayed tabs from recreating private results.
+  Local workerd/D1/R2 tests also exercise hourly bounded quarantine cleanup at
+  the configured compatibility date, 2026-09-19. These are synthetic local
+  tests, not a live deployment or completed retention/privacy audit. See
+  [ACCOUNT_PRIVACY.md](ACCOUNT_PRIVACY.md) for records retained and release gaps.
+  Current verification: 55 JavaScript and 233 Python tests pass; the complete
+  Worker builds and passes the native privacy/search/scheduled-cleanup check.
 - Added an opt-in unattended Windows scene worker with a single-instance lock,
   saved account reuse, qualification checks, bounded waits, low-disk protection,
   a pause file, and preserved diagnostics. Its installer uses a versioned source
@@ -215,6 +226,9 @@ recorded evidence:
 - [ ] Anonymous account recovery, user deletion, retention policy, minimization
   of IP/search logging, public artifact metadata and maintainer identity audit.
   Removing names from a UI does not erase Git history or provider records.
+  Account deletion and delayed-write protection are now tested locally; live
+  rollout, backup/deletion-aware restore, wider orphan cleanup and provider
+  logging/retention review remain outstanding.
 - [ ] Ledger concurrency, replay and failure tests; no credit expiry or cap
   unless the owner explicitly chooses one. A finite queue cannot guarantee an
   infinite supply of useful new work; wait for new work without re-crediting it.

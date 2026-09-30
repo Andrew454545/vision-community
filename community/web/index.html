@@ -9,6 +9,7 @@
   <script src="/visual.js" defer></script>
   <script src="/mma.js" defer></script>
   <script src="/search-journal.js" defer></script>
+  <script src="/account-deletion.js" defer></script>
   <script src="/app.js" defer></script>
 </head>
 <body>
@@ -256,6 +257,22 @@
         <button id="copy-recovery" class="compact-btn" type="button">Copy</button>
         <button id="dismiss-recovery" class="compact-btn" type="button">Got it</button>
       </p>
+
+      <details id="account-privacy" hidden>
+        <summary>Delete my account</summary>
+        <p class="rail-copy">This permanently removes your account access, saved search results and unused credits. Your recovery code will stop working, including in the desktop app.</p>
+        <p class="rail-copy">Verified anonymous contributions stay in the shared pool. Files you already downloaded or sent to a map app stay on those devices or services. Local processing files and backup copies are not erased by this button.</p>
+        <form id="delete-account-form" autocomplete="off">
+          <label for="delete-confirmation">Type DELETE to confirm</label>
+          <input id="delete-confirmation" type="text" maxlength="6" autocomplete="off" spellcheck="false" required>
+          <button id="delete-account" class="compact-btn" type="submit">Permanently delete my account</button>
+        </form>
+      </details>
+      <div id="pending-deletion" hidden>
+        <p class="rail-copy">A deletion request is saved on this browser. Check its outcome before starting more searches. Keep this browser's data until deletion is confirmed.</p>
+        <button id="check-deletion" class="compact-btn" type="button">Check deletion status</button>
+      </div>
+      <p id="deletion-status" class="status" role="status" aria-live="polite"></p>
 
       <p class="filter-kicker">What to index</p>
       <div class="segmented" id="process-lane">

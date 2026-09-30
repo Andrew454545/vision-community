@@ -87,6 +87,13 @@ A search needs **100,000 places** (or 10,000 objects). There is no shortcut. An 
 
 If you were given the project folder and want it to go faster, see [CONTRIBUTING.md](CONTRIBUTING.md). Most people can ignore that.
 
+Account deletion is being prepared for the hosted site. Open **Index → Delete
+my account**, read the warning and type **DELETE**. It revokes your recovery
+code and removes saved searches and unused credits. Verified anonymous
+contributions remain in the shared pool. See [account privacy](docs/ACCOUNT_PRIVACY.md)
+for interrupted requests, local files and retained records. This feature is
+tested locally but is not deployed yet.
+
 The work queue contains imported panorama identities and poses. Queue metadata
 does not make a location searchable: a verified user contribution must be
 published first. Scene indexing runs `mma-vision index-four-views` on the

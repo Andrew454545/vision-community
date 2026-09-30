@@ -38,6 +38,13 @@ const ERRORS = {
   mma_no_map: "Pick a map, or choose New map each search.",
   mma_unreachable: "Could not reach map-making.app. Check your connection and try again.",
   empty_mma_map: "There is no search map to send yet. Run Search first.",
+  invalid_account_deletion: "Type DELETE exactly to confirm account deletion.",
+  deletion_storage_unavailable: "Allow this site's browser storage, then check deletion status again. Keep your browser data until deletion is confirmed.",
+  deletion_recovery_invalid: "The saved deletion request could not be read. Keep this browser's data and contact support.",
+  deletion_account_changed: "This deletion request belongs to another account. Restore that account before retrying; this account's data has been kept.",
+  deletion_unconfirmed: "Deletion has not been confirmed. Keep this browser's data and check the status again.",
+  account_deletion_pending: "Check your pending account deletion before starting another search.",
+  account_deleted: "This account has been deleted. Its recovery code no longer works.",
 };
 
 const ALL_GENERATIONS = ["badcam", "gen1", "gen2", "gen3", "gen4", "trekker"];
@@ -67,6 +74,30 @@ const searchJournal = new VisionSearchJournal({
   getItem: key => localStorage.getItem(key), setItem: (key, value) => localStorage.setItem(key, value),
   removeItem: key => localStorage.removeItem(key),
 });
+const accountDeletion = new VisionAccountDeletion({
+  getItem: key => localStorage.getItem(key), setItem: (key, value) => localStorage.setItem(key, value),
+  removeItem: key => localStorage.removeItem(key),
+});
+let deletionBusy = false;
+function deletionBlocksSearch() {
+  try {
+    const pending = accountDeletion.read();
+    return deletionBusy || (pending && pending.accountId === state?.accountId)
+      || (state?.accountId && !!localStorage.getItem(`vision-community-deleted:${state.accountId}`));
+  } catch { return true; }
+}
+function updateAccountPrivacy() {
+  let pending = null;
+  try { pending = accountDeletion.read(); }
+  catch (error) { $("deletion-status").textContent = explain(error); }
+  $("account-privacy").hidden = !signedIn || state?.accountDeletionAvailable !== true || !!pending;
+  $("pending-deletion").hidden = !pending;
+  $("delete-account").disabled = deletionBusy;
+  $("check-deletion").disabled = deletionBusy || (signedIn && pending?.accountId !== state.accountId)
+    || state?.accountDeletionAvailable !== true;
+  $("create-account").disabled = deletionBusy;
+  $("recover-form").querySelector("button").disabled = deletionBusy;
+}
 const REFRESH_EVERY_BATCHES = 8;
 
 function newJob(name) {
@@ -758,7 +789,7 @@ function updateReady() {
   const ready = pending || (hasInput && includeReady && generationReady && (signedIn ? credited && onSite : true));
   $("ready-badge").textContent = hasInput ? "Ready" : "Needs input";
   $("ready-badge").classList.toggle("ok", hasInput);
-  $("run-search").disabled = !ready;
+  $("run-search").disabled = !ready || deletionBlocksSearch();
   $("run-search").textContent = pending ? "Recover search" : "Run Search";
   if (!signedIn) {
     $("run-search").title = "Get a private account to use your banked search credits";
@@ -885,6 +916,7 @@ async function refresh(options = {}) {
         : `${number(indexed)} indexed locations · ${number(need)} more until Search unlocks.`;
   }
   $("create-account").hidden = signedIn;
+  updateAccountPrivacy();
   $("pause").disabled = !signedIn;
   $("account-chip").textContent = signedIn ? "Signed in on this browser" : "No account yet";
   if (!($("process").dataset.busy && need === 0)) {
@@ -1062,6 +1094,7 @@ document.querySelectorAll('input[name="object-confidence"]').forEach((input) => 
 });
 
 $("create-account").addEventListener("click", async () => {
+  if (deletionBusy) return;
   const button = $("create-account");
   button.disabled = true;
   try {
@@ -1105,6 +1138,7 @@ $("recovery-code").addEventListener("input", updateCliCommand);
 
 $("recover-form").addEventListener("submit", async (event) => {
   event.preventDefault();
+  if (deletionBusy) return;
   try {
     await api("/api/recovery", "POST", { recoveryCode: $("recovery-code").value.trim() });
     $("recovery-once").hidden = true;
@@ -1116,6 +1150,57 @@ $("recover-form").addEventListener("submit", async (event) => {
   } catch (error) {
     $("process-status").textContent = `Recovery stopped: ${explain(error)}`;
   }
+});
+
+async function requestAccountDeletion(retrying = false) {
+  if (deletionBusy || state?.accountDeletionAvailable !== true) return;
+  deletionBusy = true;
+  try {
+    const body = retrying ? accountDeletion.read() : accountDeletion.prepare(state?.accountId, $("delete-confirmation").value);
+    if (!body) throw new Error("deletion_unconfirmed");
+    if (signedIn && state.accountId !== body.accountId) throw new Error("deletion_account_changed");
+    updateAccountPrivacy();
+    updateReady();
+    $("deletion-status").textContent = "Checking account deletion…";
+    const result = await api("/api/account/delete", "POST", body);
+    accountDeletion.finish(body, result, state?.accountId);
+    // Drop in-memory form values before reload. The receipt cleanup above also
+    // fences results arriving in other open tabs for this deleted account.
+    state = null;
+    signedIn = false;
+    lastRecovery = "";
+    lastMap = null;
+    queryMap = null;
+    queryMaps.clear();
+    for (const id of ["prompt", "output-name", "recovery-code", "delete-confirmation", "mma-api-key"]) {
+      if ($(id)) $(id).value = "";
+    }
+    window.location.hash = "account-deleted";
+    window.location.reload();
+  } catch (error) {
+    $("deletion-status").textContent = error.message === "unauthorized"
+      ? "Deletion has not been confirmed. If your saved code still works, restore the original account and check again. Otherwise keep this browser's data and contact support."
+      : explain(error);
+  } finally {
+    deletionBusy = false;
+    updateAccountPrivacy();
+    updateReady();
+  }
+}
+$("delete-account-form").addEventListener("submit", event => {
+  event.preventDefault();
+  requestAccountDeletion();
+});
+$("check-deletion").addEventListener("click", () => requestAccountDeletion(true));
+window.addEventListener("storage", event => {
+  if (state?.accountId && event.key === `vision-community-deleted:${state.accountId}` && event.newValue) {
+    state = null;
+    signedIn = false;
+    window.location.hash = "account-deleted";
+    window.location.reload();
+    return;
+  }
+  if (event.key === VisionAccountDeletion.pendingKey) { updateAccountPrivacy(); updateReady(); }
 });
 
 $("pause").addEventListener("click", () => {
@@ -1391,6 +1476,10 @@ async function restoreMapApp() {
 }
 
 $("run-search").addEventListener("click", async () => {
+  if (deletionBlocksSearch()) {
+    $("search-status").textContent = ERRORS.account_deletion_pending;
+    return;
+  }
   const button = $("run-search");
   button.disabled = true;
   saveJobFromForm();
@@ -1500,6 +1589,11 @@ updateMmaTarget();
 restoreMapApp().catch(() => {});
 refresh().then(() => {
   localStorage.removeItem(INDEXING_KEY);
+  if (window.location.hash === "#account-deleted") {
+    $("deletion-status").textContent = "Account deleted. Access, saved search results and unused credits were removed. Verified anonymous contributions stay in the shared pool.";
+    $("index-sheet").showModal();
+    history.replaceState(null, "", window.location.pathname + window.location.search);
+  }
 }).catch((error) => {
   $("process-status").textContent = `Unable to reach the service: ${explain(error)}`;
 });

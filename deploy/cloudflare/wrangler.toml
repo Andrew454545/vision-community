@@ -4,6 +4,10 @@ compatibility_date = "2026-09-19"
 compatibility_flags = ["nodejs_compat"]
 workers_dev = true
 
+# Bounded retries for unpublished artifacts after an account deletion.
+[triggers]
+crons = ["0 * * * *"]
+
 # D1 holds the prototype ledger. INDEX is the durable sealed-segment copy.
 # Production 200M search will not run in this Worker. Do not bind any other bucket.
 

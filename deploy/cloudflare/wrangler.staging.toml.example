@@ -7,6 +7,9 @@ compatibility_date = "2026-09-19"
 compatibility_flags = ["nodejs_compat"]
 workers_dev = true
 
+[triggers]
+crons = ["0 * * * *"]
+
 [[d1_databases]]
 binding = "DB"
 database_name = "vision-community-staging"

@@ -137,7 +137,7 @@ export async function onlineSearch(env, account, key, query) {
   const digest = await searchDigest(query);
   const replay = await replaySearch(env.DB, account, key, digest);
   if (replay) return replay;
-  const owner = await env.DB.prepare("SELECT units FROM accounts WHERE id=?").bind(account).first();
+  const owner = await env.DB.prepare("SELECT units FROM accounts WHERE id=? AND deleted_at IS NULL").bind(account).first();
   if (!owner) throw new SearchError("unauthorized", 401);
   if (owner.units < SEARCH_COST) throw new SearchError("insufficient_credit", 402);
   const computed = await engineResult(env, query, digest);
