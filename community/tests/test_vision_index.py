@@ -434,13 +434,16 @@ class VisionIndexCommandTest(unittest.TestCase):
             self.assertIn("--locations-tsv", index_call)
             self.assertIn("--index-dir", index_call)
             self.assertIn("--checkpoint", index_call)
-            self.assertEqual(index_call[index_call.index("--locations-tsv") + 1], str(tsv))
+            self.assertEqual(
+                Path(index_call[index_call.index("--locations-tsv") + 1]).resolve(),
+                tsv.resolve(),
+            )
             self.assertNotIn("four-view-remainder-work", " ".join(index_call))
             spec = json.loads((root / "input.json").read_text(encoding="utf-8"))
             self.assertEqual(spec["embeddingBatchSize"], 16)
             self.assertEqual(spec["imageEncoderSessions"], 1)
             self.assertEqual(spec["shardLocations"], 50000)
-            self.assertEqual(seen[0][0], str(root / "mma-vision"))
+            self.assertEqual(Path(seen[0][0]).resolve(), (root / "mma-vision").resolve())
             self.assertIn("index-layout", seen[0])
             record = (root / "index" / "shard-000000.i8").read_bytes()
             self.assertEqual(len(record), 3080)
