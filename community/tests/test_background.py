@@ -238,10 +238,7 @@ class BackgroundTest(unittest.TestCase):
             second, app2 = self.worker(root)
             second.step()
             app2.connect.assert_called_once_with("private-test-code")
-            self.assertEqual(
-                Path(app2.indexer.call_args.kwargs["work_dir"]).resolve(),
-                (Path(root) / "indexes").resolve(),
-            )
+            self.assertEqual(app2.indexer.call_args.kwargs["work_dir"], (Path(root) / "indexes").resolve())
             self.assertNotIn("private-test-code", (Path(root) / "background-status.json").read_text())
 
     def test_pause_and_low_disk_do_not_claim_work(self):
