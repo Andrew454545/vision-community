@@ -50,6 +50,13 @@ the worker. `account.json` is private; never share it or commit it to GitHub.
   Network failures and temporary HTTP 429/502/503/504 responses retry after
   30 minutes; an explicit verification rejection still requires review.
 - `waiting_for_work`: the queue is empty. The worker waits for useful new work.
+- `waiting_for_verification`: saved batches need the service's verification.
+  A local delivery journal retries interrupted submissions and audits after a
+  restart without processing their images again. It is bound to the original
+  anonymous account and service, and contains no account code or bearer token.
+  At most 64 unresolved batches are allowed before claiming more work pauses;
+  verification is retried every 30 minutes. A rejected batch stops processing
+  for review and retains its evidence.
 - `waiting_for_space`: free at least 5 GB; existing results remain in place.
 - `needs_attention`: inspect `desktop-failure.json` and retained batch reports.
   Fix the cause, then remove `NEEDS-ATTENTION`. Failed PC checks are not rerun
@@ -66,6 +73,8 @@ but does not delete results or credentials.
 
 Unit tests cover unavailable services, restart/account reuse, empty queues,
 rejected checks, low disk, pause, corrupt credentials and duplicate processes.
+Delivery tests cover lost responses, restart recovery, service/account
+isolation, bounded backlog, fairness and preserved rejected results.
 The installer test uses a mock scheduler and checks startup failure reporting,
 including folder names with spaces and apostrophes. It does not prove that a
 real scheduled task launches. PowerShell tests honor the host execution policy;

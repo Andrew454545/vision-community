@@ -39,6 +39,10 @@ measurements into automatic production approval.
   the same transaction. SQLite-backed Worker tests demonstrate concurrent
   approval credits once, failed publication rolls credit back, and a changed
   queue cannot be published or credited.
+- Guided and background clients persist completed submissions before network
+  delivery. A restart resumes pending delivery/audit under the same anonymous
+  account and service. Unresolved batches are bounded, and rejection preserves
+  the evidence and stops processing. Local tests verify this recovery path.
 
 ## Blocking live indexing
 
