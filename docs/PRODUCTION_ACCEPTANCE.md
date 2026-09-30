@@ -58,6 +58,13 @@ measurements into automatic production approval.
   reference data is a retryable service failure, rather than a PC rejection.
   All 31 JavaScript tests pass. No synthetic policy has been deployed or used
   to approve a real runtime.
+- Hosted map exports now follow the inspected VISION reference for query modes,
+  query thresholds/text, model names, registry ordinals, object evidence and
+  seven-decimal rounding. Engine contract version 2 requires that evidence.
+  All 37 JavaScript tests pass, including semantic object's zenith/nadir faces,
+  tied scores with registry order differing from D1 IDs, and rejected metadata
+  that spends no credit. The full gateway again passes local workerd/D1 checks.
+  Export conformance is separate from the pending inference/ranking comparison.
 
 ## Blocking live indexing
 

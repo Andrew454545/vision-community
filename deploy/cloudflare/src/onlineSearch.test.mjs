@@ -37,7 +37,7 @@ function fixture(t, units = 200000) {
     SEARCH_SNAPSHOT_SHA256: "c".repeat(64), SEARCH_ENGINE: { async fetch(request) {
       const body = await request.json();
       return Response.json({ ...body, processedLocations: 1,
-        hits: [{ locationId: 1, outputSha256: "a".repeat(64), score: 0.8, viewOffset: 1 }] });
+        hits: [{ locationId: 1, outputSha256: "a".repeat(64), sourceIndex: 0, score: 0.8, viewOffset: 1 }] });
     } } };
   return { sql, env, query };
 }
@@ -51,6 +51,11 @@ test("online results use authoritative poses and replay without charging again",
   assert.equal(balance(sql), 100000);
   assert.equal(result.map.customCoordinates[0].heading, 180);
   assert.equal(result.map.customCoordinates[0].panoId, "abcdefghijklmnopqrstuv");
+  assert.equal(result.map.customCoordinates[0].extra.visionMinScore, 0.01);
+  assert.equal(result.map.customCoordinates[0].extra.visionQueryMode, "textOnly");
+  assert.equal(result.map.customCoordinates[0].extra.visionQuery, query.prompt);
+  assert.equal(result.map.customCoordinates[0].extra.visionSourceIndex, 0);
+  assert.equal(result.map.customCoordinates[0].extra.visionModel, "SigLIP B/16 224");
   delete env.SEARCH_ENGINE;
   assert.deepEqual(await onlineSearch(env, "anonymous", "request-one", query), result);
   assert.equal(balance(sql), 100000);
@@ -145,7 +150,8 @@ test("object results require official Gen4 historical evidence", async t => {
   query.filters.generations = ["gen4"];
   sql.exec("UPDATE locations SET lane='object'; UPDATE published_index SET object_index_key='object-index-v4/test/';");
   env.SEARCH_ENGINE.fetch = async request => Response.json({ ...await request.json(), processedLocations: 1,
-    hits: [{ locationId: 1, outputSha256: "a".repeat(64), score: 0.8, viewOffset: 0, heading: 45, pitch: 5, zoom: 1 }] });
+    hits: [{ locationId: 1, outputSha256: "a".repeat(64), sourceIndex: 0, score: 0.8, viewOffset: 0, heading: 45, pitch: 5, zoom: 1,
+      object: { lane: "common", className: "car", classId: 3, confidence: 0.8, supportCount: 2, bboxArea: 0.1 } }] });
   await assert.rejects(onlineSearch(env, "anonymous", "request-one", query), /search_unavailable/);
   sql.exec(`INSERT INTO object_coverage VALUES (1,'official-gen4-historical-v1','${"d".repeat(64)}',0);`);
   sql.exec("UPDATE locations SET camera_generation='gen3'");
@@ -153,22 +159,27 @@ test("object results require official Gen4 historical evidence", async t => {
   sql.exec("UPDATE locations SET camera_generation='gen4'");
   const result = await onlineSearch(env, "anonymous", "request-one", query);
   assert.equal(result.map.customCoordinates[0].heading, 45);
+  assert.equal(result.map.customCoordinates[0].extra.visionModel, "RF-DETR Medium 1.10.0");
+  assert.equal(result.map.customCoordinates[0].extra.visionMinScore, 0.08);
+  assert.equal(result.map.customCoordinates[0].extra.visionObjectSupport, 2);
   assert.equal(balance(sql), 100000);
 });
 
 test("wrong pins, filters, poses, scores and exclusions are rejected before settlement", async t => {
   const { sql, env, query } = fixture(t);
-  const hit = { locationId: 1, outputSha256: "a".repeat(64), score: 0.8, viewOffset: 1 };
+  const hit = { locationId: 1, outputSha256: "a".repeat(64), sourceIndex: 0, score: 0.8, viewOffset: 1 };
   for (const changed of [{ policyId: "other" }, { runtimeSha256: "e".repeat(64) }, { snapshotSha256: "e".repeat(64) },
     { requestSha256: "e".repeat(64) }, { hits: [hit, hit] }, { hits: [{ ...hit, score: null }] },
-    { hits: [{ ...hit, viewOffset: 9 }] }]) {
+    { hits: [{ ...hit, viewOffset: 9 }] }, { contractVersion: 1 },
+    { hits: [null] }, { hits: [{ ...hit, sourceIndex: -1 }] }, { hits: [{ ...hit, sourceIndex: 1 }] },
+    { hits: [{ ...hit, score: 0.001 }] }]) {
     env.SEARCH_ENGINE.fetch = async request => Response.json({ ...await request.json(), processedLocations: 1, hits: [hit], ...changed });
     await assert.rejects(onlineSearch(env, "anonymous", "request-one", query), /search_unavailable/);
   }
   env.SEARCH_ENGINE.fetch = async request => Response.json({ ...await request.json(), processedLocations: 1, hits: [hit] });
   for (const changed of [{ filters: { mode: "exclude", countries: ["Italy"], generations: [] } },
     { filters: { mode: "all", countries: [], generations: ["gen1"] } }, { viewDirection: "original" },
-    { excluded: [{ panoId: "other", lat: 10, lng: 20 }] }]) {
+    { excluded: [{ panoId: "other", lat: 10, lng: 20 }] }, { minimumGlobalLocation: 1 }]) {
     await assert.rejects(onlineSearch(env, "anonymous", "request-one", { ...query, ...changed }), /search_unavailable/);
   }
   assert.equal(balance(sql), 200000);
@@ -178,4 +189,55 @@ test("all historical index distribution routes are retired for online credits", 
   assert.equal(INDEX_DOWNLOAD_ROUTES.size, 7);
   assert.ok(INDEX_DOWNLOAD_ROUTES.has("/api/scene-index-file"));
   assert.ok(INDEX_DOWNLOAD_ROUTES.has("/api/object-index-file"));
+});
+
+test("equal scores follow the sealed registry order rather than database IDs", async t => {
+  const { sql, env, query } = fixture(t);
+  sql.exec(`INSERT INTO locations (id,asset_id,capture,lane,model,state,contributor_id,lat,lon,country,camera_generation)
+    VALUES (2,'another-contributed-pano','2026-01','scene','scene-model','published','contributor',11,20,'Italy','gen4');
+    INSERT INTO published_index (location_id,index_text,output_sha256,published_at,four_view_key)
+    VALUES (2,'','${"d".repeat(64)}',0,'four-view-v4/second.i8');`);
+  const hits = [{ locationId: 2, outputSha256: "d".repeat(64), sourceIndex: 0, score: 0.8, viewOffset: 0 },
+    { locationId: 1, outputSha256: "a".repeat(64), sourceIndex: 1, score: 0.8, viewOffset: 1 }];
+  env.SEARCH_ENGINE.fetch = async request => Response.json({ ...await request.json(), processedLocations: 2, hits: [...hits].reverse() });
+  await assert.rejects(onlineSearch(env, "anonymous", "wrong-order", query), /search_unavailable/);
+  assert.equal(balance(sql), 200000);
+  env.SEARCH_ENGINE.fetch = async request => Response.json({ ...await request.json(), processedLocations: 2, hits });
+  const result = await onlineSearch(env, "anonymous", "right-order", query);
+  assert.deepEqual(result.results.map(hit => hit.locationId), [2, 1]);
+  assert.deepEqual(result.map.customCoordinates.map(hit => hit.extra.visionSourceIndex), [0, 1]);
+});
+
+test("missing or malformed object evidence cannot produce a paid map", async t => {
+  const { sql, env, query } = fixture(t);
+  query.lane = "object";
+  sql.exec(`UPDATE locations SET lane='object'; UPDATE published_index SET object_index_key='object-index-v4/test/';
+    INSERT INTO object_coverage VALUES (1,'official-gen4-historical-v1','${"d".repeat(64)}',0);`);
+  const object = { lane: "common", className: "car", classId: 3, confidence: 0.8, supportCount: 2, bboxArea: 0.1 };
+  for (const changed of [null, { ...object, confidence: 0.01 }, { ...object, lane: "unknown" },
+    { ...object, supportCount: 0 }, { ...object, bboxArea: 3 }]) {
+    env.SEARCH_ENGINE.fetch = async request => Response.json({ ...await request.json(), processedLocations: 1,
+      hits: [{ locationId: 1, outputSha256: "a".repeat(64), sourceIndex: 0, score: 0.8, viewOffset: 0,
+        heading: 45, pitch: 5, zoom: 1, object: changed }] });
+    await assert.rejects(onlineSearch(env, "anonymous", "invalid-object", query), /search_unavailable/);
+    assert.equal(balance(sql), 200000);
+  }
+});
+
+test("semantic object hits support the reference runtime's zenith and nadir faces", async t => {
+  const { sql, env, query } = fixture(t);
+  query.lane = "object";
+  sql.exec(`UPDATE locations SET lane='object'; UPDATE published_index SET object_index_key='object-index-v4/test/';
+    INSERT INTO object_coverage VALUES (1,'official-gen4-historical-v1','${"d".repeat(64)}',0);`);
+  for (const viewOffset of [4, 5]) {
+    env.SEARCH_ENGINE.fetch = async request => Response.json({ ...await request.json(), processedLocations: 1,
+      hits: [{ locationId: 1, outputSha256: "a".repeat(64), sourceIndex: 0, score: 0.8, viewOffset,
+        heading: 45, pitch: viewOffset === 4 ? 85 : -85, zoom: 1,
+        object: { lane: "semantic", className: "red door", confidence: 0.8, supportCount: 1, bboxArea: 0.1 } }] });
+    const result = await onlineSearch(env, "anonymous", `semantic-face-${viewOffset}`, query);
+    assert.equal(result.results[0].viewOffset, viewOffset);
+    assert.equal(result.map.customCoordinates[0].extra.visionHeadingOffset, 0);
+    assert.equal(result.map.customCoordinates[0].extra.visionModel, "OWLv2 Base Patch16 + PQ128");
+  }
+  assert.equal(balance(sql), 0);
 });

@@ -36,7 +36,7 @@ runtime digest, corpus digest or approval policy from the browser. Configure:
 - `SEARCH_SNAPSHOT_SHA256`: independently sealed contributed registry digest.
 
 The Community Worker sends `POST https://search.internal/search` over the
-service binding. Version 1 request fields are `contractVersion`, `policyId`,
+service binding. Version 2 request fields are `contractVersion`, `policyId`,
 `runtimeSha256`, `snapshotSha256`, `requestSha256` and `query`. Query fields are
 `lane`, `prompt`, sampled `examples`, `excluded`, `queryName`,
 `descriptionWeight`, `viewDirection`, `resultCount`, `maxPerCountry`, `filters`,
@@ -45,13 +45,25 @@ The last field is an engine-registry ordinal, not an arbitrary D1 row ID.
 Object confidence choices are `highRecall`, `balanced`, `precise` as in VISION.
 
 Return the same five identity fields, `processedLocations`, and ordered `hits`.
-Each hit has `locationId`, `outputSha256`, `score`, `viewOffset`. Object hits
-also carry an absolute `heading`, `pitch`, `zoom` pointing at the detection.
+Each hit has `locationId`, `outputSha256`, `score`, `viewOffset`, and `sourceIndex`
+(the zero-based ordinal in the sealed registry, not the D1 location ID). Object
+hits also carry an absolute `heading`, `pitch`, `zoom` pointing at the detection,
+and `object` with `lane` (`common`, `hot`, `semantic`), `className`, `classId`
+(nullable outside common), `confidence`, `supportCount`, and `bboxArea`.
 The gateway bounds the response to 4 MiB, checks all pins, validates published
 membership/digests and authoritative poses, and enforces view/country/camera
 filters, exclusions, duplicate removal and spatial pruning before settlement.
 Trusted engine validation still owns model inference, complete corpus scans,
 road-label authority, import ordinals and reference ranking quality.
+
+Map exports use the reference application's mode, query text, model names,
+seven-decimal rounding, source ordinal and detection fields. `visionMinScore`
+is the query's threshold, not the lowest returned score. Those existing scene
+query thresholds are unrelated to the still-undetermined Windows numerical
+approval tolerances. Hits below the query threshold, malformed detection
+metadata, out-of-range/duplicate ordinals and hits preceding the import cutoff
+are rejected before spending credit. Ties are ordered by registry ordinal.
+These structural checks do not independently prove the engine's ranking quality.
 
 ## Recovery and data boundaries
 
