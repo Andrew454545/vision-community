@@ -75,9 +75,10 @@ Windows and Linux still needs a published, validated runtime.
 1. Connect using your private account code. No name or email is needed.
 2. Contribute locations using the local app. Verified scenes earn 1 unit;
    verified object locations earn 10. Pending checks do not earn credits yet.
-3. Use saved credits when you want a search. The current search workflow still
-   uses a command; a guided search window is a release requirement. Exported
-   results open in map-making.app.
+3. Use saved credits to search in the browser. One completed online search
+   spends one credit. Retrying an interrupted request recovers its result.
+   Exported results open in map-making.app. Hosted search is still awaiting its
+   validated engine; while unavailable, credits remain saved.
 
 A search needs **100,000 places** (or 10,000 objects). There is no shortcut. An example search is already loaded, so you do not need a JSON file unless you have one from VISION.
 

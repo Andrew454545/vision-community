@@ -1,0 +1,181 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { DatabaseSync } from "node:sqlite";
+import test from "node:test";
+import { onlineSearch, onlineSearchConfigured, searchDigest, INDEX_DOWNLOAD_ROUTES } from "./onlineSearch.js";
+import { settleSearch } from "./searchLedger.js";
+
+function d1(database) {
+  return { prepare(query) {
+    const statement = (args = []) => ({ bind: (...bound) => statement(bound),
+      first: async () => database.prepare(query).get(...args) || null,
+      all: async () => ({ results: database.prepare(query).all(...args) }),
+      execute: () => ({ success: true, meta: { changes: Number(database.prepare(query).run(...args).changes) } }),
+    });
+    return statement();
+  }, async batch(statements) {
+    database.exec("BEGIN IMMEDIATE");
+    try { const results = statements.map(s => s.execute()); database.exec("COMMIT"); return results; }
+    catch (failure) { database.exec("ROLLBACK"); throw failure; }
+  } };
+}
+
+function fixture(t, units = 200000) {
+  const sql = new DatabaseSync(":memory:");
+  t.after(() => sql.close());
+  sql.exec(readFileSync(new URL("../schema.sql", import.meta.url), "utf8"));
+  sql.prepare("INSERT INTO accounts (id,token_hash,units) VALUES ('anonymous','hash',?)").run(units);
+  sql.exec(`INSERT INTO locations (id,asset_id,capture,lane,model,state,contributor_id,lat,lon,heading,country,camera_generation)
+    VALUES (1,'abcdefghijklmnopqrstuv','2026-01','scene','scene-model','published','contributor',10,20,90,'Italy','gen4');
+    INSERT INTO published_index (location_id,index_text,output_sha256,published_at,four_view_key)
+    VALUES (1,'','${"a".repeat(64)}',0,'four-view-v4/test.i8');`);
+  const query = { lane: "scene", prompt: "red door", examples: [], excluded: [], queryName: "My map",
+    descriptionWeight: 100, viewDirection: "bestOfFour", resultCount: 200, maxPerCountry: 25,
+    filters: { mode: "all", countries: [], generations: [] }, objectConfidence: "balanced",
+    rejectRoadNames: false, minimumGlobalLocation: null };
+  const env = { DB: d1(sql), SEARCH_POLICY_ID: "test-only", SEARCH_RUNTIME_SHA256: "b".repeat(64),
+    SEARCH_SNAPSHOT_SHA256: "c".repeat(64), SEARCH_ENGINE: { async fetch(request) {
+      const body = await request.json();
+      return Response.json({ ...body, processedLocations: 1,
+        hits: [{ locationId: 1, outputSha256: "a".repeat(64), score: 0.8, viewOffset: 1 }] });
+    } } };
+  return { sql, env, query };
+}
+
+function balance(sql) { return sql.prepare("SELECT units FROM accounts WHERE id='anonymous'").get().units; }
+function count(sql, table) { return sql.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get().n; }
+
+test("online results use authoritative poses and replay without charging again", async t => {
+  const { sql, env, query } = fixture(t);
+  const result = await onlineSearch(env, "anonymous", "request-one", query);
+  assert.equal(balance(sql), 100000);
+  assert.equal(result.map.customCoordinates[0].heading, 180);
+  assert.equal(result.map.customCoordinates[0].panoId, "abcdefghijklmnopqrstuv");
+  delete env.SEARCH_ENGINE;
+  assert.deepEqual(await onlineSearch(env, "anonymous", "request-one", query), result);
+  assert.equal(balance(sql), 100000);
+  assert.equal(count(sql, "ledger"), 1);
+  const stored = sql.prepare("SELECT query FROM searches").get().query;
+  assert.match(stored, /^sha256:[0-9a-f]{64}$/);
+  assert.ok(!stored.includes(query.prompt));
+});
+
+test("simultaneous duplicate searches spend one credit and return the same result", async t => {
+  const { sql, env, query } = fixture(t);
+  const results = await Promise.all([onlineSearch(env, "anonymous", "duplicate", query), onlineSearch(env, "anonymous", "duplicate", query)]);
+  assert.deepEqual(results[0], results[1]);
+  assert.equal(balance(sql), 100000);
+  assert.equal(count(sql, "searches"), 1);
+  assert.equal(count(sql, "ledger"), 1);
+});
+
+test("different searches cannot overspend the last banked credit", async t => {
+  const { sql, env, query } = fixture(t, 100000);
+  const results = await Promise.allSettled([onlineSearch(env, "anonymous", "request-one", query), onlineSearch(env, "anonymous", "request-two", query)]);
+  assert.equal(results.filter(r => r.status === "fulfilled").length, 1);
+  assert.equal(results.find(r => r.status === "rejected").reason.code, "insufficient_credit");
+  assert.equal(balance(sql), 0);
+  assert.equal(count(sql, "ledger"), 1);
+});
+
+test("changed request fields conflict instead of silently replaying an unrelated map", async t => {
+  const { sql, env, query } = fixture(t);
+  await onlineSearch(env, "anonymous", "request-one", query);
+  for (const changed of [{ resultCount: 1 }, { maxPerCountry: 1 }, { prompt: "blue door" },
+    { excluded: [{ lat: 10, lng: 20, panoId: "other" }] }, { examples: [{ heading: 90 }] },
+    { filters: { mode: "include", countries: ["Italy"], generations: ["gen4"] } },
+    { rejectRoadNames: true }, { minimumGlobalLocation: 42 }, { objectConfidence: "precise" }]) {
+    await assert.rejects(onlineSearch(env, "anonymous", "request-one", { ...query, ...changed }), /idempotency_conflict/);
+  }
+  assert.equal(balance(sql), 100000);
+});
+
+test("database failure rolls back the ledger, result and debit together", async t => {
+  const { sql, env, query } = fixture(t);
+  sql.exec("CREATE TRIGGER failed_result BEFORE INSERT ON searches BEGIN SELECT RAISE(ABORT,'simulated disk failure'); END;");
+  await assert.rejects(onlineSearch(env, "anonymous", "request-one", query), /simulated disk failure/);
+  assert.equal(balance(sql), 200000);
+  assert.equal(count(sql, "searches"), 0);
+  assert.equal(count(sql, "ledger"), 0);
+});
+
+test("a concurrent idempotency conflict never spends a second credit", async t => {
+  const { sql, env, query } = fixture(t);
+  const digest = await searchDigest(query);
+  const results = await Promise.allSettled([
+    settleSearch(env.DB, "anonymous", "same-key", digest, { searchId: "first" }, 100000),
+    settleSearch(env.DB, "anonymous", "same-key", "sha256:different", { searchId: "second" }, 100000),
+  ]);
+  assert.equal(results.filter(r => r.status === "fulfilled").length, 1);
+  assert.equal(results.find(r => r.status === "rejected").reason.code, "idempotency_conflict");
+  assert.equal(balance(sql), 100000);
+  assert.equal(count(sql, "ledger"), 1);
+});
+
+test("an unavailable, malformed or oversized engine cannot spend credit", async t => {
+  const { sql, env, query } = fixture(t);
+  assert.equal(onlineSearchConfigured(env), true);
+  for (const response of [new Response("failure", { status: 503 }), Response.json({}),
+    new Response("x".repeat(4 * 1024 * 1024 + 1)), new Response("bad json")]) {
+    env.SEARCH_ENGINE.fetch = async () => response;
+    await assert.rejects(onlineSearch(env, "anonymous", "request-one", query), /search_unavailable/);
+  }
+  env.SEARCH_RUNTIME_SHA256 = "unpinned";
+  assert.equal(onlineSearchConfigured(env), false);
+  await assert.rejects(onlineSearch(env, "anonymous", "request-one", query), /search_unavailable/);
+  assert.equal(balance(sql), 200000);
+  assert.equal(count(sql, "ledger"), 0);
+});
+
+test("private and uncredited locations or changed artifacts cannot appear in results", async t => {
+  const { sql, env, query } = fixture(t);
+  for (const mutation of ["UPDATE locations SET contributor_id=NULL", "UPDATE locations SET state='pending'",
+    "UPDATE published_index SET four_view_key=NULL", "UPDATE published_index SET output_sha256='different'"]) {
+    sql.exec("SAVEPOINT before_mutation");
+    sql.exec(mutation);
+    await assert.rejects(onlineSearch(env, "anonymous", "request-one", query), /search_unavailable/);
+    sql.exec("ROLLBACK TO before_mutation; RELEASE before_mutation;");
+  }
+  assert.equal(balance(sql), 200000);
+});
+
+test("object results require official Gen4 historical evidence", async t => {
+  const { sql, env, query } = fixture(t);
+  query.lane = "object";
+  query.filters.generations = ["gen4"];
+  sql.exec("UPDATE locations SET lane='object'; UPDATE published_index SET object_index_key='object-index-v4/test/';");
+  env.SEARCH_ENGINE.fetch = async request => Response.json({ ...await request.json(), processedLocations: 1,
+    hits: [{ locationId: 1, outputSha256: "a".repeat(64), score: 0.8, viewOffset: 0, heading: 45, pitch: 5, zoom: 1 }] });
+  await assert.rejects(onlineSearch(env, "anonymous", "request-one", query), /search_unavailable/);
+  sql.exec(`INSERT INTO object_coverage VALUES (1,'official-gen4-historical-v1','${"d".repeat(64)}',0);`);
+  sql.exec("UPDATE locations SET camera_generation='gen3'");
+  await assert.rejects(onlineSearch(env, "anonymous", "request-one", query), /search_unavailable/);
+  sql.exec("UPDATE locations SET camera_generation='gen4'");
+  const result = await onlineSearch(env, "anonymous", "request-one", query);
+  assert.equal(result.map.customCoordinates[0].heading, 45);
+  assert.equal(balance(sql), 100000);
+});
+
+test("wrong pins, filters, poses, scores and exclusions are rejected before settlement", async t => {
+  const { sql, env, query } = fixture(t);
+  const hit = { locationId: 1, outputSha256: "a".repeat(64), score: 0.8, viewOffset: 1 };
+  for (const changed of [{ policyId: "other" }, { runtimeSha256: "e".repeat(64) }, { snapshotSha256: "e".repeat(64) },
+    { requestSha256: "e".repeat(64) }, { hits: [hit, hit] }, { hits: [{ ...hit, score: null }] },
+    { hits: [{ ...hit, viewOffset: 9 }] }]) {
+    env.SEARCH_ENGINE.fetch = async request => Response.json({ ...await request.json(), processedLocations: 1, hits: [hit], ...changed });
+    await assert.rejects(onlineSearch(env, "anonymous", "request-one", query), /search_unavailable/);
+  }
+  env.SEARCH_ENGINE.fetch = async request => Response.json({ ...await request.json(), processedLocations: 1, hits: [hit] });
+  for (const changed of [{ filters: { mode: "exclude", countries: ["Italy"], generations: [] } },
+    { filters: { mode: "all", countries: [], generations: ["gen1"] } }, { viewDirection: "original" },
+    { excluded: [{ panoId: "other", lat: 10, lng: 20 }] }]) {
+    await assert.rejects(onlineSearch(env, "anonymous", "request-one", { ...query, ...changed }), /search_unavailable/);
+  }
+  assert.equal(balance(sql), 200000);
+});
+
+test("all historical index distribution routes are retired for online credits", () => {
+  assert.equal(INDEX_DOWNLOAD_ROUTES.size, 7);
+  assert.ok(INDEX_DOWNLOAD_ROUTES.has("/api/scene-index-file"));
+  assert.ok(INDEX_DOWNLOAD_ROUTES.has("/api/object-index-file"));
+});

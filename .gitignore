@@ -9,6 +9,7 @@ community/.data/
 .env
 .wrangler/
 node_modules/
+.local-test-build/
 community/tests/__pycache__/
 
 # Machine-local development tools and diagnostics are not application data.

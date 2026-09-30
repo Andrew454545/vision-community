@@ -1,5 +1,11 @@
 # Cloudflare deploy
 
+Community searches now run online using banked credits. Shared-index download
+routes and `execute: "local"` requests return 410. No online credit is spent
+until a validated result, ledger entry and account debit commit together.
+See [ONLINE-SEARCH.md](ONLINE-SEARCH.md) for the private engine contract and
+the remaining deployment evidence. No search engine is bound by default.
+
 The checked-in `wrangler.toml` is a safe prototype configuration. It deliberately
 does not bind a scene verifier, so the Worker reports scene contributions as
 unavailable and cannot publish contributor scene output.

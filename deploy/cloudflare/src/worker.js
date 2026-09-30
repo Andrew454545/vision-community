@@ -1,19 +1,19 @@
 import {
-  MODEL_ID, SEARCH_COST, SITE_SEARCH_CAP, UNITS, LEASE_SECONDS, MAX_LEASE, RECOVERY_PEPPER, SCENE_DIM,
+  MODEL_ID, SEARCH_COST, UNITS, LEASE_SECONDS, MAX_LEASE, RECOVERY_PEPPER, SCENE_DIM,
   OBJECT_PROPOSALS, OBJECT_DIM,
   sha256Hex, encodeUtf8, equalHex, seedBytes, renderFacesFromSeed, embeddingFor,
-  outputDigest, maxRegionCosine, meanEmbeddings, descriptionEmbedding, mixEmbeddings,
+  outputDigest,
   parsePrompt, snapDescriptionWeight,
   base64ToBytes, bytesToHex,
-  bytesToBase64, randomHex, randomToken, bestSceneView, normalizeViewDirection,
-  viewOffsetsFor, wrapHeading,
+  bytesToBase64, randomHex, randomToken, normalizeViewDirection,
 } from "./model.js";
 import {
   QUERY_VIEW_CAP, renderLocationFaces, leaseCap, usesStreetViews,
 } from "./pano.js";
 import { SEED_LOCATIONS } from "./seed.js";
-import { contributedArtifact, contributedObjectPrefixes } from "./publication.js";
 import { OBJECT_INDEX_MODEL, validateObjectIndex } from "./objectIndex.js";
+import { onlineSearch, onlineSearchConfigured, INDEX_DOWNLOAD_ROUTES } from "./onlineSearch.js";
+import { SearchError } from "./searchLedger.js";
 import { loadSceneReferences, sceneCapabilities } from "./sceneQuality.js";
 import { SCENE_PIPELINE_SCHEMA, verifierConfigured, pipelineCapabilities, activeQualification, qualificationStatus, qualifyDevice, auditScene, stageScene } from "./scenePipeline.js";
 
@@ -402,8 +402,10 @@ async function status(env, account, options = {}) {
       ? { provisioned: Boolean(env.INDEX), bucket: env.INDEX ? "vision-community" : null, binding: "INDEX", publicAccess: false, role: "sealed-segments" }
       : await r2Status(env),
     searchCost: SEARCH_COST,
-    searchBackend: (visual?.n || 0) <= SITE_SEARCH_CAP ? "d1-prototype" : "local",
-    searchOnSite: (visual?.n || 0) <= SITE_SEARCH_CAP,
+    searchBackend: "online",
+    searchOnSite: onlineSearchConfigured(env),
+    searchReady: onlineSearchConfigured(env),
+    indexDownloads: false,
     model: MODEL_ID,
     visualPublished: visual?.n || 0,
     objectIndexes: objectIndexes?.n || 0,
@@ -1110,161 +1112,6 @@ async function sealSearchShard(env, leaseId, lane, verified) {
   ).bind(key, lane, verified.length, bytes.length, await sha256Hex(bytes), Math.floor(Date.now() / 1000)).run();
 }
 
-async function requirePaidSearch(env, account, searchId) {
-  if (typeof searchId !== "string" || !searchId) return null;
-  return env.DB.prepare(
-    `SELECT s.id FROM searches s
-     WHERE s.id=? AND s.account_id=?
-       AND EXISTS (
-         SELECT 1 FROM ledger
-         WHERE reference=? AND account_id=? AND reason='search' AND units<0
-       )`
-  ).bind(searchId, account, `search:${searchId}`, account).first();
-}
-
-async function publishedSnapshot(env, account, url) {
-  const paid = await requirePaidSearch(env, account, url.searchParams.get("searchId") || "");
-  if (!paid) return error("unknown_search", 404);
-  const lane = url.searchParams.get("lane") === "object" ? "object" : "scene";
-  const after = Math.max(0, Number(url.searchParams.get("after") || 0) || 0);
-  const limit = Math.min(500, Math.max(1, Number(url.searchParams.get("limit") || 250) || 250));
-  const rows = (await env.DB.prepare(
-    `SELECT i.location_id, i.embedding, l.asset_id, l.lat, l.lon, l.heading, l.pitch, l.zoom, l.country, l.camera_generation
-     FROM published_index i JOIN locations l ON l.id=i.location_id
-     WHERE i.embedding IS NOT NULL AND l.lane=? AND i.location_id>?
-     ORDER BY i.location_id LIMIT ?`
-  ).bind(lane, after, limit + 1).all()).results || [];
-  const page = rows.slice(0, limit);
-  return json({
-    lane,
-    locations: page.map((row) => ({
-      locationId: row.location_id,
-      panoId: row.asset_id,
-      lat: row.lat || 0,
-      lng: row.lon || 0,
-      heading: row.heading || 0,
-      pitch: row.pitch || 0,
-      zoom: row.zoom || 0,
-      country: canonicalizeCountry(row.country || ""),
-      cameraGeneration: row.camera_generation || "",
-      embedding: row.embedding,
-    })),
-    nextAfter: rows.length > limit ? page[page.length - 1].location_id : null,
-  });
-}
-
-async function indexManifest(env, account, url) {
-  const paid = await requirePaidSearch(env, account, url.searchParams.get("searchId") || "");
-  if (!paid) return error("unknown_search", 404);
-  const lane = url.searchParams.get("lane") === "object" ? "object" : "scene";
-  const rows = (await env.DB.prepare(
-    "SELECT r2_key, location_count, bytes, sha256 FROM index_shards WHERE lane=? ORDER BY r2_key"
-  ).bind(lane).all()).results || [];
-  return json({
-    shards: rows.map((row) => ({
-      key: row.r2_key,
-      locationCount: row.location_count,
-      bytes: row.bytes,
-      sha256: row.sha256,
-    })),
-  });
-}
-
-async function indexShard(env, account, url) {
-  const paid = await requirePaidSearch(env, account, url.searchParams.get("searchId") || "");
-  if (!paid) return error("unknown_search", 404);
-  const key = url.searchParams.get("key") || "";
-  if (!key.startsWith("search-index/") || key.includes("..")) return error("unknown_search", 404);
-  const row = await env.DB.prepare("SELECT r2_key FROM index_shards WHERE r2_key=?").bind(key).first();
-  if (!row || !env.INDEX) return error("unknown_search", 404);
-  const object = await env.INDEX.get(key);
-  if (!object) return error("unknown_search", 404);
-  return new Response(object.body, {
-    headers: { ...HEADERS, "content-type": "application/octet-stream" },
-  });
-}
-
-const OBJECT_INDEX_KEY = /^object-index-v4\/[0-9a-f]{32}\/[A-Za-z0-9._-]{1,80}$/;
-
-async function objectIndexCatalog(env, account, url) {
-  const paid = await requirePaidSearch(env, account, url.searchParams.get("searchId") || "");
-  if (!paid || !env.INDEX) return error("unknown_search", 404);
-  const groups = new Map();
-  const published = await contributedObjectPrefixes(env.DB);
-  let cursor;
-  for (let page = 0; page < 20; page += 1) {
-    const listed = await env.INDEX.list({ prefix: "object-index-v4/", cursor, limit: 500 });
-    for (const object of listed.objects || []) {
-      const match = OBJECT_INDEX_KEY.exec(object.key);
-      if (!match) continue;
-      const prefix = object.key.slice(0, object.key.lastIndexOf("/") + 1);
-      if (!published.has(prefix)) continue;
-      const group = groups.get(prefix) || { prefix, files: [] };
-      group.files.push({ key: object.key, size: object.size || 0 });
-      groups.set(prefix, group);
-    }
-    if (!listed.truncated) break;
-    cursor = listed.cursor;
-  }
-  return json({ indexes: [...groups.values()] });
-}
-
-async function objectIndexFile(env, account, url) {
-  const paid = await requirePaidSearch(env, account, url.searchParams.get("searchId") || "");
-  if (!paid || !env.INDEX) return error("unknown_search", 404);
-  const key = url.searchParams.get("key") || "";
-  if (!OBJECT_INDEX_KEY.test(key)) return error("invalid_index", 400);
-  if (!await contributedArtifact(env.DB, key, "object")) return error("not_found", 404);
-  const object = await env.INDEX.get(key);
-  if (!object) return error("not_found", 404);
-  return new Response(object.body, {
-    headers: { ...HEADERS, "content-type": "application/octet-stream" },
-  });
-}
-
-const SCENE_INDEX_KEY = /^four-view-v4\/[0-9a-f]{32}\.i8$/;
-
-async function sceneIndexCatalog(env, account, url) {
-  const paid = await requirePaidSearch(env, account, url.searchParams.get("searchId") || "");
-  if (!paid) return error("unknown_search", 404);
-  const rows = (await env.DB.prepare(
-    `SELECT i.four_view_key, l.id, l.asset_id, l.lat, l.lon, l.heading, l.pitch, l.zoom, l.country, l.camera_generation
-     FROM published_index i JOIN locations l ON l.id=i.location_id
-     WHERE i.four_view_key IS NOT NULL AND l.lane='scene'
-       AND l.state='published' AND l.contributor_id IS NOT NULL
-     ORDER BY i.four_view_key, l.id`
-  ).all()).results || [];
-  const groups = new Map();
-  for (const row of rows) {
-    const group = groups.get(row.four_view_key) || { key: row.four_view_key, locations: [] };
-    group.locations.push({
-      locationId: row.id,
-      lat: row.lat || 0,
-      lng: row.lon || 0,
-      heading: row.heading || 0,
-      pitch: row.pitch || 0,
-      zoom: row.zoom || 0,
-      panoId: row.asset_id,
-      country: row.country || "",
-      cameraGeneration: row.camera_generation || "",
-    });
-    groups.set(row.four_view_key, group);
-  }
-  return json({ indexes: [...groups.values()] });
-}
-
-async function sceneIndexFile(env, account, url) {
-  const paid = await requirePaidSearch(env, account, url.searchParams.get("searchId") || "");
-  if (!paid || !env.INDEX) return error("unknown_search", 404);
-  const key = url.searchParams.get("key") || "";
-  if (!SCENE_INDEX_KEY.test(key)) return error("invalid_index", 400);
-  if (!await contributedArtifact(env.DB, key, "scene")) return error("not_found", 404);
-  const object = await env.INDEX.get(key);
-  if (!object) return error("not_found", 404);
-  return new Response(object.body, {
-    headers: { ...HEADERS, "content-type": "application/octet-stream" },
-  });
-}
 
 function normalizeFilters(body) {
   const allGenerations = ["badcam", "gen1", "gen2", "gen3", "gen4", "trekker"];
@@ -1282,37 +1129,6 @@ function normalizeFilters(body) {
   return { mode, countries, generations };
 }
 
-function acceptsHit(hit, filters) {
-  if (filters.generations.length && !filters.generations.includes(hit.cameraGeneration)) return false;
-  if (filters.mode === "include") return filters.countries.includes(hit.country);
-  if (filters.mode === "exclude") return !filters.countries.includes(hit.country);
-  return true;
-}
-
-function pruneNearby(hits) {
-  const out = [];
-  const seen = new Set();
-  for (const hit of hits) {
-    const pano = hit.panoId || "";
-    if (pano && seen.has(pano)) continue;
-    const tooClose = out.some((prior) => haversineMeters(hit.lat, hit.lng, prior.lat, prior.lng) < 100);
-    if (tooClose) continue;
-    if (pano) seen.add(pano);
-    out.push(hit);
-  }
-  return out;
-}
-
-function excludeUsed(hits, excluded) {
-  if (!excluded.length) return hits;
-  return hits.filter((hit) => {
-    const pano = hit.panoId || "";
-    return !excluded.some((prior) => (
-      (pano && pano === prior.panoId)
-      || haversineMeters(hit.lat, hit.lng, prior.lat, prior.lng) < 25
-    ));
-  });
-}
 
 function parseExcludeMap(map) {
   if (map == null) return [];
@@ -1399,18 +1215,6 @@ function parseQueryMap(map) {
   return sampled;
 }
 
-function capCountries(hits, resultCount, maxPerCountry) {
-  const counts = {};
-  const out = [];
-  for (const hit of hits) {
-    const country = hit.country || "";
-    if ((counts[country] || 0) >= maxPerCountry) continue;
-    counts[country] = (counts[country] || 0) + 1;
-    out.push(hit);
-    if (out.length >= resultCount) break;
-  }
-  return out;
-}
 
 async function views(request) {
   const url = new URL(request.url);
@@ -1445,212 +1249,61 @@ async function views(request) {
   }
 }
 
-function locationRecord(hit, rank, queryName, lane, processed, minScore) {
-  const extra = {
-    tags: [canonicalizeCountry(hit.country || "")],
-    visionCameraGeneration: hit.cameraGeneration || "unknown",
-    visionScore: Number(hit.score.toFixed(7)),
-    visionMinScore: Number(minScore.toFixed(7)),
-    visionRank: rank,
-    visionQuery: queryName,
-    visionQueryMode: lane === "object" ? "objects" : "scene",
-    visionHeadingOffset: hit.headingOffset || 0,
-    visionSourceIndex: 0,
-    visionProcessedLocations: processed,
-    visionModel: MODEL_ID,
-    visionPruneMeters: 100,
-  };
-  if (lane === "object") {
-    extra.visionObjectLane = "object";
-    extra.visionObjectConfidence = Number(hit.score.toFixed(7));
-  }
-  return {
-    lat: hit.lat,
-    lng: hit.lng,
-    heading: hit.heading,
-    pitch: hit.pitch,
-    zoom: hit.zoom,
-    panoId: hit.panoId,
-    extra,
-  };
-}
 
 async function search(env, account, body) {
-  const key = body.idempotencyKey;
-  if (typeof key !== "string" || key.length < 8 || key.length > 100) return error("invalid_idempotency_key");
-  const lane = body.lane === "object" ? "object" : "scene";
-  const viewDirection = normalizeViewDirection(body.viewDirection, lane);
-  const offsets = viewOffsetsFor(viewDirection, lane);
-  const excluded = parseExcludeMap(body.excludeMap);
-  if (excluded?.error) return error(excluded.error);
-  const resultCount = Math.min(10000, Math.max(1, Number.isInteger(body.resultCount) ? body.resultCount : 200));
-  const maxPerCountry = Math.min(10000, Math.max(1, Number.isInteger(body.maxPerCountry) ? body.maxPerCountry : 25));
-  const filters = normalizeFilters(body);
-  if (filters.mode === "include" && !filters.countries.length) return error("invalid_country_filter");
+  if (body.accountId !== account) return error("account_changed", 409);
+  if (body.execute === "local") return error("online_search_required", 410);
+  if (body.lane !== undefined && !["scene", "object"].includes(body.lane)) return error("invalid_query");
+  const lane = body.lane || "scene";
   const prompt = parsePrompt(body.prompt);
   if (prompt === null) return error("invalid_query");
-  const map = body.queryMap;
-  const parsed = map == null ? null : parseQueryMap(map);
+  const parsed = body.queryMap == null ? null : parseQueryMap(body.queryMap);
   if (parsed?.error) return error(parsed.error);
   const examples = Array.isArray(parsed) ? parsed : [];
-  const hasJson = examples.length > 0;
-  const hasPrompt = Boolean(prompt);
-  if (!hasJson && !hasPrompt) return error("invalid_query");
-  const weight = snapDescriptionWeight(body.descriptionWeight, hasJson, hasPrompt);
+  if ((!examples.length && !prompt) || (lane === "object" && examples.length)) return error("invalid_query");
+  if (examples.some(item => !usesStreetViews(item.panoId)
+      || ![item.lat, item.lng, item.heading, item.pitch, item.zoom].every(Number.isFinite)
+      || Math.abs(item.lat) > 90 || Math.abs(item.lng) > 180 || Math.abs(item.pitch) > 90
+      || item.zoom < 0 || item.zoom > 5)) return error("invalid_query");
+  const excluded = parseExcludeMap(body.excludeMap);
+  if (excluded?.error) return error(excluded.error);
+  if (excluded.some(item => Math.abs(item.lat) > 90 || Math.abs(item.lng) > 180)) return error("invalid_query");
+  const filters = normalizeFilters(body);
+  filters.generations.sort();
+  if (filters.mode === "all") filters.countries = [];
+  if (filters.mode === "include" && !filters.countries.length) return error("invalid_country_filter");
+  if (lane === "object") {
+    if (filters.generations.length && !filters.generations.includes("gen4")) return error("invalid_camera_filter");
+    filters.generations = ["gen4"];
+  }
+  if (body.minimumGlobalLocation != null
+      && (!Number.isSafeInteger(body.minimumGlobalLocation) || body.minimumGlobalLocation < 0))
+    return error("invalid_query");
   const queryName = typeof body.outputName === "string" && body.outputName.trim()
-    ? body.outputName.trim()
-    : (typeof map?.name === "string" && map.name.trim() ? map.name.trim() : (prompt || "VISION Community"));
-  const excludeKey = excluded.length ? `:exclude:${excluded.length}:${excluded[0].panoId}` : "";
-  const jsonKey = hasJson ? examples.map((item) => item.panoId).join(",") : "";
-  const promptKey = hasPrompt ? `:prompt:${prompt}:w${weight}` : "";
-  const queryKey = `mix:${queryName}:${lane}:${viewDirection}:${jsonKey}${promptKey}${excludeKey}`;
-  const existing = await env.DB.prepare(
-    "SELECT query, result_json FROM searches WHERE account_id=? AND idempotency_key=?"
-  ).bind(account, key).first();
-  if (existing) {
-    if (existing.query !== queryKey) return error("idempotency_conflict", 409);
-    return json(JSON.parse(existing.result_json));
-  }
-  const accountRow = await env.DB.prepare("SELECT units FROM accounts WHERE id=?").bind(account).first();
-  if (!accountRow) return error("unauthorized", 401);
-  if (accountRow.units < SEARCH_COST) return error("insufficient_credit", 402);
-  if (body.execute === "local") {
-    const debit = await env.DB.prepare("UPDATE accounts SET units=units-? WHERE id=? AND units>=?").bind(SEARCH_COST, account, SEARCH_COST).run();
-    if (!debit.meta || debit.meta.changes !== 1) return error("insufficient_credit", 402);
-    const published = await env.DB.prepare(
-      "SELECT COUNT(*) AS n FROM published_index i JOIN locations l ON l.id=i.location_id WHERE i.embedding IS NOT NULL AND l.lane=?"
-    ).bind(lane).first();
-    const searchId = randomHex(16);
-    const result = {
-      searchId,
-      query: queryName,
-      local: true,
-      lane,
-      results: [],
-      demo: false,
-      persistImagery: false,
-      map: null,
-      published: published?.n || 0,
-    };
-    await env.DB.batch([
-      env.DB.prepare("INSERT INTO searches (id, account_id, idempotency_key, query, result_json) VALUES (?, ?, ?, ?, ?)").bind(
-        searchId, account, key, queryKey, JSON.stringify(result)
-      ),
-      env.DB.prepare("INSERT INTO ledger (account_id, units, reason, reference) VALUES (?, ?, 'search', ?)").bind(
-        account, -SEARCH_COST, `search:${searchId}`
-      ),
-    ]);
-    return json(result);
-  }
-  const publishedCount = await env.DB.prepare(
-    "SELECT COUNT(*) AS n FROM published_index i JOIN locations l ON l.id=i.location_id WHERE i.embedding IS NOT NULL AND l.lane=?"
-  ).bind(lane).first();
-  if ((publishedCount?.n || 0) > SITE_SEARCH_CAP) return error("search_on_computer", 413);
-  let query = null;
-  if (hasJson) {
-    const vectors = [];
-    const queryExamples = examples.some((item) => usesStreetViews(item.panoId))
-      ? examples.slice(0, QUERY_VIEW_CAP)
-      : examples;
-    for (const example of queryExamples) {
-      const indexed = await env.DB.prepare(
-        `SELECT capture FROM locations WHERE asset_id=? AND lane=?
-         ORDER BY CASE WHEN state='published' THEN 0 ELSE 1 END, id LIMIT 1`
-      ).bind(example.panoId, lane).first();
-      const capture = indexed?.capture || example.capture;
-      let faces;
-      try {
-        faces = await locationFaces({
-          panoId: example.panoId,
-          assetId: example.panoId,
-          capture,
-          lane,
-          model: MODEL_ID,
-          heading: example.heading || 0,
-          pitch: example.pitch || 0,
-          zoom: example.zoom || 0,
-        });
-      } catch (err) {
-        return viewFailure(err) || error("view_unavailable", 422);
-      }
-      vectors.push(embeddingFor(lane, faces));
-    }
-    query = meanEmbeddings(vectors);
-  }
-  if (hasPrompt) {
-    let textQuery;
-    try {
-      textQuery = await descriptionEmbedding(prompt, lane);
-    } catch {
-      return error("invalid_query");
-    }
-    query = query ? mixEmbeddings(query, textQuery, weight) : textQuery;
-  }
-  const debit = await env.DB.prepare("UPDATE accounts SET units=units-? WHERE id=? AND units>=?").bind(SEARCH_COST, account, SEARCH_COST).run();
-  if (!debit.meta || debit.meta.changes !== 1) return error("insufficient_credit", 402);
-  const published = (await env.DB.prepare(
-    `SELECT i.location_id, i.embedding, l.asset_id, l.lat, l.lon, l.heading, l.pitch, l.zoom, l.country, l.camera_generation
-     FROM published_index i JOIN locations l ON l.id=i.location_id
-     WHERE i.embedding IS NOT NULL AND l.lane=?`
-  ).bind(lane).all()).results || [];
-  const scored = published.map((row) => {
-    const embedding = hexToQuery(row.embedding);
-    let score;
-    let viewOffset = 0;
-    if (lane === "object") {
-      score = maxRegionCosine(query, embedding);
-    } else {
-      const ranked = bestSceneView(query, embedding, offsets);
-      score = ranked.score;
-      viewOffset = ranked.offset;
-    }
-    return {
-      locationId: row.location_id,
-      score,
-      panoId: row.asset_id,
-      lat: row.lat || 0,
-      lng: row.lon || 0,
-      heading: wrapHeading((row.heading || 0) + viewOffset * 90),
-      headingOffset: viewOffset * 90,
-      viewOffset,
-      pitch: row.pitch || 0,
-      zoom: row.zoom || 0,
-      country: canonicalizeCountry(row.country || ""),
-      cameraGeneration: row.camera_generation || "",
-    };
-  }).filter((hit) => usesStreetViews(hit.panoId) && acceptsHit(hit, filters)).sort((a, b) => b.score - a.score || a.locationId - b.locationId);
-  const capped = capCountries(pruneNearby(excludeUsed(scored, excluded)), resultCount, maxPerCountry);
-  const minScore = capped.length ? capped[capped.length - 1].score : 0;
-  const coordinates = capped.map((hit, index) => locationRecord(hit, index + 1, queryName, lane, published.length, minScore));
-  const searchId = randomHex(16);
-  const result = {
-    searchId,
-    query: queryName,
-    results: capped.map((hit) => ({ locationId: hit.locationId, lane, score: Number(hit.score.toFixed(6)), pose: hit })),
-    demo: false,
-    persistImagery: false,
-    map: { name: queryName, customCoordinates: coordinates },
+    ? body.outputName.trim() : (typeof body.queryMap?.name === "string" && body.queryMap.name.trim()
+      ? body.queryMap.name.trim() : prompt || "VISION Community");
+  if (queryName.length > 200) return error("invalid_query");
+  const query = {
+    lane, prompt, examples, excluded, queryName,
+    descriptionWeight: snapDescriptionWeight(body.descriptionWeight, examples.length > 0, Boolean(prompt)),
+    viewDirection: normalizeViewDirection(body.viewDirection, lane),
+    resultCount: Math.min(10000, Math.max(1, Number.isInteger(body.resultCount) ? body.resultCount : 200)),
+    maxPerCountry: Math.min(10000, Math.max(1, Number.isInteger(body.maxPerCountry) ? body.maxPerCountry : 25)),
+    filters, objectConfidence: ["balanced", "precise", "highRecall"].includes(body.objectConfidence) ? body.objectConfidence : "balanced",
+    rejectRoadNames: body.rejectRoadNames === true, minimumGlobalLocation: body.minimumGlobalLocation ?? null,
   };
-  await env.DB.batch([
-    env.DB.prepare("INSERT INTO searches (id, account_id, idempotency_key, query, result_json) VALUES (?, ?, ?, ?, ?)").bind(
-      searchId, account, key, queryKey, JSON.stringify(result)
-    ),
-    env.DB.prepare("INSERT INTO ledger (account_id, units, reason, reference) VALUES (?, ?, 'search', ?)").bind(
-      account, -SEARCH_COST, `search:${searchId}`
-    ),
-  ]);
-  return json(result);
+  try { return json(await onlineSearch(env, account, body.idempotencyKey, query)); }
+  catch (failure) {
+    if (failure instanceof SearchError) return error(failure.code, failure.status);
+    throw failure;
+  }
 }
 
-function hexToQuery(hex) {
-  const out = new Uint8Array(hex.length / 2);
-  for (let i = 0; i < out.length; i += 1) out[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
-  return out;
-}
 
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    if (INDEX_DOWNLOAD_ROUTES.has(url.pathname)) return error("online_search_required", 410);
     if (url.pathname === "/api/capabilities" && request.method === "GET") {
       return json(verifierConfigured(env) ? pipelineCapabilities(env) : sceneCapabilities(await loadSceneReferences(env)));
     }
@@ -1686,48 +1339,6 @@ export default {
         if (!account) return error("unauthorized", 401);
         return views(request);
       }
-      if (url.pathname === "/api/published-snapshot" && request.method === "GET") {
-        if (!sameOrigin(request)) return error("cross_origin_request", 403);
-        const account = await accountId(env, request);
-        if (!account) return error("unauthorized", 401);
-        return publishedSnapshot(env, account, url);
-      }
-      if (url.pathname === "/api/index-manifest" && request.method === "GET") {
-        if (!sameOrigin(request)) return error("cross_origin_request", 403);
-        const account = await accountId(env, request);
-        if (!account) return error("unauthorized", 401);
-        return indexManifest(env, account, url);
-      }
-      if (url.pathname === "/api/index-shard" && request.method === "GET") {
-        if (!sameOrigin(request)) return error("cross_origin_request", 403);
-        const account = await accountId(env, request);
-        if (!account) return error("unauthorized", 401);
-        return indexShard(env, account, url);
-      }
-      if (url.pathname === "/api/object-indexes" && request.method === "GET") {
-        if (!sameOrigin(request)) return error("cross_origin_request", 403);
-        const account = await accountId(env, request);
-        if (!account) return error("unauthorized", 401);
-        return objectIndexCatalog(env, account, url);
-      }
-      if (url.pathname === "/api/object-index-file" && request.method === "GET") {
-        if (!sameOrigin(request)) return error("cross_origin_request", 403);
-        const account = await accountId(env, request);
-        if (!account) return error("unauthorized", 401);
-        return objectIndexFile(env, account, url);
-      }
-      if (url.pathname === "/api/scene-indexes" && request.method === "GET") {
-        if (!sameOrigin(request)) return error("cross_origin_request", 403);
-        const account = await accountId(env, request);
-        if (!account) return error("unauthorized", 401);
-        return sceneIndexCatalog(env, account, url);
-      }
-      if (url.pathname === "/api/scene-index-file" && request.method === "GET") {
-        if (!sameOrigin(request)) return error("cross_origin_request", 403);
-        const account = await accountId(env, request);
-        if (!account) return error("unauthorized", 401);
-        return sceneIndexFile(env, account, url);
-      }
       if (request.method !== "POST") return error("not_found", 404);
       if (!sameOrigin(request)) return error("cross_origin_request", 403);
       const contentLength = request.headers.get("Content-Length");
@@ -1762,7 +1373,7 @@ export default {
       if (url.pathname === "/api/leases/renew") return renewLease(env, account, body);
       if (url.pathname === "/api/leases") return lease(env, account, body);
       if (url.pathname === "/api/submissions") return submit(env, account, body);
-      if (url.pathname === "/api/searches") return search(env, account, body);
+      if (url.pathname === "/api/searches") return await search(env, account, body);
       return error("not_found", 404);
     } catch (err) {
       return viewFailure(err) || error("internal_error", 500);
