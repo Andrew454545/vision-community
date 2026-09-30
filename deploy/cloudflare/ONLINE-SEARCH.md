@@ -24,8 +24,10 @@ contributions. Never mount the maintainer's private corpus. Every snapshot
 member must name its Community location ID and published artifact digest.
 Object members also require official Gen4 historical-capture receipts. An
 operator must verify the registry's member inventory against D1 before pinning
-its digest. This exporter and general inference service are not implemented
-yet; do not bind a fake or staging-reference-only verifier as a search engine.
+its digest. The offline scene bundle sealer is implemented in
+[`SEARCH-SNAPSHOT.md`](SEARCH-SNAPSHOT.md); live inventory/artifact export,
+object bundles and the general inference service are still pending. Do not bind
+a fake or staging-reference-only verifier as a search engine.
 
 Bind the validated private service as `SEARCH_ENGINE`; never accept a URL,
 runtime digest, corpus digest or approval policy from the browser. Configure:

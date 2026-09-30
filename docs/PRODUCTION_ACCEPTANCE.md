@@ -65,6 +65,19 @@ measurements into automatic production approval.
   tied scores with registry order differing from D1 IDs, and rejected metadata
   that spends no credit. The full gateway again passes local workerd/D1 checks.
   Export conformance is separate from the pending inference/ranking comparison.
+- Added an operator-only offline scene snapshot sealer: separate inventory and
+  independent approval pins, per-record artifact verification, stable ordinals
+  across appended updates, account-identifier minimization, durable files and
+  manifest-last publication. Seven tests cover admission, tampering, corruption,
+  path boundaries, privacy, update history and preserved failures. Live export,
+  object snapshot support and hosted inference remain unimplemented.
+- Windows snapshots now require and include the completed-submission delivery
+  journal. An isolated Python import test checks the actual packaged guided and
+  background applications so missing modules cannot be hidden by the checkout.
+  Windows CI uses its configured PowerShell host for helper tests, without
+  changing execution policy. The signed installer/scheduler host gates remain.
+  After these fixes, all 207 Python tests pass on this Windows host; the initial
+  default-host/stale-assertion failure log is preserved outside the repository.
 
 ## Blocking live indexing
 
