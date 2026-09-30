@@ -30,5 +30,12 @@ necessary.
 
 Request and policy reads are bounded. Corrupt pins, unavailable storage and
 invalid policies produce an unavailable response and grant no qualification.
+Missing, truncated, checksum-invalid or zero-norm operator references return
+503 so a client can retry without recording a failed PC qualification.
 The test suite checks vector direction and scale, zero vectors, metadata and
 payload tampering, storage failure, and oversized streamed requests.
+
+`tools/check-local-verifier.mjs` also exercises the Worker with Cloudflare's
+local R2 runtime. It uses only synthetic, disposable fixtures: exact comparison,
+changed vectors, bound audit metadata, corrupt policy and corrupt reference.
+Passing this check is storage/runtime evidence, not a Windows model approval.

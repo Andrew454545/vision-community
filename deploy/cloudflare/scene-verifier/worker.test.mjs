@@ -125,6 +125,23 @@ test("staging approval verifies metadata and bytes instead of trusting the submi
   }
 });
 
+test("missing, corrupt and zero-norm operator references are retryable service failures", async () => {
+  for (const variation of ["missing", "truncated", "checksum", "zero-norm"]) {
+    const bytes = reference().bytes;
+    if (variation === "zero-norm") bytes[2] = 0;
+    const { env, policy, canary } = await fixture(variation === "zero-norm" ? { referenceSha256: await digest(bytes) } : {});
+    canary.referenceSha256 = policy.referenceSha256;
+    const policyGet = env.POLICY.get;
+    env.POLICY.get = key => key !== "canary-reference.i8" ? policyGet(key)
+      : variation === "missing" ? null
+      : new Response(variation === "truncated" ? bytes.subarray(0, 100)
+        : variation === "checksum" ? new Uint8Array(bytes.length) : bytes);
+    const result = await worker.fetch(post("qualify", await qualifyBody(canary, policy)), env);
+    assert.equal(result.status, 503, variation);
+    assert.deepEqual(await result.json(), { error: "scene_verifier_unavailable" }, variation);
+  }
+});
+
 test("oversized streamed bodies and malformed JSON return safe errors", async () => {
   const { env } = await fixture();
   const oversized = new Request("https://scene-verifier.internal/qualify", { method: "POST",

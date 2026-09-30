@@ -53,6 +53,11 @@ measurements into automatic production approval.
   2026-09-29, using synthetic results and a disposable local account. This is
   transaction/gateway evidence, not VISION model parity or live deployment.
   CI now runs that check on the authorized development branch too.
+- The private verifier also passes a synthetic exercise using Cloudflare's
+  local R2 runtime at compatibility date 2026-09-29. Damaged or missing operator
+  reference data is a retryable service failure, rather than a PC rejection.
+  All 31 JavaScript tests pass. No synthetic policy has been deployed or used
+  to approve a real runtime.
 
 ## Blocking live indexing
 
