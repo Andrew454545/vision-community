@@ -1,5 +1,6 @@
 import { randomHex, sha256Hex, encodeUtf8, SEARCH_COST, viewOffsetsFor, wrapHeading } from "./model.js";
 import { replaySearch, settleSearch, SearchError } from "./searchLedger.js";
+import { SEARCH_CONTRACT_VERSION, querySemantics, validHitObject, exportSearchMap } from "./searchExport.js";
 
 const HEX = /^[0-9a-f]{64}$/;
 const RESPONSE_LIMIT = 4 * 1024 * 1024;
@@ -25,7 +26,7 @@ async function engineResult(env, query, digest) {
   try {
     response = await env.SEARCH_ENGINE.fetch(new Request("https://search.internal/search", {
       method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ contractVersion: 1, policyId: env.SEARCH_POLICY_ID,
+      body: JSON.stringify({ contractVersion: SEARCH_CONTRACT_VERSION, policyId: env.SEARCH_POLICY_ID,
         runtimeSha256: env.SEARCH_RUNTIME_SHA256, snapshotSha256: env.SEARCH_SNAPSHOT_SHA256,
         requestSha256: digest.slice(7), query }), signal: AbortSignal.timeout(120000),
     }));
@@ -48,7 +49,7 @@ async function engineResult(env, query, digest) {
   for (const chunk of chunks) { bytes.set(chunk, position); position += chunk.byteLength; }
   let result;
   try { result = JSON.parse(new TextDecoder().decode(bytes)); } catch { throw new SearchError("search_unavailable"); }
-  if (result.contractVersion !== 1 || result.policyId !== env.SEARCH_POLICY_ID
+  if (result?.contractVersion !== SEARCH_CONTRACT_VERSION || result.policyId !== env.SEARCH_POLICY_ID
       || result.runtimeSha256 !== env.SEARCH_RUNTIME_SHA256 || result.snapshotSha256 !== env.SEARCH_SNAPSHOT_SHA256
       || result.requestSha256 !== digest.slice(7) || !Array.isArray(result.hits)
       || result.hits.length > query.resultCount || !Number.isSafeInteger(result.processedLocations)
@@ -63,7 +64,10 @@ function distance(a, b) {
   return 12742000 * Math.asin(Math.min(1, Math.sqrt(value)));
 }
 
-async function verifiedHits(db, query, hits) {
+async function verifiedHits(db, query, hits, processedLocations) {
+  const { minimumScore } = querySemantics(query);
+  if (!Number.isFinite(minimumScore)) throw new SearchError("search_unavailable");
+  if (hits.some(hit => !hit || typeof hit !== "object" || Array.isArray(hit))) throw new SearchError("search_unavailable");
   const ids = hits.map(hit => hit.locationId);
   if (ids.some(id => !Number.isSafeInteger(id) || id < 1) || new Set(ids).size !== ids.length)
     throw new SearchError("search_unavailable");
@@ -80,18 +84,24 @@ async function verifiedHits(db, query, hits) {
   const byId = new Map(rows.map(row => [row.id, row]));
   const countries = new Map();
   const panos = new Set();
+  const ordinals = new Set();
   const verified = [];
-  const offsets = viewOffsetsFor(query.viewDirection, query.lane);
+  const offsets = query.lane === "object" ? [0, 1, 2, 3, 4, 5] : viewOffsetsFor(query.viewDirection, query.lane);
   for (const hit of hits) {
     const row = byId.get(hit.locationId);
     if (!row || hit.outputSha256 !== row.output_sha256 || !HEX.test(hit.outputSha256)
-        || !Number.isFinite(hit.score) || hit.score < -1 || hit.score > 1
+        || !Number.isFinite(hit.score) || hit.score < minimumScore || hit.score > 1
+        || !Number.isSafeInteger(hit.sourceIndex) || hit.sourceIndex < 0 || hit.sourceIndex >= processedLocations
+        || ordinals.has(hit.sourceIndex)
+        || (query.minimumGlobalLocation !== null && hit.sourceIndex < query.minimumGlobalLocation)
         || !Number.isInteger(hit.viewOffset) || !offsets.includes(hit.viewOffset)
         || !Number.isFinite(row.lat) || !Number.isFinite(row.lon) || !row.asset_id
-        || Math.abs(row.lat) > 90 || Math.abs(row.lon) > 180 || panos.has(row.asset_id))
+        || Math.abs(row.lat) > 90 || Math.abs(row.lon) > 180 || panos.has(row.asset_id)
+        || ![row.heading, row.pitch, row.zoom].every(Number.isFinite)
+        || Math.abs(row.pitch) > 90 || row.zoom < 0 || row.zoom > 5)
       throw new SearchError("search_unavailable");
     const prior = verified.at(-1);
-    if (prior && (hit.score > prior.score || (hit.score === prior.score && hit.locationId < prior.locationId)))
+    if (prior && (hit.score > prior.score || (hit.score === prior.score && hit.sourceIndex < prior.sourceIndex)))
       throw new SearchError("search_unavailable");
     const country = row.country || "";
     const count = (countries.get(country) || 0) + 1;
@@ -104,14 +114,19 @@ async function verifiedHits(db, query, hits) {
         || verified.some(point => distance(pose, point.pose) < 100)) throw new SearchError("search_unavailable");
     countries.set(country, count);
     panos.add(row.asset_id);
+    ordinals.add(hit.sourceIndex);
     let heading = wrapHeading(row.heading + hit.viewOffset * 90), pitch = row.pitch, zoom = row.zoom;
     if (query.lane === "object") {
-      if (![hit.heading, hit.pitch, hit.zoom].every(Number.isFinite) || hit.heading < 0 || hit.heading >= 360
+      if (!validHitObject(hit.object, minimumScore)
+          || ![hit.heading, hit.pitch, hit.zoom].every(Number.isFinite) || hit.heading < 0 || hit.heading >= 360
           || hit.pitch < -90 || hit.pitch > 90 || hit.zoom < 0 || hit.zoom > 5)
         throw new SearchError("search_unavailable");
       ({ heading, pitch, zoom } = hit);
     }
-    verified.push({ locationId: row.id, lane: query.lane, score: hit.score, viewOffset: hit.viewOffset,
+    verified.push({ locationId: row.id, lane: query.lane, score: hit.score, viewOffset: hit.viewOffset, sourceIndex: hit.sourceIndex,
+      ...(query.lane === "object" ? { object: { lane: hit.object.lane, className: hit.object.className,
+        classId: hit.object.classId ?? null, confidence: hit.object.confidence,
+        supportCount: hit.object.supportCount, bboxArea: hit.object.bboxArea } } : {}),
       pose: { ...pose, heading, pitch, zoom, panoId: row.asset_id, country, cameraGeneration: row.camera_generation } });
   }
   return verified;
@@ -126,21 +141,10 @@ export async function onlineSearch(env, account, key, query) {
   if (!owner) throw new SearchError("unauthorized", 401);
   if (owner.units < SEARCH_COST) throw new SearchError("insufficient_credit", 402);
   const computed = await engineResult(env, query, digest);
-  const hits = await verifiedHits(env.DB, query, computed.hits);
-  const minimum = hits.at(-1)?.score || 0;
-  const coordinates = hits.map((hit, index) => ({
-    lat: hit.pose.lat, lng: hit.pose.lng, heading: hit.pose.heading, pitch: hit.pose.pitch, zoom: hit.pose.zoom,
-    panoId: hit.pose.panoId, extra: {
-      tags: [hit.pose.country], visionCameraGeneration: hit.pose.cameraGeneration,
-      visionScore: hit.score, visionMinScore: minimum, visionRank: index + 1,
-      visionQuery: query.queryName, visionQueryMode: query.lane === "object" ? "objects" : "scene",
-      visionHeadingOffset: hit.viewOffset * 90, visionProcessedLocations: computed.processedLocations,
-      visionPruneMeters: 100,
-    },
-  }));
+  const hits = await verifiedHits(env.DB, query, computed.hits, computed.processedLocations);
   return settleSearch(env.DB, account, key, digest, {
     searchId: randomHex(16), query: query.queryName, lane: query.lane, results: hits,
     demo: false, persistImagery: false, local: false,
-    map: { name: query.queryName, customCoordinates: coordinates },
+    map: exportSearchMap(query, hits, computed.processedLocations),
   }, SEARCH_COST);
 }

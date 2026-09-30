@@ -16,7 +16,7 @@ const options = { modules: true, scriptPath: resolve(bundlePath), compatibilityD
   compatibilityFlags: ["nodejs_compat"], d1Databases: ["DB"], r2Buckets: ["INDEX"], bindings: pins,
   serviceBindings: { ASSETS: () => new Response("local test", { status: 404 }),
     SEARCH_ENGINE: async request => Response.json({ ...await request.json(), processedLocations: 1,
-      hits: [{ locationId: 1, outputSha256: "a".repeat(64), score: 0.8, viewOffset: 1 }] }) },
+      hits: [{ locationId: 1, outputSha256: "a".repeat(64), sourceIndex: 0, score: 0.8, viewOffset: 1 }] }) },
 };
 const mf = new Miniflare(convertV4MiniflareOptions ? convertV4MiniflareOptions(options) : options);
 
