@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import { onlineSearch, onlineSearchConfigured, searchDigest, INDEX_DOWNLOAD_ROUTES } from "./onlineSearch.js";
-import { settleSearch } from "./searchLedger.js";
+import { replaySearch, settleSearch } from "./searchLedger.js";
 
 function d1(database) {
   return { prepare(query) {
@@ -72,6 +72,57 @@ test("simultaneous duplicate searches spend one credit and return the same resul
   assert.equal(balance(sql), 100000);
   assert.equal(count(sql, "searches"), 1);
   assert.equal(count(sql, "ledger"), 1);
+});
+
+test("account deletion during the engine call prevents settlement and private result recreation", async t => {
+  const { sql, env, query } = fixture(t);
+  const engine = env.SEARCH_ENGINE.fetch;
+  env.SEARCH_ENGINE.fetch = async request => {
+    const result = await engine(request);
+    sql.exec(`UPDATE accounts SET deleted_at=1,units=0,token_hash='revoked',recovery_hash=NULL
+      WHERE id='anonymous'; DELETE FROM searches WHERE account_id='anonymous';`);
+    return result;
+  };
+  await assert.rejects(onlineSearch(env, "anonymous", "deleted-in-flight", query),
+    error => error.code === "unauthorized" && error.status === 401);
+  assert.equal(balance(sql), 0);
+  assert.equal(count(sql, "searches"), 0);
+  assert.equal(count(sql, "ledger"), 0);
+  assert.equal(count(sql, "published_index"), 1);
+});
+
+test("a deleted account cannot replay retained private results or issue a new search", async t => {
+  const { sql, env, query } = fixture(t);
+  await onlineSearch(env, "anonymous", "before-deletion", query);
+  const digest = await searchDigest(query);
+  // Leave a saved row deliberately: replay itself must enforce the tombstone,
+  // independently of the account-deletion handler's search cleanup.
+  sql.exec("UPDATE accounts SET deleted_at=1,units=0 WHERE id='anonymous'");
+  assert.equal(await replaySearch(env.DB, "anonymous", "before-deletion", digest), null);
+  let engineCalls = 0;
+  env.SEARCH_ENGINE.fetch = async () => { engineCalls++; throw Error("must not query"); };
+  for (const key of ["before-deletion", "after-deletion"]) {
+    await assert.rejects(onlineSearch(env, "anonymous", key, query),
+      error => error.code === "unauthorized" && error.status === 401);
+  }
+  assert.equal(engineCalls, 0);
+  assert.equal(count(sql, "ledger"), 1);
+  assert.equal(balance(sql), 0);
+});
+
+test("a retained search ledger reference cannot resurrect a deleted account's private result", async t => {
+  const { sql, env, query } = fixture(t);
+  const result = await onlineSearch(env, "anonymous", "before-deletion", query);
+  const digest = await searchDigest(query);
+  sql.exec(`UPDATE accounts SET deleted_at=1,units=0 WHERE id='anonymous';
+    DELETE FROM searches WHERE account_id='anonymous';`);
+  // Simulate an old in-flight worker settling the exact already-paid result.
+  // The ledger is intentionally retained for anonymous accounting history.
+  await assert.rejects(settleSearch(env.DB, "anonymous", "before-deletion", digest, result, 100000),
+    error => error.code === "unauthorized" && error.status === 401);
+  assert.equal(count(sql, "searches"), 0);
+  assert.equal(count(sql, "ledger"), 1);
+  assert.equal(balance(sql), 0);
 });
 
 test("different searches cannot overspend the last banked credit", async t => {

@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
-import { stageScene, auditScene } from "./scenePipeline.js";
+import { stageScene, auditScene, qualifyDevice } from "./scenePipeline.js";
+import { deleteAccount, migrateAccountPrivacy } from "./accountPrivacy.js";
 import { sha256Hex } from "./model.js";
 
 function d1(database) {
@@ -35,6 +36,7 @@ async function fixture(t, decision = "approved") {
   const sql = new DatabaseSync(":memory:");
   t.after(() => sql.close());
   sql.exec(readFileSync(new URL("../schema.sql", import.meta.url), "utf8"));
+  sql.exec("ALTER TABLE pose_catalog ADD COLUMN assignee TEXT; ALTER TABLE pose_catalog ADD COLUMN assigned_at INTEGER;");
   const now = Math.floor(Date.now() / 1000);
   sql.prepare("INSERT INTO accounts (id, token_hash) VALUES ('anonymous', 'hash')").run();
   sql.prepare("INSERT INTO scene_qualifications VALUES ('qualification', 'anonymous', ?, 'test-policy', ?, ?, ?)")
@@ -53,6 +55,7 @@ async function fixture(t, decision = "approved") {
     return Response.json({ policyId: body.policyId, submissionSha256: body.submissionSha256, decision });
   } } };
   const embedding = new Uint8Array(3080);
+  await migrateAccountPrivacy(env);
   for (let view = 0; view < 4; view++) { embedding[view * 770 + 1] = 60; embedding[view * 770 + 2] = 7; }
   const row = sql.prepare("SELECT * FROM locations WHERE id=1").get();
   const staged = await stageScene(env, "anonymous", "lease", [{ row, embedding, digest: await sha256Hex(embedding) }], now);
@@ -109,4 +112,35 @@ test("an unavailable verifier preserves quarantine for retry", async (t) => {
   assert.equal((await auditScene(env, "anonymous", "lease")).pendingAudit, true);
   assert.equal(sql.prepare("SELECT units FROM accounts").get().units, 0);
   assert.equal(sql.prepare("SELECT state FROM scene_candidates").get().state, "pending");
+});
+
+test("deletion while the verifier audits a candidate prevents publication and any credit", async t => {
+  const { sql, env } = await fixture(t);
+  const original = env.SCENE_VERIFIER.fetch;
+  env.SCENE_VERIFIER.fetch = async request => {
+    const response = await original(request);
+    await deleteAccount(env, "anonymous", { accountId: "anonymous", confirmation: "DELETE", idempotencyKey: "c".repeat(64) });
+    return response;
+  };
+  const result = await auditScene(env, "anonymous", "lease");
+  assert.equal(result.unitsEarned, 0);
+  assert.equal(result.rejected, true);
+  assert.equal(sql.prepare("SELECT units FROM accounts").get().units, 0);
+  assert.equal(sql.prepare("SELECT COUNT(*) AS n FROM published_index").get().n, 0);
+  assert.equal(sql.prepare("SELECT COUNT(*) AS n FROM ledger WHERE reason='verified_work'").get().n, 0);
+  assert.equal(sql.prepare("SELECT records_json FROM scene_candidates").get().records_json, "[]");
+});
+
+test("a delayed device qualification cannot recreate access after deletion", async t => {
+  const { sql, env } = await fixture(t);
+  const bytes = new Uint8Array(3080), blob = new Uint8Array(112 * 3080);
+  const canary = { locations: 112, records: Array(112).fill(Buffer.from(bytes).toString("base64")),
+    outputSha256: await sha256Hex(blob) };
+  env.SCENE_VERIFIER.fetch = async request => {
+    const body = await request.json();
+    await deleteAccount(env, "anonymous", { accountId: "anonymous", confirmation: "DELETE", idempotencyKey: "c".repeat(64) });
+    return Response.json({ ...body, approved: true, expiresAt: Math.floor(Date.now() / 1000) + 3600 });
+  };
+  await assert.rejects(qualifyDevice(env, "anonymous", { profileId: "a".repeat(64), canary }, () => true), /account_not_active/);
+  assert.equal(sql.prepare("SELECT COUNT(*) AS n FROM scene_qualifications WHERE expires_at>0").get().n, 0);
 });

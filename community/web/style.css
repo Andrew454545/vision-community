@@ -115,6 +115,10 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
 .recover input{flex:1;min-width:0}
 .recover button{margin:0}
 #mma-api-key,#mma-map-select,#batch-number{margin-bottom:8px}
+#account-privacy{margin:12px 0;border:1px solid var(--stroke);padding:10px;border-radius:5px}
+#delete-account-form{display:flex;flex-direction:column;gap:8px}
+#delete-account{color:var(--text);border-color:#b75b5b}
+#pending-deletion{margin:12px 0}
 @media(max-width:860px){
   .workspace{grid-template-columns:1fr;height:auto}
   .search-list{border-right:0;border-bottom:1px solid var(--line);max-height:280px}

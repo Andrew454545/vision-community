@@ -3,6 +3,9 @@
 Community searches now run online using banked credits. Shared-index download
 routes and `execute: "local"` requests return 410. No online credit is spent
 until a validated result, ledger entry and account debit commit together.
+Hosted account deletion and its hourly quarantine cleanup are described in
+[ACCOUNT_PRIVACY.md](../../docs/ACCOUNT_PRIVACY.md). Test the account-schema
+upgrade, recovery revocation and scheduled cleanup in staging before rollout.
 See [ONLINE-SEARCH.md](ONLINE-SEARCH.md) for the private engine contract and
 the remaining deployment evidence. No search engine is bound by default.
 

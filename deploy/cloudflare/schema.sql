@@ -3,7 +3,8 @@ CREATE TABLE IF NOT EXISTS accounts (
   id TEXT PRIMARY KEY,
   token_hash TEXT NOT NULL UNIQUE,
   units INTEGER NOT NULL DEFAULT 0 CHECK (units >= 0),
-  recovery_hash TEXT UNIQUE
+  recovery_hash TEXT UNIQUE,
+  deleted_at INTEGER
 );
 CREATE TABLE IF NOT EXISTS locations (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

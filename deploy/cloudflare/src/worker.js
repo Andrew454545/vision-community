@@ -14,13 +14,14 @@ import { SEED_LOCATIONS } from "./seed.js";
 import { OBJECT_INDEX_MODEL, validateObjectIndex } from "./objectIndex.js";
 import { onlineSearch, onlineSearchConfigured, INDEX_DOWNLOAD_ROUTES } from "./onlineSearch.js";
 import { SearchError } from "./searchLedger.js";
+import { migrateAccountPrivacy, deleteAccount, cleanupAccountArtifacts } from "./accountPrivacy.js";
 import { loadSceneReferences, sceneCapabilities } from "./sceneQuality.js";
 import { SCENE_PIPELINE_SCHEMA, verifierConfigured, pipelineCapabilities, activeQualification, qualificationStatus, qualifyDevice, auditScene, stageScene } from "./scenePipeline.js";
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS accounts (
   id TEXT PRIMARY KEY, token_hash TEXT NOT NULL UNIQUE,
-  units INTEGER NOT NULL DEFAULT 0 CHECK (units >= 0), recovery_hash TEXT UNIQUE
+  units INTEGER NOT NULL DEFAULT 0 CHECK (units >= 0), recovery_hash TEXT UNIQUE, deleted_at INTEGER
 );
 CREATE TABLE IF NOT EXISTS locations (
   id INTEGER PRIMARY KEY AUTOINCREMENT, asset_id TEXT NOT NULL, capture TEXT NOT NULL,
@@ -114,6 +115,7 @@ async function rateLimit(env, request, account, route) {
 
 function viewFailure(err) {
   const code = err && err.message;
+  if (typeof code === "string" && code.includes("account_not_active")) return error("unauthorized", 401);
   if (err && Number.isInteger(err.status) && code) return error(code, err.status);
   if (code === "view_unavailable" || code === "invalid_thumbnail") return error("view_unavailable", 422);
   if (code === "not_a_street_pano" || code === "invalid_pano_id") return error("invalid_pano_id");
@@ -156,6 +158,7 @@ async function ready(env) {
   if (!leaseColumns.includes("scene_qualification_id")) {
     await env.DB.prepare("ALTER TABLE leases ADD COLUMN scene_qualification_id TEXT").run();
   }
+  await migrateAccountPrivacy(env);
   const count = await env.DB.prepare("SELECT COUNT(*) AS n FROM locations").first();
   if (!count || count.n > 0) return;
   const statements = SEED_LOCATIONS.map((row) =>
@@ -361,7 +364,7 @@ async function accountId(env, request) {
   const token = tokenFrom(request);
   if (!token || token.length > 100) return null;
   const tokenHash = await sha256Hex(encodeUtf8(token));
-  const row = await env.DB.prepare("SELECT id, token_hash FROM accounts WHERE token_hash=?").bind(tokenHash).first();
+  const row = await env.DB.prepare("SELECT id, token_hash FROM accounts WHERE token_hash=? AND deleted_at IS NULL").bind(tokenHash).first();
   if (!row || !equalHex(row.token_hash, tokenHash)) return null;
   return row.id;
 }
@@ -406,6 +409,7 @@ async function status(env, account, options = {}) {
     searchOnSite: onlineSearchConfigured(env),
     searchReady: onlineSearchConfigured(env),
     indexDownloads: false,
+    accountDeletionAvailable: true,
     model: MODEL_ID,
     visualPublished: visual?.n || 0,
     objectIndexes: objectIndexes?.n || 0,
@@ -645,11 +649,13 @@ async function recover(env, request, body) {
   const code = body.recoveryCode;
   if (typeof code !== "string" || code.length < 16 || code.length > 80) return error("invalid_recovery", 401);
   const recoveryHash = await sha256Hex(encodeUtf8(`${RECOVERY_PEPPER}\n${code}`));
-  const row = await env.DB.prepare("SELECT id FROM accounts WHERE recovery_hash=?").bind(recoveryHash).first();
+  const row = await env.DB.prepare("SELECT id FROM accounts WHERE recovery_hash=? AND deleted_at IS NULL").bind(recoveryHash).first();
   if (!row) return error("invalid_recovery", 401);
   const token = randomToken(32);
   const tokenHash = await sha256Hex(encodeUtf8(token));
-  await env.DB.prepare("UPDATE accounts SET token_hash=? WHERE id=?").bind(tokenHash, row.id).run();
+  const recovered = await env.DB.prepare("UPDATE accounts SET token_hash=? WHERE id=? AND recovery_hash=? AND deleted_at IS NULL")
+    .bind(tokenHash, row.id, recoveryHash).run();
+  if (recovered.meta?.changes !== 1) return error("invalid_recovery", 401);
   return json({ accountId: row.id }, 200, { "set-cookie": cookie(token, request) });
 }
 
@@ -1301,6 +1307,11 @@ async function search(env, account, body) {
 
 
 export default {
+  async scheduled(_event, env) {
+    if (!env.DB || !env.INDEX) return;
+    await ready(env);
+    await cleanupAccountArtifacts(env, null, 64);
+  },
   async fetch(request, env) {
     const url = new URL(request.url);
     if (INDEX_DOWNLOAD_ROUTES.has(url.pathname)) return error("online_search_required", 410);
@@ -1360,6 +1371,12 @@ export default {
         return recover(env, request, body);
       }
       const account = await accountId(env, request);
+      if (url.pathname === "/api/account/delete") {
+        if (!(await rateLimit(env, request, account, url.pathname))) return error("rate_limited", 429, { "retry-after": "60" });
+        const result = await deleteAccount(env, account, body);
+        await cleanupAccountArtifacts(env, body.accountId);
+        return json(result, 200, { "set-cookie": cookie("", request) + "; Max-Age=0" });
+      }
       if (!account) return error("unauthorized", 401);
       if (!(await rateLimit(env, request, account, url.pathname))) return error("rate_limited", 429, { "retry-after": "60" });
       if (url.pathname === "/api/scene-qualifications") {
@@ -1369,10 +1386,10 @@ export default {
       if (url.pathname === "/api/scene-audits") {
         return json(await auditScene(env, account, body.submissionId));
       }
-      if (url.pathname === "/api/leases/release") return releaseLease(env, account, body);
-      if (url.pathname === "/api/leases/renew") return renewLease(env, account, body);
-      if (url.pathname === "/api/leases") return lease(env, account, body);
-      if (url.pathname === "/api/submissions") return submit(env, account, body);
+      if (url.pathname === "/api/leases/release") return await releaseLease(env, account, body);
+      if (url.pathname === "/api/leases/renew") return await renewLease(env, account, body);
+      if (url.pathname === "/api/leases") return await lease(env, account, body);
+      if (url.pathname === "/api/submissions") return await submit(env, account, body);
       if (url.pathname === "/api/searches") return await search(env, account, body);
       return error("not_found", 404);
     } catch (err) {
