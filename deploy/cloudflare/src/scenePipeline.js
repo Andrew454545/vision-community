@@ -143,35 +143,57 @@ export async function auditScene(env, account, leaseId, now = Math.floor(Date.no
   const blob = new Uint8Array(await object.arrayBuffer());
   if (await submissionHash(row.records_json, blob) !== row.submission_sha256) throw new ScenePipelineError("scene_quarantine_corrupt", 500);
   const qualification = await env.DB.prepare("SELECT * FROM scene_qualifications WHERE id=?").bind(row.qualification_id).first();
+  if (!qualification || qualification.account_id !== account || qualification.policy_id !== row.policy_id) {
+    throw new ScenePipelineError("scene_submission_conflict", 409);
+  }
   const records = JSON.parse(row.records_json);
+  if (!Array.isArray(records) || !records.length || new Set(records.map((record) => record.locationId)).size !== records.length
+      || records.some((record) => !Number.isSafeInteger(record.locationId) || record.locationId <= 0)
+      || blob.length !== records.length * 3080) throw new ScenePipelineError("scene_quarantine_corrupt", 500);
   const result = await callVerifier(env, "audit", { accountId: account, profileId: qualification.profile_id,
     policyId: row.policy_id, submissionSha256: row.submission_sha256, records, indexBase64: bytesToBase64(blob) });
   if (!result || result.policyId !== row.policy_id || result.submissionSha256 !== row.submission_sha256 ||
       !["approved", "rejected"].includes(result.decision)) return candidateResult(row);
   if (result.decision === "rejected") {
     await env.DB.prepare("UPDATE scene_candidates SET state='rejected' WHERE lease_id=? AND state='pending'").bind(leaseId).run();
-    return { ...candidateResult(row), pendingAudit: false, pending: 0, rejected: true };
+    return candidateResult(await env.DB.prepare("SELECT * FROM scene_candidates WHERE lease_id=?").bind(leaseId).first());
   }
   const key = `four-view-v4/${leaseId}.i8`;
   await env.INDEX.put(key, blob);
   // D1 batch is atomic. The ledger's unique reference makes concurrent
   // approvals roll back rather than credit twice. A retry reads published.
+  const reference = `lease:${leaseId}`;
+  // Make the ownership check part of the same transaction that grants credit.
+  // Every later statement requires the ledger row created by this claim.
+  const claimed = `EXISTS (SELECT 1 FROM scene_candidates c JOIN ledger d ON d.reference=?
+    WHERE c.lease_id=? AND c.state='pending' AND d.account_id=c.account_id)`;
   const statements = [env.DB.prepare(`INSERT INTO ledger (account_id,units,reason,reference)
-    SELECT ?,?,'verified_work',? WHERE EXISTS (SELECT 1 FROM scene_candidates WHERE lease_id=? AND state='pending')`)
-    .bind(account, records.length, `lease:${leaseId}`, leaseId)];
+    SELECT ?,?,'verified_work',? WHERE EXISTS (SELECT 1 FROM scene_candidates WHERE lease_id=? AND state='pending')
+      AND (SELECT COUNT(*) FROM lease_items i JOIN locations l ON l.id=i.location_id
+        WHERE i.lease_id=? AND l.state='pending' AND l.queue_state='quarantined'
+          AND l.id IN (SELECT value FROM json_each(?)))=?
+      AND (SELECT COUNT(*) FROM lease_items WHERE lease_id=?)=?`)
+    .bind(account, records.length, reference, leaseId, leaseId, JSON.stringify(records.map((record) => record.locationId)),
+      records.length, leaseId, records.length)];
   for (const record of records) {
     statements.push(env.DB.prepare(`INSERT INTO published_index
       (location_id,index_text,output_sha256,published_at,embedding,four_view_sha256,four_view_key)
-      SELECT ?,'',?,?,NULL,?,? WHERE EXISTS (SELECT 1 FROM scene_candidates WHERE lease_id=? AND state='pending')`)
-      .bind(record.locationId, record.outputSha256, now, record.outputSha256, key, leaseId));
+      SELECT ?,'',?,?,NULL,?,? WHERE ${claimed}`)
+      .bind(record.locationId, record.outputSha256, now, record.outputSha256, key, reference, leaseId));
     statements.push(env.DB.prepare(`UPDATE locations SET state='published',queue_state='pending',output_sha256=?,contributor_id=?
-      WHERE id=? AND EXISTS (SELECT 1 FROM scene_candidates WHERE lease_id=? AND state='pending')`)
-      .bind(record.outputSha256, account, record.locationId, leaseId));
+      WHERE id=? AND ${claimed}`)
+      .bind(record.outputSha256, account, record.locationId, reference, leaseId));
   }
-  statements.push(env.DB.prepare(`UPDATE accounts SET units=units+? WHERE id=? AND EXISTS
-    (SELECT 1 FROM scene_candidates WHERE lease_id=? AND state='pending')`).bind(records.length, account, leaseId));
-  statements.push(env.DB.prepare("UPDATE scene_candidates SET state='published' WHERE lease_id=? AND state='pending'").bind(leaseId));
+  statements.push(env.DB.prepare(`UPDATE accounts SET units=units+? WHERE id=? AND ${claimed}`)
+    .bind(records.length, account, reference, leaseId));
+  statements.push(env.DB.prepare(`UPDATE scene_candidates SET state='published' WHERE lease_id=? AND ${claimed}`)
+    .bind(leaseId, reference, leaseId));
   const published = await env.DB.batch(statements);
   const earned = published[0].meta?.changes === 1 ? records.length : 0;
+  if (!earned) {
+    const current = await env.DB.prepare("SELECT * FROM scene_candidates WHERE lease_id=?").bind(leaseId).first();
+    if (current.state === "pending") throw new ScenePipelineError("scene_submission_conflict", 409);
+    return candidateResult(current);
+  }
   return { accepted: earned, unitsEarned: earned, pendingAudit: false, replayed: earned === 0, segments: [] };
 }

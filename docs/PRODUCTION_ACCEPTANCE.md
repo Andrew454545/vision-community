@@ -32,6 +32,13 @@ measurements into automatic production approval.
 - Catalog tail extraction no longer needs Unix `head`/`tail`; Windows launcher
   hashing no longer depends on the inherited PowerShell module search path.
 - Banked credits are tested across application restarts and search debits.
+- Added a private staging scene verifier with bounded reads, checksum-pinned
+  policies and references, independent vector comparisons, and payload-bound
+  audit approval. Production inference auditing remains a separate gate.
+- Scene publication now claims the quarantined locations and grants credit in
+  the same transaction. SQLite-backed Worker tests demonstrate concurrent
+  approval credits once, failed publication rolls credit back, and a changed
+  queue cannot be published or credited.
 
 ## Blocking live indexing
 
@@ -43,6 +50,10 @@ measurements into automatic production approval.
   `vision-community` D1 database, and its `vision-community` R2 binding. The
   excluded `geonections-images` bucket was not accessed.
 - [ ] Deploy and test the trusted scene verifier and approved runtime policy.
+  A private verifier is now implemented for staging: it independently compares
+  the 112-location output with a checksum-pinned reference in a separate,
+  private policy bucket and fails closed for every unreviewed submission. It
+  still needs the owner-reviewed calibration policy and a live staging exercise.
   The live `/api/capabilities` returned `not_found` on 2026-09-29.
 - [ ] Complete the PC qualification against that policy. Never bypass it.
 - [ ] Confirm the source of real work: the shared Community queue or a supplied

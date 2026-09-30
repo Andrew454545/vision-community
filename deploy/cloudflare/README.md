@@ -9,6 +9,8 @@ Use the staging template before enabling any contributor traffic:
 1. Copy `wrangler.staging.toml.example` to `wrangler.staging.toml` and fill in a
    separate D1 database, R2 bucket, private `SCENE_VERIFIER` service binding,
    unique rate-limit namespace, and reviewed `SCENE_POLICY_ID`.
+   The private verifier implementation and its separate policy bucket are in
+   `scene-verifier/`; deploy and test it before binding it here.
 2. Apply `schema.sql` to a new staging database. Existing databases should
    apply `migrations/0002_scene_pipeline.sql` and
    `migrations/0003_object_coverage.sql`; if the lease column already exists,
