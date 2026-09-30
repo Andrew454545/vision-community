@@ -170,6 +170,12 @@ an approved snapshot of contributed indexes. Storage, compute costs, latency
 and memory must be measured before promising performance at 200 million
 locations; index-only storage estimates are not a complete hosting budget.
 
+Maintainers can prepare independently approved scene snapshots with
+`community.search_snapshot` and object snapshots with `community.object_snapshot`.
+The [object snapshot guide](docs/OBJECT_SEARCH_SNAPSHOTS.md) explains the separate
+inference approval and trusted Generation 4 evidence required before sealing.
+These offline tools do not approve volunteers or enable the hosted engine.
+
 ## Invariants
 
 - Canonical pano ID, capture, lane, and model have one queue row.
