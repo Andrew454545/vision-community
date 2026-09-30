@@ -127,6 +127,15 @@ to GitHub.
   At most 64 unresolved batches are allowed before claiming more work pauses;
   verification is retried at the configured interval. A rejected batch stops processing
   for review and retains its evidence.
+  If the service explicitly refuses an unacknowledged submission because its
+  assignment expired or was lost, the delivery journal records `lease_lost`
+  and keeps the complete output and reason. That batch earns no credit and is
+  no longer retried or counted against the pending limit. Other saved batches
+  and new work can continue; VISION never moves the old output to a new lease.
+  Network/authentication failures are not treated as assignment loss, and
+  already staged batches remain pending audit. The guided window reports
+  the saved undelivered-batch count after reconnecting to the same account;
+  the background status includes `undeliveredBatches` when connected.
 - `waiting_for_space`: free at least 5 GB; existing results remain in place.
 - `retrying_indexing`: a recognized indexing interruption is waiting for a
   later attempt. Increasing delays, capped at six hours, survive a restart;
@@ -156,7 +165,10 @@ resolve storage pressure without discarding unsent work or account recovery.
 Unit tests cover unavailable services, restart/account reuse, empty queues,
 rejected checks, low disk, pause, corrupt credentials and duplicate processes.
 Delivery tests cover lost responses, restart recovery, service/account
-isolation, bounded backlog, fairness and preserved rejected results.
+isolation, bounded backlog, fairness and preserved rejected results. A local
+HTTP exercise also verifies that an expired assignment does not block another
+saved delivery or claim new work during recovery. This is a disposable test
+service, not an accepted live contribution.
 The installer test uses a mock scheduler and checks startup failure reporting,
 including folder names with spaces and apostrophes. It does not prove that a
 real scheduled task launches. PowerShell tests honor the host execution policy;

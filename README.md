@@ -44,6 +44,9 @@ decoded numerical results and the exact runtime identity.
 To stop, choose **Pause after this batch**. Keep the PC awake and connected.
 If a batch fails, its local report and completed work stay in the private VISION
 folder for review.
+If an outage lasts until a saved batch's assignment ends, VISION keeps its
+results and reports that they could not be delivered. That batch earns no
+credits; processing can continue with a new assignment.
 
 You can keep processing after earning a search. Unused credits stay in your
 account; keep your private recovery code to access them on another device.
