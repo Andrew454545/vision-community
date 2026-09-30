@@ -20,6 +20,22 @@ measurements into automatic production approval.
 
 ## Completed in this pass
 
+- Fixed completed-delivery recovery after definitive lease expiry/loss. The
+  journal retains output and a fixed reason, stops retrying that terminal
+  delivery, frees its pending slot and continues other deliveries. It never
+  reassigns the output or treats network/authentication failures or pending
+  audits as expired work. Guided/background status exposes retained
+  undelivered-batch counts. Nine new checks include an actual disposable HTTP
+  expiry/replay exercise and reconnect recovery. All 269 Python tests pass on
+  this Windows host; this is not a live accepted contribution or a days/weeks
+  endurance test.
+- Opened draft PR #2 with the reference evidence request for Andrew. Initial
+  PR CI passed Linux Python, Cloudflare JavaScript/workerd and both calibration
+  jobs (including Windows embedded-Python and native executable layout). Windows
+  Python CI exposed a missing Pillow test dependency and short/long-path
+  assertion mismatches. The workflow now installs declared dependencies and
+  tests compare resolved paths; the original failing log is preserved privately.
+  Recheck the final PR revision before treating the complete CI gate as passed.
 - Bounded the object launcher's native process/retry lifecycle. Native logs and
   exit outcomes are preserved, failed launches/timeouts stop, repeated exits
   and stalled/regressed checkpoints cannot retry forever, and both native

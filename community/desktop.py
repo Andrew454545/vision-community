@@ -71,6 +71,10 @@ class DesktopClient(CommunityClient):
     def pending(self):
         return self.outbox.count() if self.outbox else self._pending
 
+    @property
+    def undelivered(self):
+        return self.outbox.undelivered() if self.outbox else 0
+
     def enable_outbox(self, root, account_id):
         self.outbox = SubmissionOutbox(Path(root) / "submissions.sqlite", self.origin, account_id)
 
@@ -113,20 +117,35 @@ class DesktopClient(CommunityClient):
         return data
 
     def resume_submissions(self):
-        accepted = earned = 0
+        accepted = earned = lost = 0
         if not self.outbox:
             return {"accepted": 0, "unitsEarned": 0}
         for delivery in self.outbox.pending():
             lease_id = delivery["lease_id"]
             if delivery["state"] == "ready":
-                result = self.submit(lease_id, json.loads(delivery["payload_json"]))
+                try:
+                    result = self.submit(lease_id, json.loads(delivery["payload_json"]))
+                except ContributeError as error:
+                    # Do not keep an expired delivery at the front of the
+                    # journal forever. Preserve its output and fixed reason,
+                    # never reassign it or interpret a generic outage as loss.
+                    definitive = (error.code, error.status) in {
+                        ("expired_lease", 409), ("lease_lost", 409), ("unknown_lease", 404),
+                    }
+                    if not definitive or not self.outbox.lose_lease(lease_id, error.code):
+                        raise
+                    lost += 1
+                    continue
             else:
                 result = self.audit_submission(lease_id)
             if result.get("pendingAudit") and delivery["state"] == "ready":
                 result = self.audit_submission(lease_id)
             accepted += int(result.get("accepted", 0))
             earned += int(result.get("unitsEarned", 0))
-        return {"accepted": accepted, "unitsEarned": earned}
+        result = {"accepted": accepted, "unitsEarned": earned}
+        if lost:
+            result["leaseLost"] = lost
+        return result
 
 
 def public_error(error):
@@ -155,7 +174,7 @@ class DesktopApp:
         self.state = dict(ready=False, connected=False, savedCode=False, busy=False,
                           phase="setup", message="Prepare this PC to begin.", completed=0,
                           units=0, batchCompleted=0, batchTotal=16, started=None,
-                          stopping=False, serviceReady=False, qualified=False, pending=0)
+                          stopping=False, serviceReady=False, qualified=False, pending=0, undelivered=0)
 
     @property
     def assets(self):
@@ -250,7 +269,8 @@ class DesktopApp:
             self.client = client
             self.qualification = None
             self.update(connected=True, savedCode=not create, phase="ready", units=int(me.get("units", 0)),
-                        qualified=False, message="Account connected. Run the short PC check next.")
+                        qualified=False, pending=client.pending, undelivered=client.undelivered,
+                        message="Account connected. Run the short PC check next.")
             if self.canary_report and self.profile_matches(self.canary_report, **self.assets):
                 profile = self.canary_report["runtimeProfile"]["sha256"]
                 _, previous, _ = client.request("GET", "/api/scene-qualifications?profileId=" + profile)
@@ -350,6 +370,7 @@ class DesktopApp:
         result = self.client.resume_submissions()
         with self.lock:
             self.state["pending"] = self.client.pending
+            self.state["undelivered"] = self.client.undelivered
             self.state["completed"] += int(result.get("accepted", 0))
             self.state["units"] += int(result.get("unitsEarned", 0))
         return result

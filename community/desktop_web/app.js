@@ -30,6 +30,8 @@ function render(state) {
   byId("units").textContent = state.units.toLocaleString();
   byId("elapsed").textContent = Math.floor(state.elapsedSeconds / 60) + " min";
   byId("folder").textContent = state.folder;
+  byId("undelivered").hidden = !(state.undelivered > 0);
+  byId("undelivered").textContent = state.undelivered > 0 ? `${state.undelivered.toLocaleString()} saved batches could not be delivered because their assignment ended. They earned no credits. Their files are kept; VISION can continue with new work.` : "";
   byId("account-status").textContent = state.connected ? "Account connected for this session." : "Your code stays out of commands and diagnostic logs.";
   const busy = state.busy || requesting;
   byId("prepare").disabled = busy;

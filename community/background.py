@@ -152,10 +152,12 @@ class BackgroundContributor:
 
     def status(self, state, message):
         self.last_state = state
+        undelivered = getattr(self.app.client, "undelivered", 0)
         atomic_json(self.root / "background-status.json", {
             "state": state, "message": message,
             "updatedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "acceptedThisRun": self.completed,
+            "undeliveredBatches": undelivered if type(undelivered) is int else 0,
             "usesCodex": False,
             "pace": self.pace(), "schedule": self.schedule.public_settings(),
             "retryMinutes": self.retry_seconds // 60,
