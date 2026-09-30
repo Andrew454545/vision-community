@@ -77,7 +77,9 @@ class PublicSurfaceIdentityTest(unittest.TestCase):
     def test_hosted_worker_tags_each_hit_with_country_name(self):
         source = (ROOT / "deploy" / "cloudflare" / "src" / "worker.js").read_text(encoding="utf-8")
         online = (ROOT / "deploy/cloudflare/src/onlineSearch.js").read_text(encoding="utf-8")
-        self.assertIn("tags: [hit.pose.country]", online)
+        self.assertIn("exportSearchMap(query, hits, computed.processedLocations)", online)
+        export = (ROOT / "deploy/cloudflare/src/searchExport.js").read_text()
+        self.assertIn("tags: [hit.pose.country]", export)
         self.assertIn('body.execute === "local"', source)
         self.assertIn("online_search_required", source)
 

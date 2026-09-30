@@ -27,7 +27,9 @@ jobs:
           python-version: "3.12"
       - name: Run Windows unit tests
         shell: pwsh
-        run: python -B -m unittest discover -s community/tests -q
+        run: |
+          $env:VISION_TEST_POWERSHELL = Join-Path $PSHOME "pwsh.exe"
+          python -B -m unittest discover -s community/tests -q
 
   cloudflare-javascript:
     runs-on: ubuntu-latest
