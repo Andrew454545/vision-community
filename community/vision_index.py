@@ -30,6 +30,7 @@ from pathlib import Path
 from .contribute import (
     DEFAULT_URL,
     RETRYABLE_CODES,
+    RETRY_STATUSES,
     CommunityClient,
     ContributeError,
     default_session_path,
@@ -108,6 +109,11 @@ INDEX_TIMEOUT_SECONDS = 2 * 60 * 60
 MAX_INDEX_FAILURES = 3
 MAX_NO_PROGRESS = 5
 MAX_QUEUE_FAILURES = 5
+# Keep ownership for a bounded outer retry so the same verified checkpoint can
+# resume. These errors never authorize uploading incomplete records.
+RETRYABLE_NATIVE_CODES = frozenset({
+    "vision_binary_failed", "vision_binary_timeout", "vision_no_progress", "vision_retry_limit",
+})
 
 
 class VisionIndexError(RuntimeError):
@@ -430,10 +436,15 @@ def default_runner(argv: list[str], env: dict, cwd: Path):
     timeout = 60 if "index-layout" in argv else INDEX_TIMEOUT_SECONDS
     started = time.monotonic()
     outcome = {"status": "STARTED", "timeoutSeconds": timeout}
+    launch_options = {}
+    if sys.platform == "win32":
+        # Scheduling priority does not alter the calibrated model, batch shape
+        # or inference thread environment. Native helpers need no console window.
+        launch_options["creationflags"] = subprocess.BELOW_NORMAL_PRIORITY_CLASS | subprocess.CREATE_NO_WINDOW
     try:
         with stdout_path.open("wb") as stdout, stderr_path.open("wb") as stderr:
             completed = subprocess.run(argv, env=env, cwd=str(cwd), stdout=stdout,
-                                       stderr=stderr, check=False, timeout=timeout)
+                                       stderr=stderr, check=False, timeout=timeout, **launch_options)
         outcome.update(status="EXITED", exitCode=completed.returncode)
     except subprocess.TimeoutExpired as error:
         # subprocess.run kills and waits for the direct native process first.
@@ -794,21 +805,32 @@ def index_from_queue(
             )
             try:
                 session.renew(lease_id)
-            except ContributeError:
-                pass
+            except ContributeError as error:
+                if error.code in {"expired_lease", "lease_lost", "unknown_lease"}:
+                    # Never offer a finished checkpoint after the server has
+                    # explicitly said this account no longer owns its lease.
+                    raise VisionIndexError(error.code, error.status) from error
+                transient = error.code == "network_error" or (
+                    error.status in RETRY_STATUSES
+                    and error.code in {"http_error", "renew_failed", "internal_error", "rate_limited"}
+                )
+                if not transient:
+                    raise
             result = session.submit(lease_id, outputs_for_items(items, run_dir / "index"))
             # The guided desktop client asks the trusted verifier to audit a
             # quarantined submission. CLI clients retain the existing submit
             # response and never gain approval from this local branch.
             if hasattr(session, "audit_submission") and result.get("pendingAudit"):
                 result = session.audit_submission(str(result.get("submissionId") or lease_id))
-        except (VisionIndexError, KeyboardInterrupt):
+        except (VisionIndexError, KeyboardInterrupt) as error:
             stop.set()
-            try:
-                if not getattr(session, "submission_is_saved", lambda _lease: False)(lease_id):
-                    session.release(lease_id)
-            except ContributeError:
-                pass
+            retain_lease = isinstance(error, KeyboardInterrupt) or error.code in RETRYABLE_NATIVE_CODES
+            if not retain_lease:
+                try:
+                    if not getattr(session, "submission_is_saved", lambda _lease: False)(lease_id):
+                        session.release(lease_id)
+                except ContributeError:
+                    pass
             raise
         except Exception as error:
             stop.set()
