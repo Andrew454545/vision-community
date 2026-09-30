@@ -1,13 +1,15 @@
 import json
 from contextlib import closing
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 import sqlite3
 import tempfile
+import threading
 import unittest
 from unittest.mock import patch
 
 from community.contribute import CommunityClient, ContributeError
-from community.desktop import DesktopClient
+from community.desktop import DesktopApp, DesktopClient
 from community.submission_outbox import SubmissionOutbox, MAX_PENDING_SUBMISSIONS
 
 
@@ -108,6 +110,184 @@ class OutboxTest(unittest.TestCase):
             first = client.outbox.pending(1)[0]["lease_id"]
             client.outbox.result(first, {"pendingAudit": True})
             self.assertNotEqual(client.outbox.pending(1)[0]["lease_id"], first)
+
+    def test_confirmed_lost_lease_preserves_payload_and_is_not_retried_after_restart(self):
+        for code, status in (("expired_lease", 409), ("lease_lost", 409), ("unknown_lease", 404)):
+            with self.subTest(code=code), tempfile.TemporaryDirectory() as root:
+                client = self.client(root)
+                client.outbox.remember(self.lease, self.outputs)
+                with patch.object(CommunityClient, "request", side_effect=ContributeError(code, status)) as request:
+                    self.assertEqual(client.resume_submissions(), {"accepted": 0, "unitsEarned": 0, "leaseLost": 1})
+                    request.assert_called_once()
+                restarted = self.client(root)
+                with patch.object(CommunityClient, "request") as request:
+                    self.assertEqual(restarted.resume_submissions(), {"accepted": 0, "unitsEarned": 0})
+                    request.assert_not_called()
+                self.assertEqual(restarted.pending, 0)
+                self.assertEqual(restarted.undelivered, 1)
+                self.assertTrue(restarted.submission_is_saved(self.lease))
+                with closing(sqlite3.connect(Path(root) / "submissions.sqlite")) as connection:
+                    state, payload, result = connection.execute("SELECT state,payload_json,result_json FROM deliveries").fetchone()
+                self.assertEqual(state, "lease_lost")
+                self.assertEqual(json.loads(payload), self.outputs)
+                self.assertEqual(json.loads(result), {"accepted": 0, "unitsEarned": 0, "leaseLost": True, "code": code})
+
+    def test_only_definitive_submission_ownership_errors_can_close_delivery(self):
+        failures = (("network_error", 503), ("http_error", 404), ("unauthorized", 401),
+                    ("verification_failed", 422), ("expired_lease", 503), ("lease_lost", 500),
+                    ("unknown_lease", 409), ("expired_lease", 401))
+        for code, status in failures:
+            with self.subTest(code=code, status=status), tempfile.TemporaryDirectory() as root:
+                client = self.client(root)
+                client.outbox.remember(self.lease, self.outputs)
+                with patch.object(CommunityClient, "request", side_effect=ContributeError(code, status)):
+                    with self.assertRaises(ContributeError):
+                        client.resume_submissions()
+                self.assertEqual(client.pending, 1)
+                self.assertEqual(client.undelivered, 0)
+                self.assertEqual(client.outbox.pending()[0]["state"], "ready")
+
+    def test_pending_audit_is_not_abandoned_on_ownership_error(self):
+        for code, status in (("unknown_lease", 404), ("expired_lease", 409)):
+            with self.subTest(code=code), tempfile.TemporaryDirectory() as root:
+                client = self.client(root)
+                client.outbox.remember(self.lease, self.outputs)
+                client.outbox.result(self.lease, {"pendingAudit": True})
+                with patch.object(CommunityClient, "request", side_effect=ContributeError(code, status)):
+                    with self.assertRaises(ContributeError):
+                        client.resume_submissions()
+                self.assertEqual(client.pending, 1)
+                self.assertEqual(client.undelivered, 0)
+                self.assertEqual(client.outbox.pending()[0]["state"], "pending")
+
+    def test_staging_then_failed_audit_keeps_pending_delivery(self):
+        with tempfile.TemporaryDirectory() as root:
+            client = self.client(root)
+            client.outbox.remember(self.lease, self.outputs)
+            responses = [(200, {"pendingAudit": True, "submissionId": self.lease}, None),
+                         ContributeError("expired_lease", 409)]
+            with patch.object(CommunityClient, "request", side_effect=responses):
+                with self.assertRaises(ContributeError):
+                    client.resume_submissions()
+            self.assertEqual(client.pending, 1)
+            self.assertEqual(client.undelivered, 0)
+            self.assertEqual(client.outbox.pending()[0]["state"], "pending")
+
+    def test_terminal_delivery_cannot_be_changed_by_late_result_or_other_account(self):
+        with tempfile.TemporaryDirectory() as root:
+            client = self.client(root)
+            client.outbox.remember(self.lease, self.outputs)
+            other = SubmissionOutbox(Path(root) / "submissions.sqlite", self.url, "c" * 32)
+            self.assertFalse(other.lose_lease(self.lease, "expired_lease"))
+            self.assertTrue(client.outbox.lose_lease(self.lease, "expired_lease"))
+            self.assertFalse(client.outbox.lose_lease(self.lease, "lease_lost"))
+            client.outbox.result(self.lease, {"accepted": 1, "unitsEarned": 1})
+            self.assertEqual(client.undelivered, 1)
+            with closing(sqlite3.connect(Path(root) / "submissions.sqlite")) as connection:
+                state, payload, result = connection.execute("SELECT state,payload_json,result_json FROM deliveries").fetchone()
+            self.assertEqual(state, "lease_lost")
+            self.assertEqual(json.loads(payload), self.outputs)
+            self.assertEqual(json.loads(result)["code"], "expired_lease")
+            client.outbox.remember(self.lease, self.outputs)
+            self.assertEqual(client.pending, 0)
+
+    def test_pending_or_invalid_loss_marker_cannot_close_delivery(self):
+        with tempfile.TemporaryDirectory() as root:
+            client = self.client(root)
+            client.outbox.remember(self.lease, self.outputs)
+            with self.assertRaises(ValueError):
+                client.outbox.lose_lease(self.lease, "network_error")
+            client.outbox.result(self.lease, {"pendingAudit": True})
+            self.assertFalse(client.outbox.lose_lease(self.lease, "expired_lease"))
+            self.assertEqual(client.pending, 1)
+
+    def test_real_http_expiry_does_not_block_another_saved_batch_or_claim_more_work(self):
+        calls = []
+        expired, accepted = self.lease, "c" * 32
+        class Handler(BaseHTTPRequestHandler):
+            def log_message(self, *_args):
+                pass
+            def do_POST(self):
+                body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+                calls.append((self.path, body))
+                if self.path == "/api/submissions" and body["leaseId"] == expired:
+                    status, data = 409, {"error": "expired_lease"}
+                elif self.path == "/api/submissions" and body["leaseId"] == accepted:
+                    status, data = 200, {"accepted": 1, "unitsEarned": 1, "replayed": True}
+                else:
+                    status, data = 500, {"error": "unexpected_request"}
+                raw = json.dumps(data).encode()
+                self.send_response(status)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(raw)))
+                self.end_headers()
+                self.wfile.write(raw)
+        with ThreadingHTTPServer(("127.0.0.1", 0), Handler) as server:
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                with tempfile.TemporaryDirectory() as root:
+                    url = f"http://127.0.0.1:{server.server_port}"
+                    client = DesktopClient(url)
+                    client.enable_outbox(root, self.account)
+                    client.outbox.remember(expired, self.outputs)
+                    client.outbox.remember(accepted, self.outputs)
+                    self.assertEqual(client.resume_submissions(), {"accepted": 1, "unitsEarned": 1, "leaseLost": 1})
+                    self.assertEqual(client.pending, 0)
+                    restarted = DesktopClient(url)
+                    restarted.enable_outbox(root, self.account)
+                    self.assertEqual(restarted.undelivered, 1)
+                    self.assertEqual(restarted.resume_submissions(), {"accepted": 0, "unitsEarned": 0})
+                    self.assertEqual([body["leaseId"] for _, body in calls], [expired, accepted])
+                    self.assertTrue(all(path == "/api/submissions" for path, _ in calls))
+            finally:
+                server.shutdown()
+                thread.join(timeout=5)
+
+    def test_expiry_releases_backlog_slot_without_discarding_other_pending_work(self):
+        with tempfile.TemporaryDirectory() as root:
+            client = self.client(root)
+            for index in range(MAX_PENDING_SUBMISSIONS):
+                client.outbox.remember(f"{index:032x}", self.outputs)
+            expired = client.outbox.pending(1)[0]["lease_id"]
+            def response(_client, method, path, body=None):
+                if path == "/api/submissions" and body["leaseId"] == expired:
+                    raise ContributeError("expired_lease", 409)
+                return 200, {"pendingAudit": True}, None
+            with patch.object(CommunityClient, "request", new=response):
+                self.assertEqual(client.resume_submissions()["leaseLost"], 1)
+            self.assertEqual(client.pending, MAX_PENDING_SUBMISSIONS - 1)
+            self.assertEqual(client.undelivered, 1)
+            with patch.object(CommunityClient, "lease", return_value={"leaseId": "d" * 32}) as lease:
+                self.assertEqual(client.lease("scene", 16, "slow")["leaseId"], "d" * 32)
+                lease.assert_called_once()
+
+    def test_guided_app_recovers_undelivered_count_without_account_credentials_in_report(self):
+        with tempfile.TemporaryDirectory() as root:
+            app = DesktopApp(Path(root), url=self.url)
+            client = self.client(Path(root) / "indexes")
+            client.outbox.remember(self.lease, self.outputs)
+            app.client = client
+            with patch.object(CommunityClient, "request", side_effect=ContributeError("expired_lease", 409)):
+                app.resume_submissions()
+            self.assertEqual(app.snapshot()["undelivered"], 1)
+            self.assertEqual(app.snapshot()["completed"], 0)
+            self.assertEqual(app.snapshot()["units"], 0)
+            restarted = DesktopApp(Path(root), url=self.url)
+            def response(_client, method, path, body=None):
+                if path == "/api/capabilities":
+                    return 200, {"version": 1, "sceneContributions": {"model": "vision-four-view-v4",
+                        "ready": True, "deviceQualificationRequired": True, "canaryLocations": 112}}, None
+                if path == "/api/recovery":
+                    return 200, {"accountId": self.account, "token": "PRIVATE_TOKEN"}, None
+                if path == "/api/me":
+                    return 200, {"accountId": self.account, "units": 0}, None
+                self.fail("Unexpected request")
+            with patch.object(CommunityClient, "request", new=response):
+                restarted.connect("PRIVATE_ACCOUNT_CODE")
+            self.assertEqual(restarted.snapshot()["undelivered"], 1)
+            self.assertEqual(restarted.snapshot()["pending"], 0)
+            self.assertNotIn("PRIVATE", json.dumps(restarted.snapshot()))
 
 
 if __name__ == "__main__":

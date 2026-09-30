@@ -15,6 +15,7 @@ import time
 
 
 MAX_PENDING_SUBMISSIONS = 64
+LOST_LEASE_CODES = frozenset({"expired_lease", "lease_lost", "unknown_lease"})
 
 
 class SubmissionOutbox:
@@ -77,6 +78,28 @@ class SubmissionOutbox:
             return [dict(row) for row in connection.execute("""SELECT lease_id, state, payload_json FROM deliveries
                 WHERE origin=? AND account_id=? AND state IN ('ready','pending') ORDER BY updated_at, rowid LIMIT ?""",
                 (self.origin, self.account_id, limit))]
+
+    def lose_lease(self, lease_id, code):
+        """Retain completed output after a definitive server ownership refusal.
+
+        A staged candidate remains pending audit even after its lease expires.
+        Only an unacknowledged delivery may enter this terminal state.
+        """
+        if code not in LOST_LEASE_CODES:
+            raise ValueError("invalid_lease_loss")
+        result = {"accepted": 0, "unitsEarned": 0, "leaseLost": True, "code": code}
+        with self.connection() as connection:
+            changed = connection.execute("""UPDATE deliveries
+                SET state='lease_lost', result_json=?, updated_at=?
+                WHERE origin=? AND account_id=? AND lease_id=? AND state='ready'""",
+                (json.dumps(result), time.time(), self.origin, self.account_id, lease_id))
+            return changed.rowcount == 1
+
+    def undelivered(self):
+        with self.connection() as connection:
+            return connection.execute("""SELECT COUNT(*) FROM deliveries
+                WHERE origin=? AND account_id=? AND state='lease_lost'""",
+                (self.origin, self.account_id)).fetchone()[0]
 
     def count(self):
         with self.connection() as connection:
