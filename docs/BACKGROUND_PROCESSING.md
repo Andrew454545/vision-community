@@ -82,3 +82,13 @@ real scheduled task launches. PowerShell tests honor the host execution policy;
 An actual qualified contribution, OS restart, sleep/wake, network interruption,
 and extended thermal/resource run remain required before calling this production
 ready. A finite queue cannot supply useful new locations forever.
+
+On the maintainer's Windows host, a native scheduled diagnostic confirmed that
+the task could not see the initially prepared application folder. A fresh
+private installation in the shared local workspace passed native startup,
+single-worker presence, idle forced-exit recovery and pause/resume on
+2026-09-30 UTC. It is running independently with `waiting_for_service`, zero
+accepted locations and no qualification bypass. The old files were preserved.
+This proves startup in that folder, not model quality or completed indexing.
+Keep the installed folder in place; source checkout updates do not replace its
+versioned application snapshot. No repeated Codex status checks are needed.
