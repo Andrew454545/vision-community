@@ -37,4 +37,4 @@ jobs:
         with:
           node-version: "22"
       - name: Run worker scene gate tests
-        run: node --test deploy/cloudflare/src/*.test.mjs
+        run: node --test deploy/cloudflare/src/*.test.mjs deploy/cloudflare/scene-verifier/*.test.mjs
