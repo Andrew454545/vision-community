@@ -106,10 +106,18 @@ measurements into automatic production approval.
   results 0x80070002, 0x8007010B, then PowerShell 0xFFFD0000; direct windowless
   Python still returned 0x80070002). The failing task was disabled. Direct Python
   execution wrote `waiting_for_service`; it did not process a contribution.
-  File visibility differs between launch contexts as a possible explanation,
-  not a confirmed diagnosis. Preserve the startup report and resolve this on
-  the host before approving unattended operation. Do not repeat unchanged
-  scheduler probes on every development heartbeat.
+  A native scheduled diagnostic on 2026-09-30 UTC confirmed that Task Scheduler
+  could see neither the old runtime nor its launcher, although both were visible
+  to the development shell. A fresh checksum-verified private installation in
+  the shared local workspace (`work/background-host-20260929`) now starts on
+  the native scheduled host. The task is enabled and Running with one actual
+  worker, state `waiting_for_service`, zero accepted locations and no startup
+  failure. An idle forced-exit/pause/resume exercise also passed and restored
+  that waiting state. The original files/failure reports remain preserved.
+  Native startup is verified; accepted-batch, network, sleep/wake and logon
+  recovery still require evidence. Keep this folder in place. Do not spend
+  development heartbeats polling the waiting worker; its own 30-minute retry
+  and Windows recovery trigger operate without Codex.
   The default Windows PowerShell test host also rejected scripts under its
   execution policy. No policy was changed; helper tests pass under the existing
   configured PowerShell host. A signed installer remains a release requirement.
