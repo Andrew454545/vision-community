@@ -106,6 +106,11 @@ folders. Set `VISION_FOUR_VIEW_BINARY`, `VISION_MODEL_DIR`,
 `VISION_OBJECT_BINARY`, and `VISION_OBJECT_MODEL_DIR` only when you already
 have those files somewhere else.
 
+If object processing stops, keep its saved files and failure report. The launcher
+now stops repeated failures and hung processes safely; see
+[object recovery](docs/OBJECT_RECOVERY.md). This does not yet provide an approved
+unattended Objects workflow.
+
 For a local development prototype:
 
 ```sh

@@ -39,14 +39,18 @@ from .contribute import (
 )
 from .pano import CLI_LEASE_CAP
 from .vision_index import (
+    MAX_INDEX_FAILURES,
+    MAX_NO_PROGRESS,
     VisionIndexError,
     assert_not_live_vision_path,
     community_support_root,
+    default_runner as logged_native_runner,
     keep_lease_alive,
     location_tsv_line,
     program_name,
     run_binary,
     vision_support_root,
+    write_json,
 )
 
 
@@ -626,16 +630,26 @@ def _read_json(path: Path) -> dict | None:
 
 def object_index_is_complete(index_dir: Path, total: int) -> bool:
     manifest = _read_json(Path(index_dir) / "manifest.json")
-    if manifest and manifest.get("completed") is True and manifest.get("indexedLocations") == total:
+    if (manifest and manifest.get("completed") is True
+            and type(manifest.get("indexedLocations")) is int and manifest["indexedLocations"] == total):
         return True
     checkpoint = _read_json(Path(index_dir) / "checkpoint.json")
     if not checkpoint or checkpoint.get("feature") != OBJECT_FEATURE:
         return False
-    try:
-        cursor = int(checkpoint.get("nextLocationIndex") or 0)
-    except (TypeError, ValueError):
-        return False
-    return checkpoint.get("completed") is True and cursor >= total
+    cursor = checkpoint.get("nextLocationIndex")
+    return type(cursor) is int and checkpoint.get("completed") is True and cursor == total
+
+
+def object_checkpoint_cursor(index_dir: Path, total: int) -> int:
+    path = Path(index_dir) / "checkpoint.json"
+    if not path.exists():
+        return 0
+    checkpoint = _read_json(path)
+    if (not checkpoint or checkpoint.get("feature") != OBJECT_FEATURE
+            or type(checkpoint.get("nextLocationIndex")) is not int
+            or not 0 <= checkpoint["nextLocationIndex"] <= total):
+        raise VisionIndexError("invalid_object_checkpoint")
+    return checkpoint["nextLocationIndex"]
 
 
 def _require_binary(program: Path, model_dir: Path) -> None:
@@ -662,6 +676,8 @@ def index_object_tsv(
 ) -> None:
     if pace not in PACE_NICE:
         raise VisionIndexError("invalid_pace")
+    if type(total) is not int or total < 1:
+        raise VisionIndexError("invalid_count")
     source_tsv = Path(source_tsv)
     output_dir = Path(output_dir)
     cache = Path(model_cache) if model_cache is not None else output_dir.parent / "coreml-cache"
@@ -678,79 +694,80 @@ def index_object_tsv(
     env = os.environ.copy()
     env["TMPDIR"] = str(output_dir.parent)
     nice_level = PACE_NICE[pace]
-    restarts = 0
-    while not object_index_is_complete(output_dir, total):
-        before = _read_json(output_dir / "checkpoint.json")
-        try:
-            run_binary(
+    failures = stalled = attempts = 0
+    phase = "indexing"
+    # A clean process may checkpoint one location at a time. Count failed/stalled
+    # attempts separately and cap total launches, even if a checkpoint oscillates.
+    max_attempts = total + MAX_NO_PROGRESS + MAX_INDEX_FAILURES
+    try:
+        while not object_index_is_complete(output_dir, total):
+            if attempts >= max_attempts:
+                raise VisionIndexError("vision_retry_limit")
+            before = object_checkpoint_cursor(output_dir, total)
+            attempts += 1
+            try:
+                run_binary(
+                    program,
+                    index_segment_arguments(
+                        model_dir=model, source_tsv=source_tsv, output_dir=output_dir,
+                        source_id=source_id, total=total, global_start=global_start, model_cache=cache,
+                    ),
+                    env=env, cwd=output_dir.parent, runner=active, nice_level=nice_level,
+                    use_nice=use_nice and runner is None,
+                )
+            except VisionIndexError as error:
+                failures += 1
+                if object_checkpoint_cursor(output_dir, total) < before:
+                    raise VisionIndexError("object_checkpoint_regressed") from error
+                if error.code != "vision_binary_failed" or failures >= MAX_INDEX_FAILURES:
+                    raise
+                print("The object indexer stopped; retrying from its saved checkpoint.", file=sys.stderr, flush=True)
+                if runner is None:
+                    time.sleep(min(30, failures * 5))
+                continue
+            if object_index_is_complete(output_dir, total):
+                break
+            after = object_checkpoint_cursor(output_dir, total)
+            if after < before:
+                raise VisionIndexError("object_checkpoint_regressed")
+            stalled = 0 if after > before else stalled + 1
+            if stalled >= MAX_NO_PROGRESS:
+                raise VisionIndexError("vision_no_progress")
+            print("Object indexing paused; resuming from the last saved place.", file=sys.stderr, flush=True)
+            if runner is None and after == before:
+                time.sleep(min(30, stalled * 5))
+        phase = "verification"
+        for full in (False, True):
+            stdout, _stderr = run_binary(
                 program,
-                index_segment_arguments(
-                    model_dir=model,
-                    source_tsv=source_tsv,
-                    output_dir=output_dir,
-                    source_id=source_id,
-                    total=total,
-                    global_start=global_start,
-                    model_cache=cache,
-                ),
-                env=env,
-                cwd=output_dir.parent,
-                runner=active,
-                nice_level=nice_level,
-                use_nice=use_nice and runner is None,
+                verify_arguments(source_tsv=source_tsv, output_dir=output_dir,
+                                 source_id=source_id, total=total, global_start=global_start, full=full),
+                env=env, cwd=output_dir.parent, runner=active, nice_level=nice_level, use_nice=False,
             )
-        except VisionIndexError:
-            restarts += 1
-            if runner is not None and restarts >= 5:
-                raise
-            print("still indexing; the VISION object indexer paused and will resume", file=sys.stderr, flush=True)
-            if runner is None:
-                time.sleep(min(900, restarts * 5))
-            continue
-        if object_index_is_complete(output_dir, total):
-            break
-        after = _read_json(output_dir / "checkpoint.json")
-        moved = (after or {}).get("nextLocationIndex") != (before or {}).get("nextLocationIndex")
-        restarts = 0 if moved else restarts + 1
-        if runner is not None and restarts >= 5:
-            raise VisionIndexError("vision_binary_failed")
-        print("still indexing; resuming from the last saved place", file=sys.stderr, flush=True)
-        if runner is None and not moved:
-            time.sleep(min(900, max(1, restarts) * 5))
-    for full in (False, True):
-        stdout, _stderr = run_binary(
-            program,
-            verify_arguments(
-                source_tsv=source_tsv,
-                output_dir=output_dir,
-                source_id=source_id,
-                total=total,
-                global_start=global_start,
-                full=full,
-            ),
-            env=env,
-            cwd=output_dir.parent,
-            runner=active,
-            nice_level=nice_level,
-            use_nice=False,
-        )
-        start = stdout.find("{")
-        end = stdout.rfind("}")
-        try:
-            report = json.loads(stdout[start : end + 1]) if start >= 0 else {}
-        except json.JSONDecodeError as error:
-            raise VisionIndexError("vision_binary_failed") from error
-        if report.get("valid") is not True or report.get("indexVersion") != 4:
-            raise VisionIndexError("verification_failed")
-        if full and report.get("full") is not True:
-            raise VisionIndexError("verification_failed")
+            start, end = stdout.find("{"), stdout.rfind("}")
+            try:
+                report = json.loads(stdout[start:end + 1]) if start >= 0 else {}
+            except json.JSONDecodeError as error:
+                raise VisionIndexError("vision_binary_failed") from error
+            if not isinstance(report, dict) or report.get("valid") is not True or report.get("indexVersion") != 4:
+                raise VisionIndexError("verification_failed")
+            if full and report.get("full") is not True:
+                raise VisionIndexError("verification_failed")
+    except (Exception, KeyboardInterrupt) as error:
+        # Windows wall-clock timestamps can repeat within one clock tick.
+        write_json(output_dir.parent / f"object-failure-{time.time_ns()}-{secrets.token_hex(6)}.json", {
+            "ok": False, "code": error.code if isinstance(error, VisionIndexError) else
+            "interrupted" if isinstance(error, KeyboardInterrupt) else "object_indexing_failed",
+            "phase": phase, "attempts": attempts, "failedAttempts": failures,
+            "noProgressAttempts": stalled, "totalLocations": total, "evidencePreserved": True,
+        })
+        raise
 
 
 def _default_runner(argv: list[str], env: dict, cwd: Path):
-    import subprocess
-
-    completed = subprocess.run(argv, env=env, cwd=str(cwd), capture_output=True, text=True, check=False)
-    return completed.returncode, completed.stdout, completed.stderr
+    # Same bounded process lifecycle, durable logs and Windows window/priority
+    # handling as Scenes. A timeout stops this run without discarding its files.
+    return logged_native_runner(argv, env, cwd)
 
 
 def load_indexed_files(index_dir: Path) -> tuple[dict, dict[str, bytes]]:

@@ -20,6 +20,15 @@ measurements into automatic production approval.
 
 ## Completed in this pass
 
+- Bounded the object launcher's native process/retry lifecycle. Native logs and
+  exit outcomes are preserved, failed launches/timeouts stop, repeated exits
+  and stalled/regressed checkpoints cannot retry forever, and both native
+  verification passes remain mandatory. Separate failure reports preserve prior
+  evidence. Ten new tests cover recovery and an actual killed helper timeout;
+  this does not qualify object models or implement an unattended object worker.
+  All 260 Python tests pass after fixing a Windows timestamp collision that
+  could overwrite a failure report. The initial failing log is preserved
+  outside the repository. See [OBJECT_RECOVERY.md](OBJECT_RECOVERY.md).
 - Added an offline deletion-aware restore safeguard. Independently pinned current
   receipts repair a new copy of an old SQLite backup, revoke restored access,
   remove private searches, close restored balances, preserve contributed indexes
@@ -37,7 +46,7 @@ measurements into automatic production approval.
   the configured compatibility date, 2026-09-19. These are synthetic local
   tests, not a live deployment or completed retention/privacy audit. See
   [ACCOUNT_PRIVACY.md](ACCOUNT_PRIVACY.md) for records retained and release gaps.
-  Current verification: 55 JavaScript and 233 Python tests pass; the complete
+  Verification at that step: 55 JavaScript and 233 Python tests passed; the complete
   Worker builds and passes the native privacy/search/scheduled-cleanup check.
 - Added an opt-in unattended Windows scene worker with a single-instance lock,
   saved account reuse, qualification checks, bounded waits, low-disk protection,
