@@ -121,10 +121,15 @@ open; unchanged input pixels and a fresh reference comparison are needed.
   still needs an independently validated calibration policy and a live staging exercise.
   The live `/api/capabilities` returned `not_found` on 2026-09-29.
 - [ ] Complete the PC qualification against that policy. Never bypass it.
-- [ ] Confirm the source of real work: the shared Community queue or a supplied
-  local production location list. The reference source repository does not
-  contain its full runtime corpus. Repeating the calibration fixture is not
-  ongoing useful indexing.
+- [x] Confirm the source of real work: the shared Community queue. Read-only
+  R2 manifests and D1 catalog aggregates on 2026-09-30 confirm 933 metadata
+  shards registered for each lane, including 20,955,444 already-indexed
+  location rows exported from the reference application. These are location
+  inputs, not copied reference vectors or frozen images. See
+  [REFERENCE_R2_INVENTORY.md](REFERENCE_R2_INVENTORY.md) for the existing
+  four-view contributions, provenance limits and remaining calibration gate.
+  This does not approve the PC runtime or prove Generation 4 object coverage.
+  Repeating the calibration fixture is not ongoing useful indexing.
 - [ ] Install the Windows task, observe one actual accepted batch, exercise
   pause/resume, forced exit, network loss, sleep/wake and logon recovery.
   Sleep/power-off suspends computation; after restart the user must sign in.
@@ -274,6 +279,13 @@ Mac runtime uses a different binary and observed provider/settings. An exact
 controlled input comparison and fresh reference repetitions are required to
 derive numerical and ranking bounds; the earlier live trials cannot provide
 them. The user asked us to determine this from evidence, not invent approval.
+
+The 2026-09-30 [R2 inspection](REFERENCE_R2_INVENTORY.md) confirms that Andrew's
+already-indexed pose catalog and newer Community four-view artifacts do exist.
+The catalog explicitly excludes copied embeddings and imagery; the newer
+artifacts have Community publication records but no attested reference runtime
+or three-run frozen-input packet. Preserve them without treating their presence
+as a completed quality gate.
 
 ## Recurring development
 
