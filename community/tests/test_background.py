@@ -55,6 +55,7 @@ class BackgroundTest(unittest.TestCase):
                       "model_dir": Path(root) / "runtime/models"}
         app.connect.return_value = {"recoveryCode": "private-test-code"}
         app.indexer.return_value = {"batches": 1, "accepted": 16}
+        app.resume_submissions.return_value = {"accepted": 0, "unitsEarned": 0}
         app.require_qualification.side_effect = None
         worker = BackgroundContributor(root, app_factory=lambda *a, **kw: app)
         return worker, app
@@ -110,6 +111,16 @@ class BackgroundTest(unittest.TestCase):
             worker, app = self.worker(root)
             app.indexer.return_value = {"batches": 0, "accepted": 0}
             self.assertEqual(worker.step(), WAIT_SECONDS)
+
+    def test_audit_backlog_waits_without_expensive_rechecks_or_attention_marker(self):
+        with tempfile.TemporaryDirectory() as root:
+            worker, app = self.worker(root)
+            app.indexer.side_effect = ContributeError("scene_audit_backlog", 503)
+            worker.run(once=True)
+            self.assertFalse((Path(root) / "NEEDS-ATTENTION").exists())
+            state = json.loads((Path(root) / "background-status.json").read_text())
+            self.assertEqual(state["state"], "waiting_for_verification")
+            app.resume_submissions.assert_called_once()
 
     def test_corrupt_saved_account_does_not_create_replacement(self):
         with tempfile.TemporaryDirectory() as root:

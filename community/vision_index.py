@@ -805,7 +805,8 @@ def index_from_queue(
         except (VisionIndexError, KeyboardInterrupt):
             stop.set()
             try:
-                session.release(lease_id)
+                if not getattr(session, "submission_is_saved", lambda _lease: False)(lease_id):
+                    session.release(lease_id)
             except ContributeError:
                 pass
             raise
@@ -813,7 +814,8 @@ def index_from_queue(
             stop.set()
             code = error.code if isinstance(error, ContributeError) else ""
             try:
-                session.release(lease_id)
+                if not getattr(session, "submission_is_saved", lambda _lease: False)(lease_id):
+                    session.release(lease_id)
             except ContributeError:
                 pass
             batch_failures += 1

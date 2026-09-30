@@ -22,6 +22,7 @@ from community.bootstrap import BootstrapError, install_runtime, load_manifest, 
 from community.contribute import CommunityClient, ContributeError, DEFAULT_URL
 from community.vision_index import index_from_queue, parse_json_stdout, require_layout, VisionIndexError
 from community.pc_canary import run_canary, canary_profile_matches
+from community.submission_outbox import SubmissionOutbox, MAX_PENDING_SUBMISSIONS
 
 WEB = Path(__file__).with_name("desktop_web")
 ERRORS = {
@@ -45,6 +46,8 @@ ERRORS = {
     "scene_device_not_qualified": "The service could not approve this PC's check. Its report has been kept for review.",
     "scene_device_qualification_required": "Run the short PC check before indexing.",
     "scene_qualification_changed": "The PC approval changed. Run the short PC check again.",
+    "scene_submission_rejected": "The service rejected this batch. Processing has stopped and your results are saved for review.",
+    "scene_audit_backlog": "Your completed batches are waiting for verification. Processing will continue when they have been checked.",
     "invalid_request": "That request could not be used. Refresh the page and try again.",
     "indexer_timeout": "This batch reached its time limit. It has stopped and its logs were kept.",
     "indexer_no_progress": "The indexer stopped making progress. Its logs were kept for review.",
@@ -61,7 +64,33 @@ class DesktopClient(CommunityClient):
     def __init__(self, url):
         super().__init__(url)
         self.profile_id = None
-        self.pending = 0
+        self.outbox = None
+        self._pending = 0
+
+    @property
+    def pending(self):
+        return self.outbox.count() if self.outbox else self._pending
+
+    def enable_outbox(self, root, account_id):
+        self.outbox = SubmissionOutbox(Path(root) / "submissions.sqlite", self.origin, account_id)
+
+    def submission_is_saved(self, lease_id):
+        return self.outbox is not None and self.outbox.saved(lease_id)
+
+    def lease(self, *args, **kwargs):
+        if self.pending >= MAX_PENDING_SUBMISSIONS:
+            raise ContributeError("scene_audit_backlog", 503)
+        return super().lease(*args, **kwargs)
+
+    def submit(self, lease_id, outputs):
+        if self.outbox:
+            self.outbox.remember(lease_id, outputs)
+        result = super().submit(lease_id, outputs)
+        if self.outbox:
+            self.outbox.result(lease_id, result)
+        if result.get("rejected"):
+            raise ContributeError("scene_submission_rejected", 422)
+        return result
 
     def request(self, method, path, body=None):
         if method == "POST" and path == "/api/leases" and body and body.get("lane") == "scene":
@@ -69,15 +98,35 @@ class DesktopClient(CommunityClient):
                 raise DesktopError("pc_check_required")
             body = {**body, "profileId": self.profile_id}
         response = super().request(method, path, body)
-        if method == "POST" and path == "/api/submissions":
-            self.pending += int(response[1].get("pending", 0))
+        if not self.outbox and method == "POST" and path == "/api/submissions":
+            self._pending += int(response[1].get("pending", 0))
         return response
 
     def audit_submission(self, submission_id):
         status, data, _ = super().request("POST", "/api/scene-audits", {"submissionId": submission_id})
         if status != 200:
             raise ContributeError(str(data.get("error") if isinstance(data, dict) else "verification_failed"), status)
+        if self.outbox:
+            self.outbox.result(submission_id, data)
+        if data.get("rejected"):
+            raise ContributeError("scene_submission_rejected", 422)
         return data
+
+    def resume_submissions(self):
+        accepted = earned = 0
+        if not self.outbox:
+            return {"accepted": 0, "unitsEarned": 0}
+        for delivery in self.outbox.pending():
+            lease_id = delivery["lease_id"]
+            if delivery["state"] == "ready":
+                result = self.submit(lease_id, json.loads(delivery["payload_json"]))
+            else:
+                result = self.audit_submission(lease_id)
+            if result.get("pendingAudit") and delivery["state"] == "ready":
+                result = self.audit_submission(lease_id)
+            accepted += int(result.get("accepted", 0))
+            earned += int(result.get("unitsEarned", 0))
+        return {"accepted": accepted, "unitsEarned": earned}
 
 
 def public_error(error):
@@ -197,6 +246,7 @@ class DesktopApp:
                     raise DesktopError("invalid_request")
                 account = client.recover(code.strip())
             me = client.me()
+            client.enable_outbox(self.root / "indexes", me.get("accountId"))
             self.client = client
             self.qualification = None
             self.update(connected=True, savedCode=not create, phase="ready", units=int(me.get("units", 0)),
@@ -279,6 +329,7 @@ class DesktopApp:
             if time.monotonic() - self.last_seen > 60:
                 break
             self.require_qualification()
+            self.resume_submissions()
             result = self.indexer(url=self.url, pace="slow", batches=1, count=16, client=self.client,
                                   persist_session=False, work_dir=self.root / "indexes",
                                   binary=self.root / "runtime/bin/mma-vision.exe",
@@ -294,6 +345,14 @@ class DesktopApp:
                 self.state["units"] = int(result.get("units", self.state["units"] + int(result.get("unitsEarned", 0))))
                 self.state["batchCompleted"] = 0
         self.update(phase="ready", message="Indexing paused. Completed batches are saved. Choose Start indexing to continue.")
+
+    def resume_submissions(self):
+        result = self.client.resume_submissions()
+        with self.lock:
+            self.state["pending"] = self.client.pending
+            self.state["completed"] += int(result.get("accepted", 0))
+            self.state["units"] += int(result.get("unitsEarned", 0))
+        return result
 
 
 def handler_for(app: DesktopApp, token: str):

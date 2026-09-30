@@ -116,6 +116,8 @@ class BackgroundContributor:
                 save_session(self.session, url=self.url, account_id=None,
                              recovery_code=created["recoveryCode"])
             self.app.update(savedCode=True)
+        recovered = self.app.resume_submissions()
+        self.completed += int(recovered.get("accepted", 0))
         with keep_awake():
             try:
                 self.app.require_qualification()
@@ -149,7 +151,9 @@ class BackgroundContributor:
                                       and error.status in RETRY_STATUSES
                                       and code not in {"verification_failed", "scene_qualification_rejected",
                                                        "scene_device_not_qualified"})
-                if code in {"scene_verification_unavailable", "network_error"} or transient_response:
+                if code == "scene_audit_backlog":
+                    self.status("waiting_for_verification", "Completed batches are saved and waiting for verification. Retrying in 30 minutes.")
+                elif code in {"scene_verification_unavailable", "network_error"} or transient_response:
                     self.status("waiting_for_service", "The verified Community service is unavailable. Retrying in 30 minutes; saved work is preserved.")
                 else:
                     # Do not repeatedly run expensive rejected checks or create accounts.
