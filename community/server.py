@@ -20,7 +20,9 @@ WEB = ROOT / "web"
 STATIC = {
     "/": (WEB / "index.html", "text/html; charset=utf-8"),
     "/app.js": (WEB / "app.js", "text/javascript; charset=utf-8"),
+    "/search-journal.js": (WEB / "search-journal.js", "text/javascript; charset=utf-8"),
     "/visual.js": (WEB / "visual.js", "text/javascript; charset=utf-8"),
+    "/mma.js": (WEB / "mma.js", "text/javascript; charset=utf-8"),
     "/style.css": (WEB / "style.css", "text/css; charset=utf-8"),
     "/sample-query.json": (WEB / "sample-query.json", "application/json"),
     "/prototype-query.json": (WEB / "prototype-query.json", "application/json"),

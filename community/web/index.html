@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="/style.css">
   <script src="/visual.js" defer></script>
   <script src="/mma.js" defer></script>
+  <script src="/search-journal.js" defer></script>
   <script src="/app.js" defer></script>
 </head>
 <body>
@@ -228,7 +229,7 @@
     <span class="stage-dot" id="stage-dot" aria-hidden="true"></span>
     <div class="stage-copy">
       <strong id="build-label">Ready</strong>
-      <span id="search-status">Checking local indexes</span>
+      <span id="search-status">Checking online search</span>
     </div>
     <div class="status-actions">
       <button id="send-mma" class="compact-btn" type="button" hidden>Add to my map</button>
@@ -275,6 +276,7 @@
       </div>
       <p id="progress-label">0 of 100,000 toward a search</p>
       <p class="rail-copy">You can keep contributing after earning a search. Unused search credits stay in your account for later. Save your private account code so you can recover them.</p>
+      <p class="rail-copy">Search here in your browser. One completed search uses one banked credit. Failed searches do not spend credits, and retrying the same search recovers its results.</p>
       <div class="balance">
         <span id="units-label">Toward a search</span>
         <strong id="units">0</strong>
@@ -323,13 +325,10 @@
       </details>
 
       <details class="more" id="command-block">
-        <summary>Index and search command</summary>
-        <p class="rail-copy">Scenes and objects have to run in Terminal so they use the same indexers as VISION. Paste this after you have an account. The command keeps going until you stop it or the queue is empty.</p>
+        <summary>Advanced indexing command</summary>
+        <p class="rail-copy">For maintainers and supported Mac computers. Paste this after you have an account. The command keeps going until you stop it or the queue is empty.</p>
         <pre class="cli" id="cli-command">python3 -m community.vision_index --pace slow --recovery-code YOUR_CODE</pre>
         <button id="copy-cli" class="compact-btn" type="button">Copy command</button>
-        <pre class="cli" id="local-search-command">python3 -m community.object_index --search --prompt "red barn" --confidence balanced --recovery-code YOUR_CODE</pre>
-        <p class="hint">Scene search uses <code>python3 -m community.vision_index --search</code>, the same four-view search as VISION. Object search uses <code>python3 -m community.object_index --search</code>, the same object search as VISION. Then add the JSON to a map: <code>python3 -m community.send_mma result.json --new-map</code></p>
-        <button id="copy-local-search" class="compact-btn" type="button">Copy search command</button>
       </details>
     </div>
   </dialog>

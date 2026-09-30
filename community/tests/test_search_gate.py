@@ -17,6 +17,43 @@ QUERY = ROOT / "web" / "prototype-query.json"
 
 
 class SearchContributionGateTest(unittest.TestCase):
+    def test_browser_entry_point_serves_every_linked_script(self):
+        import http.client
+        from html.parser import HTMLParser
+
+        class Scripts(HTMLParser):
+            def __init__(self):
+                super().__init__()
+                self.sources = []
+
+            def handle_starttag(self, tag, attrs):
+                if tag == "script" and dict(attrs).get("src"):
+                    self.sources.append(dict(attrs)["src"])
+
+        with tempfile.TemporaryDirectory() as folder:
+            service = CommunityService(Path(folder) / "db.sqlite")
+            server = ThreadingHTTPServer(("127.0.0.1", 0), handler_for(service))
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                conn = http.client.HTTPConnection(*server.server_address, timeout=10)
+                conn.request("GET", "/")
+                page = conn.getresponse()
+                self.assertEqual(page.status, 200)
+                parser = Scripts()
+                parser.feed(page.read().decode())
+                self.assertTrue(parser.sources)
+                for source in parser.sources:
+                    conn.request("GET", source)
+                    script = conn.getresponse()
+                    self.assertEqual(script.status, 200, source)
+                    self.assertIn("javascript", script.getheader("Content-Type"), source)
+                    self.assertTrue(script.read(), source)
+                conn.close()
+            finally:
+                server.shutdown()
+                server.server_close()
+
     def test_index_and_snapshot_require_a_paid_search(self):
         with tempfile.TemporaryDirectory() as folder:
             service = CommunityService(

@@ -23,7 +23,12 @@ const ERRORS = {
   invalid_country_filter: "Pick at least one country, or switch back to All countries.",
   cross_origin_request: "That request was blocked.",
   internal_error: "Something went wrong. Try again in a moment.",
-  search_on_computer: "The shared index is now too large for this browser tab. Search on your computer with the command under Index.",
+  search_unavailable: "Online search is unavailable right now. Your search credits are safe. Try again later.",
+  online_search_required: "Shared searches now run here in your browser using your banked credits.",
+  search_storage_unavailable: "The browser could not save this search. Allow site storage, then retry. Recovering a saved search does not spend another credit.",
+  search_recovery_invalid: "The saved search could not be read. Keep this browser's data and contact support so your search can be recovered.",
+  invalid_camera_filter: "Object search uses official Generation 4 coverage. Select Generation 4 to continue.",
+  account_changed: "Your account changed during this search. Restore the original account to recover it; it was not charged to the new account.",
   part_taken: "Someone else is already indexing that batch. Leave the batch box blank, or try another number.",
   invalid_part: "That batch number is not valid. Leave it blank and we will pick a free batch.",
   mma_unauthorized: "That map-making.app key was not accepted. Create a new API key and paste it again.",
@@ -58,6 +63,10 @@ let selectedJob = jobs[0].id;
 let wakeLock = null;
 const JOBS_KEY = "vision-community-jobs";
 const PREFS_KEY = "vision-community-prefs";
+const searchJournal = new VisionSearchJournal({
+  getItem: key => localStorage.getItem(key), setItem: (key, value) => localStorage.setItem(key, value),
+  removeItem: key => localStorage.removeItem(key),
+});
 const REFRESH_EVERY_BATCHES = 8;
 
 function newJob(name) {
@@ -492,6 +501,7 @@ async function api(path, method = "GET", body = null) {
       const data = await response.json().catch(() => ({}));
       if (response.ok) return data;
       const error = new Error(data.error || `HTTP ${response.status}`);
+      error.status = response.status;
       const retryable = response.status === 429 || response.status >= 500;
       if (!retryable || attempt === 3) throw error;
       lastError = error;
@@ -587,64 +597,6 @@ function updateImportCutoffHelp() {
     : "Every indexed import participates in this search.";
 }
 
-function sceneSearchCommand() {
-  const origin = window.location.origin;
-  const code = lastRecovery || $("recovery-code")?.value.trim() || "YOUR_CODE";
-  const parts = [`${pythonCommand()} -m community.vision_index`, "--url", origin, "--search"];
-  const prompt = typedPrompt();
-  if (queryMap) parts.push("--query", "vision-query.json");
-  if (prompt) parts.push("--prompt", shellQuote(prompt));
-  parts.push("--result-count", String(Number($("result-count")?.value) || 200));
-  parts.push("--max-per-country", String(Number($("max-per-country")?.value) || 25));
-  parts.push("--description-weight", String(selectedDescriptionWeight()));
-  parts.push("--view-direction", $("view-direction")?.value || "bestOfFour");
-  const name = $("output-name")?.value.trim();
-  if (name) parts.push("--output-name", shellQuote(name));
-  const mode = countryMode();
-  if (mode !== "all") {
-    parts.push("--country-mode", mode);
-    const countries = selectedCountries();
-    if (countries.length) parts.push("--countries", shellQuote(countries.join(",")));
-  }
-  const generations = selectedGenerations();
-  if (generations.length && generations.length < ALL_GENERATIONS.length) {
-    parts.push("--camera-generations", generations.join(","));
-  }
-  if ($("reject-road")?.checked) parts.push("--reject-road-names");
-  appendImportCutoff(parts);
-  const job = currentJob();
-  if ($("exclude-previous")?.checked && job?.excludeMap) parts.push("--exclude", "vision-exclude.json");
-  parts.push("--recovery-code", code);
-  return parts.join(" ");
-}
-
-function localSearchCommand() {
-  if (selectedLane() === "scene") return sceneSearchCommand();
-  const origin = window.location.origin;
-  const code = lastRecovery || $("recovery-code")?.value.trim() || "YOUR_CODE";
-  const parts = [`${pythonCommand()} -m community.object_index`, "--url", origin, "--search"];
-  const prompt = typedPrompt();
-  parts.push("--prompt", shellQuote(prompt || "a street view panorama"));
-  parts.push("--confidence", document.querySelector('input[name="object-confidence"]:checked')?.value || "balanced");
-  parts.push("--result-count", String(Number($("result-count")?.value) || 200));
-  parts.push("--max-per-country", String(Number($("max-per-country")?.value) || 25));
-  const name = $("output-name")?.value.trim();
-  if (name) parts.push("--output-name", shellQuote(name));
-  const mode = countryMode();
-  if (mode !== "all") {
-    parts.push("--country-mode", mode);
-    const countries = selectedCountries();
-    if (countries.length) parts.push("--countries", shellQuote(countries.join(",")));
-  }
-  const generations = selectedGenerations();
-  if (generations.length && generations.length < ALL_GENERATIONS.length) {
-    parts.push("--camera-generations", generations.join(","));
-  }
-  if ($("reject-road")?.checked) parts.push("--reject-road-names");
-  appendImportCutoff(parts);
-  parts.push("--recovery-code", code);
-  return parts.join(" ");
-}
 
 function downloadJson(filename, payload) {
   const blob = new Blob([`${JSON.stringify(payload, null, 2)}\n`], { type: "application/json" });
@@ -655,30 +607,10 @@ function downloadJson(filename, payload) {
   setTimeout(() => URL.revokeObjectURL(link.href), 1500);
 }
 
-async function copyComputerSearch() {
-  saveJobFromForm();
-  updateCliCommand();
-  if (queryMap) downloadJson("vision-query.json", queryMap);
-  const job = currentJob();
-  if ($("exclude-previous")?.checked && job?.excludeMap) downloadJson("vision-exclude.json", job.excludeMap);
-  const block = $("command-block");
-  if (block) block.open = true;
-  $("index-sheet")?.showModal();
-  const copied = await copyText(localSearchCommand(), $("local-search-command"));
-  const scene = selectedLane() === "scene";
-  $("build-label").textContent = "Search on this computer";
-  $("search-status").textContent = copied
-    ? (scene
-      ? "Copied. Paste it into Terminal. It uses the same four-view search as VISION and writes a map JSON."
-      : "Copied. Paste it into Terminal. It uses the same object search as VISION and writes a map JSON.")
-    : "Select the search command, copy it, and paste it into Terminal.";
-}
 
 function updateCliCommand() {
   const node = $("cli-command");
   if (node) node.textContent = cliCommand();
-  const searchNode = $("local-search-command");
-  if (searchNode) searchNode.textContent = localSearchCommand();
 }
 
 function workForSelection() {
@@ -818,20 +750,20 @@ function renderJobs() {
 function updateReady() {
   const includeReady = countryMode() !== "include" || selectedCountries().length > 0;
   const generationReady = selectedGenerations().length > 0;
-  const onSite = state?.searchOnSite !== false;
+  const onSite = state?.searchOnSite === true;
   const hasInput = hasQueryInput();
   const credited = Number(state?.units || 0) >= Number(state?.searchCost || Infinity);
-  const ready = hasInput && includeReady && generationReady && (signedIn ? credited : true);
+  let pending = false;
+  try { pending = signedIn && !!searchJournal.read(state?.accountId); } catch { /* Run reports the recovery problem. */ }
+  const ready = pending || (hasInput && includeReady && generationReady && (signedIn ? credited && onSite : true));
   $("ready-badge").textContent = hasInput ? "Ready" : "Needs input";
   $("ready-badge").classList.toggle("ok", hasInput);
   $("run-search").disabled = !ready;
-  $("run-search").textContent = "Run Search";
+  $("run-search").textContent = pending ? "Recover search" : "Run Search";
   if (!signedIn) {
-    $("run-search").title = "Get an account, then Run Search copies a Terminal command";
-  } else if (credited && hasInput && (selectedLane() === "scene" || onSite === false)) {
-    $("run-search").title = selectedLane() === "scene"
-      ? "Copies a Terminal command that searches the same way as VISION"
-      : "Copies a Terminal command that searches the shared index on this computer";
+    $("run-search").title = "Get a private account to use your banked search credits";
+  } else if (!onSite && !pending) {
+    $("run-search").title = "Online search is unavailable. Your banked credits remain saved.";
   } else {
     $("run-search").title = "";
   }
@@ -921,6 +853,18 @@ async function refresh(options = {}) {
     state = next;
   }
   signedIn = Boolean(state.accountId);
+  if (previous?.accountId !== state.accountId) {
+    lastMap = null;
+    $("results").replaceChildren();
+    showResultActions(false);
+    if (signedIn) {
+      try {
+        lastMap = searchJournal.result(state.accountId)?.map || null;
+        showResultActions(!!lastMap?.customCoordinates?.length);
+        if (lastMap) $("search-status").textContent = "Your latest search is saved on this browser. Use Download map to keep a copy.";
+      } catch { /* Storage errors are reported before the next search. */ }
+    }
+  }
   const scene = state.counts?.scene || { pending: 0, published: 0 };
   const object = state.counts?.object || { pending: 0, published: 0 };
   const indexed = (scene.published || 0) + (object.published || 0);
@@ -934,19 +878,11 @@ async function refresh(options = {}) {
   paintBalance();
   const need = Math.max(0, Number(state.searchCost || 0) - Number(state.units || 0));
   if (!signedIn) {
-    $("search-status").textContent = "Get an account from Index, then copy the scene command.";
+    $("search-status").textContent = "Get a private account from Index to save credits and search.";
   } else if (!lastMap) {
-    if (selectedLane() === "scene" || state.searchOnSite === false) {
-      $("search-status").textContent = need === 0
-        ? (selectedLane() === "scene"
-          ? "Run Search copies a Terminal command. It uses the same four-view search as VISION."
-          : "Run Search copies a Terminal command. It uses the same object search as VISION.")
-        : `${number(indexed)} indexed locations · ${number(need)} more until you can search.`;
-    } else {
-      $("search-status").textContent = need === 0
-        ? `${number(indexed)} indexed locations`
+    $("search-status").textContent = state.searchOnSite !== true ? ERRORS.search_unavailable
+      : need === 0 ? "Ready to search online using your saved credits."
         : `${number(indexed)} indexed locations · ${number(need)} more until Search unlocks.`;
-    }
   }
   $("create-account").hidden = signedIn;
   $("pause").disabled = !signedIn;
@@ -1164,10 +1100,6 @@ $("copy-cli").addEventListener("click", async () => {
   $("copy-cli").textContent = await copyText(cliCommand(), $("cli-command")) ? "Copied" : "Selected — press ⌘C / Ctrl+C";
 });
 
-$("copy-local-search").addEventListener("click", async () => {
-  updateCliCommand();
-  $("copy-local-search").textContent = await copyText(localSearchCommand(), $("local-search-command")) ? "Copied" : "Selected — press ⌘C / Ctrl+C";
-});
 
 $("recovery-code").addEventListener("input", updateCliCommand);
 
@@ -1464,27 +1396,28 @@ $("run-search").addEventListener("click", async () => {
   saveJobFromForm();
   if (!signedIn) {
     $("index-sheet")?.showModal();
-    $("search-status").textContent = "Get an account from Index, then run the search again.";
+    $("search-status").textContent = "Get a private account from Index, then run the search again.";
     updateReady();
     return;
   }
+  let pending;
+  try { pending = searchJournal.read(state?.accountId); }
+  catch (error) { $("search-status").textContent = explain(error); updateReady(); return; }
   const credited = Number(state?.units || 0) >= Number(state?.searchCost || Infinity);
-  if (!credited) {
+  if (!credited && !pending) {
     $("search-status").textContent = "Keep indexing until the bar is full. A search needs 100,000 scenes, or 10,000 objects.";
     updateReady();
     return;
   }
-  if (selectedLane() === "scene" || selectedLane() === "object" || state?.searchOnSite === false) {
-    try {
-      await copyComputerSearch();
-    } finally {
-      updateReady();
-    }
+  if (state?.searchOnSite !== true && !pending) {
+    $("search-status").textContent = ERRORS.search_unavailable;
+    updateReady();
     return;
   }
+  let savedRequest;
+  const searchAccount = state.accountId;
   try {
-    const result = await api("/api/searches", "POST", {
-      idempotencyKey: crypto.randomUUID(),
+    savedRequest = searchJournal.prepare(searchAccount, {
       lane: selectedLane(),
       queryMap: queryMap || undefined,
       prompt: typedPrompt() || undefined,
@@ -1497,7 +1430,16 @@ $("run-search").addEventListener("click", async () => {
       countryFilterMode: countryMode(),
       countries: selectedCountries(),
       cameraGenerations: selectedGenerations(),
+      objectConfidence: document.querySelector('input[name="object-confidence"]:checked')?.value || "balanced",
+      rejectRoadNames: $("reject-road")?.checked === true,
+      minimumGlobalLocation: selectedImportCutoff(),
     });
+    $("search-status").textContent = savedRequest.recovering ? "Recovering your previous search…" : "Searching online…";
+    const result = await api("/api/searches", "POST", savedRequest.body);
+    if (state.accountId !== searchAccount) {
+      searchJournal.complete(searchAccount, savedRequest.body.idempotencyKey, result);
+      return;
+    }
     lastMap = result.map || null;
     const hits = lastMap?.customCoordinates || [];
     showResultActions(hits.length > 0);
@@ -1511,7 +1453,7 @@ $("run-search").addEventListener("click", async () => {
       title.textContent = country || hit.panoId || "";
       const detail = document.createElement("small");
       const offset = extra.visionHeadingOffset;
-      const offsetLabel = selectedLane() === "scene" && Number.isFinite(offset)
+      const offsetLabel = savedRequest.body.lane === "scene" && Number.isFinite(offset)
         ? ` · ${offset}° from saved pan`
         : "";
       detail.textContent = `${hit.panoId || ""} · ${hit.lat}, ${hit.lng} · heading ${hit.heading}${offsetLabel} · rank ${extra.visionRank} · ${extra.visionScore} · ${extra.visionCameraGeneration || ""}`;
@@ -1520,13 +1462,15 @@ $("run-search").addEventListener("click", async () => {
     }
     $("search-status").textContent = hits.length
       ? (mmaTarget() === "local"
-        ? `${hits.length} matching ${selectedLane() === "object" ? "objects" : "scenes"}. Copy for the local app, or download the JSON.`
+        ? `${hits.length} matching ${savedRequest.body.lane === "object" ? "objects" : "scenes"}. Copy for the local app, or download the JSON.`
         : mmaStoredKey()
-          ? `${hits.length} matching ${selectedLane() === "object" ? "objects" : "scenes"}. Click Add to my map.`
-          : `${hits.length} matching ${selectedLane() === "object" ? "objects" : "scenes"}. Connect a map app, or download the JSON.`)
+          ? `${hits.length} matching ${savedRequest.body.lane === "object" ? "objects" : "scenes"}. Click Add to my map.`
+          : `${hits.length} matching ${savedRequest.body.lane === "object" ? "objects" : "scenes"}. Connect a map app, or download the JSON.`)
       : "Nothing matched. Try Best of available views, or widen the filters.";
+    searchJournal.complete(searchAccount, savedRequest.body.idempotencyKey, result);
     await refresh();
   } catch (error) {
+    if (error.status === 400 && savedRequest) searchJournal.complete(searchAccount, savedRequest.body.idempotencyKey);
     $("search-status").textContent = `Search stopped: ${explain(error)}`;
   } finally {
     updateReady();

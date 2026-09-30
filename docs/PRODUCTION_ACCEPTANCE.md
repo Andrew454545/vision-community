@@ -43,6 +43,16 @@ measurements into automatic production approval.
   delivery. A restart resumes pending delivery/audit under the same anonymous
   account and service. Unresolved batches are bounded, and rejection preserves
   the evidence and stops processing. Local tests verify this recovery path.
+- Online search settlement saves the result, debit and ledger entry in one D1
+  transaction. Tests cover duplicate requests, concurrent spending of the last
+  credit, changed requests, and rollback on failed result storage. The browser
+  saves the request before delivery and recovers a lost response after restart.
+  These are local tests; the hosted inference engine is not deployed.
+- The complete Worker builds with Wrangler 4.144.0. The same search scenarios
+  also pass in Cloudflare's local workerd/D1 runtime at compatibility date
+  2026-09-29, using synthetic results and a disposable local account. This is
+  transaction/gateway evidence, not VISION model parity or live deployment.
+  CI now runs that check on the authorized development branch too.
 
 ## Blocking live indexing
 
@@ -119,19 +129,37 @@ measurements into automatic production approval.
   removal of legacy indexes explicitly; do not delete existing data merely to
   enforce the new publication policy.
 
-## Architecture decision still required
+## Architecture decision accepted
 
 Keep a small website for onboarding, recovery, credit balances and search UI;
 keep local inference in a packaged app. D1/another transactional database owns
 queue leases and credits. R2 holds immutable verified contribution artifacts.
 GitHub distributes code/releases, not a mutable location database.
 
-The current client downloads shared indexes and searches locally. Once an index
-has been downloaded, the service cannot enforce a debit for every subsequent
-offline search. Strong per-search enforcement requires a trusted hosted search
-service, with measured compute and operating cost, or a product rule that sells
-index access instead. Do not claim both free unlimited index distribution and
-unbypassable per-search credits. Decide this before redesigning/deploying search.
+On 2026-09-29 the user chose **online search using banked credits**. The website
+now submits searches directly and the Community Worker retires shared-index
+downloads and paid-local-search requests with `online_search_required` (410).
+Previously downloaded copies cannot be revoked. The local development service
+and offline diagnostic commands retain their test behavior; they are not the
+production credit product.
+
+- [ ] Deploy a private hosted engine using the reference models and only an
+  independently sealed, contributed index snapshot. The gateway requires a
+  policy ID, runtime digest and snapshot digest, validates every hit against D1,
+  enforces Gen4 receipts for objects, and spends nothing if the engine is
+  missing or returns invalid results. The prototype 96-dimensional extractor
+  is not an acceptable substitute for VISION's four-view scene vectors.
+- [ ] Measure hosted compute, memory, latency and cost, including simultaneous
+  requests and an index update during search. Compare held-out rankings with
+  Andrew's application before advertising parity.
+
+Repository inspection found no approved Windows tolerance policy. The supplied
+historical packet explicitly says `SOURCE_PIXELS_NOT_FROZEN` and
+`non_exact_acceptance_thresholds: NOT_ESTABLISHED`. The reference's installed
+Mac runtime uses a different binary and observed provider/settings. An exact
+controlled input comparison and fresh reference repetitions are required to
+derive numerical and ranking bounds; the earlier live trials cannot provide
+them. The user asked us to determine this from evidence, not invent approval.
 
 ## Recurring development
 

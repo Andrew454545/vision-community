@@ -313,11 +313,10 @@ class ObjectIndexTest(unittest.TestCase):
         self.assertIn("object_index_required", worker)
         self.assertIn("validateObjectIndex", worker)
         self.assertIn("skip=skip", (ROOT / "community/object_index.py").read_text(encoding="utf-8"))
-        self.assertIn('"--search"', app)
-        self.assertIn("--confidence", app)
-        self.assertIn("--import-cutoff", app)
-        self.assertIn("--reject-road-names", app)
-        self.assertIn("/api/object-indexes", worker)
+        self.assertIn("objectConfidence:", app)
+        self.assertIn("minimumGlobalLocation:", app)
+        self.assertIn("rejectRoadNames:", app)
+        self.assertIn("onlineSearch(env, account", worker)
         self.assertIn("objectIndexes", worker)
 
     def test_object_prompt_routes_like_vision(self):
