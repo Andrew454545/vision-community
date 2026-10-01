@@ -60,6 +60,8 @@ const VIEW_DIRECTION_LABELS = {
 
 let signedIn = false;
 let state = null;
+const serviceReadiness = new VisionServiceReadiness();
+let lastProcessAvailability = null;
 let pauseRequested = false;
 let lastRecovery = "";
 let lastMap = null;
@@ -95,8 +97,8 @@ function updateAccountPrivacy() {
   $("delete-account").disabled = deletionBusy;
   $("check-deletion").disabled = deletionBusy || (signedIn && pending?.accountId !== state.accountId)
     || state?.accountDeletionAvailable !== true;
-  $("create-account").disabled = deletionBusy;
-  $("recover-form").querySelector("button").disabled = deletionBusy;
+  $("create-account").disabled = deletionBusy || !serviceReadiness.connected;
+  $("recover-form").querySelector("button").disabled = deletionBusy || !serviceReadiness.connected;
 }
 const REFRESH_EVERY_BATCHES = 8;
 
@@ -527,6 +529,7 @@ async function api(path, method = "GET", body = null) {
     try {
       const response = await fetch(path, {
         method, headers, credentials: "same-origin", cache: "no-store",
+        signal: AbortSignal.timeout(method === "GET" ? 15000 : 75000),
         body: body === null ? undefined : JSON.stringify(body),
       });
       const data = await response.json().catch(() => ({}));
@@ -641,7 +644,9 @@ function downloadJson(filename, payload) {
 
 function updateCliCommand() {
   const node = $("cli-command");
-  if (node) node.textContent = cliCommand();
+  const available = serviceReadiness.canContribute(selectedProcessLanes());
+  if (node) node.textContent = available ? cliCommand() : serviceReadiness.message(selectedProcessLanes());
+  $("copy-cli").disabled = !available || !signedIn;
 }
 
 function workForSelection() {
@@ -659,6 +664,7 @@ function workForSelection() {
 }
 
 function processPrompt() {
+  if (!serviceReadiness.canContribute(selectedProcessLanes())) return serviceReadiness.message(selectedProcessLanes());
   const choice = selectedProcessLane();
   if (!signedIn) {
     if (choice === "object") return "Get an account, then copy the object command into Terminal.";
@@ -674,7 +680,9 @@ function updateProcessHelp() {
   const choice = selectedProcessLane();
   const help = $("process-lane-help");
   if (help) {
-    if (choice === "object") {
+    if (!serviceReadiness.canContribute(selectedProcessLanes())) {
+      help.textContent = serviceReadiness.message(selectedProcessLanes());
+    } else if (choice === "object") {
       help.textContent = "Objects use the same indexer as VISION: six-face cube, RF-DETR, YOLOE, and OWLv2. Copy the command into Terminal. Each finished object counts as 10 toward a search.";
     } else if (choice === "both") {
       help.textContent = "Scenes and objects both use the VISION indexers in Terminal. Paste each command into its own Terminal window. Scenes count as 1. Objects count as 10.";
@@ -708,7 +716,11 @@ function updateQueue() {
       || "You will get your own batch. Other people get different batches.";
   }
   updateProcessHelp();
-  const canProcess = signedIn && pendingForSelection() > 0 && !$("process").dataset.busy;
+  const available = serviceReadiness.canContribute(selectedProcessLanes());
+  $("service-status").textContent = serviceReadiness.message(selectedProcessLanes());
+  if (!available || lastProcessAvailability !== available) $("process-status").textContent = processPrompt();
+  lastProcessAvailability = available;
+  const canProcess = available && signedIn && pendingForSelection() > 0 && !$("process").dataset.busy;
   if (!$("process").dataset.busy) $("process").disabled = !canProcess;
 }
 
@@ -786,7 +798,7 @@ function updateReady() {
   const credited = Number(state?.units || 0) >= Number(state?.searchCost || Infinity);
   let pending = false;
   try { pending = signedIn && !!searchJournal.read(state?.accountId); } catch { /* Run reports the recovery problem. */ }
-  const ready = pending || (hasInput && includeReady && generationReady && (signedIn ? credited && onSite : true));
+  const ready = serviceReadiness.canSearch(pending) && (pending || (hasInput && includeReady && generationReady && signedIn && credited && onSite));
   $("ready-badge").textContent = hasInput ? "Ready" : "Needs input";
   $("ready-badge").classList.toggle("ok", hasInput);
   $("run-search").disabled = !ready || deletionBlocksSearch();
@@ -867,9 +879,12 @@ async function refresh(options = {}) {
   try {
     next = await api(lite ? "/api/me?lite=1" : "/api/me");
   } catch (error) {
-    if (error.message !== "unauthorized") throw error;
-    next = await api("/api/status");
+    if (error.message !== "unauthorized") { markServiceUnavailable(); throw error; }
+    try { next = await api("/api/status"); }
+    catch (failure) { markServiceUnavailable(); throw failure; }
   }
+  const capabilities = lite ? serviceReadiness.capabilities : await VisionServiceReadiness.capabilities();
+  serviceReadiness.update(next, capabilities);
   if (lite && previous && next.accountId) {
     state = {
       ...previous,
@@ -917,7 +932,7 @@ async function refresh(options = {}) {
   }
   $("create-account").hidden = signedIn;
   updateAccountPrivacy();
-  $("pause").disabled = !signedIn;
+  $("pause").disabled = !signedIn || !$("process").dataset.busy;
   $("account-chip").textContent = signedIn ? "Signed in on this browser" : "No account yet";
   if (!($("process").dataset.busy && need === 0)) {
     $("build-label").textContent = document.hidden && $("process").dataset.busy
@@ -1094,7 +1109,7 @@ document.querySelectorAll('input[name="object-confidence"]').forEach((input) => 
 });
 
 $("create-account").addEventListener("click", async () => {
-  if (deletionBusy) return;
+  if (deletionBusy || !serviceReadiness.connected) return;
   const button = $("create-account");
   button.disabled = true;
   try {
@@ -1107,13 +1122,11 @@ $("create-account").addEventListener("click", async () => {
       : `Write this code down or screenshot it. It is the only way back into this account: ${lastRecovery}`;
     if (copied) $("copy-recovery").textContent = "Copied";
     await refresh();
-    $("process-status").textContent = selectedProcessLane() === "object"
-      ? "Saved? Copy the object command into Terminal. It keeps going until you stop it or the queue is empty."
-      : "Saved? Copy the index command into Terminal. It keeps going until you stop it or the queue is empty.";
+    $("process-status").textContent = `Save your account code. ${processPrompt()}`;
     updateCliCommand();
   } catch (error) {
     $("process-status").textContent = `Account error: ${explain(error)}`;
-    button.disabled = false;
+    updateAccountPrivacy();
   }
 });
 
@@ -1129,6 +1142,7 @@ $("copy-recovery").addEventListener("click", async () => {
 });
 
 $("copy-cli").addEventListener("click", async () => {
+  if (!signedIn || !serviceReadiness.canContribute(selectedProcessLanes())) return;
   updateCliCommand();
   $("copy-cli").textContent = await copyText(cliCommand(), $("cli-command")) ? "Copied" : "Selected — press ⌘C / Ctrl+C";
 });
@@ -1138,14 +1152,12 @@ $("recovery-code").addEventListener("input", updateCliCommand);
 
 $("recover-form").addEventListener("submit", async (event) => {
   event.preventDefault();
-  if (deletionBusy) return;
+  if (deletionBusy || !serviceReadiness.connected) return;
   try {
     await api("/api/recovery", "POST", { recoveryCode: $("recovery-code").value.trim() });
     $("recovery-once").hidden = true;
     await refresh();
-    $("process-status").textContent = selectedProcessLane() === "object"
-      ? "Welcome back. Copy the object command into Terminal. It keeps going until you stop it or the queue is empty."
-      : "Welcome back. Copy the index command into Terminal. It keeps going until you stop it or the queue is empty.";
+    $("process-status").textContent = `Welcome back. ${processPrompt()}`;
     updateCliCommand();
   } catch (error) {
     $("process-status").textContent = `Recovery stopped: ${explain(error)}`;
@@ -1209,6 +1221,7 @@ $("pause").addEventListener("click", () => {
 });
 
 $("process").addEventListener("click", async () => {
+  if (!signedIn || !serviceReadiness.canContribute(selectedProcessLanes())) return;
   const button = $("process");
   button.disabled = true;
   pauseRequested = false;
@@ -1492,6 +1505,11 @@ $("run-search").addEventListener("click", async () => {
   let pending;
   try { pending = searchJournal.read(state?.accountId); }
   catch (error) { $("search-status").textContent = explain(error); updateReady(); return; }
+  if (!serviceReadiness.canSearch(!!pending)) {
+    $("search-status").textContent = ERRORS.search_unavailable;
+    updateReady();
+    return;
+  }
   const credited = Number(state?.units || 0) >= Number(state?.searchCost || Infinity);
   if (!credited && !pending) {
     $("search-status").textContent = "Keep indexing until the bar is full. A search needs 100,000 scenes, or 10,000 objects.";
@@ -1587,6 +1605,22 @@ renderJobs();
 updateProcessHelp();
 updateMmaTarget();
 restoreMapApp().catch(() => {});
+function markServiceUnavailable() {
+  serviceReadiness.fail();
+  updateAccountPrivacy();
+  updateQueue();
+  updateCliCommand();
+  updateReady();
+}
+$("check-service").addEventListener("click", async () => {
+  const button = $("check-service");
+  button.disabled = true;
+  markServiceUnavailable();
+  $("service-status").textContent = "Checking the service…";
+  try { await refresh(); }
+  catch { markServiceUnavailable(); }
+  finally { button.disabled = false; }
+});
 refresh().then(() => {
   localStorage.removeItem(INDEXING_KEY);
   if (window.location.hash === "#account-deleted") {

@@ -20,6 +20,14 @@ measurements into automatic production approval.
 
 ## Completed in this pass
 
+- The website now checks service status and the required scene qualification
+  contract before showing/copying an indexing command. Missing or legacy
+  capabilities fail closed, Objects/Both remain unavailable during portable
+  validation, and deliberate outage/recovery checks preserve saved credits and
+  browser journals. All 87 JavaScript checks pass locally, including five new
+  availability checks. The page controls were exercised with a disposable
+  read-only synthetic browser fixture; this is not live deployment or model
+  qualification. See [WEBSITE_SERVICE_READINESS.md](WEBSITE_SERVICE_READINESS.md).
 - Added immutable scene write intents and create-only R2 uploads so account
   deletion can discover uploads before a candidate exists. Cleanup permanently
   fences unpublished keys, blocks delayed payload recreation, preserves published
@@ -44,8 +52,11 @@ measurements into automatic production approval.
   passed the native object's locked tests, release build and v4 index-layout
   check, using the original object source/lock hashes verified against the Mac
   build receipt. This is a new development binary, with no model inference or
-  production qualification. The laptop still lacks native build tools; local
-  execution of the downloaded binary and coherent scene recovery need evidence.
+  production qualification. The laptop still lacks native build tools. After
+  an explicitly authorized private download, the checksum-verified
+  unchanged-source Windows binary ran its v4 layout check on this laptop and
+  matched the hosted build receipt. This confirms startup/layout only; real
+  model inference comparisons and coherent scene recovery still need evidence.
   Detailed source/access information and build artifacts remain private.
   He also reports his local workers resumed at 1% duty with scheduled increases
   disabled. The earlier maximum settings are a dated observation, not current
