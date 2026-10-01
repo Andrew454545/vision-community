@@ -20,6 +20,19 @@ measurements into automatic production approval.
 
 ## Completed in this pass
 
+- Added and exercised a separate private native scene capture/replay path.
+  It preserves actual four-view thumbnails, model inputs, raw outputs and
+  normalized vectors before native packing; replay never refetches imagery.
+  A real Windows saved-search crash exposed a large stack buffer, now moved
+  to the heap without changing the hash algorithm. All 65 native checks pass,
+  including a small-stack regression. Three fresh 16-location CPU fp32 scene
+  repetitions have identical tensor/index hashes and native search rankings,
+  scores and selected views. Native search of the original captured index and
+  reopening a copied completed checkpoint also pass. Original failures and
+  tiny raw checkpoint metadata round-trip differences are preserved privately.
+  This is PC development evidence; matching Mac scene repetitions, installed
+  reference correspondence, full calibration/canary and parallel admission
+  remain open. No installed worker, account, upload or live resource changed.
 - Completed the private frozen-input object pilot: three actual Windows CPU
   repetitions against three Mac repetitions, using 16 locations and nine fixed
   native queries. All 27 paired query results matched ordered locations, hit
