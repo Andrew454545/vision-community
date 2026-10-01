@@ -10,6 +10,7 @@
   <script src="/mma.js" defer></script>
   <script src="/search-journal.js" defer></script>
   <script src="/account-deletion.js" defer></script>
+  <script src="/service-readiness.js" defer></script>
   <script src="/app.js" defer></script>
 </head>
 <body>
@@ -246,11 +247,13 @@
       <button id="close-index" class="icon-btn" type="button" title="Close">×</button>
     </div>
     <div class="contribute">
+      <p class="status" id="service-status" role="status" aria-live="polite">Checking the service before you start…</p>
+      <button id="check-service" class="compact-btn" type="button">Check again</button>
       <p class="rail-copy" id="account-chip">No account yet</p>
-      <button id="create-account" class="primary" type="button">Get a free account</button>
+      <button id="create-account" class="primary" type="button" disabled>Get a free account</button>
       <form id="recover-form" class="recover">
         <input id="recovery-code" maxlength="80" autocomplete="off" placeholder="Paste your saved code">
-        <button type="submit" class="compact-btn">Restore</button>
+        <button type="submit" class="compact-btn" disabled>Restore</button>
       </form>
       <p class="status warn" id="recovery-once" hidden>
         <span id="recovery-once-text"></span>
@@ -345,7 +348,7 @@
         <summary>Advanced indexing command</summary>
         <p class="rail-copy">For maintainers and supported Mac computers. Paste this after you have an account. The command keeps going until you stop it or the queue is empty.</p>
         <pre class="cli" id="cli-command">python3 -m community.vision_index --pace slow --recovery-code YOUR_CODE</pre>
-        <button id="copy-cli" class="compact-btn" type="button">Copy command</button>
+        <button id="copy-cli" class="compact-btn" type="button" disabled>Copy command</button>
       </details>
     </div>
   </dialog>
