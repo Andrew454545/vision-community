@@ -24,8 +24,9 @@ measurements into automatic production approval.
   contract before showing/copying an indexing command. Missing or legacy
   capabilities fail closed, Objects/Both remain unavailable during portable
   validation, and deliberate outage/recovery checks preserve saved credits and
-  browser journals. All 87 JavaScript checks pass locally, including five new
-  availability checks. The page controls were exercised with a disposable
+  browser journals. Unreadable/invalid successful search responses preserve
+  the original request key for paid-result recovery. All 88 JavaScript checks
+  pass locally, including six new availability/recovery checks. The page controls were exercised with a disposable
   read-only synthetic browser fixture; this is not live deployment or model
   qualification. See [WEBSITE_SERVICE_READINESS.md](WEBSITE_SERVICE_READINESS.md).
 - Added immutable scene write intents and create-only R2 uploads so account

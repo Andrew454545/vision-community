@@ -20,6 +20,10 @@ account recovery code and saved browser journals. A later check re-enables only
 the available actions. A search outage does not disable available scene setup,
 and a connected service may recover an existing saved search request without
 preparing a new debit. The server still decides whether it can serve that request.
+Malformed status also leaves the previous displayed balance intact. Unreadable
+JSON or a successful search response without the expected saved-search ID and
+map is rejected before the browser completes the journal, so the original
+request/key can be retried to recover the paid result.
 
 Account creation/recovery require a connected operational service. Accounts
 may be restored even while scene verification or online search is unavailable.
@@ -30,9 +34,9 @@ These are availability hints, not health attestation or permission to bypass
 device qualification, trusted auditing, coverage checks or server credit rules.
 A configured service may still fail its actual device/inference check.
 
-Validation includes five new browser-state checks for outage/recovery, legacy
+Validation includes six new browser-state checks for outage/recovery, legacy
 and malformed contracts, unqualified Objects/Both, independent search outage
-and bounded capability requests. All 87 JavaScript checks pass locally. A
+bounded capability requests and malformed-response recovery. All 88 JavaScript checks pass locally. A
 disposable read-only local browser fixture also exercises actual page controls
 with synthetic balances and capability/outage changes. No live account,
 contribution, debit or Cloudflare deployment is part of that fixture.

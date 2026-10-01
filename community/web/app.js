@@ -24,6 +24,8 @@ const ERRORS = {
   cross_origin_request: "That request was blocked.",
   internal_error: "Something went wrong. Try again in a moment.",
   search_unavailable: "Online search is unavailable right now. Your search credits are safe. Try again later.",
+  invalid_service_response: "The service response could not be read. Try again. Any pending search stays saved for recovery.",
+  service_unavailable: "The service is unavailable. Check again later.",
   online_search_required: "Shared searches now run here in your browser using your banked credits.",
   search_storage_unavailable: "The browser could not save this search. Allow site storage, then retry. Recovering a saved search does not spend another credit.",
   search_recovery_invalid: "The saved search could not be read. Keep this browser's data and contact support so your search can be recovered.",
@@ -532,7 +534,7 @@ async function api(path, method = "GET", body = null) {
         signal: AbortSignal.timeout(method === "GET" ? 15000 : 75000),
         body: body === null ? undefined : JSON.stringify(body),
       });
-      const data = await response.json().catch(() => ({}));
+      const data = await VisionServiceReadiness.readResponse(response, path);
       if (response.ok) return data;
       const error = new Error(data.error || `HTTP ${response.status}`);
       error.status = response.status;
@@ -884,7 +886,7 @@ async function refresh(options = {}) {
     catch (failure) { markServiceUnavailable(); throw failure; }
   }
   const capabilities = lite ? serviceReadiness.capabilities : await VisionServiceReadiness.capabilities();
-  serviceReadiness.update(next, capabilities);
+  if (!serviceReadiness.update(next, capabilities)) { markServiceUnavailable(); throw new Error("service_unavailable"); }
   if (lite && previous && next.accountId) {
     state = {
       ...previous,
