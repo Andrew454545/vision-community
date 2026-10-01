@@ -2,10 +2,12 @@
 class VisionServiceReadiness {
   constructor() { this.connected = false; this.checked = false; this.status = null; this.capabilities = null; }
   update(status, capabilities) {
+    if (status?.operational !== true) { this.fail(); return false; }
     this.checked = true;
     this.connected = status?.operational === true;
     this.status = status;
     this.capabilities = capabilities;
+    return true;
   }
   fail() { this.checked = true; this.connected = false; }
   canContribute(lanes) {
@@ -38,6 +40,17 @@ class VisionServiceReadiness {
       });
       return response.ok ? await response.json() : null;
     } catch { return null; }
+  }
+  static async readResponse(response, path = "") {
+    let data;
+    try { data = await response.json(); }
+    catch { throw new Error("invalid_service_response"); }
+    if (!data || typeof data !== "object" || Array.isArray(data)) throw new Error("invalid_service_response");
+    if (response.ok && path === "/api/searches" && (!/^[0-9a-f]{32}$/.test(data.searchId || "")
+      || !Array.isArray(data.results) || !Array.isArray(data.map?.customCoordinates))) {
+      throw new Error("invalid_service_response");
+    }
+    return data;
   }
 }
 globalThis.VisionServiceReadiness = VisionServiceReadiness;
