@@ -44,8 +44,12 @@ measurements into automatic production approval.
   reconstruction profile for reference parity rather than relaxing bounds
   enough to admit it. An explicit ordinary fp32 path and CPU thread-pool fix
   passed all68 private native checks and a locked Windows build. The new ordinary
-  112-location CPU fp32 check completed with no errors; three full trials are
-  running privately. Its Mac comparison has409/448 identical packed views and
+  112-location CPU fp32 check and first two full1,024-location trials completed
+  with no errors. The third timed out after30minutes, at640logged locations but
+  only16checkpointed. Its original report/index/logs are preserved; a separate
+  copied index is resuming with a two-hour limit and per-chunk checkpoints.
+  Recovery is reported separately from a fresh repetition. Its Mac canary
+  comparison has409/448 identical packed views and
   minimum cosine0.999797169; separate live imagery is not a frozen comparison.
   This is not activation or admission. The older
   distributed Windows binary is a different artifact and was not identified
@@ -67,6 +71,20 @@ measurements into automatic production approval.
   A Windows rejected-request socket reset exposed during tests was fixed with
   a brief bounded drain of small unambiguous bodies; large or ambiguous bodies
   are never drained. Original failed checks remain in private evidence.
+- Long client batches now save every completed chunk, reducing lost progress
+  after power loss. Local and private hosted saved-search inputs explicitly
+  request the same fp32 image graph as indexing. The hosted adapter checks the
+  actual bounded CPU pool and, for image examples, the actual fp32 graph before
+  accepting results. A wrong graph or old runtime returns unavailable without
+  credit settlement. The corresponding native saved-search graph propagation
+  and cache regression are in private PR11. Its Linux CPU build passes native
+  tests, locked release, actual startup/layout and shared-library checks;
+  final Windows build/profile/distribution qualification remains pending.
+  The previous Windows package was rebuilt with all five pinned runtime DLLs
+  from the explicit build-runner redistributables; those files are bundled,
+  never installed globally.73 targeted Windows recovery/search/audit checks
+  pass. A deliberately incorrect synthetic image-mode fixture failure is
+  retained and corrected to respect the native query's minimum similarity.
 - Nine new actual frozen-RGB scene repetitions completed at bounded1/2/4ONNX
   threads, three per setting. All81 paired Mac query comparisons agree on
   ordered locations and selected views. Each thread setting repeats exactly;

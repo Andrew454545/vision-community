@@ -383,13 +383,19 @@ class NativeSceneEngine(NativeSceneRuntime):
                 os.chmod(job, 0o700)
                 budget = min(MAX_CANDIDATES, len(self.members))
                 native_input = {"runId": request["requestSha256"], "queries": [definition], "topK": budget,
-                                "chunkSize": 1024, "concurrency": 1, "resultPruneMeters": 0}
+                                "chunkSize": 1024, "concurrency": 1, "resultPruneMeters": 0,
+                                "sceneFp32": True}
                 write_file(job / "input.json", encoded(native_input))
                 command = [str(self.binary), "search-four-view-index", "--input", str(job / "input.json"),
                            "--model-dir", str(self.models), "--locations-tsv", str(self.index / "locations.tsv"),
                            "--index-dir", str(self.index), "--profile-cache-dir", str(job / "profiles"),
                            "--output", str(job / "output.json")]
                 run_native(command, job, self.timeout)
+                execution = bounded_read(plain_path(job / "stderr.log"), 1024 * 1024).decode("utf-8", errors="replace").splitlines()
+                if ("[vision] ONNX Runtime global threads: 1, spinning disabled" not in execution
+                        or (definition["examples"] and
+                            "[vision] scene image graph: vision_model_fp32.onnx (explicit input)" not in execution)):
+                    raise NativeSearchError("native_search_runtime_update_required")
                 output = strict_json(bounded_read(plain_path(job / "output.json"), MAX_NATIVE_OUTPUT))
                 self.verify_runtime()
                 self.verify_mount()

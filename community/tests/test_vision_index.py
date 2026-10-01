@@ -81,6 +81,12 @@ def fake_runner(argv, _env, _cwd):
 
 
 class FourViewRecordTest(unittest.TestCase):
+    def test_long_index_batches_save_every_completed_chunk(self):
+        for pace in ("slow", "medium", "max"):
+            settings = four_view_input(total=1024, pace=pace, run_id="test")
+            self.assertEqual(settings["checkpointEvery"], settings["chunkSize"])
+            self.assertIs(settings["sceneFp32"], True)
+
     def test_record_shape_matches_vision_layout(self):
         record = sample_record()
         self.assertEqual(len(record), BYTES_PER_LOCATION)
