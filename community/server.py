@@ -22,6 +22,7 @@ STATIC = {
     "/app.js": (WEB / "app.js", "text/javascript; charset=utf-8"),
     "/search-journal.js": (WEB / "search-journal.js", "text/javascript; charset=utf-8"),
     "/account-deletion.js": (WEB / "account-deletion.js", "text/javascript; charset=utf-8"),
+    "/service-readiness.js": (WEB / "service-readiness.js", "text/javascript; charset=utf-8"),
     "/visual.js": (WEB / "visual.js", "text/javascript; charset=utf-8"),
     "/mma.js": (WEB / "mma.js", "text/javascript; charset=utf-8"),
     "/style.css": (WEB / "style.css", "text/css; charset=utf-8"),
