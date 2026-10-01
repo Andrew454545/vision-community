@@ -25,21 +25,32 @@ function render(state) {
   latest = state;
   byId("phase").textContent = ({setup:"GETTING READY",download:"PREPARING THIS PC",checking:"RUNNING THE SHORT PC CHECK",ready:"READY",indexing:"INDEXING ON THIS PC",error:"NEEDS ATTENTION"})[state.phase] || "VISION";
   byId("message").textContent = state.message;
-  byId("detail").textContent = state.phase === "indexing" ? (state.stopping ? "Pausing after the current batch." : "Working in batches of 16. Progress is confirmed after each batch.") : state.phase === "checking" ? "The service must approve this PC before regular work can start." : "Keep this page and the VISION starter window open.";
+  byId("detail").textContent = state.phase === "indexing" ? (state.stopping ? "Pausing after the current batch. Please wait." : "Keep your computer awake and connected. Your credits update when results are accepted.") : state.phase === "checking" ? "Please wait. Regular work starts after the PC check is approved." : "Keep this page and the small VISION starter window open.";
+  const step = !state.ready ? 1 : !state.connected || !state.savedCode ? 2 : !state.qualified ? 3 : 4;
+  const next = state.busy ? "Please wait for this step to finish." : state.connected && !state.savedCode ? "Next: Save your private account code in step 2." : `Next: Step ${step} — ${["set up this PC", "create an account, or use your saved code", "run the PC check", "start helping"][step - 1]}.`;
+  if (byId("next-step").textContent !== next) byId("next-step").textContent = next;
+  byId("go-next").textContent = `Go to step ${step}`;
+  byId("go-next").disabled = state.busy || requesting;
+  byId("go-next").dataset.step = step;
+  for (let n = 1; n <= 4; n++) {
+    byId(`step-${n}`).classList.toggle("current", n === step);
+    if (n === step) byId(`step-${n}`).setAttribute("aria-current", "step");
+    else byId(`step-${n}`).removeAttribute("aria-current");
+  }
   byId("completed").textContent = state.completed.toLocaleString();
   byId("units").textContent = state.units.toLocaleString();
   byId("elapsed").textContent = Math.floor(state.elapsedSeconds / 60) + " min";
   byId("folder").textContent = state.folder;
   byId("undelivered").hidden = !(state.undelivered > 0);
   byId("undelivered").textContent = state.undelivered > 0 ? `${state.undelivered.toLocaleString()} saved batches could not be delivered because their assignment ended. They earned no credits. Their files are kept; VISION can continue with new work.` : "";
-  byId("account-status").textContent = state.connected ? "Account connected for this session." : "Your code stays out of commands and diagnostic logs.";
+  byId("account-status").textContent = state.connected ? "Your account is connected." : "Keep your private code. You will also use it on the search website.";
   const busy = state.busy || requesting;
   byId("prepare").disabled = busy;
-  byId("prepare").textContent = state.ready ? "Check processing files again" : "Download and check files";
+  byId("prepare").textContent = state.ready ? "Check setup again" : "Set up this PC";
   byId("connect").disabled = busy || !state.ready;
   byId("create").disabled = busy || !state.ready;
   byId("check-pc").disabled = busy || !state.ready || !state.connected || !state.savedCode || state.qualified;
-  byId("check-pc").textContent = state.qualified ? "PC approved" : "Run the short PC check";
+  byId("check-pc").textContent = state.qualified ? "PC approved" : "Run the PC check";
   byId("start").disabled = busy || !state.ready || !state.connected || !state.savedCode || !state.qualified;
   byId("stop").disabled = state.phase !== "indexing" || !state.busy || state.stopping;
   byId("quit").disabled = busy;
@@ -57,6 +68,12 @@ async function poll() {
   catch (error) { showError(token ? "VISION is not responding. Reopen Start VISION if its starter window has closed." : "Open this page using Start VISION."); }
 }
 byId("prepare").onclick = () => action("/api/prepare");
+byId("go-next").onclick = () => {
+  const step = Number(byId("go-next").dataset.step);
+  byId(`step-${step}`).scrollIntoView({block: "start"});
+  const target = step === 2 ? (latest.connected && !latest.savedCode ? "saved-code" : "create") : ({1: "prepare", 3: "check-pc", 4: "start"})[step];
+  byId(target).focus({preventScroll: true});
+};
 byId("connect").onclick = async () => {
   const result = await action("/api/connect", {code: byId("code").value});
   if (result) { byId("code").value = ""; byId("recovery").textContent = ""; byId("new-code").hidden = true; }

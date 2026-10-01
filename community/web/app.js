@@ -720,6 +720,7 @@ function updateQueue() {
   updateProcessHelp();
   const available = serviceReadiness.canContribute(selectedProcessLanes());
   $("service-status").textContent = serviceReadiness.message(selectedProcessLanes());
+  $("welcome-status").textContent = !serviceReadiness.checked ? "Checking whether contributions are open…" : !serviceReadiness.connected ? "VISION cannot connect right now. Please come back later." : serviceReadiness.canContribute(["scene"]) ? "Windows setup is available. Follow the four steps in the PC app." : "Preview: contributions are not open yet. You have done nothing wrong; please come back later.";
   if (!available || lastProcessAvailability !== available) $("process-status").textContent = processPrompt();
   lastProcessAvailability = available;
   const canProcess = available && signedIn && pendingForSelection() > 0 && !$("process").dataset.busy;
@@ -926,7 +927,7 @@ async function refresh(options = {}) {
   paintBalance();
   const need = Math.max(0, Number(state.searchCost || 0) - Number(state.units || 0));
   if (!signedIn) {
-    $("search-status").textContent = "Get a private account from Index to save credits and search.";
+    $("search-status").textContent = "Choose My account and enter your saved code to see your credits.";
   } else if (!lastMap) {
     $("search-status").textContent = state.searchOnSite !== true ? ERRORS.search_unavailable
       : need === 0 ? "Ready to search online using your saved credits."
@@ -1500,7 +1501,7 @@ $("run-search").addEventListener("click", async () => {
   saveJobFromForm();
   if (!signedIn) {
     $("index-sheet")?.showModal();
-    $("search-status").textContent = "Get a private account from Index, then run the search again.";
+    $("search-status").textContent = "Choose My account and enter your saved code, then run the search again.";
     updateReady();
     return;
   }
