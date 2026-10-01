@@ -10,6 +10,7 @@ community/.data/
 .wrangler/
 node_modules/
 .local-test-build/
+.local-native-bridge-build/
 account-deletions.private.json
 *.private.sql
 .private-restore/
@@ -18,4 +19,3 @@ community/tests/__pycache__/
 # Machine-local development tools and diagnostics are not application data.
 .agents/skills/
 work/
-

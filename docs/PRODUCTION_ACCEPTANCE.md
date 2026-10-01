@@ -20,6 +20,32 @@ measurements into automatic production approval.
 
 ## Completed in this pass
 
+- Added reproducible private scene runtime packaging from independently pinned
+  native build/model/country inputs and a private Cloudflare bridge to an
+  operator-configured native HTTPS ingress. Packaging preserves executable
+  permissions/model timestamps, checks every payload and writes the runtime
+  manifest last. The bridge retains exact query bytes, injects its own host
+  secret and bounds upstream reads/time without adding credit settlement.
+  The real Mac development runtime and retained 16-location records pass the
+  complete local workerd/D1 gateway through this bridge: exact native
+  IDs/scores/views after existing filters, four queries, three recoveries without
+  extra inference/debit, scientific coordinates and no debit for outage or lost
+  contributor ownership. The initial bridge framing failure is preserved and
+  fixed. Eight new packaging and nine transport tests are included; the Python
+  suite ran 304 tests with 15 Windows-only skips and all 97 JavaScript tests
+  pass. Both Worker builds and the separate local gateway/verifier checks pass.
+  All accounts/publications/credits/storage are disposable local fixtures.
+  Live native hosting/HTTPS, verifier policy and Windows qualified workload
+  remain open. See [NATIVE_SCENE_SEARCH.md](NATIVE_SCENE_SEARCH.md).
+- Delivered the requested Mac development scene reference privately: the same
+  unchanged scene source, exact 16-row input and four canonical models, one
+  actual capture and three fresh frozen-RGB replay/index/native-search runs.
+  The build passed 65 native tests. Every scoped tensor/index/mask/search output
+  repeats identically on this Mac, with zero fetch/inference/incomplete errors.
+  The complete frozen-input packet, native artifacts and receipts are available
+  to the contributor. This resolves the requested reference-data handoff;
+  installed-reference correspondence, full calibration/canary, cross-provider
+  bounds and parallel acceptance remain the contributor's engineering decisions.
 - Implemented the private native scene search adapter from independently sealed
   contribution snapshots to the real saved-index engine, with strong runtime
   pins, unchanged record bytes/ordinals, fresh private query caches, bounded
@@ -46,8 +72,9 @@ measurements into automatic production approval.
   scores and selected views. Native search of the original captured index and
   reopening a copied completed checkpoint also pass. Original failures and
   tiny raw checkpoint metadata round-trip differences are preserved privately.
-  This is PC development evidence; matching Mac scene repetitions, installed
-  reference correspondence, full calibration/canary and parallel admission
+  This is PC development evidence; matching Mac scene repetitions have now
+  been supplied above. Installed reference correspondence, full
+  calibration/canary and parallel admission
   remain open. No installed worker, account, upload or live resource changed.
 - Completed the private frozen-input object pilot: three actual Windows CPU
   repetitions against three Mac repetitions, using 16 locations and nine fixed
@@ -62,8 +89,9 @@ measurements into automatic production approval.
   access to the two Community pose catalogs against independent manifest/sample
   hashes. The catalogs overlap and contain neither original embeddings nor
   frozen imagery; they are work inputs, not published searchable contributions
-  or Gen4 authority. The recovered scene path still needs matching frozen Mac
-  repetitions and installed-reference/text/ranking correspondence. No catalog was imported
+  or Gen4 authority. The recovered scene path has matching frozen Mac
+  repetitions supplied above; installed-reference/text/ranking correspondence
+  remains open. No catalog was imported
   into search and no live resource or installed worker was changed.
 - Added a private operator runner for three fresh native object repetitions
   using independently pinned frozen RGB, models, query settings and development
@@ -423,6 +451,9 @@ production credit product.
   enforces Gen4 receipts for objects, and spends nothing if the engine is
   missing or returns invalid results. The prototype 96-dimensional extractor
   is not an acceptable substitute for VISION's four-view scene vectors.
+  The native scene adapter, runtime packager and private bridge are implemented
+  and exercised locally on Mac/Windows; the actual native host, HTTPS ingress,
+  private service binding and live contribution snapshot remain to be deployed.
 - [ ] Measure hosted compute, memory, latency and cost, including simultaneous
   requests and an index update during search. Compare held-out rankings with
   Andrew's application before advertising parity.
