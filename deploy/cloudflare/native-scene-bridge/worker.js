@@ -6,7 +6,7 @@ const reply = (status, error) => Response.json({ error }, {
   status, headers: { "Cache-Control": "no-store" },
 });
 
-async function bounded(stream, maximum) {
+export async function bounded(stream, maximum) {
   if (!stream) throw Error("missing body");
   const reader = stream.getReader(), chunks = [];
   let size = 0;
