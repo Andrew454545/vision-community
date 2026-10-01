@@ -68,6 +68,25 @@ evidence until the acceptance checklist's controlled quality checks are complete
 
 ## Private service
 
+Prepare the private runtime on its intended service host, using the same Python
+interpreter and Community package that will run the adapter:
+
+```text
+python -B -m community.native_scene_runtime --build NATIVE_BUILD/build-evidence.json --build-sha256 BUILD_RECEIPT_PIN --binary-dir NATIVE_BUILD/target/release --model-pins MODEL_PINS.json --model-pins-sha256 MODEL_INVENTORY_PIN --models CANONICAL_MODELS --countries NATIVE_SOURCE/app/src/data/country-names.txt --countries-sha256 COMPILED_COUNTRY_PIN --out NEW_PRIVATE_RUNTIME --policy-id SEARCH_POLICY_ID --query-mode textOnly
+```
+
+Use the independently supplied build-receipt, model-inventory and country pins.
+The command copies the executable, every DLL declared in that receipt and all
+four model files into the layout above, retaining model timestamps and executable
+permissions. It checks the compiled country dependency and all copied bytes,
+pins the installed adapter/helper sources and Python version, and writes
+`runtime.json` last. Its JSON result supplies `runtimeSha256` for the gateway and
+service command. Existing outputs are preserved; a failed copy retains a fixed
+failure marker without a completed runtime manifest. No download, model
+execution, qualification or deployment is performed. The selected query modes
+still belong to the operator's acceptance decision; the command packages their
+identity rather than generating approval from client data.
+
 Run with the application's private Python:
 
 ```text
@@ -77,9 +96,12 @@ python -B -m community.native_scene_search --runtime PRIVATE_RUNTIME/runtime.jso
 Set `VISION_SEARCH_ENGINE_SECRET` in the trusted service environment, with at
 least 32 printable characters. Do not put a credential in a command, Git, browser
 or logs. The adapter listens only on `127.0.0.1` and requires Bearer authorization
-on `/search`. A trusted hosting bridge must expose it to the Community Worker's
-private `SEARCH_ENGINE` binding; no public endpoint or deployment is created by
-this command. It accepts the existing version-2 gateway request, including all
+on `/search`. A [private hosting bridge](../deploy/cloudflare/native-scene-bridge/README.md)
+connects an operator-configured HTTPS ingress to the Community Worker's
+`SEARCH_ENGINE` binding, preserving request bytes and injecting the host secret.
+The hosted native process and HTTPS ingress still need configuration; the adapter
+command creates no public endpoint or deployment. It accepts the version-2
+gateway request, including all
 runtime/snapshot/policy/request pins. The exact embedded JSON query bytes are
 hashed, retaining JavaScript's numeric spellings and order across the Python
 boundary. No browser-supplied engine URL or pin is accepted by the gateway.
@@ -141,12 +163,42 @@ All pass. Publication rows/accounts/credits in that rehearsal are disposable
 local fixtures; no live contribution or account was created, and no reference
 data was published. Original failures are preserved privately.
 
+On 2026-10-01, the packaging command prepared the real Mac development runtime
+from the independently pinned build receipt and all four canonical model files.
+The retained 16-location scene records then passed the same complete local
+workerd/D1 gateway rehearsal through the private bridge and the real native
+adapter. Road/shop/landscape IDs, scores and selected views match the direct
+native reference after existing thresholds/pruning. Four native queries, three
+recoveries without extra inference/debit, scientific-coordinate fingerprints,
+outage and removed-contributor checks all pass. An initial bridge request-framing
+failure was retained and fixed by letting Fetch frame the unchanged byte body.
+Nine transport tests include an actual HTTP check of its Unicode bytes and
+computed request length. Eight runtime packaging tests cover pins, dependencies,
+permissions/timestamps, startup and preserved incomplete outputs. The Python
+suite ran 304 tests with 15 Windows-only skips; all 97 JavaScript tests pass.
+Main/bridge dry-run builds and the separate local gateway/verifier checks pass.
+This uses disposable local rows, accounts, credits and storage; the reference
+corpus was not imported into the live Community index. The fixture, runtime,
+queries, indexes and failure logs remain in the private technical handoff.
+
 `deploy/cloudflare/tools/check-native-scene-gateway.mjs` reproduces the latter
 rehearsal using a deliberately labeled private fixture and an already running
 loopback engine. Provide Miniflare, the dry-run Worker bundle and fixture paths;
 pass the loopback URL and secret through the test process environment. It rejects
 external engine hosts and uses only ephemeral local D1/R2. Its fixture's expected
 results must come from separately checked native output; do not invent scores.
+Pass the private bridge module as an optional fourth argument to exercise its
+request-byte and authorization forwarding in that same rehearsal.
+
+For production continuation, first host the adapter behind a trusted HTTPS
+ingress and configure the bridge secret, private service binding and three
+gateway identity pins. Use a snapshot sealed from published contributions;
+the private reference rehearsal is not a live publication inventory. Exercise
+that actual HTTPS path before enabling search. The trusted scene verifier,
+approved PC policy, real accepted contribution and Windows workload/recovery
+exercise remain separate deployment work in
+[PRODUCTION_ACCEPTANCE.md](PRODUCTION_ACCEPTANCE.md). The contributor owns the
+remaining acceptance decisions under Andrew's existing authorization.
 
 No Mac installed-runtime equivalence, full calibration/device/parallel admission,
 live hosting, restoration, endurance, traffic-scale latency or cost claim follows

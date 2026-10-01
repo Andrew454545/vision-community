@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { pathToFileURL } from "node:url";
 
-const [miniflarePath, bundlePath, fixturePath] = process.argv.slice(2);
+const [miniflarePath, bundlePath, fixturePath, bridgePath] = process.argv.slice(2);
 if (!fixturePath) throw Error("Specify Miniflare, bundled Worker and private local fixture.");
 const fixtureBytes = readFileSync(fixturePath);
 assert.ok(fixtureBytes.length < 256 * 1024);
@@ -19,6 +19,7 @@ assert.equal(endpoint.pathname, "/search");
 assert.ok(!endpoint.username && !endpoint.password && !endpoint.search);
 const secret = process.env.VISION_SEARCH_ENGINE_SECRET || "";
 assert.ok(secret.length >= 32);
+const bridge = bridgePath ? await import(pathToFileURL(resolve(bridgePath)).href) : null;
 const { Miniflare, convertV4MiniflareOptions } = await import(pathToFileURL(resolve(miniflarePath)).href);
 let failure = false, calls = 0;
 const options = { modules: true, scriptPath: resolve(bundlePath), modulesRoot: dirname(resolve(bundlePath)),
@@ -28,6 +29,16 @@ const options = { modules: true, scriptPath: resolve(bundlePath), modulesRoot: d
     SEARCH_ENGINE: async request => {
       calls += 1;
       if (failure) return new Response("unavailable", { status: 503 });
+      if (bridge) {
+        // The diagnostic-only fetch adapter maps a fixed synthetic HTTPS host
+        // to the validated loopback URL. Production keeps its operator HTTPS
+        // host; no loopback exception is added to the private bridge.
+        return bridge.handleSearch(request, { NATIVE_ENGINE_URL: "https://native-local-fixture.invalid/search",
+          NATIVE_ENGINE_SECRET: secret }, (url, init) => {
+          assert.equal(url, "https://native-local-fixture.invalid/search");
+          return fetch(endpoint, init);
+        });
+      }
       return fetch(endpoint, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${secret}` },
         body: await request.text(), signal: AbortSignal.timeout(115000) });
     } },
@@ -104,5 +115,5 @@ try {
   assert.equal((await db.prepare("SELECT units FROM accounts WHERE id=?").bind(account).first()).units,100000);
   console.log(JSON.stringify({status:"REAL_NATIVE_LOCAL_GATEWAY_AND_CREDITS_PASSED",nativeQueries:4,scientificCoordinatesPassed:true,
     recoveredWithoutExtraInferenceOrDebit:3,outageSpendsNothing:true,orphanSpendsNothing:true,
-    productionQualified:false,liveResourcesChanged:false}));
+    privateBridgeExercised:Boolean(bridge),productionQualified:false,liveResourcesChanged:false}));
 } finally { await mf.dispose(); }
