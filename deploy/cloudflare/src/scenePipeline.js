@@ -14,13 +14,23 @@ CREATE TABLE IF NOT EXISTS scene_candidates (
 );`;
 
 export function verifierConfigured(env) {
-  return typeof env.SCENE_VERIFIER?.fetch === "function" && typeof env.SCENE_POLICY_ID === "string" && !!env.SCENE_POLICY_ID;
+  return typeof env.SCENE_VERIFIER?.fetch === "function" && typeof env.SCENE_POLICY_ID === "string" && !!env.SCENE_POLICY_ID && auditBatchLimit(env) !== null;
+}
+
+export function auditBatchLimit(env) {
+  // The private audit has a 50-second execution budget. Larger batches require
+  // a measured host limit; processing pace does not establish audit capacity.
+  if (env.SCENE_AUDIT_MAX_LOCATIONS === undefined) return 8;
+  const value = env.SCENE_AUDIT_MAX_LOCATIONS;
+  if (typeof value !== "string" || !/^[1-9][0-9]{0,2}$/.test(value)) return null;
+  const limit = Number(value);
+  return limit <= 128 ? limit : null;
 }
 
 export function pipelineCapabilities(env) {
   return { version: 1, sceneContributions: { ready: true, reason: null, model: SCENE_OUTPUT_MODEL,
     policyId: env.SCENE_POLICY_ID, scope: "audited-new-locations", deviceQualificationRequired: true,
-    canaryLocations: 112, verification: "trusted-profile-canary-and-submission-audit" } };
+    canaryLocations: 112, maxBatchLocations: auditBatchLimit(env), verification: "trusted-profile-canary-and-submission-audit" } };
 }
 
 export class ScenePipelineError extends Error {

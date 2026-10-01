@@ -2,13 +2,27 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
-import { stageScene, auditScene, qualifyDevice } from "./scenePipeline.js";
+import { stageScene, auditScene, qualifyDevice, auditBatchLimit, verifierConfigured, pipelineCapabilities } from "./scenePipeline.js";
 import { deleteAccount, cleanupAccountArtifacts, migrateAccountPrivacy } from "./accountPrivacy.js";
 import { sha256Hex } from "./model.js";
 import { PRIVACY_FENCE, writeSceneArtifact } from "./artifactWrites.js";
 import { syntheticR2 } from "./syntheticR2.mjs";
 
 const leaseId = "d".repeat(32);
+
+test('native audit capacity is bounded independently of user processing pace', () => {
+  const env = { SCENE_VERIFIER: { fetch() {} }, SCENE_POLICY_ID: 'synthetic-test-only' };
+  assert.equal(auditBatchLimit(env), 8);
+  assert.equal(pipelineCapabilities(env).sceneContributions.maxBatchLocations, 8);
+  for (const value of ['1', '16', '64', '128']) {
+    assert.equal(auditBatchLimit({ ...env, SCENE_AUDIT_MAX_LOCATIONS: value }), Number(value));
+  }
+  for (const value of ['', '0', '-1', '129', '16.5', '016', 'all', 16, null]) {
+    const broken = { ...env, SCENE_AUDIT_MAX_LOCATIONS: value };
+    assert.equal(auditBatchLimit(broken), null);
+    assert.equal(verifierConfigured(broken), false);
+  }
+});
 
 function d1(database) {
   return {

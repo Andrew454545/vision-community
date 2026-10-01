@@ -23,6 +23,7 @@ from calibration.quality import decoded_difference
 from . import native_scene_search as native
 from .four_view import BYTES_PER_LOCATION, SHARD_LOCATIONS, valid_four_view_record
 from .pc_canary import CanaryPolicy
+from .vision_index import VisionIndexError, require_scene_execution
 from .search_snapshot import bounded_read, digest, encoded, file_digest, pinned_read, write_file
 
 MAX_REQUEST = 6 * 1024 * 1024
@@ -118,6 +119,9 @@ class NativeSceneVerifier:
             raise VerificationError('invalid_operator_policy')
         self.document, self.policy_id = policy, policy['policyId']
         self.bounds = thresholds(policy.get('auditThresholds'))
+        self.max_locations = policy.get('maxAuditLocations', 8)
+        if type(self.max_locations) is not int or not 1 <= self.max_locations <= MAX_LOCATIONS:
+            raise VerificationError('invalid_audit_batch_limit')
         self.profiles = {}
         for definition in policy['profiles']:
             admitted = CanaryPolicy(definition)
@@ -175,7 +179,7 @@ class NativeSceneVerifier:
                 or not native.HEX.fullmatch(body['submissionSha256'])):
             raise VerificationError('invalid_submission', 422)
         records = body.get('records')
-        if not isinstance(records, list) or not 1 <= len(records) <= MAX_LOCATIONS:
+        if not isinstance(records, list) or not 1 <= len(records) <= self.max_locations:
             raise VerificationError('invalid_submission', 422)
         blob = decode(body.get('indexBase64'), len(records) * BYTES_PER_LOCATION)
         if digest(raw_records + b'\n' + blob) != body['submissionSha256']:
@@ -243,13 +247,19 @@ class NativeSceneVerifier:
                 'queries': [{'name': 'audit', 'query': 'a street view panorama', 'mode': 'textOnly',
                              'minSimilarity': .01, 'examples': []}],
                 'embeddingBatchSize': 16, 'imageEncoderSessions': 1,
-                'dutyCyclePercent': 100, 'thermalStateLimit': None, 'seedResults': None}
+                'dutyCyclePercent': 100, 'thermalStateLimit': None, 'seedResults': None, 'sceneFp32': True}
         write_file(job / 'input.json', encoded(spec))
         index = job / 'index'
         command = [str(self.runtime.binary), 'index-four-views', '--input', str(job/'input.json'),
                    '--model-dir', str(self.runtime.models), '--locations-tsv', str(source),
                    '--index-dir', str(index), '--checkpoint', str(job/'checkpoint.json'), '--output', str(job/'output.json')]
         native.run_native(command, job, self.timeout)
+        # A successful exit is insufficient when old binaries ignore sceneFp32.
+        # This pinned host must actually use the requested graph and CPU pool.
+        try:
+            require_scene_execution(bounded_read(native.plain_path(job/'stderr.log'), 1024*1024).decode('utf-8'), 1)
+        except VisionIndexError:
+            raise VerificationError('native_audit_runtime_unavailable') from None
         checkpoint = native.strict_json(bounded_read(native.plain_path(job/'checkpoint.json'), native.MAX_NATIVE_OUTPUT))
         manifest = native.strict_json(bounded_read(native.plain_path(index/'manifest.json'), 1024*1024))
         if (any(checkpoint.get(k) != v for k, v in {'version': 4, 'totalLocations': len(records),
@@ -287,9 +297,11 @@ def make_server(verifier, secret, *, port=0):
             self.wfile.write(raw)
         def do_POST(self):
             if not hmac.compare_digest(self.headers.get('Authorization', '').encode(), ('Bearer ' + secret).encode()):
+                native.discard_small_body(self)
                 self.reply(401, {'error': 'unauthorized'})
                 return
             if self.path not in ('/qualify', '/audit'):
+                native.discard_small_body(self)
                 self.reply(404, {'error': 'not_found'})
                 return
             lengths = self.headers.get_all('Content-Length', [])

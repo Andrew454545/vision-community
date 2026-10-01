@@ -11,11 +11,13 @@ const [miniflarePath, bundlePath, compatibilityDate = "2026-09-19"] = process.ar
 if (!miniflarePath || !bundlePath) throw Error("Specify the local Miniflare entry and dry-run Worker bundle.");
 const { Miniflare, convertV4MiniflareOptions } = await import(pathToFileURL(resolve(miniflarePath)).href);
 const pins = { SEARCH_POLICY_ID: "synthetic-local-test-only", SEARCH_RUNTIME_SHA256: "b".repeat(64),
+  SCENE_POLICY_ID: "synthetic-local-test-only",
   SEARCH_SNAPSHOT_SHA256: "c".repeat(64), DEPLOYMENT_ENVIRONMENT: "staging", INDEX_BUCKET_NAME: "vision-community-staging" };
 const options = { modules: true, scriptPath: resolve(bundlePath), compatibilityDate,
   modulesRoot: dirname(resolve(bundlePath)),
   compatibilityFlags: ["nodejs_compat"], d1Databases: ["DB"], r2Buckets: ["INDEX"], bindings: pins,
   serviceBindings: { ASSETS: () => new Response("local test", { status: 404 }),
+    SCENE_VERIFIER: async () => Response.json({ error: "synthetic-service-not-used" }, { status: 503 }),
     SEARCH_ENGINE: async request => Response.json({ ...await request.json(), processedLocations: 1,
       hits: [{ locationId: 1, outputSha256: "a".repeat(64), sourceIndex: 0, score: 0.8, viewOffset: 1 }] }) },
 };
@@ -79,6 +81,26 @@ try {
   // Establish real ownership before deletion for a legacy quarantine retry.
   await db.prepare("INSERT INTO leases (id,account_id,lane,expires_at,state) VALUES (?,?,'scene',1,'expired')")
     .bind("f".repeat(32), account).run();
+  // A deliberately synthetic qualification exercises lease capacity in actual
+  // workerd/D1. It does not qualify any runtime or perform native inference.
+  await db.prepare("INSERT INTO scene_qualifications VALUES ('synthetic-capacity',?,?,?,?,?,?)")
+    .bind(account, "b".repeat(64), pins.SCENE_POLICY_ID, "c".repeat(64), Math.floor(Date.now()/1000)+3600, 1).run();
+  for (let id=2; id<=18; id++) {
+    await db.prepare("INSERT INTO locations (id,asset_id,capture,lane,model,state,lat,lon,country,camera_generation) VALUES (?,?,'synthetic-only','scene','synthetic-input','pending',10,20,'Italy','gen4')")
+      .bind(id, `local-fixture-capacity-${id}`).run();
+  }
+  const leaseRequest = () => mf.dispatchFetch("https://community.test/api/leases", { method: "POST",
+    headers: { "content-type": "application/json", origin: "https://community.test", cookie: session },
+    body: JSON.stringify({ accountId: account, lane: "scene", pace: "max", client: "cli", count: 128, profileId: "b".repeat(64) }) });
+  const leased = await leaseRequest();
+  assert.equal(leased.status, 200, JSON.stringify(await leased.clone().json()));
+  const batch = await leased.json();
+  assert.equal(batch.items.length, 8, "Max pace cannot exceed the bounded native audit batch");
+  assert.equal(batch.resourceBudget, "qualified-runtime");
+  const resumedBatch = await (await leaseRequest()).json();
+  assert.equal(resumedBatch.leaseId, batch.leaseId);
+  assert.equal(resumedBatch.items.length, 8);
+  assert.equal(resumedBatch.resumed, true);
   const deletionBody = { accountId: account, confirmation: "DELETE", idempotencyKey: "d".repeat(64) };
   const deletion = (body = deletionBody, origin = "https://community.test", cookie = session) =>
     mf.dispatchFetch("https://community.test/api/account/delete", { method: "POST",

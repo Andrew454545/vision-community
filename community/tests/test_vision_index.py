@@ -69,7 +69,7 @@ def fake_runner(argv, _env, _cwd):
                         "viewsPerLocation": 4, "shardLocations": 50000}),
             encoding="utf-8",
         )
-        return 0, "", ""
+        return 0, "", "[vision] scene image graph: vision_model_fp32.onnx (explicit input)\n" + f"[vision] ONNX Runtime global threads: {_env['VISION_ORT_THREADS']}, spinning disabled\n"
     if "search-four-view-index" in argv:
         output = Path(argv[argv.index("--output") + 1])
         output.write_text(
@@ -117,6 +117,16 @@ class FourViewRecordTest(unittest.TestCase):
 
 
 class VisionIndexCommandTest(unittest.TestCase):
+    def test_successful_old_runtime_or_wrong_cpu_pool_cannot_complete_pc_check(self):
+        for message in ('', '[vision] scene image graph: vision_model_fp32.onnx (explicit input)\n[vision] ONNX Runtime global threads: 4, spinning disabled\n'):
+            with self.subTest(message=message), tempfile.TemporaryDirectory() as temp:
+                def old_runtime(argv, env, cwd):
+                    code, stdout, stderr = fake_runner(argv, env, cwd)
+                    return (code, stdout, message) if 'index-four-views' in argv else (code, stdout, stderr)
+                with self.assertRaisesRegex(VisionIndexError, 'vision_scene_runtime_update_required'):
+                    self.make_run(Path(temp), runner=old_runtime)
+                self.assertTrue((Path(temp)/'failure.json').is_file())
+
     def make_run(self, root, runner=fake_runner, **kwargs):
         tsv = root / "locations.tsv"
         if not tsv.is_file():
@@ -194,7 +204,7 @@ class VisionIndexCommandTest(unittest.TestCase):
             def runner(argv, env, cwd):
                 if "index-four-views" in argv:
                     calls.append(argv)
-                    return 0, "", ""
+                    return 0, "", "[vision] scene image graph: vision_model_fp32.onnx (explicit input)\n[vision] ONNX Runtime global threads: 1, spinning disabled\n"
                 return fake_runner(argv, env, cwd)
             with self.assertRaisesRegex(VisionIndexError, "vision_no_progress"):
                 self.make_run(root, runner=runner)
@@ -690,7 +700,7 @@ class VisionIndexCommandTest(unittest.TestCase):
                             json.dumps({"completed": False, "nextLocationIndex": 0, "incompleteLocations": 1}),
                             encoding="utf-8",
                         )
-                        return 0, "", ""
+                        return 0, "", "[vision] scene image graph: vision_model_fp32.onnx (explicit input)\n[vision] ONNX Runtime global threads: 1, spinning disabled\n"
                     result = fake_runner(argv, env, cwd)
                     checkpoint.write_text(
                         json.dumps({"completed": True, "nextLocationIndex": 1, "incompleteLocations": 0}),

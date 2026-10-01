@@ -72,6 +72,8 @@ class NativeSceneVerifierTest(unittest.TestCase):
         self.assertEqual(command[1], 'index-four-views')
         self.assertEqual(timeout, 50)
         source = job/'locations.tsv'
+        self.assertTrue(json.loads((job/'input.json').read_bytes())['sceneFp32'])
+        (job/'stderr.log').write_text('[vision] scene image graph: vision_model_fp32.onnx (explicit input)\n[vision] ONNX Runtime global threads: 1, spinning disabled\n', encoding='utf-8')
         self.assertEqual(source.read_text().splitlines()[0].split('\t')[8:10], ['Italy', 'gen4'])
         expected = {'version': 4, 'totalLocations': 1, 'completed': True,
                     'sourceBytes': source.stat().st_size, 'sourcePrefixHash': native.fnv_file(source),
@@ -113,6 +115,17 @@ class NativeSceneVerifierTest(unittest.TestCase):
         with patch.object(native, 'run_native', side_effect=self.fake_native):
             self.assertEqual(self.verifier.audit(body, raw)['decision'], 'rejected')
 
+    def test_completed_legacy_graph_or_wrong_threads_cannot_approve_submission(self):
+        body, raw = self.request()
+        for message in ('legacy graph: vision_model.onnx', '[vision] scene image graph: vision_model_fp32.onnx (explicit input)\n[vision] ONNX Runtime global threads: 4, spinning disabled\n'):
+            def ignored_input(command, job, timeout):
+                self.fake_native(command, job, timeout)
+                (job/'stderr.log').write_text(message, encoding='utf-8')
+            with self.subTest(message=message), patch.object(native, 'run_native', side_effect=ignored_input):
+                with self.assertRaisesRegex(audit.VerificationError, 'native_audit_runtime_unavailable'):
+                    self.verifier.audit(body, raw)
+        self.assertEqual([p.name for p in self.work.iterdir()], ['first-audit-failure.json'])
+
     def test_metadata_and_payload_tampering_duplicate_ids_and_tsv_injection_never_infer(self):
         for kind in ('payload', 'metadata', 'profile', 'duplicate', 'newline'):
             body, raw = self.request()
@@ -141,6 +154,16 @@ class NativeSceneVerifierTest(unittest.TestCase):
                 self.verifier.audit(body, raw)
         finally:
             self.verifier.busy.release()
+
+    def test_batch_larger_than_measured_host_capacity_never_starts_inference(self):
+        body, _ = self.request()
+        body['records'] = [{**body['records'][0], 'locationId': i+1} for i in range(9)]
+        blob = self.record*9
+        raw = encoded(body['records']).strip()
+        body.update(indexBase64=base64.b64encode(blob).decode(), submissionSha256=digest(raw+b'\n'+blob))
+        with patch.object(native, 'run_native') as run:
+            self.assertEqual(self.verifier.audit(body, raw)['decision'], 'rejected')
+        run.assert_not_called()
 
     def test_native_failure_removes_temporaries_keeps_fixed_report_and_recovers(self):
         body, raw = self.request()
@@ -174,11 +197,12 @@ class NativeSceneVerifierTest(unittest.TestCase):
         run.assert_not_called()
 
     def test_missing_full_calibration_or_unpinned_helper_cannot_start(self):
-        for kind in ('calibration', 'source', 'threshold', 'expiry'):
+        for kind in ('calibration', 'source', 'threshold', 'expiry', 'batch'):
             document = copy.deepcopy(self.policy)
             if kind == 'calibration': document['profiles'][0]['fullCalibration']['approved'] = False
             elif kind == 'source': document['sourceFiles']['community/native_scene_verifier.py']['sha256'] = 'f'*64
             elif kind == 'threshold': document['auditThresholds']['minimumViewCosine'] = float('inf')
+            elif kind == 'batch': document['maxAuditLocations'] = 129
             else: document['profiles'][0]['expiresInSeconds'] = 31*86400
             self.policy_file.write_text(json.dumps(document))
             with self.subTest(kind=kind), self.assertRaises(ValueError): self.start()

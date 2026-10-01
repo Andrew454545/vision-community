@@ -23,8 +23,9 @@ measurements into automatic production approval.
 - Integrated Andrew's beginner Windows starter, four-step desktop flow and
   simpler website without weakening saved-code or PC qualification gates.
   The isolated [test website](https://vision-community-staging.visioncommunity.workers.dev/)
-  now serves the new guide. All12 hosted assets match source hashes, including
-  the guide's expected same-site canonical redirect. Live disposable account
+  now serves the new guide. All13 hosted assets match source hashes, including
+  the guide's expected same-site canonical redirect and a same-site stylesheet
+  that renders under the existing strict content security policy. Live disposable account
   recovery/deletion/revocation and outage checks pass; no production account,
   credit, contribution or bucket was changed. Staging identifies itself and
   reports its own bound bucket. Fresh environments no longer silently create
@@ -42,10 +43,40 @@ measurements into automatic production approval.
   query comparisons and has worst normalized cosine0.877263. Reject that
   reconstruction profile for reference parity rather than relaxing bounds
   enough to admit it. An explicit ordinary fp32 path and CPU thread-pool fix
-  are under private native CI; this is not activation or admission. The older
+  passed all68 private native checks and a locked Windows build. The new ordinary
+  112-location CPU fp32 check completed with no errors; three full trials are
+  running privately. Its Mac comparison has409/448 identical packed views and
+  minimum cosine0.999797169; separate live imagery is not a frozen comparison.
+  This is not activation or admission. The older
   distributed Windows binary is a different artifact and was not identified
   by this graph experiment. Full ordinary-path/device/parallel qualification
   and a measured policy remain open; raw reference data stays private.
+- Client/auditor inputs now explicitly select fp32 and require the native log to
+  confirm both the graph and requested ONNX pool. An old runtime that silently
+  ignores the input cannot complete qualification or approve an audit. The host
+  explicitly bounds all four thread variables. Native audit batch capacity is
+  independent of pace, default8; larger limits require measured host capacity
+  inside the50-second audit budget and matching Worker/policy configuration.
+  The new checks require new runtime/helper/policy pins; no admitted release
+  profile or hosted native service is created by changing these helpers.
+  Actual pinned CPU recomputation of16locations completed in47.09seconds during
+  concurrent calibration, inside the50-second native limit but with little
+  spare time. This supports reducing the default rather than assuming128fits.
+  All320 Windows Python tests ran with one skip and107JavaScript tests pass;
+  the actual local workerd/D1 checks exercise the bounded lease and recovery.
+  A Windows rejected-request socket reset exposed during tests was fixed with
+  a brief bounded drain of small unambiguous bodies; large or ambiguous bodies
+  are never drained. Original failed checks remain in private evidence.
+- Nine new actual frozen-RGB scene repetitions completed at bounded1/2/4ONNX
+  threads, three per setting. All81 paired Mac query comparisons agree on
+  ordered locations and selected views. Each thread setting repeats exactly;
+  the packed indexes/native searches also agree across the three settings.
+  Five raw views differ slightly at four threads (maximum normalized relative
+  L2 about0.000000158), without changing those packed results. These16-location
+  instrumented studies ran alongside other processing and establish neither
+  representative speed nor a production parallel profile. Full-size parallel
+  quality, quiet speed/resource measurements and final installed runtime
+  qualification remain separate requirements.
 - Added reproducible private scene runtime packaging from independently pinned
   native build/model/country inputs and a private Cloudflare bridge to an
   operator-configured native HTTPS ingress. Packaging preserves executable
