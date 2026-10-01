@@ -15,6 +15,7 @@ import { OBJECT_INDEX_MODEL, validateObjectIndex } from "./objectIndex.js";
 import { onlineSearch, onlineSearchConfigured, INDEX_DOWNLOAD_ROUTES } from "./onlineSearch.js";
 import { SearchError } from "./searchLedger.js";
 import { migrateAccountPrivacy, deleteAccount, cleanupAccountArtifacts } from "./accountPrivacy.js";
+import { writeSceneArtifact } from "./artifactWrites.js";
 import { loadSceneReferences, sceneCapabilities } from "./sceneQuality.js";
 import { SCENE_PIPELINE_SCHEMA, verifierConfigured, pipelineCapabilities, activeQualification, qualificationStatus, qualifyDevice, auditScene, stageScene } from "./scenePipeline.js";
 
@@ -879,7 +880,7 @@ async function submitFourView(env, account, leaseId, items, supplied, now) {
   const blob = new Uint8Array(verified.length * FOUR_VIEW_BYTES);
   verified.forEach((item, index) => blob.set(item.embedding, index * FOUR_VIEW_BYTES));
   const key = `four-view-v4/${leaseId}.i8`;
-  await env.INDEX.put(key, blob);
+  await writeSceneArtifact(env, account, leaseId, key, blob, now);
   const earned = items.reduce((sum, row) => sum + UNITS[row.lane], 0);
   const statements = [
     env.DB.prepare("UPDATE leases SET state='submitted' WHERE id=?").bind(leaseId),

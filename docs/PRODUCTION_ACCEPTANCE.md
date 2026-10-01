@@ -20,6 +20,30 @@ measurements into automatic production approval.
 
 ## Completed in this pass
 
+- Added immutable scene write intents and create-only R2 uploads so account
+  deletion can discover uploads before a candidate exists. Cleanup permanently
+  fences unpublished keys, blocks delayed payload recreation, preserves published
+  indexes and checks lease/account provenance. Offline restore requeues journaled
+  uploads; migration and repair failures roll back. All 82 JavaScript tests and
+  the complete Worker build/local workerd/D1/R2/verifier checks pass, including
+  real conditional quarantine/final writes on both sides of deletion. Live
+  rollout must stop/drain old unconditional writers; object uploads, historical
+  orphan retention and live storage/restore acceptance remain open. See
+  [ACCOUNT_PRIVACY.md](ACCOUNT_PRIVACY.md).
+- Incorporated Andrew's [current Mac reference report](MAC_REFERENCE_STATUS_20260930.md)
+  from PR #3 at `351548b`. It records executable/model identities and observed
+  settings, and explains why the installed production path cannot yet establish
+  identical-input repetitions. Source/build provenance and native export/replay
+  access have been requested on PR #2. Numerical/ranking bounds and parallel
+  production qualification remain unestablished; this is documentation evidence,
+  not a completed model-quality comparison.
+  Andrew's later PR #2 reply reports a tested native object development build
+  with a new identity, an incomplete recovered scene checkout, and a private
+  technical handoff. Those source/access details stay in the private channel;
+  standalone Windows build and coherent scene recovery still need verification.
+  He also reports his local workers resumed at 1% duty with scheduled increases
+  disabled. The earlier maximum settings are a dated observation, not current
+  worker status or a new comparison result.
 - Fixed completed-delivery recovery after definitive lease expiry/loss. The
   journal retains output and a fixed reason, stops retrying that terminal
   delivery, frees its pending slot and continues other deliveries. It never
@@ -35,7 +59,8 @@ measurements into automatic production approval.
   Python CI exposed a missing Pillow test dependency and short/long-path
   assertion mismatches. The workflow now installs declared dependencies and
   tests compare resolved paths; the original failing log is preserved privately.
-  Recheck the final PR revision before treating the complete CI gate as passed.
+  All five jobs subsequently passed at `e67c898`, including 269 Windows Python
+  tests. Recheck the final PR revision after further changes.
 - Bounded the object launcher's native process/retry lifecycle. Native logs and
   exit outcomes are preserved, failed launches/timeouts stop, repeated exits
   and stalled/regressed checkpoints cannot retry forever, and both native
@@ -277,7 +302,7 @@ recorded evidence:
 - [ ] Anonymous account recovery, user deletion, retention policy, minimization
   of IP/search logging, public artifact metadata and maintainer identity audit.
   Removing names from a UI does not erase Git history or provider records.
-  Account deletion and delayed-write protection are now tested locally; live
+  Account deletion, database fences and late scene-upload protection are tested locally; live
   rollout, independent durable deletion-receipt storage, a complete staging
   restore/import, wider orphan cleanup and provider logging/retention review
   remain outstanding. The offline privacy-repair rehearsal is implemented and

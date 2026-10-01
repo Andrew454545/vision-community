@@ -34,12 +34,12 @@ function fixture(t, path = ":memory:", oldAccountColumn = false) {
     (3,'three','capture','scene','model','published','published',NULL,'${account}'),
     (4,'four','capture','scene','model','leased','leased','lease-other',NULL);
     INSERT INTO leases (id,account_id,lane,expires_at,state) VALUES
-    ('lease-one','${account}','scene',9999,'active'),('lease-two','${account}','scene',9999,'submitted'),
+    ('lease-one','${account}','scene',9999,'active'),('${"d".repeat(32)}','${account}','scene',9999,'submitted'),
     ('lease-published','${account}','scene',9999,'submitted'),('lease-other','${other}','scene',9999,'active');
-    INSERT INTO lease_items VALUES ('lease-one',1),('lease-two',2),('lease-published',3),('lease-other',4);
+    INSERT INTO lease_items VALUES ('lease-one',1),('${"d".repeat(32)}',2),('lease-published',3),('lease-other',4);
     INSERT INTO scene_qualifications VALUES ('qualified','${account}','profile','policy','digest',9999,1);
     INSERT INTO scene_candidates VALUES
-    ('lease-two','${account}','qualified','policy','digest','${quarantine}','[{"private":"candidate"}]',1,'pending'),
+    ('${"d".repeat(32)}','${account}','qualified','policy','digest','${quarantine}','[{"private":"candidate"}]',1,'pending'),
     ('lease-published','${account}','qualified','policy','digest','four-view-v4/kept.i8','[{"published":true}]',1,'published');
     INSERT INTO published_index (location_id,index_text,output_sha256,published_at,four_view_key)
       VALUES (3,'','digest',1,'four-view-v4/kept.i8');
@@ -73,7 +73,7 @@ test("fresh deletion records revoke old credentials and results while preserving
   assert.equal(sql.prepare("SELECT expires_at FROM scene_qualifications").get().expires_at, 0);
   assert.equal(sql.prepare("SELECT state FROM leases WHERE id='lease-one'").get().state, "expired");
   assert.equal(sql.prepare("SELECT assignee FROM pose_catalog").get().assignee, null);
-  assert.equal(sql.prepare("SELECT records_json FROM scene_candidates WHERE lease_id='lease-two'").get().records_json, "[]");
+  assert.equal(sql.prepare(`SELECT records_json FROM scene_candidates WHERE lease_id='${"d".repeat(32)}'`).get().records_json, "[]");
   assert.equal(sql.prepare("SELECT state FROM locations WHERE id=2").get().state, "pending");
   assert.equal(sql.prepare("SELECT state FROM account_cleanup WHERE artifact_key=?").get(quarantine).state, "pending");
   assert.equal(sql.prepare("SELECT COUNT(*) AS n FROM published_index").get().n, 1);
@@ -93,7 +93,7 @@ test("reapplied tombstones retain database fences against late searches, credits
     `INSERT INTO searches VALUES ('late','${account}','key','query','private')`,
     `INSERT INTO ledger (account_id,units,reason,reference) VALUES ('${account}',1,'work','late')`,
     `UPDATE scene_qualifications SET expires_at=1000`,
-    `UPDATE scene_candidates SET state='published' WHERE lease_id='lease-two'`,
+    `UPDATE scene_candidates SET state='published' WHERE lease_id='${"d".repeat(32)}'`,
     `UPDATE locations SET state='published',contributor_id='${account}' WHERE id=1`,
   ]) assert.throws(() => sql.exec(statement), /account_not_active/);
 });
@@ -106,6 +106,33 @@ test("repeated repair preserves the original receipt and does not close credits 
   assert.equal(sql.prepare("SELECT token_hash FROM accounts WHERE id=?").get(account).token_hash, firstToken);
   assert.equal(sql.prepare("SELECT COUNT(*) AS n FROM ledger WHERE reason='account_restore_deleted'").get().n, 1);
   assert.deepEqual(exportDeletionLedger(sql, 250).receipts, ledger().receipts);
+});
+
+test("restore requeues journaled uploads without candidates, preserves published indexes and fences late writes", t => {
+  const sql = fixture(t);
+  for (const statement of PRIVACY_TABLES) sql.exec(statement);
+  const final = `four-view-v4/${"d".repeat(32)}.i8`, retained = "four-view-v4/kept.i8";
+  for (const key of [final, retained]) sql.prepare("INSERT INTO account_artifact_writes VALUES (?,?,?,?,?,1)")
+    .run(key, account, "d".repeat(32), "f".repeat(64), 3080);
+  sql.prepare("INSERT INTO account_cleanup VALUES (?,?,1,'fenced')").run(final, account);
+  applyDeletionLedger(sql, ledger(), 100, 210);
+  assert.equal(sql.prepare("SELECT state FROM account_cleanup WHERE artifact_key=?").get(final).state, "pending");
+  assert.equal(sql.prepare("SELECT COUNT(*) AS n FROM account_cleanup WHERE artifact_key=?").get(retained).n, 0);
+  assert.equal(sql.prepare("SELECT COUNT(*) AS n FROM published_index").get().n, 1);
+  assert.throws(() => sql.prepare("INSERT INTO account_artifact_writes VALUES (?,?,?,?,?,1)")
+    .run(`four-view-v4/${"f".repeat(32)}.i8`, account, "f".repeat(32), "f".repeat(64), 3080), /account_not_active/);
+  assert.throws(() => sql.exec("UPDATE account_artifact_writes SET bytes=1"), /artifact_write_intent_immutable/);
+});
+
+test("restore rolls back when a journaled upload has a conflicting cleanup owner", t => {
+  const sql = fixture(t);
+  for (const statement of PRIVACY_TABLES) sql.exec(statement);
+  const final = `four-view-v4/${"d".repeat(32)}.i8`;
+  sql.prepare("INSERT INTO account_artifact_writes VALUES (?,?,?,?,?,1)").run(final, account, "d".repeat(32), "f".repeat(64), 3080);
+  sql.prepare("INSERT INTO account_cleanup VALUES (?,?,1,'pending')").run(final, other);
+  assert.throws(() => applyDeletionLedger(sql, ledger(), 100, 210), /restore_cleanup_owner_conflict/);
+  assert.equal(sql.prepare("SELECT units FROM accounts WHERE id=?").get(account).units, 250000);
+  assert.equal(sql.prepare("SELECT COUNT(*) AS n FROM account_deletion_receipts").get().n, 0);
 });
 
 test("a deleted account created after the backup receives an inactive tombstone without new access", t => {
