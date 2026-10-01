@@ -40,7 +40,13 @@ measurements into automatic production approval.
   Andrew's later PR #2 reply reports a tested native object development build
   with a new identity, an incomplete recovered scene checkout, and a private
   technical handoff. Those source/access details stay in the private channel;
-  standalone Windows build and coherent scene recovery still need verification.
+  the handoff has now been located and read. An isolated Windows CPU runner
+  passed the native object's locked tests, release build and v4 index-layout
+  check, using the original object source/lock hashes verified against the Mac
+  build receipt. This is a new development binary, with no model inference or
+  production qualification. The laptop still lacks native build tools; local
+  execution of the downloaded binary and coherent scene recovery need evidence.
+  Detailed source/access information and build artifacts remain private.
   He also reports his local workers resumed at 1% duty with scheduled increases
   disabled. The earlier maximum settings are a dated observation, not current
   worker status or a new comparison result.
