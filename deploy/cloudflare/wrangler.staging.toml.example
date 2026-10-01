@@ -36,6 +36,8 @@ namespace_id = "REPLACE_WITH_UNIQUE_RATE_LIMIT_NAMESPACE"
   period = 60
 
 [vars]
+DEPLOYMENT_ENVIRONMENT = "staging"
+INDEX_BUCKET_NAME = "vision-community-staging"
 SCENE_POLICY_ID = "REPLACE_WITH_REVIEWED_POLICY_ID"
 
 [assets]

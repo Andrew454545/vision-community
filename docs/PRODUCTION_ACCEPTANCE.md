@@ -20,6 +20,32 @@ measurements into automatic production approval.
 
 ## Completed in this pass
 
+- Integrated Andrew's beginner Windows starter, four-step desktop flow and
+  simpler website without weakening saved-code or PC qualification gates.
+  The isolated [test website](https://vision-community-staging.visioncommunity.workers.dev/)
+  now serves the new guide. All12 hosted assets match source hashes, including
+  the guide's expected same-site canonical redirect. Live disposable account
+  recovery/deletion/revocation and outage checks pass; no production account,
+  credit, contribution or bucket was changed. Staging identifies itself and
+  reports its own bound bucket. Fresh environments no longer silently create
+  prototype queue rows; deliberate local demonstrations may opt in with
+  `SEED_PROTOTYPE_LOCATIONS=1`. Integrated Windows317 Python tests ran with
+  one skip; all106JavaScript tests, three Worker builds and complete local
+  gateway/verifier checks pass. Native bindings and approval policy are still
+  unset, so this does not establish successful hosted contributions/search.
+- Independently verified Andrew's new private frozen scene reference and
+  full Mac calibration/service packets. Three additional real Windows fp32
+  repetitions on his exact frozen RGB match all27 paired native query orders
+  and selected views. All64NCHW inputs are identical; normalized worst relative
+  L2 is0.0000361704. Packed embedding bytes differ. A separate three-run test
+  of the supplied reconstruction's ordinary CPU int8 graph changes all27
+  query comparisons and has worst normalized cosine0.877263. Reject that
+  reconstruction profile for reference parity rather than relaxing bounds
+  enough to admit it. An explicit ordinary fp32 path and CPU thread-pool fix
+  are under private native CI; this is not activation or admission. The older
+  distributed Windows binary is a different artifact and was not identified
+  by this graph experiment. Full ordinary-path/device/parallel qualification
+  and a measured policy remain open; raw reference data stays private.
 - Added reproducible private scene runtime packaging from independently pinned
   native build/model/country inputs and a private Cloudflare bridge to an
   operator-configured native HTTPS ingress. Packaging preserves executable

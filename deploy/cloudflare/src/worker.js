@@ -160,6 +160,9 @@ async function ready(env) {
     await env.DB.prepare("ALTER TABLE leases ADD COLUMN scene_qualification_id TEXT").run();
   }
   await migrateAccountPrivacy(env);
+  // Prototype metadata is an explicit local demonstration, never work to
+  // advertise automatically on a fresh hosted deployment.
+  if (env.SEED_PROTOTYPE_LOCATIONS !== "1") return;
   const count = await env.DB.prepare("SELECT COUNT(*) AS n FROM locations").first();
   if (!count || count.n > 0) return;
   const statements = SEED_LOCATIONS.map((row) =>
@@ -398,12 +401,13 @@ async function status(env, account, options = {}) {
   ).first();
   const result = {
     operational: true,
+    environment: env.DEPLOYMENT_ENVIRONMENT === "staging" ? "staging" : "preview",
     demo: false,
     publicCorpus: false,
     ownerBypass: false,
     persistImagery: false,
     r2: lite
-      ? { provisioned: Boolean(env.INDEX), bucket: env.INDEX ? "vision-community" : null, binding: "INDEX", publicAccess: false, role: "sealed-segments" }
+      ? { provisioned: Boolean(env.INDEX), bucket: env.INDEX ? env.INDEX_BUCKET_NAME || "vision-community" : null, binding: "INDEX", publicAccess: false, role: "sealed-segments" }
       : await r2Status(env),
     searchCost: SEARCH_COST,
     searchBackend: "online",
@@ -449,7 +453,7 @@ async function status(env, account, options = {}) {
 async function r2Status(env) {
   const status = {
     provisioned: Boolean(env.INDEX),
-    bucket: env.INDEX ? "vision-community" : null,
+    bucket: env.INDEX ? env.INDEX_BUCKET_NAME || "vision-community" : null,
     binding: "INDEX",
     publicAccess: false,
     role: "sealed-segments",

@@ -902,6 +902,9 @@ async function refresh(options = {}) {
     state = next;
   }
   signedIn = Boolean(state.accountId);
+  const testSite = state.environment === "staging";
+  $("site-description").textContent = testSite ? "Test website · separate accounts and credits" : "Scene and object search";
+  document.title = testSite ? "VISION — Test website" : "VISION";
   if (previous?.accountId !== state.accountId) {
     lastMap = null;
     $("results").replaceChildren();
