@@ -1,6 +1,6 @@
 # Production acceptance and continuation
 
-Updated 2026-09-30. This checklist defines completion; "perfect" is not a
+Updated 2026-10-01. This checklist defines completion; "perfect" is not a
 testable release claim. Check off a requirement only with test or deployment
 evidence. Preserve earlier calibration failures and do not turn exploratory
 measurements into automatic production approval.
@@ -20,6 +20,17 @@ measurements into automatic production approval.
 
 ## Completed in this pass
 
+- Added a private operator runner for three fresh native object repetitions
+  using independently pinned frozen RGB, models, query settings and development
+  build receipts. It preserves native index/search outputs, ranked results,
+  explicit face/model/provider coverage and incomplete failures, with separate
+  uninstrumented timing runs. All 26 offline helper checks pass locally;
+  synthetic/mocked orchestration and actual native input/model-contract rejection
+  checks are prerequisites, not real model repetitions or qualification. The
+  original failures remain private. Shared reference inputs, coherent scene
+  recovery, semantic text boundary evidence, numerical/ranking bounds and the
+  parallel profile remain open. Detailed source, fixtures and receipts stay in
+  the private technical channel; no installed worker or live deployment changed.
 - The website now checks service status and the required scene qualification
   contract before showing/copying an indexing command. Missing or legacy
   capabilities fail closed, Objects/Both remain unavailable during portable
