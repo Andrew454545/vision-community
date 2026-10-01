@@ -63,8 +63,10 @@ historical members fail closed rather than silently reusing or changing an
 ordinal. Revocation/deletion needs an explicitly versioned replacement policy
 and cutoff handling; do not force an incompatible bundle into the same registry.
 
-The flat records/membership bundle is an **input contract for the pending engine
-adapter**, not a native VISION index directory. Road-name authority is marked
+The flat records/membership bundle is an **input contract for the private native
+scene adapter**, not itself a native VISION index directory. The implemented
+[adapter](../../docs/NATIVE_SCENE_SEARCH.md) mounts its exact records in the native
+layout and has actual local search/gateway correspondence evidence. Road-name authority is marked
 unavailable because the present D1 inventory cannot attest it. An engine must
 reject unsupported road-filter requests until trusted road evidence is added.
 No deployment, live export, inference parity, throughput or cost claim follows
