@@ -32,7 +32,7 @@ ERRORS = {
     "unsupported_platform": "This starter supports 64-bit Intel or AMD Windows PCs. This computer is not supported.",
     "recovery_failed": "That account code was not accepted. Check it and try again.",
     "unauthorized": "Please reconnect your account using your saved code.",
-    "scene_verification_unavailable": "The shared service is not ready to verify PC contributions. Please ask the project maintainer to enable verification before indexing.",
+    "scene_verification_unavailable": "VISION is not open for contributions yet. You have done nothing wrong. Close VISION and come back when the project maintainer announces it is ready.",
     "scene_reference_required": "The service has not approved this batch for contribution. Your local evidence has been kept.",
     "verification_failed": "The service did not accept this batch. Your local results have been kept for review.",
     "busy": "Another action is still running. Please wait for it to finish.",
@@ -237,7 +237,7 @@ class DesktopApp:
         if checked.returncode:
             raise VisionIndexError("vision_binary_failed")
         require_layout(parse_json_stdout(checked.stdout))
-        self.update(ready=True, phase="ready", message="This PC is ready. Connect your account below.")
+        self.update(ready=True, phase="ready", message="Setup complete. Go to step 2 to create an account or use your saved code.")
 
     def capabilities(self, client):
         try:
@@ -324,7 +324,7 @@ class DesktopApp:
         _, decision, _ = self.client.request("POST", "/api/scene-qualifications", self.canary_report["submission"])
         if not self.set_qualification(decision):
             raise DesktopError("scene_qualification_rejected")
-        self.update(phase="ready", message="This PC is approved. You can start indexing.", batchCompleted=0, batchTotal=16)
+        self.update(phase="ready", message="PC approved. Go to step 4 and choose Start helping.", batchCompleted=0, batchTotal=16)
 
     def require_qualification(self):
         self.require_account()
@@ -365,7 +365,7 @@ class DesktopApp:
                 self.state["pending"] = int(getattr(self.client, "pending", 0))
                 self.state["units"] = int(result.get("units", self.state["units"] + int(result.get("unitsEarned", 0))))
                 self.state["batchCompleted"] = 0
-        self.update(phase="ready", message="Indexing paused. Completed batches are saved. Choose Start indexing to continue.")
+        self.update(phase="ready", message="Processing paused. Your completed work is saved. Choose Start helping to continue.")
 
     def resume_submissions(self):
         result = self.client.resume_submissions()
