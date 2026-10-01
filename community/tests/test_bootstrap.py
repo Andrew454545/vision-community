@@ -164,11 +164,13 @@ class BootstrapPlatformTests(unittest.TestCase):
 
 
 class BootstrapPageTests(unittest.TestCase):
-    def test_public_instructions_use_the_setup_command(self):
+    def test_setup_command_is_available_in_the_linked_developer_guide(self):
         root = Path(__file__).resolve().parents[2]
         readme = (root / "README.md").read_text(encoding="utf-8")
         page = (root / "community" / "web" / "index.html").read_text(encoding="utf-8")
-        self.assertIn("python3 -m community.bootstrap", readme)
+        self.assertIn("docs/DEVELOPER_GUIDE.md", readme)
+        guide = (root / "docs" / "DEVELOPER_GUIDE.md").read_text(encoding="utf-8")
+        self.assertIn("python3 -m community.bootstrap", guide)
         self.assertIn("python3 -m community.bootstrap", page)
         manifest = json.loads((root / "community" / "runtime_manifest.json").read_text(encoding="utf-8"))
         assets = [item["asset"] for item in manifest["files"]]
