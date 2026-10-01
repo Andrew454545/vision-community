@@ -191,24 +191,26 @@ class WindowsLauncherTest(unittest.TestCase):
                 target = root / name
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_bytes(body)
-            invocation += " -DayPace pause -NightPace slow -DayStart 07:30 -NightStart 19:45 -RetryMinutes 17 -AllowSleep"
+            invocation += " -DayPace pause -NightPace slow -DayStart 07:30 -NightStart 19:45 -RetryMinutes 17 -StorageLimitGB 20 -AllowSleep"
             command = (SCHEDULER_MOCKS + "$messages = @(" + invocation + "); " +
                        "@{action=$global:CapturedAction;retry=$global:RetryInterval} | ConvertTo-Json -Compress")
             result = json.loads(self.command(command))
             args = result["action"]["arguments"]
             self.assertIn('--day-pace pause --night-pace slow --day-start 07:30 --night-start 19:45 --retry-minutes 17', args)
             self.assertTrue(args.endswith(' --no-keep-awake'))
+            self.assertIn('--storage-limit-gb 20', args)
             self.assertEqual(result["retry"], 15)  # Windows recovery remains independent of service cooldown.
             self.assertEqual(json.loads((root / "background-settings.json").read_text()), {
                 "dayPace": "pause", "nightPace": "slow", "dayStart": "07:30", "nightStart": "19:45",
-                "retryMinutes": 17, "keepAwake": False, "clock": "Windows local time"})
+                "retryMinutes": 17, "keepAwake": False, "clock": "Windows local time", "storageLimitGB": 20})
             for name, body in preserved.items():
                 self.assertEqual((root / name).read_bytes(), body)
 
     def test_background_schedule_rejects_invalid_values_before_installation(self):
         with tempfile.TemporaryDirectory() as folder:
             root, _runtime, invocation = self.installer_fixture(folder)
-            for flags in (" -DayStart 25:00", " -RetryMinutes 0", " -NightPace fast", " -DayStart 22:00 -NightStart 22:00"):
+            for flags in (" -DayStart 25:00", " -RetryMinutes 0", " -NightPace fast", " -DayStart 22:00 -NightStart 22:00",
+                          " -StorageLimitGB -1", " -StorageLimitGB 4097"):
                 with self.subTest(flags=flags):
                     self.command(SCHEDULER_MOCKS + invocation + flags, expected=1)
                     self.assertFalse((root / "apps").exists())
