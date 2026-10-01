@@ -20,6 +20,22 @@ measurements into automatic production approval.
 
 ## Completed in this pass
 
+- Completed the private frozen-input object pilot: three actual Windows CPU
+  repetitions against three Mac repetitions, using 16 locations and nine fixed
+  native queries. All 27 paired query results matched ordered locations, hit
+  counts and selected views. Both platforms repeated consistently; cross-platform
+  bytes and some raw model outputs differ. The independently checked report
+  preserves those differences and sets no acceptance tolerance. This small
+  development study does not qualify installed VISION equivalence, Scenes,
+  the full calibration, a device or a parallel profile. Its private comparison
+  helper passes 34 offline checks and all five Windows/Linux/Mac CI cells.
+- Received a buildable scene development reconstruction and verified read-only
+  access to the two Community pose catalogs against independent manifest/sample
+  hashes. The catalogs overlap and contain neither original embeddings nor
+  frozen imagery; they are work inputs, not published searchable contributions
+  or Gen4 authority. The recovered scene path still needs frozen-input replay
+  and installed-reference/text/ranking correspondence. No catalog was imported
+  into search and no live resource or installed worker was changed.
 - Added a private operator runner for three fresh native object repetitions
   using independently pinned frozen RGB, models, query settings and development
   build receipts. It preserves native index/search outputs, ranked results,
@@ -27,8 +43,8 @@ measurements into automatic production approval.
   uninstrumented timing runs. All 26 offline helper checks pass locally;
   synthetic/mocked orchestration and actual native input/model-contract rejection
   checks are prerequisites, not real model repetitions or qualification. The
-  original failures remain private. Shared reference inputs, coherent scene
-  recovery, semantic text boundary evidence, numerical/ranking bounds and the
+  original failures remain private. Full scene reference repetitions,
+  semantic text boundary evidence, numerical/ranking bounds and the
   parallel profile remain open. Detailed source, fixtures and receipts stay in
   the private technical channel; no installed worker or live deployment changed.
 - The website now checks service status and the required scene qualification
