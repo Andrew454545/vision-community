@@ -50,7 +50,7 @@ def runtime_profile(binary: Path, model_dir: Path, *, inference_threads=1):
             assets["bin/" + name] = sha(binary.parent / name)
     spec = four_view_input(total=LOCATIONS, pace="slow", run_id="canary")
     settings = {key: spec[key] for key in ("chunkSize", "concurrency", "embeddingBatchSize",
-                                         "imageEncoderSessions", "dutyCyclePercent", "thermalStateLimit")}
+                                         "imageEncoderSessions", "dutyCyclePercent", "thermalStateLimit", "sceneFp32")}
     profile = {"version": 1, "platform": sys.platform, "assets": assets,
                "settings": settings,
                "threads": {key: str(inference_threads) for key in THREAD_ENVIRONMENT_KEYS},

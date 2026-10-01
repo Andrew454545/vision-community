@@ -105,6 +105,17 @@ PACE = {
     "max": {"threads": 1, "nice": 0, "concurrency": 8, "chunk": 16, "batch": 16, "sessions": 1, "duty": 100, "thermal": 2},
 }
 THREAD_ENVIRONMENT_KEYS = ("RAYON_NUM_THREADS", "VISION_ORT_THREADS", "OMP_NUM_THREADS", "ORT_NUM_THREADS")
+SCENE_GRAPH_MESSAGE = "[vision] scene image graph: vision_model_fp32.onnx (explicit input)"
+
+
+def require_scene_execution(stderr: str, inference_threads: int) -> None:
+    """Reject old runtimes that silently ignore the requested graph or CPU pool."""
+    lines = stderr.splitlines()
+    pool = f"[vision] ONNX Runtime global threads: {inference_threads}, spinning disabled"
+    if SCENE_GRAPH_MESSAGE not in lines or pool not in lines:
+        raise VisionIndexError("vision_scene_runtime_update_required")
+
+
 INDEX_TIMEOUT_SECONDS = 2 * 60 * 60
 MAX_INDEX_FAILURES = 3
 MAX_NO_PROGRESS = 5
@@ -287,6 +298,9 @@ def four_view_input(*, total: int, pace: str, run_id: str) -> dict:
         # Null avoids its permanent retry loop; OS/hardware protection remains.
         "thermalStateLimit": None if sys.platform == "win32" else settings["thermal"],
         "seedResults": None,
+        # The native default CPU graph is int8. Unknown JSON fields are ignored
+        # by older binaries, so require_scene_execution also checks execution.
+        "sceneFp32": True,
     }
 
 
@@ -640,7 +654,7 @@ def index_locations_tsv(
             before = checkpoint_state(checkpoint) or {}
             progress("indexing")
             try:
-                run_binary(
+                _stdout, execution_stderr = run_binary(
                     program,
                     ["index-four-views", "--input", str(spec_path), "--model-dir", str(model),
                      "--locations-tsv", str(locations_tsv), "--index-dir", str(index_dir),
@@ -648,6 +662,7 @@ def index_locations_tsv(
                     env=env, cwd=work, runner=active, nice_level=settings["nice"],
                     use_nice=use_nice and runner is None,
                 )
+                require_scene_execution(execution_stderr, inference_threads)
             except VisionIndexError as error:
                 failures += 1
                 if error.code != "vision_binary_failed" or failures >= MAX_INDEX_FAILURES:

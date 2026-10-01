@@ -2,6 +2,7 @@ import copy
 import hashlib
 import http.client
 import json
+import os
 import platform
 import sys
 import tempfile
@@ -244,7 +245,9 @@ class NativeSceneSearchTest(unittest.TestCase):
         # Success/nonzero exits also use a real child, with no inherited secrets.
         job = self.root / "child-success"
         job.mkdir()
-        native.run_native([sys.executable, "-c", "import os; assert 'VISION_SEARCH_ENGINE_SECRET' not in os.environ"], job, 2)
+        script = "import os; assert 'VISION_SEARCH_ENGINE_SECRET' not in os.environ; assert all(os.environ[k]=='1' for k in ('RAYON_NUM_THREADS','VISION_ORT_THREADS','OMP_NUM_THREADS','ORT_NUM_THREADS'))"
+        with patch.dict(os.environ, {key: '99' for key in ('RAYON_NUM_THREADS','VISION_ORT_THREADS','OMP_NUM_THREADS','ORT_NUM_THREADS')}):
+            native.run_native([sys.executable, "-c", script], job, 2)
 
     def test_repeated_native_failure_preserves_one_original_report_without_unbounded_files(self):
         with patch.object(native, "run_native", side_effect=native.NativeSearchError("native_search_timeout")):

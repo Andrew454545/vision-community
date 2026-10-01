@@ -17,7 +17,7 @@ import { SearchError } from "./searchLedger.js";
 import { migrateAccountPrivacy, deleteAccount, cleanupAccountArtifacts } from "./accountPrivacy.js";
 import { writeSceneArtifact } from "./artifactWrites.js";
 import { loadSceneReferences, sceneCapabilities } from "./sceneQuality.js";
-import { SCENE_PIPELINE_SCHEMA, verifierConfigured, pipelineCapabilities, activeQualification, qualificationStatus, qualifyDevice, auditScene, stageScene } from "./scenePipeline.js";
+import { SCENE_PIPELINE_SCHEMA, verifierConfigured, auditBatchLimit, pipelineCapabilities, activeQualification, qualificationStatus, qualifyDevice, auditScene, stageScene } from "./scenePipeline.js";
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS accounts (
@@ -704,7 +704,7 @@ async function lease(env, account, body) {
   const requestedPart = parsePart(body.part);
   if (requestedPart === undefined) return error("invalid_part");
   const client = body.client === "cli" ? "cli" : "browser";
-  const count = Math.min(body.count, leaseCap(lane, pace, client));
+  const count = Math.min(body.count, leaseCap(lane, pace, client), qualification ? auditBatchLimit(env) : MAX_LEASE);
   const now = Math.floor(Date.now() / 1000);
   await env.DB.prepare("UPDATE leases SET state='expired' WHERE state='active' AND expires_at<=?").bind(now).run();
   const existing = await env.DB.prepare(
@@ -723,7 +723,7 @@ async function lease(env, account, body) {
       leaseId: existing.id,
       expiresAt: existing.expires_at,
       pace: existing.pace || pace,
-      resourceBudget: { slow: 1, medium: "cpu/2", max: "all-cores" }[existing.pace || pace],
+      resourceBudget: qualification ? "qualified-runtime" : { slow: 1, medium: "cpu/2", max: "all-cores" }[existing.pace || pace],
       items: payload,
       resumed: true,
       work,
@@ -793,7 +793,7 @@ async function lease(env, account, body) {
     leaseId,
     expiresAt: expires,
     pace,
-    resourceBudget: { slow: 1, medium: "cpu/2", max: "all-cores" }[pace],
+    resourceBudget: qualification ? "qualified-runtime" : { slow: 1, medium: "cpu/2", max: "all-cores" }[pace],
     items: payload,
     work,
   });

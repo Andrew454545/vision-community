@@ -474,7 +474,8 @@ def run_native(command, job: Path, timeout: float):
     # No shell and no inherited credentials/provider overrides. On Windows keep
     # the window hidden; the executable's adjacent, pinned DLLs remain available.
     environment = {k: os.environ[k] for k in ("SYSTEMROOT", "WINDIR", "TMP", "TEMP", "PATH") if k in os.environ}
-    environment["RAYON_NUM_THREADS"] = "1"
+    for key in ("RAYON_NUM_THREADS", "VISION_ORT_THREADS", "OMP_NUM_THREADS", "ORT_NUM_THREADS"):
+        environment[key] = "1"
     creationflags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
     with (job / "stdout.log").open("xb") as stdout, (job / "stderr.log").open("xb") as stderr:
         child = subprocess.Popen(command, cwd=job, env=environment, stdin=subprocess.DEVNULL,
@@ -501,6 +502,25 @@ def run_native(command, job: Path, timeout: float):
             child.wait()
 
 
+def discard_small_body(handler):
+    """Drain a small rejected request so Windows delivers the error response.
+
+    Closing with unread request bytes can reset the connection before 401/404
+    arrives. Never drain ambiguous framing or a large untrusted body.
+    """
+    lengths = handler.headers.get_all('Content-Length', [])
+    if (len(lengths) != 1 or handler.headers.get('Transfer-Encoding') is not None
+            or not re.fullmatch(r'[0-9]{1,5}', lengths[0]) or int(lengths[0]) > 65536):
+        return
+    handler.connection.settimeout(.2)
+    try:
+        handler.rfile.read(int(lengths[0]))
+    except OSError:
+        pass
+    finally:
+        handler.connection.settimeout(5)
+
+
 def make_server(engine, secret: str, *, port=0):
     if not isinstance(secret, str) or len(secret) < 32 or any(ord(c) < 33 or ord(c) > 126 for c in secret):
         raise NativeSearchError("private_engine_secret_required")
@@ -525,9 +545,11 @@ def make_server(engine, secret: str, *, port=0):
 
         def do_POST(self):
             if not hmac.compare_digest(self.headers.get("Authorization", "").encode(), ("Bearer " + secret).encode()):
+                discard_small_body(self)
                 self.reply(401, {"error": "unauthorized"})
                 return
             if self.path != "/search":
+                discard_small_body(self)
                 self.reply(404, {"error": "not_found"})
                 return
             lengths = self.headers.get_all("Content-Length", [])

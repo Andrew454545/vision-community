@@ -29,6 +29,10 @@ The operator supplies a separate private `policy.json` and
   Optional `expiresInSeconds` is at most 30 days; the default is seven days.
 - `auditThresholds`: explicit `minimumViewCosine` and `maximumViewRelativeL2`
   bounds for comparing client output with freshly recomputed native output.
+- `maxAuditLocations`: a measured integer host capacity from 1 to 128; default
+  8. Set the Community Worker's `SCENE_AUDIT_MAX_LOCATIONS` to the same number.
+  Every batch must complete inside the native 50-second limit and the bridge's
+  outer deadline. A user's Max pace does not increase the audit host capacity.
 
 Reference bytes are 112 complete four-view records of 3,080 bytes each. Their
 SHA-256 must equal every admitted profile's `referenceSha256`. The service
@@ -75,6 +79,7 @@ service = "vision-community-native-scene-verifier"
 
 [vars]
 SCENE_POLICY_ID = "THE_OPERATOR_POLICY_ID"
+SCENE_AUDIT_MAX_LOCATIONS = "8"
 ```
 
 Preserve existing deployment variables. First use a separate staging D1/R2 pair
@@ -84,3 +89,13 @@ expected policy and required device qualification. Confirm only accepted output
 earns credits and repeated completion never earns a second credit. Setting a
 binding alone does not establish readiness; the native host, measured policy,
 actual client runtime and ingress must all work together.
+
+The client and trusted auditor explicitly request `sceneFp32: true` and reject
+runtimes that do not record both that exact graph and the requested shared ONNX
+thread pool. The reconstructed ordinary CPU default was int8 and failed the
+sealed reference comparison; a successful process exit cannot qualify it. Use
+the updated native source/build and regenerate runtime/helper/policy pins after
+these adapter changes. Old reference rehearsals are retained evidence, not
+approval for the updated installed profile. All four inference thread variables
+are explicitly bounded to one on the trusted host; inherited provider/thread
+overrides are excluded.

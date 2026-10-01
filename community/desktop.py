@@ -33,6 +33,7 @@ ERRORS = {
     "recovery_failed": "That account code was not accepted. Check it and try again.",
     "unauthorized": "Please reconnect your account using your saved code.",
     "scene_verification_unavailable": "VISION is not open for contributions yet. You have done nothing wrong. Close VISION and come back when the project maintainer announces it is ready.",
+    "vision_scene_runtime_update_required": "Your VISION processing program needs an update. Get the latest VISION download and choose Set up this PC again. Your saved work and account code are kept.",
     "scene_reference_required": "The service has not approved this batch for contribution. Your local evidence has been kept.",
     "verification_failed": "The service did not accept this batch. Your local results have been kept for review.",
     "busy": "Another action is still running. Please wait for it to finish.",
