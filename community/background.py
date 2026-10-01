@@ -14,6 +14,7 @@ import math
 import os
 from pathlib import Path
 import shutil
+import stat
 import threading
 import time
 
@@ -23,6 +24,8 @@ from .vision_index import RETRYABLE_NATIVE_CODES, VisionIndexError
 
 WAIT_SECONDS = 1800
 MIN_FREE_BYTES = 5 * 1024**3
+MAX_STORAGE_ENTRIES = 200_000
+STORAGE_SCAN_SECONDS = 10
 PACES = ("slow", "medium", "max", "pause")
 RECOVERABLE_QUEUE_ERRORS = frozenset({"expired_lease", "lease_lost", "unknown_lease"})
 TERMINAL_SERVICE_ERRORS = frozenset({
@@ -81,6 +84,43 @@ class WorkerAlreadyRunning(BlockingIOError):
     """Only a conflicting lock, not an unrelated filesystem failure."""
 
 
+def measure_storage(root):
+    """Count logical file sizes without opening private files or following links.
+
+    This is a batch-boundary estimate, not a filesystem quota. Incomplete or
+    oversized inventories stop work rather than assuming unknown bytes are zero.
+    """
+    deadline = time.monotonic() + STORAGE_SCAN_SECONDS
+    pending = [Path(root)]
+    used, files, entries = 0, 0, 0
+    try:
+        while pending:
+            folder = pending.pop()
+            info = folder.lstat()
+            if stat.S_ISLNK(info.st_mode) or getattr(info, "st_file_attributes", 0) & 0x400:
+                raise DesktopError("storage_check_failed")
+            with os.scandir(folder) as children:
+                for child in children:
+                    entries += 1
+                    if entries > MAX_STORAGE_ENTRIES or time.monotonic() > deadline:
+                        raise DesktopError("storage_check_failed")
+                    info = child.stat(follow_symlinks=False)
+                    if stat.S_ISLNK(info.st_mode) or getattr(info, "st_file_attributes", 0) & 0x400:
+                        raise DesktopError("storage_check_failed")
+                    if stat.S_ISDIR(info.st_mode):
+                        pending.append(Path(child.path))
+                    elif stat.S_ISREG(info.st_mode):
+                        used += info.st_size
+                        files += 1
+                    else:
+                        raise DesktopError("storage_check_failed")
+    except OSError:
+        raise DesktopError("storage_check_failed") from None
+    return {"usedBytes": used, "files": files, "entries": entries,
+            "measuredAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "measurement": "logical-file-bytes-at-batch-boundary"}
+
+
 def atomic_json(path: Path, value):
     path.parent.mkdir(parents=True, exist_ok=True)
     pending = path.with_suffix(path.suffix + ".tmp")
@@ -130,9 +170,11 @@ def keep_awake(enabled=True):
 class BackgroundContributor:
     def __init__(self, root, *, url=DEFAULT_URL, app_factory=DesktopApp, schedule=None,
                  retry_minutes=30, prevent_sleep=True, clock=datetime.now,
-                 elapsed_clock=time.monotonic, wall_clock=time.time):
+                 elapsed_clock=time.monotonic, wall_clock=time.time, storage_limit_gb=0):
         if type(retry_minutes) is not int or not 1 <= retry_minutes <= 1440:
             raise ValueError("Retry minutes must be between 1 and 1440.")
+        if type(storage_limit_gb) is not int or not 0 <= storage_limit_gb <= 4096:
+            raise ValueError("Storage allowance must be a whole number from 0 to 4096 GB (0 means no folder allowance).")
         self.root = Path(root).resolve()
         self.root.mkdir(parents=True, exist_ok=True)
         self.app = app_factory(self.root, url=url)
@@ -146,6 +188,45 @@ class BackgroundContributor:
         self.clock, self.elapsed_clock, self.wall_clock = clock, elapsed_clock, wall_clock
         self.paced_wait = False
         self.last_state = None
+        self.storage_limit_bytes = storage_limit_gb * 1024**3
+        self.storage = {"limitBytes": self.storage_limit_bytes, "usedBytes": None,
+                        "minimumFreeBytes": MIN_FREE_BYTES, "freeBytes": None,
+                        "scope": "entire-private-worker-folder", "hardQuota": False}
+
+    def space_available(self):
+        self.storage["freeBytes"] = shutil.disk_usage(self.root).free
+        if self.storage_limit_bytes:
+            # Do not leave a stale success estimate visible after a failed scan.
+            self.storage.update(usedBytes=None, files=None, entries=None, measuredAt=None)
+            self.storage.update(measure_storage(self.root))
+        return (self.storage["freeBytes"] >= MIN_FREE_BYTES and
+                (not self.storage_limit_bytes or self.storage["usedBytes"] < self.storage_limit_bytes))
+
+    def wait_for_space(self):
+        if self.storage["freeBytes"] < MIN_FREE_BYTES:
+            message = "At least 5 GB of free disk space is required. Saved work is safe."
+        else:
+            message = ("Your saved files reached the chosen storage allowance. New processing is paused; "
+                       "saved deliveries can still recover. Keep recovery files in place and increase the allowance if needed.")
+        self.status("waiting_for_space", message)
+        return self.retry_seconds
+
+    def connect_account(self, *, allow_create=True):
+        if self.app.client:
+            return True
+        stored = load_session(self.session, self.url)
+        if self.session.exists() and not stored:
+            raise DesktopError("invalid_saved_account")
+        if stored:
+            self.app.connect(stored.get("recoveryCode"))
+        elif not allow_create:
+            return False
+        else:
+            created = self.app.connect(create=True)
+            save_session(self.session, url=self.url, account_id=None,
+                         recovery_code=created["recoveryCode"])
+        self.app.update(savedCode=True)
+        return True
 
     def pace(self):
         return self.schedule.pace_at(self.clock())
@@ -162,6 +243,7 @@ class BackgroundContributor:
             "pace": self.pace(), "schedule": self.schedule.public_settings(),
             "retryMinutes": self.retry_seconds // 60,
             "preventsIdleSleepWhileWorking": self.prevent_sleep,
+            "localStorage": self.storage,
         })
 
     def retry_record(self):
@@ -205,9 +287,9 @@ class BackgroundContributor:
         if pace == "pause":
             self.status("waiting_for_schedule", "Paused by your day/night schedule. Processing resumes automatically in the next active period.")
             return 60
-        if shutil.disk_usage(self.root).free < MIN_FREE_BYTES:
-            self.status("waiting_for_space", "At least 5 GB of free disk space is required. Saved work is safe.")
-            return self.retry_seconds
+        space_ready = self.space_available()
+        if not space_ready and not self.app.client and not self.session.exists():
+            return self.wait_for_space()
         retry = self.retry_record()
         if retry and retry["nextAttemptAt"] > self.wall_clock():
             state = {"indexing": "retrying_indexing", "service": "waiting_for_service",
@@ -216,23 +298,26 @@ class BackgroundContributor:
             return min(86400, retry["nextAttemptAt"] - self.wall_clock())
         # Check before downloading, creating an account, or consuming a lease.
         self.app.capabilities(DesktopClient(self.url))
-        if not self.prepared:
+        if space_ready and not self.prepared:
             self.status("preparing", "Checking the private processing files.")
             self.app.prepare()
             self.prepared = True
-        if not self.app.client:
-            stored = load_session(self.session, self.url)
-            if self.session.exists() and not stored:
-                raise DesktopError("invalid_saved_account")
-            if stored:
-                self.app.connect(stored.get("recoveryCode"))
-            else:
-                created = self.app.connect(create=True)
-                save_session(self.session, url=self.url, account_id=None,
-                             recovery_code=created["recoveryCode"])
-            self.app.update(savedCode=True)
+            space_ready = self.space_available()
+        if not self.connect_account(allow_create=space_ready):
+            return self.wait_for_space()
         recovered = self.app.resume_submissions()
         self.completed += int(recovered.get("accepted", 0))
+        # Existing accounts can deliver/audit saved work even at the allowance.
+        # Budget pressure never creates another account or claims a new lease.
+        if not self.space_available():
+            return self.wait_for_space()
+        if not self.prepared:
+            # Space may become available while an existing delivery settles.
+            self.status("preparing", "Checking the private processing files.")
+            self.app.prepare()
+            self.prepared = True
+            if not self.space_available():
+                return self.wait_for_space()
         with keep_awake(self.prevent_sleep):
             try:
                 self.app.require_qualification()
@@ -241,6 +326,8 @@ class BackgroundContributor:
                     raise
                 self.status("checking_pc", "Running the short PC check and requesting trusted approval.")
                 self.app.qualify()
+            if not self.space_available():
+                return self.wait_for_space()
             self.status("processing", "Processing a batch. Completed work and checkpoints are saved.")
             started = self.elapsed_clock()
             result = self.app.indexer(
@@ -329,6 +416,8 @@ def main():
     parser.add_argument("--day-start", default="08:00", help="Local 24-hour time (default: 08:00).")
     parser.add_argument("--night-start", default="22:00", help="Local 24-hour time (default: 22:00).")
     parser.add_argument("--retry-minutes", type=int, default=30)
+    parser.add_argument("--storage-limit-gb", type=int, default=0,
+                        help="Private folder allowance in binary GB (0 disables; checked between batches, not a hard quota).")
     parser.add_argument("--no-keep-awake", action="store_true", help="Allow normal Windows idle sleep during work.")
     args = parser.parse_args()
     if not args.accept_contributions:
@@ -336,7 +425,8 @@ def main():
     try:
         schedule = ProcessingSchedule(args.day_pace, args.night_pace, args.day_start, args.night_start)
         worker = BackgroundContributor(args.root, url=args.url, schedule=schedule,
-                                       retry_minutes=args.retry_minutes, prevent_sleep=not args.no_keep_awake)
+                                       retry_minutes=args.retry_minutes, prevent_sleep=not args.no_keep_awake,
+                                       storage_limit_gb=args.storage_limit_gb)
     except ValueError as error:
         parser.error(str(error))
     try:

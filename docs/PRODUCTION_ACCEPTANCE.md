@@ -283,9 +283,16 @@ without Codex polling. Its operating contract is described in the
   busy worker may require the installer to be rerun after its batch finishes;
   applying settings must not force-kill active inference or discard a lease.
 - Pending delivery is bounded at 64 batches, but historical indexes, logs,
-  journal rows and evidence can still grow. The 5 GB free-space guard is not a
-  total disk quota or a cleanup policy. Preserve unsent/rejected work and
-  account recovery while resolving storage pressure.
+  journal rows and evidence can still grow. An optional `-StorageLimitGB`
+  allowance pauses new work using logical sizes across the private folder;
+  saved deliveries and audits still recover for the original account. Metadata
+  scans, restart recovery and growth during downloads/PC checks/batches are
+  tested, including a real SQLite journal and disposable HTTP service. The
+  setting defaults to disabled and is not a hard quota: an active operation
+  and recovery/status writes may exceed it. The 5 GB free-space guard always
+  remains. Neither guard deletes files or supplies a cleanup policy. Preserve
+  unsent/rejected work and account recovery while resolving storage pressure;
+  live disk growth and long-run acceptance remain open.
 
 The old scheduled worker's idle recovery evidence does not validate these new
 schedule controls. Do not convert the following into completed claims without

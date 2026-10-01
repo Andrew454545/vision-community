@@ -52,6 +52,7 @@ ERRORS = {
     "indexer_timeout": "This batch reached its time limit. It has stopped and its logs were kept.",
     "indexer_no_progress": "The indexer stopped making progress. Its logs were kept for review.",
     "indexer_cancelled": "Indexing stopped. Your completed batches are safe.",
+    "storage_check_failed": "Saved files could not be checked safely. Processing stopped and your files were kept. Ask the maintainer to review the local storage report.",
 }
 
 

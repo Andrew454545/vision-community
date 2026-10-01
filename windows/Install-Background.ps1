@@ -9,6 +9,7 @@ param(
     [ValidatePattern('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$')][string]$DayStart = '08:00',
     [ValidatePattern('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$')][string]$NightStart = '22:00',
     [ValidateRange(1, 1440)][int]$RetryMinutes = 30,
+    [ValidateRange(0, 4096)][int]$StorageLimitGB = 0,
     [switch]$AllowSleep,
     [switch]$Remove
 )
@@ -122,6 +123,7 @@ except Exception as error:
     } else { [IO.File]::WriteAllText($entry, $scriptText, $script:VisionUtf8) }
     $arguments = '-B "{0}" --root "{1}" --accept-contributions --day-pace {2} --night-pace {3} --day-start {4} --night-start {5} --retry-minutes {6}' -f `
         $entry, $rootPath, $DayPace, $NightPace, $DayStart, $NightStart, $RetryMinutes
+    $arguments += ' --storage-limit-gb ' + $StorageLimitGB
     if ($AllowSleep) { $arguments += ' --no-keep-awake' }
     $action = New-ScheduledTaskAction -Execute $windowlessPython -Argument $arguments
     $identity = [Security.Principal.WindowsIdentity]::GetCurrent().Name
@@ -139,11 +141,13 @@ except Exception as error:
     Write-VisionJson (Join-Path $rootPath 'background-settings.json') @{
         dayPace = $DayPace; nightPace = $NightPace; dayStart = $DayStart; nightStart = $NightStart
         retryMinutes = $RetryMinutes; keepAwake = -not [bool]$AllowSleep; clock = 'Windows local time'
+        storageLimitGB = $StorageLimitGB
     }
     if (Test-Path -LiteralPath $stopPath) { Remove-Item -LiteralPath $stopPath }
     $workerGuard.Dispose(); $workerGuard = $null
     Start-ScheduledTask -TaskName $taskName
     Write-Output "Background schedule saved: $DayStart day ($DayPace), $NightStart night ($NightPace), retry every $RetryMinutes minutes. Times follow this PC's local clock."
+    if ($StorageLimitGB) { Write-Output "Private folder allowance: $StorageLimitGB GB. New processing pauses at batch boundaries; existing work is kept. This is not a hard disk quota." }
     Write-Output 'Registration and a start request do not confirm that the worker started.'
     Write-Output "Check $rootPath\background-status.json for a fresh status. Startup failures may be saved in startup-failure.json."
     Write-Output 'After a restart, sign into Windows to resume. Power-off suspends computation. PAUSE and existing account/work files were preserved.'

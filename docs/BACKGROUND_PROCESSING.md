@@ -136,7 +136,9 @@ to GitHub.
   already staged batches remain pending audit. The guided window reports
   the saved undelivered-batch count after reconnecting to the same account;
   the background status includes `undeliveredBatches` when connected.
-- `waiting_for_space`: free at least 5 GB; existing results remain in place.
+- `waiting_for_space`: the drive has less than 5 GB free, or the private folder
+  reached your optional storage allowance. New work pauses; saved deliveries
+  can still recover. Existing results remain in place.
 - `retrying_indexing`: a recognized indexing interruption is waiting for a
   later attempt. Increasing delays, capped at six hours, survive a restart;
   this does not override rejected qualification or rejected work.
@@ -154,11 +156,39 @@ preserved; follow any busy-worker message before retrying removal.
 ## Saved work and disk space
 
 Batch indexes, logs and failure evidence accumulate over long runs. The 5 GB
-free-space check is a guard before work, not a storage quota or automatic
-cleanup policy. The pending-batch limit also does not cap all historical files.
-Keep the installation folder in place, preserve pending or failed work, and
-monitor free space. Do not delete recovery files merely to clear a warning;
-resolve storage pressure without discarding unsent work or account recovery.
+free-space guard always applies. To also pause new work when the private folder
+reaches a chosen allowance, add `-StorageLimitGB 20` during setup, for example:
+
+```powershell
+.\windows\Install-Background.ps1 -Source 'FULL_PATH_TO_REPOSITORY' -Root "$env:LOCALAPPDATA\vision-community-background" -AcceptContributions -StorageLimitGB 20
+```
+
+Choose a whole number from 1 to 4,096. These are binary GB (1,024 cubed bytes).
+The default `0` disables the folder allowance, while retaining the free-space
+guard. The direct-worker option is `--storage-limit-gb 20`. Changing an existing
+installation uses the same safe handover described above.
+
+The allowance counts logical file sizes throughout the private worker folder,
+including downloaded runtimes, preserved application versions, indexes, logs,
+delivery journals and failure reports. The worker checks file metadata without
+reading private contents. `background-status.json` includes aggregate usage
+under `localStorage`; it does not list private file names or account codes.
+
+This is a pause between batches, **not a hard disk quota**. A running download,
+PC check or batch can exceed the allowance before the next check. Recovery and
+status files can also grow while paused. New downloads, PC checks and leases
+wait once the allowance is reached; existing saved deliveries and audits can
+still settle for the original account. No new account is created while blocked.
+The worker retries at your chosen interval and resumes when the folder is below
+the allowance and the drive has enough free space. Increasing the allowance is
+another option if the drive has room. An unreadable, linked or excessively large
+file inventory stops for review and preserves a failure report rather than
+reporting misleading usage.
+
+There is no automatic cleanup. Keep the installation folder in place and
+preserve pending or failed work and account recovery. Do not delete recovery
+files merely to clear a warning. The pending-batch limit does not cap historical
+files, and neither setting proves safe disk growth over weeks of processing.
 
 ## Remaining validation
 
@@ -169,6 +199,10 @@ isolation, bounded backlog, fairness and preserved rejected results. A local
 HTTP exercise also verifies that an expired assignment does not block another
 saved delivery or claim new work during recovery. This is a disposable test
 service, not an accepted live contribution.
+Storage tests cover restart recovery at the allowance, download/PC-check growth,
+saved output after a batch, invalid inventories and the disabled setting. A
+disposable HTTP service and a real SQLite delivery journal verify that a saved
+submission and audit can recover while new processing remains paused.
 The installer test uses a mock scheduler and checks startup failure reporting,
 including folder names with spaces and apostrophes. It does not prove that a
 real scheduled task launches. PowerShell tests honor the host execution policy;
