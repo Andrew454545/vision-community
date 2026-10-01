@@ -40,3 +40,27 @@ bounded capability requests and malformed-response recovery. All 88 JavaScript c
 disposable read-only local browser fixture also exercises actual page controls
 with synthetic balances and capability/outage changes. No live account,
 contribution, debit or Cloudflare deployment is part of that fixture.
+
+## Isolated hosted staging, 2026-10-01
+
+The [test website](https://vision-community-staging.visioncommunity.workers.dev/)
+uses its own `vision-community-staging` database and R2 bucket. Its header and
+status identify that environment. The production application/resources are
+unchanged. All12website assets and privacy/security headers match the checked
+source, including the getting-started guide's same-site canonical redirect.
+The browser's **Show me the steps** opens the actual hosted beginner guide.
+
+Disposable hosted accounts exercise secure anonymous cookies, recovery revoking
+the old session, deletion revoking both session and code, exact deletion-receipt
+replay and cross-origin rejection. All test accounts were deleted after the
+checks. A separate funded disposable staging exercise retries three identical
+searches with the missing engine: each returns503 and leaves its test balance
+unchanged. Empty balances return402 before inference. No accepted contribution
+or production credit was created by these checks.
+
+Fresh environments have an empty queue until real source metadata is imported;
+synthetic prototype seeds require the explicit `SEED_PROTOTYPE_LOCATIONS=1`
+development switch. Staging does not have a native search/verifier binding or
+admitted policy. Its guide retains preview wording and its unavailable actions
+remain disabled. Hosted native processing, qualified Windows work, contributor
+snapshot publication and paid successful search still require live evidence.

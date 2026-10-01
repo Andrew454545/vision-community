@@ -11,7 +11,7 @@ const [miniflarePath, bundlePath, compatibilityDate = "2026-09-19"] = process.ar
 if (!miniflarePath || !bundlePath) throw Error("Specify the local Miniflare entry and dry-run Worker bundle.");
 const { Miniflare, convertV4MiniflareOptions } = await import(pathToFileURL(resolve(miniflarePath)).href);
 const pins = { SEARCH_POLICY_ID: "synthetic-local-test-only", SEARCH_RUNTIME_SHA256: "b".repeat(64),
-  SEARCH_SNAPSHOT_SHA256: "c".repeat(64) };
+  SEARCH_SNAPSHOT_SHA256: "c".repeat(64), DEPLOYMENT_ENVIRONMENT: "staging", INDEX_BUCKET_NAME: "vision-community-staging" };
 const options = { modules: true, scriptPath: resolve(bundlePath), compatibilityDate,
   modulesRoot: dirname(resolve(bundlePath)),
   compatibilityFlags: ["nodejs_compat"], d1Databases: ["DB"], r2Buckets: ["INDEX"], bindings: pins,
@@ -25,6 +25,13 @@ try {
   const db = await mf.getD1Database("DB");
   const schema = readFileSync(new URL("../schema.sql", import.meta.url), "utf8");
   for (const statement of schema.split(";").filter(part => part.trim())) await db.prepare(statement).run();
+  const emptyStatus = await mf.dispatchFetch("https://community.test/api/status");
+  assert.equal(emptyStatus.status, 200);
+  const empty = await emptyStatus.json();
+  assert.equal(empty.environment, "staging");
+  assert.equal(empty.r2.bucket, "vision-community-staging");
+  assert.equal((await db.prepare("SELECT COUNT(*) AS n FROM locations").first()).n, 0,
+    "fresh hosted deployments must not invent a prototype work queue");
   await db.prepare(`INSERT INTO locations (id,asset_id,capture,lane,model,state,contributor_id,lat,lon,heading,country,camera_generation)
     VALUES (1,'abcdefghijklmnopqrstuv','2026-01','scene','scene-model','published','local-contributor',10,20,90,'Italy','gen4')`).run();
   await db.prepare("INSERT INTO published_index (location_id,index_text,output_sha256,published_at,four_view_key) VALUES (1,'',?,0,'four-view-v4/local.i8')")
