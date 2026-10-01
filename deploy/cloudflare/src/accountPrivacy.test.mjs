@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import { deleteAccount, cleanupAccountArtifacts, migrateAccountPrivacy } from "./accountPrivacy.js";
+import { PRIVACY_FENCE } from "./artifactWrites.js";
 
 const account = "a".repeat(32), other = "b".repeat(32);
 const request = { accountId: account, confirmation: "DELETE", idempotencyKey: "c".repeat(64) };
@@ -42,13 +43,13 @@ async function fixture(t, legacy = false) {
     (4,'four','capture','scene','model','leased','leased','lease-other',NULL);
     INSERT INTO leases (id,account_id,lane,expires_at,state) VALUES
     ('lease-one','${account}','scene',9999,'active'),
-    ('lease-two','${account}','scene',9999,'submitted'),
+    ('${"d".repeat(32)}','${account}','scene',9999,'submitted'),
     ('lease-published','${account}','scene',9999,'submitted'),
     ('lease-other','${other}','scene',9999,'active');
-    INSERT INTO lease_items VALUES ('lease-one',1),('lease-two',2),('lease-published',3),('lease-other',4);
+    INSERT INTO lease_items VALUES ('lease-one',1),('${"d".repeat(32)}',2),('lease-published',3),('lease-other',4);
     INSERT INTO scene_qualifications VALUES ('qualified','${account}','profile','policy','digest',9999,1);
     INSERT INTO scene_candidates VALUES
-    ('lease-two','${account}','qualified','policy','digest','${quarantine}','[{"private":"metadata"}]',1,'pending'),
+    ('${"d".repeat(32)}','${account}','qualified','policy','digest','${quarantine}','[{"private":"metadata"}]',1,'pending'),
     ('lease-published','${account}','qualified','policy','published-digest','four-view-v4/kept.i8','[{"published":true}]',1,'published');
     INSERT INTO pose_catalog (lane,shard_id,r2_key,row_start,row_count,bytes,sha256,assignee,assigned_at)
       VALUES ('scene',1,'catalog',0,10,100,'digest','${account}',1);
@@ -77,7 +78,7 @@ test("deletion revokes credentials, removes private results, forfeits credits an
   assert.equal(row(sql, "SELECT state FROM locations WHERE id=3").state, "published");
   assert.equal(row(sql, "SELECT contributor_id FROM locations WHERE id=3").contributor_id, account);
   assert.equal(row(sql, "SELECT state FROM locations WHERE id=4").state, "leased");
-  assert.equal(row(sql, "SELECT records_json FROM scene_candidates WHERE lease_id='lease-two'").records_json, "[]");
+  assert.equal(row(sql, `SELECT records_json FROM scene_candidates WHERE lease_id='${"d".repeat(32)}'`).records_json, "[]");
   assert.equal(row(sql, "SELECT state FROM scene_candidates WHERE lease_id='lease-published'").state, "published");
   assert.equal(row(sql, "SELECT COUNT(*) AS n FROM published_index").n, 1);
   assert.equal(row(sql, "SELECT assignee FROM pose_catalog").assignee, null);
@@ -128,7 +129,7 @@ test("late recovery, credits, searches, lease assignment and publication cannot 
     `UPDATE leases SET state='active' WHERE id='lease-one'`,
     `UPDATE pose_catalog SET assignee='${account}'`,
     `UPDATE scene_qualifications SET expires_at=9999`,
-    `UPDATE scene_candidates SET state='published' WHERE lease_id='lease-two'`,
+    `UPDATE scene_candidates SET state='published' WHERE lease_id='${"d".repeat(32)}'`,
     `UPDATE locations SET active_lease='lease-one' WHERE id=1`,
     `UPDATE locations SET state='published',contributor_id='${account}' WHERE id=1`,
   ];
@@ -138,19 +139,19 @@ test("late recovery, credits, searches, lease assignment and publication cannot 
   assert.equal(row(sql, "SELECT COUNT(*) AS n FROM published_index").n, 1);
 });
 
-test("cleanup failures remain retryable and cleanup never deletes published or malformed paths", async t => {
+test("cleanup failures remain retryable and cleanup never fences published or malformed paths", async t => {
   const { sql, env } = await fixture(t);
   await deleteAccount(env, account, request);
   sql.prepare("INSERT INTO account_cleanup VALUES (?,?,1,'pending')").run("four-view-v4/kept.i8", account);
-  const removed = [];
-  env.INDEX.delete = async () => { throw Error("storage temporarily unavailable"); };
+  const fenced = [];
+  env.INDEX.put = async () => { throw Error("storage temporarily unavailable"); };
   await cleanupAccountArtifacts(env, account);
   assert.equal(row(sql, `SELECT state FROM account_cleanup WHERE artifact_key='${quarantine}'`).state, "pending");
   assert.equal(row(sql, "SELECT state FROM account_cleanup WHERE artifact_key='four-view-v4/kept.i8'").state, "needs_review");
-  env.INDEX.delete = async key => removed.push(key);
+  env.INDEX.put = async key => { fenced.push(key); return { size: PRIVACY_FENCE.length }; };
   await cleanupAccountArtifacts(env, null, 64);
-  assert.deepEqual(removed, [quarantine]);
-  assert.equal(row(sql, `SELECT state FROM account_cleanup WHERE artifact_key='${quarantine}'`).state, "removed");
+  assert.deepEqual(fenced, [quarantine]);
+  assert.equal(row(sql, `SELECT state FROM account_cleanup WHERE artifact_key='${quarantine}'`).state, "fenced");
   assert.equal(row(sql, "SELECT COUNT(*) AS n FROM published_index").n, 1);
 });
 
@@ -159,6 +160,49 @@ test("privacy migration upgrades existing accounts without losing data and may s
   await migrateAccountPrivacy(env);
   assert.equal(row(sql, `SELECT units FROM accounts WHERE id='${account}'`).units, 250000);
   assert.equal((await deleteAccount(env, account, request)).deleted, true);
+});
+
+test("an unconfirmed fence write remains pending instead of claiming privacy cleanup", async t => {
+  const { sql, env } = await fixture(t);
+  await deleteAccount(env, account, request);
+  for (const response of [null, undefined, { size: 1 }]) {
+    env.INDEX.put = async () => response;
+    await cleanupAccountArtifacts(env);
+    assert.equal(row(sql, "SELECT state FROM account_cleanup").state, "pending");
+  }
+});
+
+test("upgrading the cleanup protocol requeues old removals atomically and only once", async t => {
+  const { sql, env } = await fixture(t);
+  await deleteAccount(env, account, request);
+  sql.exec("DROP TRIGGER artifact_write_intent_immutable; UPDATE account_cleanup SET state='removed'");
+  const ordinaryBatch = env.DB.batch;
+  env.DB.batch = statements => ordinaryBatch([...statements,
+    env.DB.prepare("INSERT INTO missing_migration_table VALUES (1)")]);
+  await assert.rejects(migrateAccountPrivacy(env), /missing_migration_table/);
+  assert.equal(row(sql, "SELECT COUNT(*) AS n FROM sqlite_master WHERE name='artifact_write_intent_immutable'").n, 0);
+  assert.equal(row(sql, "SELECT state FROM account_cleanup").state, "removed");
+  env.DB.batch = ordinaryBatch;
+  await migrateAccountPrivacy(env);
+  assert.equal(row(sql, "SELECT state FROM account_cleanup").state, "pending");
+  sql.exec("UPDATE account_cleanup SET state='fenced'");
+  await migrateAccountPrivacy(env);
+  assert.equal(row(sql, "SELECT state FROM account_cleanup").state, "fenced");
+});
+
+test("legacy quarantine cleanup requires an owned scene lease, even without a write intent", async t => {
+  const { sql, env } = await fixture(t);
+  await deleteAccount(env, account, request);
+  const fenced = [];
+  env.INDEX.put = async key => fenced.push(key);
+  // Corrupt legacy provenance must not cross an account boundary or lane.
+  for (const override of [{ owner: other, lane: "scene" }, { owner: account, lane: "object" }]) {
+    sql.prepare("UPDATE leases SET account_id=?,lane=? WHERE id=?").run(override.owner, override.lane, "d".repeat(32));
+    sql.exec("UPDATE account_cleanup SET state='pending'");
+    await cleanupAccountArtifacts(env);
+    assert.equal(row(sql, "SELECT state FROM account_cleanup").state, "needs_review");
+  }
+  assert.deepEqual(fenced, []);
 });
 
 test("deletion requires explicit typed confirmation, a saved nonce, and the matching account", async t => {

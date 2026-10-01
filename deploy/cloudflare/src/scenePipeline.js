@@ -1,5 +1,6 @@
 import { base64ToBytes, bytesToBase64, sha256Hex, encodeUtf8, randomHex } from "./model.js";
 import { SCENE_OUTPUT_MODEL } from "./sceneQuality.js";
+import { writeSceneArtifact } from "./artifactWrites.js";
 
 export const SCENE_PIPELINE_SCHEMA = `
 CREATE TABLE IF NOT EXISTS scene_qualifications (
@@ -113,7 +114,7 @@ export async function stageScene(env, account, leaseId, verified, now) {
   const metadata = JSON.stringify(records);
   const digest = await submissionHash(metadata, blob);
   const key = `scene-quarantine/${leaseId}/${digest}.i8`;
-  await env.INDEX.put(key, blob);
+  await writeSceneArtifact(env, account, leaseId, key, blob, now);
   const staged = await env.DB.batch([
     env.DB.prepare(`INSERT INTO scene_candidates
       SELECT ?, ?, ?, ?, ?, ?, ?, ?, 'pending'
@@ -159,7 +160,7 @@ export async function auditScene(env, account, leaseId, now = Math.floor(Date.no
     return candidateResult(await env.DB.prepare("SELECT * FROM scene_candidates WHERE lease_id=?").bind(leaseId).first());
   }
   const key = `four-view-v4/${leaseId}.i8`;
-  await env.INDEX.put(key, blob);
+  await writeSceneArtifact(env, account, leaseId, key, blob, now);
   // D1 batch is atomic. The ledger's unique reference makes concurrent
   // approvals roll back rather than credit twice. A retry reads published.
   const reference = `lease:${leaseId}`;

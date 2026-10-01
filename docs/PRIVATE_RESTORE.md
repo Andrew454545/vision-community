@@ -89,9 +89,12 @@ The destination must be new and its parent must exist. The tool:
 - Retains verified contributions and their opaque contributor identifiers.
   Accounts created and deleted after the backup receive an inactive tombstone.
   Existing deletion history cannot be omitted or silently changed.
-- Queues unpublished candidate blobs for the existing bounded quarantine
-  cleanup routine, but does not remove any R2 object. Published or malformed
-  paths still require the cleanup routine's normal checks.
+- Requeues unpublished candidate blobs and journaled scene uploads, including
+  writes without a candidate, for the bounded privacy-fence cleanup routine.
+  Previously `fenced` jobs are requeued because restoring storage is a separate
+  operation. Published final indexes are excluded. Conflicting cleanup ownership
+  rolls the repair back. This tool does not contact or change any R2 object;
+  path, lease ownership and publication still require the live cleanup checks.
 - Uses secure deletion and compacts the new SQLite copy to remove old
   credential/search values from unused pages. The original backup, provider
   copies, receipt files and external downloads remain private retained data.
@@ -115,6 +118,12 @@ all tombstones, revoked sessions/recovery, private-search removal, accounting,
 retained publications, foreign keys, cleanup jobs and late-write rejection
 before exposing the restored service. Keep the rollback bookmark/export.
 
+Preserve permanent R2 privacy markers and scene write intents across restore.
+Stop/drain old unconditional writers and retain only compatible create-only
+writers before reopening. Removing a marker, restoring private bytes over it,
+or rolling back to an incompatible writer can permit resurrection. Verify all
+requeued jobs against staging R2 before claiming private payload cleanup.
+
 The tool does not reconcile credits/searches earned or spent by other accounts
 after the backup, prevent replay against a restored ledger, restore R2 indexes,
 rotate other credentials, inventory orphan storage or establish provider
@@ -122,7 +131,8 @@ retention. Those remain disaster-recovery requirements. A fresh complete deletio
 ledger needs durable, restricted storage outside the database being rolled back;
 that live storage and export process is not deployed by this utility.
 
-Twelve synthetic SQLite tests cover revocation, repeated repair, preserved
+Fourteen synthetic SQLite tests cover revocation, repeated repair, preserved
 contributions, changed/missing history, new-account tombstones, incorrect pins,
-freshness, rollback, cleanup ownership, private-byte removal and the CLI. They
+freshness, rollback, candidate/journal cleanup ownership, journaled uploads
+without candidates, private-byte removal and the CLI. They
 are offline privacy-repair evidence, not a live backup/restore acceptance test.

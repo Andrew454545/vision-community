@@ -23,6 +23,7 @@ const REQUIRED = {
   locations: ["id", "state", "queue_state", "active_lease", "lease_until"],
   scene_qualifications: ["account_id", "expires_at"],
   scene_candidates: ["lease_id", "account_id", "state", "artifact_key", "records_json"],
+  published_index: ["four_view_key"],
   pose_catalog: ["assignee", "assigned_at"],
 };
 
@@ -162,6 +163,15 @@ export function applyDeletionLedger(sql, ledger, notBefore, now = Math.floor(Dat
           WHERE c.account_id=? AND c.state!='published' AND q.account_id!=c.account_id LIMIT 1`).get(id)) {
         throw new RestoreError("restore_cleanup_owner_conflict");
       }
+      if (sql.prepare(`SELECT 1 FROM account_artifact_writes w JOIN account_cleanup q ON q.artifact_key=w.artifact_key
+          WHERE w.account_id=? AND q.account_id!=w.account_id LIMIT 1`).get(id)) {
+        throw new RestoreError("restore_cleanup_owner_conflict");
+      }
+      sql.prepare(`INSERT INTO account_cleanup (artifact_key,account_id,created_at,state)
+        SELECT artifact_key,account_id,?,'pending' FROM account_artifact_writes w WHERE account_id=?
+          AND NOT EXISTS (SELECT 1 FROM published_index i WHERE i.four_view_key=w.artifact_key)
+        ON CONFLICT(artifact_key) DO UPDATE SET state='pending' WHERE account_cleanup.account_id=excluded.account_id`)
+        .run(now, id);
       sql.prepare(`INSERT INTO account_cleanup (artifact_key,account_id,created_at,state)
         SELECT artifact_key,account_id,?,'pending' FROM scene_candidates WHERE account_id=? AND state!='published'
         ON CONFLICT(artifact_key) DO UPDATE SET state='pending' WHERE account_cleanup.account_id=excluded.account_id`)
