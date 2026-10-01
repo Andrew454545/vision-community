@@ -46,8 +46,8 @@ measurements into automatic production approval.
   access to the two Community pose catalogs against independent manifest/sample
   hashes. The catalogs overlap and contain neither original embeddings nor
   frozen imagery; they are work inputs, not published searchable contributions
-  or Gen4 authority. The recovered scene path still needs frozen-input replay
-  and installed-reference/text/ranking correspondence. No catalog was imported
+  or Gen4 authority. The recovered scene path still needs matching frozen Mac
+  repetitions and installed-reference/text/ranking correspondence. No catalog was imported
   into search and no live resource or installed worker was changed.
 - Added a private operator runner for three fresh native object repetitions
   using independently pinned frozen RGB, models, query settings and development
@@ -92,12 +92,13 @@ measurements into automatic production approval.
   the handoff has now been located and read. An isolated Windows CPU runner
   passed the native object's locked tests, release build and v4 index-layout
   check, using the original object source/lock hashes verified against the Mac
-  build receipt. This is a new development binary, with no model inference or
-  production qualification. The laptop still lacks native build tools. After
+  build receipt. At that earlier step this established startup/layout, with no
+  model inference or production qualification. The laptop still lacks native build tools. After
   an explicitly authorized private download, the checksum-verified
   unchanged-source Windows binary ran its v4 layout check on this laptop and
-  matched the hosted build receipt. This confirms startup/layout only; real
-  model inference comparisons and coherent scene recovery still need evidence.
+  matched the hosted build receipt. The small object and scene studies recorded
+  above subsequently exercised real inference; full installed-reference
+  comparisons and production qualification remain open.
   Detailed source/access information and build artifacts remain private.
   He also reports his local workers resumed at 1% duty with scheduled increases
   disabled. The earlier maximum settings are a dated observation, not current
