@@ -47,8 +47,8 @@ async function fixture(t, decision = "approved", stage = true) {
     .run("a".repeat(64), "b".repeat(64), now + 3600, now);
   sql.prepare("INSERT INTO leases (id, account_id, lane, expires_at, state, scene_qualification_id) VALUES (?, 'anonymous', 'scene', ?, 'active', 'qualification')")
     .run(leaseId, now + 3600);
-  sql.exec(`INSERT INTO locations (id,asset_id,capture,lane,model,state,active_lease,lat,lon,heading,pitch,zoom)
-    VALUES (1,'synthetic-panorama','2026-09','scene','community-visual-v1','leased','${leaseId}',10,20,90,0,0);
+  sql.exec(`INSERT INTO locations (id,asset_id,capture,lane,model,state,active_lease,lat,lon,heading,pitch,zoom,country,camera_generation)
+    VALUES (1,'synthetic-panorama','2026-09','scene','community-visual-v1','leased','${leaseId}',10,20,90,0,0,'Italy','gen4');
     INSERT INTO lease_items VALUES ('${leaseId}',1);`);
   const objects = new Map();
   const env = { DB: d1(sql), SCENE_POLICY_ID: "test-policy", INDEX: syntheticR2(objects), SCENE_VERIFIER: { async fetch(request) {
@@ -76,6 +76,23 @@ test("concurrent approved audits publish and credit exactly once", async (t) => 
   assert.equal(sql.prepare("SELECT COUNT(*) AS n FROM ledger").get().n, 1);
   assert.equal(sql.prepare("SELECT COUNT(*) AS n FROM published_index").get().n, 1);
   assert.equal((await auditScene(env, "anonymous", leaseId)).unitsEarned, 0);
+});
+
+test("native audit metadata includes authoritative country and camera generation in its fingerprint", async t => {
+  const { env, sql } = await fixture(t);
+  const stored = JSON.parse(sql.prepare("SELECT records_json FROM scene_candidates").get().records_json)[0];
+  assert.equal(stored.country, "Italy");
+  assert.equal(stored.cameraGeneration, "gen4");
+  const original = env.SCENE_VERIFIER.fetch;
+  env.SCENE_VERIFIER.fetch = async request => {
+    const copy = request.clone(), body = await copy.json();
+    assert.equal(body.records[0].country, "Italy");
+    assert.equal(body.records[0].cameraGeneration, "gen4");
+    const blob = Buffer.from(body.indexBase64, "base64");
+    assert.equal(await sha256Hex(Buffer.concat([Buffer.from(JSON.stringify(body.records)+"\n"),blob])), body.submissionSha256);
+    return original(request);
+  };
+  assert.equal((await auditScene(env, "anonymous", leaseId)).unitsEarned, 1);
 });
 
 test("rejected audits are terminal without publication or credits", async (t) => {
@@ -145,6 +162,33 @@ test("a delayed device qualification cannot recreate access after deletion", asy
   };
   await assert.rejects(qualifyDevice(env, "anonymous", { profileId: "a".repeat(64), canary }, () => true), /account_not_active/);
   assert.equal(sql.prepare("SELECT COUNT(*) AS n FROM scene_qualifications WHERE expires_at>0").get().n, 0);
+});
+
+test("qualification service outages stay retryable and do not mark a PC unqualified", async t => {
+  const { sql, env } = await fixture(t);
+  const bytes = new Uint8Array(3080), blob = new Uint8Array(112 * 3080);
+  const canary = { locations: 112, records: Array(112).fill(Buffer.from(bytes).toString("base64")),
+    outputSha256: await sha256Hex(blob) };
+  const before = sql.prepare("SELECT COUNT(*) AS n FROM scene_qualifications").get().n;
+  for (const verifier of [() => { throw Error("offline"); }, () => new Response("unavailable", { status: 503 })]) {
+    env.SCENE_VERIFIER.fetch = verifier;
+    await assert.rejects(qualifyDevice(env, "anonymous", { profileId: "a".repeat(64), canary }, () => true),
+      error => error.message === "scene_verification_unavailable" && error.status === 503);
+  }
+  assert.equal(sql.prepare("SELECT COUNT(*) AS n FROM scene_qualifications").get().n, before);
+});
+
+test("an explicit negative qualification remains a PC rejection", async t => {
+  const { env } = await fixture(t);
+  const blob = new Uint8Array(112 * 3080);
+  const canary = { locations: 112, records: Array(112).fill(Buffer.alloc(3080).toString("base64")),
+    outputSha256: await sha256Hex(blob) };
+  for (const response of [Response.json({ approved: false }), Response.json({ approved: false }, { status: 422 }),
+    Response.json({ error: "scene_device_not_qualified" }, { status: 422 })]) {
+    env.SCENE_VERIFIER.fetch = () => response;
+    await assert.rejects(qualifyDevice(env, "anonymous", { profileId: "a".repeat(64), canary }, () => true),
+      error => error.message === "scene_device_not_qualified" && error.status === 422);
+  }
 });
 
 const deletion = { accountId: "anonymous", confirmation: "DELETE", idempotencyKey: "c".repeat(64) };

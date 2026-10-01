@@ -148,20 +148,12 @@ def validate_pose(pose, countries, *, member=False):
         raise NativeSearchError("invalid_scene_pose")
 
 
-class NativeSceneEngine:
-    def __init__(self, runtime: Path, runtime_sha256: str, snapshot: Path, snapshot_sha256: str,
-                 work: Path, *, timeout=110):
-        if type(timeout) not in (int, float) or not 0 < timeout <= 110:
-            raise NativeSearchError("invalid_native_timeout")
+class NativeSceneRuntime:
+    """Independently pinned native executable/model identity shared by services."""
+    def __init__(self, runtime: Path, runtime_sha256: str):
         self.runtime_path = plain_path(runtime)
         self.runtime_root = self.runtime_path.parent
-        self.runtime_sha256, self.snapshot_sha256 = runtime_sha256, snapshot_sha256
-        self.snapshot = plain_path(snapshot, directory=True)
-        self.work = plain_path(work, directory=True)
-        if any(self.work == root or root in self.work.parents for root in (self.runtime_root, self.snapshot)):
-            raise NativeSearchError("engine_work_overlaps_input")
-        self.timeout = timeout
-        self.busy = threading.BoundedSemaphore(1)
+        self.runtime_sha256 = runtime_sha256
         config = strict_json(pinned_read(self.runtime_path, runtime_sha256, 1024 * 1024))
         if (not isinstance(config, dict) or config.get("version") != 1
                 or config.get("contractVersion") != CONTRACT or config.get("nativeLayout") != 4
@@ -186,16 +178,6 @@ class NativeSceneEngine:
         self.countries = set(raw_countries.splitlines())
         if not self.countries or "" in self.countries:
             raise NativeSearchError("invalid_native_countries")
-        self.snapshot_manifest = verify_snapshot(self.snapshot, snapshot_sha256)
-        for name in ("snapshot.json", "members.json", "scene-records.i8"):
-            plain_path(self.snapshot / name)
-        self.members = strict_json(bounded_read(self.snapshot / "members.json", MAX_INVENTORY_BYTES))
-        for member in self.members:
-            if not member["locationId"] < 2**53 or type(member["sourceIndex"]) is not int:
-                raise NativeSearchError("invalid_scene_member")
-            validate_pose(member.get("pose"), self.countries, member=True)
-        self.index = self.work / "index"
-        self.prepare_index()
 
     def verify_runtime(self):
         if digest(bounded_read(plain_path(self.runtime_path), 1024 * 1024)) != self.runtime_sha256:
@@ -234,6 +216,31 @@ class NativeSceneEngine:
                     raise NativeSearchError("unpinned_runtime_file")
         if actual != expected:
             raise NativeSearchError("unpinned_runtime_file")
+
+
+class NativeSceneEngine(NativeSceneRuntime):
+    def __init__(self, runtime: Path, runtime_sha256: str, snapshot: Path, snapshot_sha256: str,
+                 work: Path, *, timeout=110):
+        if type(timeout) not in (int, float) or not 0 < timeout <= 110:
+            raise NativeSearchError("invalid_native_timeout")
+        super().__init__(runtime, runtime_sha256)
+        self.snapshot_sha256 = snapshot_sha256
+        self.snapshot = plain_path(snapshot, directory=True)
+        self.work = plain_path(work, directory=True)
+        if any(self.work == root or root in self.work.parents for root in (self.runtime_root, self.snapshot)):
+            raise NativeSearchError("engine_work_overlaps_input")
+        self.timeout = timeout
+        self.busy = threading.BoundedSemaphore(1)
+        self.snapshot_manifest = verify_snapshot(self.snapshot, snapshot_sha256)
+        for name in ("snapshot.json", "members.json", "scene-records.i8"):
+            plain_path(self.snapshot / name)
+        self.members = strict_json(bounded_read(self.snapshot / "members.json", MAX_INVENTORY_BYTES))
+        for member in self.members:
+            if not member["locationId"] < 2**53 or type(member["sourceIndex"]) is not int:
+                raise NativeSearchError("invalid_scene_member")
+            validate_pose(member.get("pose"), self.countries, member=True)
+        self.index = self.work / "index"
+        self.prepare_index()
 
     def prepare_index(self):
         # Entirely new immutable mount. Never copy an existing native manifest or

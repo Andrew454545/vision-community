@@ -1,0 +1,36 @@
+name = "vision-community-release-staging"
+main = "src/worker.js"
+compatibility_date = "2026-09-19"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = true
+preview_urls = false
+
+[triggers]
+crons = ["0 * * * *"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "vision-community-release-staging"
+database_id = "1abba87d-d04f-41bb-8a11-7b6a1a662e39"
+
+[[r2_buckets]]
+binding = "INDEX"
+bucket_name = "vision-community-release-staging"
+
+[[ratelimits]]
+name = "API_RATE_LIMITER"
+namespace_id = "2010060101"
+
+[ratelimits.simple]
+limit = 120
+period = 60
+
+# Bind the actual native services and admitted operator policy only after their
+# real host/policy are ready. Never bind the synthetic local rehearsal policy.
+
+[assets]
+directory = "../../community/web"
+binding = "ASSETS"
+html_handling = "auto-trailing-slash"
+not_found_handling = "404-page"
+run_worker_first = true
