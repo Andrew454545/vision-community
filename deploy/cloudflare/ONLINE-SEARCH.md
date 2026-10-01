@@ -28,8 +28,11 @@ its digest. The offline scene bundle sealer is implemented in
 [`SEARCH-SNAPSHOT.md`](SEARCH-SNAPSHOT.md). The corresponding offline object
 sealer is documented in
 [`OBJECT_SEARCH_SNAPSHOTS.md`](../../docs/OBJECT_SEARCH_SNAPSHOTS.md). Live
-inventory/artifact export, trusted inference audits and the general inference
-service are still pending. Do not bind a fake or staging-reference-only verifier
+inventory/artifact export, trusted inference audits and general hosted inference
+are still pending. A private native scene adapter is now implemented and exercised
+through the local gateway with actual native results; see
+[NATIVE_SCENE_SEARCH.md](../../docs/NATIVE_SCENE_SEARCH.md). Deployment and
+general object search remain open. Do not bind a fake or staging-reference-only verifier
 as a search engine.
 
 Bind the validated private service as `SEARCH_ENGINE`; never accept a URL,

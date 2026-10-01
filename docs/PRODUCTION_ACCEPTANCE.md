@@ -20,6 +20,22 @@ measurements into automatic production approval.
 
 ## Completed in this pass
 
+- Implemented the private native scene search adapter from independently sealed
+  contribution snapshots to the real saved-index engine, with strong runtime
+  pins, unchanged record bytes/ordinals, fresh private query caches, bounded
+  execution, first-error reports and no shell/credential inheritance. Fifteen
+  helper checks cover trust, filters, HTTP, killed timeouts and recovery. Actual
+  16-location native HTTP results match direct search rankings/scores/views;
+  the complete local workerd/D1 flow passes real search settlement and replay
+  without extra inference/debit, scientific-coordinate fingerprints, outage
+  and contributor-removal rejection. All accounts/publications/credits are local
+  fixtures. No live resource or installed worker changed. See
+  [NATIVE_SCENE_SEARCH.md](NATIVE_SCENE_SEARCH.md); hosting, live export, full
+  quality/device/parallel qualification and Objects admission remain open.
+- Andrew accepts our findings and engineering decisions and withdrew his separate
+  independent verification/sign-off requirement in PR #2. Do not wait for an
+  approval or request raw-result uploads for that withdrawn requirement. This
+  authorizes progress; it does not create absent quality/endurance evidence.
 - Added and exercised a separate private native scene capture/replay path.
   It preserves actual four-view thumbnails, model inputs, raw outputs and
   normalized vectors before native packing; replay never refetches imagery.
