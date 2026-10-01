@@ -9,8 +9,11 @@ community/.data/
 .env
 .wrangler/
 node_modules/
+deploy/cloudflare/node_modules
 .local-test-build/
 .local-native-bridge-build/
+.local-release-build/
+.local-verifier-bridge-build/
 account-deletions.private.json
 *.private.sql
 .private-restore/

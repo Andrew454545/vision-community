@@ -18,8 +18,10 @@ Use the staging template before enabling any contributor traffic:
 1. Copy `wrangler.staging.toml.example` to `wrangler.staging.toml` and fill in a
    separate D1 database, R2 bucket, private `SCENE_VERIFIER` service binding,
    unique rate-limit namespace, and reviewed `SCENE_POLICY_ID`.
-   The private verifier implementation and its separate policy bucket are in
-   `scene-verifier/`; deploy and test it before binding it here.
+   The staging digest verifier and its separate policy bucket are in
+   `scene-verifier/`. For new contributions, use the
+   [native recomputation verifier](native-scene-verifier-bridge/README.md), which
+   requires the native host and a measured operator admission policy.
 2. Apply `schema.sql` to a new staging database. Existing databases should
    apply `migrations/0002_scene_pipeline.sql` and
    `migrations/0003_object_coverage.sql`; if the lease column already exists,
@@ -38,9 +40,15 @@ remain authoritative for leases, credits, and replay protection. If the
 limiter binding is absent, the Worker still runs for local prototype use, but
 that configuration is not suitable for public contributor traffic.
 
-The verifier service must authenticate the operator policy and Andrew’s reviewed
+The verifier service must authenticate the operator policy and its pinned
 reference set. Never accept approval decisions from the browser, expose the
 verifier as a public URL, or point staging at the production bucket.
+
+`wrangler.release-staging.toml` targets a separately provisioned release-staging
+database and bucket. It includes the public rate limiter and scheduled cleanup,
+but deliberately has no native service bindings or admitted policy. It therefore
+reports unavailable contributions until the native host and policy are configured.
+Do not point this configuration at production storage to bypass the staging checks.
 
 For the prototype ledger and catalog only:
 

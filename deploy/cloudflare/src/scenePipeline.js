@@ -33,6 +33,11 @@ async function callVerifier(env, action, body) {
       method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
       signal: AbortSignal.timeout(60000),
     }));
+    if (response.status === 422 && action === "qualify") {
+      const result = await response.json();
+      return result?.approved === false || ["scene_device_not_qualified", "invalid_submission"].includes(result?.error)
+        ? { approved: false } : null;
+    }
     if (!response.ok) return null;
     return await response.json();
   } catch { return null; }
@@ -66,6 +71,7 @@ export async function qualifyDevice(env, account, body, validRecord, now = Math.
   const canarySha256 = await sha256Hex(encodeUtf8(JSON.stringify(canary)));
   const result = await callVerifier(env, "qualify", { accountId: account, profileId,
     policyId: env.SCENE_POLICY_ID, canarySha256, canary });
+  if (!result) throw new ScenePipelineError("scene_verification_unavailable", 503);
   if (!result || result.approved !== true || result.policyId !== env.SCENE_POLICY_ID ||
       result.profileId !== profileId || result.canarySha256 !== canarySha256 ||
       !Number.isSafeInteger(result.expiresAt) || result.expiresAt <= now || result.expiresAt > now + 30 * 86400) {
@@ -108,7 +114,8 @@ export async function stageScene(env, account, leaseId, verified, now) {
   const qualification = await activeQualification(env, account, now, lease.scene_qualification_id);
   const records = verified.map(({ row, digest }) => ({ locationId: row.id, assetId: row.asset_id,
     capture: row.capture, inputModel: row.model, lat: row.lat, lng: row.lon,
-    heading: row.heading, pitch: row.pitch, zoom: row.zoom, outputSha256: digest }));
+    heading: row.heading, pitch: row.pitch, zoom: row.zoom,
+    country: row.country ?? null, cameraGeneration: row.camera_generation || "unknown", outputSha256: digest }));
   const blob = new Uint8Array(verified.length * 3080);
   verified.forEach((item, i) => blob.set(item.embedding, i * 3080));
   const metadata = JSON.stringify(records);
