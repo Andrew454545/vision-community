@@ -90,7 +90,45 @@ class NativeSceneSearchTest(unittest.TestCase):
 
     def fake_native(self, command, job, timeout):
         source = json.loads((job / "input.json").read_bytes())
-        (job / "output.json").write_bytes(encoded(self.output(source["queries"][0])))
+        self.assertIs(source["sceneFp32"], True)
+        (job / "stderr.log").write_text(
+            "[vision] ONNX Runtime global threads: 1, spinning disabled\n"
+            "[vision] scene image graph: vision_model_fp32.onnx (explicit input)\n", encoding="utf-8")
+        definition = source["queries"][0]
+        output = self.output(definition)
+        output["queries"][0]["hits"] = [hit for hit in output["queries"][0]["hits"]
+                                         if hit["similarity"] >= definition["minSimilarity"]]
+        (job / "output.json").write_bytes(encoded(output))
+
+    def test_native_search_refuses_a_runtime_that_ignores_the_requested_thread_pool(self):
+        def old_runtime(command, job, timeout):
+            self.fake_native(command, job, timeout)
+            (job / "stderr.log").write_text("[vision] execution providers: CPU\n", encoding="utf-8")
+        with patch.object(native, "run_native", side_effect=old_runtime):
+            with self.assertRaisesRegex(native.NativeSearchError, "native_search_runtime_update_required"):
+                self.engine.search(self.request())
+        self.assertFalse(list(self.work.glob("query-*")))
+
+    def test_image_example_search_requires_the_actual_fp32_graph(self):
+        self.config["queryModes"].append("title50Contrastive50")
+        self.config_path.write_bytes(encoded(self.config))
+        work = self.root / "example-work"
+        work.mkdir()
+        self.engine = self.start(work)
+        q = query(descriptionWeight=50, examples=[{
+            "panoId": "synthetic-example", "lat": 10, "lng": 20,
+            "heading": 270.25, "pitch": 5, "zoom": 1}])
+        def wrong_graph(command, job, timeout):
+            self.fake_native(command, job, timeout)
+            (job / "stderr.log").write_text(
+                "[vision] ONNX Runtime global threads: 1, spinning disabled\n"
+                "[vision] scene image graph: vision_model.onnx\n", encoding="utf-8")
+        with patch.object(native, "run_native", side_effect=wrong_graph):
+            with self.assertRaisesRegex(native.NativeSearchError, "native_search_runtime_update_required"):
+                self.engine.search(self.request(q))
+        with patch.object(native, "run_native", side_effect=self.fake_native):
+            result = self.engine.search(self.request(q))
+        self.assertEqual(result["processedLocations"], 4)
 
     def test_mount_preserves_contributed_records_ordinals_masks_without_account_ids(self):
         self.assertEqual((self.engine.index / "shard-000000.i8").read_bytes(), (self.snapshot / "scene-records.i8").read_bytes())

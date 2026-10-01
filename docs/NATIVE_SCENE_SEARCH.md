@@ -146,6 +146,15 @@ are unavailable: generic pose metadata cannot establish detection audits or road
 authority. Unsupported modes/features, changed files, malformed native output,
 incomplete scans, stale snapshots and engine timeouts spend no credit.
 
+Saved-index queries explicitly request `sceneFp32: true`. The native saved-search
+path must propagate that flag into the image-example encoder and graph-specific
+query cache; an older binary may silently ignore an unknown JSON field. Before
+accepting a hosted result, the adapter therefore checks actual CPU pool execution
+and, whenever examples were supplied, explicit fp32 image-graph execution. This
+does not admit image-example modes: their real comparison evidence and runtime
+allowlist are still required. Changing the adapter requires regenerating the
+runtime/helper manifest and gateway pins on the intended service host.
+
 ## Evidence and local gateway rehearsal
 
 Fifteen synthetic/helper checks cover seals/pins/geometry, tampering, filters,

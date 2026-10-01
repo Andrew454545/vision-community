@@ -280,7 +280,9 @@ def four_view_input(*, total: int, pace: str, run_id: str) -> dict:
         "resultPruneMeters": RESULT_PRUNE_METERS,
         "chunkSize": settings["chunk"],
         "concurrency": settings["concurrency"],
-        "checkpointEvery": min(2000, max(1, total)),
+        # Save each completed chunk. A power loss should repeat at most one
+        # chunk, rather than discard most of a long local batch.
+        "checkpointEvery": min(settings["chunk"], max(1, total)),
         "shardLocations": SHARD_LOCATIONS,
         "queries": [
             {
@@ -387,6 +389,7 @@ def search_input(
     title = output_name.strip() or "VISION Community"
     return {
         "runId": run_id,
+        "sceneFp32": True,
         "queries": [
             {
                 "name": title,
