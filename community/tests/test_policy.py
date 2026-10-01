@@ -46,7 +46,7 @@ class PublicCreditPolicyTest(unittest.TestCase):
 
 
 class PublicSurfaceIdentityTest(unittest.TestCase):
-    def test_public_web_does_not_link_a_personal_github_user(self):
+    def test_public_web_github_links_are_project_resources_not_personal_profiles(self):
         import re
 
         web = ROOT / "community" / "web"
@@ -54,10 +54,8 @@ class PublicSurfaceIdentityTest(unittest.TestCase):
             if not path.is_file() or path.suffix not in {".html", ".js", ".css", ".json", ".txt"}:
                 continue
             text = path.read_text(encoding="utf-8")
-            self.assertIsNone(
-                re.search(r"github\.com/[A-Za-z0-9_-]+", text),
-                msg=str(path),
-            )
+            for link in re.finditer(r"github\.com/([A-Za-z0-9_-]+)(/[A-Za-z0-9_.-]+)?", text):
+                self.assertEqual(link.groups(), ("Andrew454545", "/vision-community"), msg=str(path))
             self.assertNotIn("/Users/", text)
             self.assertNotIn("\\Users\\", text)
 
@@ -129,4 +127,3 @@ class PublicSurfaceIdentityTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
