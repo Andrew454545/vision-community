@@ -179,5 +179,47 @@ try {
     assert.equal((await db.prepare("SELECT units FROM accounts WHERE id=?").bind(owner).first()).units, 0);
     assert.equal((await db.prepare("SELECT COUNT(*) AS n FROM ledger WHERE account_id=? AND reason='verified_work'").bind(owner).first()).n, 0);
   }
-  console.log("Cloudflare local runtime passed: concurrent search settlement, replay, rollback, deletion, recovery revocation, receipt retry, scheduled cleanup, and create-only quarantine/final uploads on both sides of account deletion.");
+  // A label without a complete historical receipt cannot assign object work.
+  // Losing that receipt while a lease is held must block resume and publication
+  // before any artifact or credit is written.
+  const objectCreated = await mf.dispatchFetch("https://community.test/api/accounts", {
+    method: "POST", headers: { "content-type": "application/json", origin: "https://community.test" }, body: "{}" });
+  assert.equal(objectCreated.status, 201);
+  const objectAccount = (await objectCreated.json()).accountId;
+  const objectCookie = objectCreated.headers.get("set-cookie").split(";")[0];
+  const objectPost = (route, body) => mf.dispatchFetch("https://community.test/api/" + route, { method: "POST",
+    headers: { "content-type": "application/json", origin: "https://community.test", cookie: objectCookie },
+    body: JSON.stringify({ accountId: objectAccount, ...body }) });
+  await db.prepare(`INSERT INTO locations (id,asset_id,capture,lane,model,state,lat,lon,country,camera_generation)
+    VALUES (90001,'ObjectProofOnlyPano1234','2026-01','object','synthetic-object-model','pending',1,2,'Albania','gen4')`).run();
+  await db.prepare("INSERT INTO object_coverage VALUES (90001,'official-gen4-historical-v1','',0)").run();
+  const objectLeaseRequest = { lane: "object", count: 1, client: "cli", pace: "slow" };
+  for (const evidence of ["", "a".repeat(63), "g".repeat(64), "A".repeat(64)]) {
+    await db.prepare("UPDATE object_coverage SET evidence_sha256=? WHERE location_id=90001").bind(evidence).run();
+    const rejected = await objectPost("leases", objectLeaseRequest);
+    assert.equal(rejected.status, 409);
+    assert.equal((await rejected.json()).error, "no_available_work");
+  }
+  await db.prepare("UPDATE object_coverage SET evidence_sha256=? WHERE location_id=90001").bind("d".repeat(64)).run();
+  const objectLeased = await objectPost("leases", objectLeaseRequest);
+  assert.equal(objectLeased.status, 200);
+  const objectLease = await objectLeased.json();
+  assert.equal(objectLease.items.length, 1);
+  assert.equal(objectLease.items[0].locationId, 90001);
+  const r2Before = (await (await mf.getR2Bucket("INDEX")).list()).objects.length;
+  for (const [evidence, generation] of [["", "gen4"], ["g".repeat(64), "gen4"], ["d".repeat(64), "gen3"]]) {
+    await db.prepare("UPDATE object_coverage SET evidence_sha256=? WHERE location_id=90001").bind(evidence).run();
+    await db.prepare("UPDATE locations SET camera_generation=? WHERE id=90001").bind(generation).run();
+    for (const [route, body] of [["leases", objectLeaseRequest], ["submissions", {
+      leaseId: objectLease.leaseId, objectIndex: {}, outputs: [{ locationId: 90001, outputSha256: "a".repeat(64) }],
+    }]]) {
+      const rejected = await objectPost(route, body);
+      assert.equal(rejected.status, 409);
+      assert.equal((await rejected.json()).error, "object_coverage_required");
+    }
+  }
+  assert.equal((await (await mf.getR2Bucket("INDEX")).list()).objects.length, r2Before);
+  assert.equal((await db.prepare("SELECT units FROM accounts WHERE id=?").bind(objectAccount).first()).units, 0);
+  assert.equal((await db.prepare("SELECT COUNT(*) AS n FROM published_index WHERE location_id=90001").first()).n, 0);
+  console.log("Cloudflare local runtime passed: concurrent search settlement, replay, rollback, deletion, recovery revocation, receipt retry, scheduled cleanup, create-only quarantine/final uploads, and strict Gen4 object assignment/resume/publication without artifacts or credits on lost proof.");
 } finally { await mf.dispose(); }

@@ -131,3 +131,18 @@ test("failed final shutdown cannot be reported as a passed launch check", async 
   assert.equal(receipt().finalStopFailed, true);
   assert.equal(receipt().checks.length, 1);
 });
+
+test("combined check preserves offline launch evidence before testing model and restart", async () => {
+  const { env, calls, receipt } = fixture();
+  env.CHECK_MODE = "launch-model-restart";
+  await check(env);
+  assert.equal(receipt().status, "PRIVATE_NATIVE_MODEL_AND_RESTART_CHECKS_PASSED");
+  assert.equal(receipt().checks.length, 6);
+  assert.equal(receipt().checks[0].stage, "isolated_launch");
+  assert.deepEqual(calls.slice(0, 3), [["/operator/status", "GET"],
+    ["/operator/launch-check", "POST"], ["/health", "GET"]]);
+  assert.deepEqual(calls.at(-1), ["/operator/restart", "POST"]);
+  const count = calls.length;
+  await check(env);
+  assert.equal(calls.length, count);
+});
