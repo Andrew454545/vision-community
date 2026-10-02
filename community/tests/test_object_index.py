@@ -301,6 +301,38 @@ class ObjectIndexTest(unittest.TestCase):
             with self.assertRaisesRegex(ServiceError, "object_coverage_requires_official_gen4"):
                 service.certify_official_gen4_objects([object_id + 999], "b" * 64)
 
+    def test_incomplete_coverage_cannot_assign_or_resume_object_work(self):
+        for evidence, generation in (("", "gen4"), ("a" * 63, "gen4"), ("g" * 64, "gen4"),
+                                     ("A" * 64, "gen4"), (b"a" * 64, "gen4"), ("a" * 64, "gen3")):
+            with self.subTest(evidence=repr(evidence)), tempfile.TemporaryDirectory() as folder:
+                service = CommunityService(Path(folder) / "community.sqlite")
+                service.import_synthetic(json.loads(FIXTURE.read_text(encoding="utf-8"))["locations"])
+                account = service.create_account()["accountId"]
+                with service._connection() as connection:
+                    connection.execute("UPDATE locations SET lat=1.25,lon=-2.5,country='Greece',camera_generation=? WHERE lane='object'", (generation,))
+                    connection.execute("UPDATE object_coverage SET evidence_sha256=?", (evidence,))
+                with self.assertRaisesRegex(ServiceError, "no_available_work"):
+                    service.lease(account, "object", 1)
+                with service._connection() as connection:
+                    connection.execute("UPDATE locations SET camera_generation='gen4' WHERE lane='object'")
+                    connection.execute("UPDATE object_coverage SET evidence_sha256=?", ("a" * 64,))
+                lease = service.lease(account, "object", 1)
+                manifest, files, tsv = contract_bundle(lease["items"], lease["leaseId"], Path(folder) / "source.tsv")
+                outputs = validate_object_index(manifest, files, tsv, lease["items"], lease_id=lease["leaseId"])
+                with service._connection() as connection:
+                    connection.execute("UPDATE locations SET camera_generation=? WHERE lane='object'", (generation,))
+                    connection.execute("UPDATE object_coverage SET evidence_sha256=?", (evidence,))
+                with self.assertRaisesRegex(ServiceError, "object_coverage_required"):
+                    service.lease(account, "object", 1)
+                with self.assertRaisesRegex(ServiceError, "object_coverage_required"):
+                    service.submit(account, lease["leaseId"], outputs,
+                                   object_index=encode_object_submission(manifest, files, tsv))
+                with service._connection() as connection:
+                    self.assertEqual(connection.execute("SELECT units FROM accounts WHERE id=?", (account,)).fetchone()[0], 0)
+                    self.assertEqual(connection.execute("SELECT state FROM leases WHERE id=?", (lease["leaseId"],)).fetchone()[0], "active")
+                    self.assertEqual(connection.execute("SELECT COUNT(*) FROM published_index").fetchone()[0], 0)
+                self.assertFalse((service.artifacts / "object-index-v4" / lease["leaseId"]).exists())
+
     def test_site_and_worker_use_the_object_indexer(self):
         app = (ROOT / "community/web/app.js").read_text(encoding="utf-8")
         worker = (ROOT / "deploy/cloudflare/src/worker.js").read_text(encoding="utf-8")

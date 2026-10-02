@@ -20,6 +20,14 @@ measurements into automatic production approval.
 
 ## Completed in this pass
 
+- Unified hosted object assignment, resumed leases, publication/download authority
+  and paid-search validation around the same Gen4 generation and complete
+  lowercase SHA-256 receipt. The local service enforces the same requirements.
+  Incomplete, nonhex, uppercase or blob proofs cannot authorize work; losing
+  proof after assignment blocks resume/publication before artifacts or credits.
+  Actual local workerd/D1/R2 checks pass. This closes an inconsistent receipt
+  check; trusted historical coverage import and object inference remain open.
+
 - Added independent private R2 account-deletion receipts, with immutable
   creation, bounded checksum readback before acknowledgement, a durable retry
   outbox and explicit confirmed-resource configuration. Storage or acknowledgement

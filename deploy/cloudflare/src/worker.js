@@ -16,6 +16,7 @@ import { onlineSearch, onlineSearchConfigured, INDEX_DOWNLOAD_ROUTES } from "./o
 import { SearchError } from "./searchLedger.js";
 import { migrateAccountPrivacy, deleteAccount, cleanupAccountArtifacts, archiveAccountDeletionReceipts } from "./accountPrivacy.js";
 import { writeSceneArtifact } from "./artifactWrites.js";
+import { officialGen4Coverage, objectCoverageComplete } from "./objectCoverage.js";
 import { loadSceneReferences, sceneCapabilities } from "./sceneQuality.js";
 import { SCENE_PIPELINE_SCHEMA, verifierConfigured, auditBatchLimit, pipelineCapabilities, activeQualification, qualificationStatus, qualifyDevice, auditScene, stageScene } from "./scenePipeline.js";
 
@@ -70,8 +71,6 @@ CREATE TABLE IF NOT EXISTS object_coverage (
   validator TEXT NOT NULL, evidence_sha256 TEXT NOT NULL, validated_at INTEGER NOT NULL
 );
 `;
-
-const OFFICIAL_GEN4_VALIDATOR = "official-gen4-historical-v1";
 
 const HEADERS = {
   "content-type": "application/json",
@@ -576,9 +575,9 @@ async function pendingForShard(env, lane, shardId, now, count) {
      FROM locations WHERE lane=? AND catalog_shard=? AND COALESCE(queue_state,'pending')='pending'
        AND asset_id NOT LIKE 'Prototype%' AND asset_id NOT LIKE 'synthetic:%' AND asset_id NOT LIKE 'CommunityPano%'
        AND (state='pending' OR (state='leased' AND lease_until<=?))
-       AND (lane!='object' OR EXISTS (SELECT 1 FROM object_coverage c WHERE c.location_id=locations.id AND c.validator=?))
+       AND (lane!='object' OR (${officialGen4Coverage("locations")}))
      ORDER BY id LIMIT ?`
-  ).bind(lane, shardId, now, OFFICIAL_GEN4_VALIDATOR, count).all()).results || [];
+  ).bind(lane, shardId, now, count).all()).results || [];
 }
 
 async function pendingShared(env, lane, now, count) {
@@ -587,9 +586,9 @@ async function pendingShared(env, lane, now, count) {
      FROM locations WHERE lane=? AND COALESCE(queue_state,'pending')='pending'
        AND asset_id NOT LIKE 'Prototype%' AND asset_id NOT LIKE 'synthetic:%' AND asset_id NOT LIKE 'CommunityPano%'
        AND (state='pending' OR (state='leased' AND lease_until<=?))
-       AND (lane!='object' OR EXISTS (SELECT 1 FROM object_coverage c WHERE c.location_id=locations.id AND c.validator=?))
+       AND (lane!='object' OR (${officialGen4Coverage("locations")}))
      ORDER BY id LIMIT ?`
-  ).bind(lane, now, OFFICIAL_GEN4_VALIDATOR, count).all()).results || [];
+  ).bind(lane, now, count).all()).results || [];
 }
 
 async function materializeCatalog(env, lane, count, now, shard) {
@@ -714,6 +713,7 @@ async function lease(env, account, body) {
     const held = (await env.DB.prepare(
       `SELECT l.* FROM locations l JOIN lease_items i ON i.location_id=l.id WHERE i.lease_id=? ORDER BY l.id`
     ).bind(existing.id).all()).results || [];
+    if (lane === "object" && !await objectCoverageComplete(env.DB, held)) return error("object_coverage_required", 409);
     if (references && held.some((row) => !references.covers(row))) return error("scene_reference_not_approved", 409);
     if (qualification && existing.scene_qualification_id !== qualification.id) return error("scene_qualification_changed", 409);
     const payload = [];
@@ -911,10 +911,7 @@ async function submitObjectIndex(env, account, leaseId, items, supplied, objectI
   if (items.some((row) => row.lane !== "object" || row.state !== "leased" || row.active_lease !== leaseId)) {
     return error("lease_lost", 409);
   }
-  const covered = (await env.DB.prepare(
-    `SELECT location_id FROM object_coverage WHERE validator=? AND location_id IN (${items.map(() => "?").join(",")})`
-  ).bind(OFFICIAL_GEN4_VALIDATOR, ...items.map((row) => row.id)).all()).results || [];
-  if (covered.length !== items.length) return error("object_coverage_required", 409);
+  if (!await objectCoverageComplete(env.DB, items)) return error("object_coverage_required", 409);
   let sourceTsv;
   try {
     sourceTsv = base64ToBytes(objectIndex.sourceTsv);

@@ -57,6 +57,20 @@ RECOVERY_PEPPER_HEADER = "VISION-COMMUNITY-RECOVERY-V1"
 OFFICIAL_GEN4_VALIDATOR = "official-gen4-historical-v1"
 
 
+def certified_object_ids(connection, ids):
+    ids = list(ids)
+    if not ids:
+        return set()
+    return {row[0] for row in connection.execute(
+        f"""SELECT l.id FROM locations l JOIN object_coverage c ON c.location_id=l.id
+            WHERE l.id IN ({','.join('?' for _ in ids)}) AND l.lane='object'
+              AND l.camera_generation='gen4' AND c.validator=?
+              AND typeof(c.evidence_sha256)='text' AND length(c.evidence_sha256)=64
+              AND c.evidence_sha256 NOT GLOB '*[^0-9a-f]*'""",
+        [*ids, OFFICIAL_GEN4_VALIDATOR],
+    )}
+
+
 class ServiceError(Exception):
     def __init__(self, code: str, status: int = 400):
         super().__init__(code)
@@ -585,8 +599,11 @@ class CommunityService:
                 """SELECT DISTINCT i.object_index_key FROM published_index i
                    JOIN locations l ON l.id=i.location_id
                    WHERE l.lane='object' AND l.state='published'
-                     AND l.contributor_id IS NOT NULL AND i.object_index_key IS NOT NULL
-                     AND EXISTS (SELECT 1 FROM object_coverage c WHERE c.location_id=l.id AND c.validator=?)""",
+                     AND l.contributor_id IS NOT NULL AND l.contributor_id!='' AND i.object_index_key IS NOT NULL
+                     AND l.camera_generation='gen4'
+                     AND EXISTS (SELECT 1 FROM object_coverage c WHERE c.location_id=l.id AND c.validator=?
+                       AND typeof(c.evidence_sha256)='text' AND length(c.evidence_sha256)=64
+                       AND c.evidence_sha256 NOT GLOB '*[^0-9a-f]*')""",
                 (OFFICIAL_GEN4_VALIDATOR,),
             )}
         indexes = []
@@ -617,8 +634,10 @@ class CommunityService:
             published = connection.execute(
                 """SELECT 1 FROM published_index i JOIN locations l ON l.id=i.location_id
                    WHERE i.object_index_key=? AND l.lane='object' AND l.state='published'
-                     AND l.contributor_id IS NOT NULL
-                     AND EXISTS (SELECT 1 FROM object_coverage c WHERE c.location_id=l.id AND c.validator=?)
+                     AND l.contributor_id IS NOT NULL AND l.contributor_id!='' AND l.camera_generation='gen4'
+                     AND EXISTS (SELECT 1 FROM object_coverage c WHERE c.location_id=l.id AND c.validator=?
+                       AND typeof(c.evidence_sha256)='text' AND length(c.evidence_sha256)=64
+                       AND c.evidence_sha256 NOT GLOB '*[^0-9a-f]*')
                    LIMIT 1""", (key.rsplit('/', 1)[0] + '/', OFFICIAL_GEN4_VALIDATOR)
             ).fetchone()
             if published is None:
@@ -1127,8 +1146,10 @@ class CommunityService:
                       state, lease_until
                FROM locations WHERE lane=? AND catalog_shard=? AND COALESCE(queue_state, 'pending')='pending'
                  AND (state='pending' OR (state='leased' AND lease_until<=?))
-                 AND (lane!='object' OR EXISTS (SELECT 1 FROM object_coverage c
-                                                WHERE c.location_id=locations.id AND c.validator=?))
+                 AND (lane!='object' OR (camera_generation='gen4' AND EXISTS (SELECT 1 FROM object_coverage c
+                       WHERE c.location_id=locations.id AND c.validator=?
+                         AND typeof(c.evidence_sha256)='text' AND length(c.evidence_sha256)=64
+                         AND c.evidence_sha256 NOT GLOB '*[^0-9a-f]*')))
                ORDER BY id LIMIT ?""",
             (lane, shard_id, now, OFFICIAL_GEN4_VALIDATOR, count),
         ).fetchall()
@@ -1146,8 +1167,10 @@ class CommunityService:
                       state, lease_until
                FROM locations WHERE lane=? AND COALESCE(queue_state, 'pending')='pending'
                  AND (state='pending' OR (state='leased' AND lease_until<=?))
-                 AND (lane!='object' OR EXISTS (SELECT 1 FROM object_coverage c
-                                                WHERE c.location_id=locations.id AND c.validator=?))
+                 AND (lane!='object' OR (camera_generation='gen4' AND EXISTS (SELECT 1 FROM object_coverage c
+                       WHERE c.location_id=locations.id AND c.validator=?
+                         AND typeof(c.evidence_sha256)='text' AND length(c.evidence_sha256)=64
+                         AND c.evidence_sha256 NOT GLOB '*[^0-9a-f]*')))
                ORDER BY id LIMIT ?""",
             (lane, now, OFFICIAL_GEN4_VALIDATOR, count),
         ).fetchall()
@@ -1315,6 +1338,9 @@ class CommunityService:
                        WHERE i.lease_id=? ORDER BY l.id""",
                     (existing["id"],),
                 ).fetchall()
+                if lane == "object" and (not rows or certified_object_ids(connection, (row["id"] for row in rows))
+                                         != {row["id"] for row in rows}):
+                    raise ServiceError("object_coverage_required", 409)
                 if qualification is None and lane == "scene" and self.scene_references is not None and any(
                     not self.scene_references.covers(row) for row in rows
                 ):
@@ -1375,11 +1401,7 @@ class CommunityService:
             if not rows:
                 raise ServiceError("no_available_work", 409)
             if lane == "object":
-                certified = connection.execute(
-                    f"SELECT location_id FROM object_coverage WHERE validator=? AND location_id IN ({','.join('?' for _ in rows)})",
-                    [OFFICIAL_GEN4_VALIDATOR, *(row["id"] for row in rows)],
-                ).fetchall()
-                if {row["location_id"] for row in certified} != {row["id"] for row in rows}:
+                if certified_object_ids(connection, (row["id"] for row in rows)) != {row["id"] for row in rows}:
                     raise ServiceError("object_coverage_required", 409)
             if qualification is None and lane == "scene" and self.scene_references is not None and any(
                 not self.scene_references.covers(row) for row in rows
@@ -1620,11 +1642,7 @@ class CommunityService:
             for row in rows:
                 if row["state"] != "leased" or row["active_lease"] != lease_id or row["lane"] != "object":
                     raise ServiceError("lease_lost", 409)
-            certified = connection.execute(
-                f"SELECT location_id FROM object_coverage WHERE validator=? AND location_id IN ({','.join('?' for _ in rows)})",
-                [OFFICIAL_GEN4_VALIDATOR, *(row["id"] for row in rows)],
-            ).fetchall()
-            if {row["location_id"] for row in certified} != {row["id"] for row in rows}:
+            if certified_object_ids(connection, (row["id"] for row in rows)) != {row["id"] for row in rows}:
                 raise ServiceError("object_coverage_required", 409)
             lease_items = [
                 {

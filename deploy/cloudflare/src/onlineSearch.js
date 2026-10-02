@@ -1,6 +1,7 @@
 import { randomHex, sha256Hex, encodeUtf8, SEARCH_COST, viewOffsetsFor, wrapHeading } from "./model.js";
 import { replaySearch, settleSearch, SearchError } from "./searchLedger.js";
 import { SEARCH_CONTRACT_VERSION, querySemantics, validHitObject, exportSearchMap } from "./searchExport.js";
+import { officialGen4Coverage } from "./objectCoverage.js";
 
 const HEX = /^[0-9a-f]{64}$/;
 const RESPONSE_LIMIT = 4 * 1024 * 1024;
@@ -76,10 +77,7 @@ async function verifiedHits(db, query, hits, processedLocations) {
       WHERE l.id IN (SELECT value FROM json_each(?)) AND l.lane=? AND l.state='published'
         AND l.contributor_id IS NOT NULL AND l.contributor_id!=''
         AND ((?='scene' AND i.four_view_key IS NOT NULL)
-          OR (?='object' AND i.object_index_key IS NOT NULL AND l.camera_generation='gen4'
-            AND EXISTS (SELECT 1 FROM object_coverage c WHERE c.location_id=l.id
-              AND c.validator='official-gen4-historical-v1' AND length(c.evidence_sha256)=64
-              AND c.evidence_sha256 NOT GLOB '*[^0-9a-f]*')))`)
+          OR (?='object' AND i.object_index_key IS NOT NULL AND (${officialGen4Coverage("l")})))`)
     .bind(JSON.stringify(ids), query.lane, query.lane, query.lane).all()).results || [];
   const byId = new Map(rows.map(row => [row.id, row]));
   const countries = new Map();
