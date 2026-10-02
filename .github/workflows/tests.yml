@@ -41,7 +41,7 @@ jobs:
         with:
           node-version: "22"
       - name: Run worker scene gate tests
-        run: node --test deploy/cloudflare/src/*.test.mjs deploy/cloudflare/scene-verifier/*.test.mjs deploy/cloudflare/native-scene-bridge/*.test.mjs deploy/cloudflare/native-scene-verifier-bridge/*.test.mjs
+        run: node --test deploy/cloudflare/src/*.test.mjs deploy/cloudflare/scene-verifier/*.test.mjs deploy/cloudflare/native-scene-bridge/*.test.mjs deploy/cloudflare/native-scene-verifier-bridge/*.test.mjs deploy/cloudflare/native-container-host/*.test.mjs
       - name: Install private Worker test tools
         working-directory: deploy/cloudflare
         run: npm install --no-save --package-lock=false --ignore-scripts wrangler@4.144.0 miniflare@5.20260926.1-alpha
@@ -51,5 +51,7 @@ jobs:
           node node_modules/wrangler/bin/wrangler.js deploy --dry-run --outdir .local-test-build
           node node_modules/wrangler/bin/wrangler.js deploy --dry-run --config native-scene-bridge/wrangler.toml --outdir .local-native-bridge-build
           node node_modules/wrangler/bin/wrangler.js deploy --dry-run --config native-scene-verifier-bridge/wrangler.toml --outdir .local-verifier-bridge-build
+          node node_modules/wrangler/bin/wrangler.js deploy --dry-run --config native-container-host/wrangler.jsonc --outdir .local-native-host-build
           node tools/check-local-runtime.mjs node_modules/miniflare/dist/src/index.js .local-test-build/worker.js
           node tools/check-local-verifier.mjs node_modules/miniflare/dist/src/index.js
+          node tools/check-local-native-host.mjs node_modules/miniflare/dist/src/index.js .local-native-host-build/worker.js

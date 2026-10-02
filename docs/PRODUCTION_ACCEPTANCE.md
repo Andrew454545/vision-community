@@ -20,20 +20,35 @@ measurements into automatic production approval.
 
 ## Completed in this pass
 
+- Published and independently verified the private Linux OCI image in the
+  confirmed Cloudflare registry; image preparation is ready. Added a private
+  Container controller with streamed bundle checks, durable activation pointers,
+  restart/eviction rehydration, one shared execution slot and bounded idle
+  shutdown. The existing staging namespace is preserved; public routes, SSH
+  and invocation logs remain disabled. 131 JavaScript tests and21 actual
+  workerd route/binding checks pass. Windows Python ran323 tests with one skip;
+  full local gateway/verifier checks pass. A one-time private hosted model and
+  restart check is scheduled; its result remains pending. Bundle restoration
+  is tested locally; live qualified bundle restoration is still required.
+- The final packaged one-thread candidate also completed its112-location
+  check and three fresh1,024-location repetitions, with zero errors and complete
+  masks. The final two-thread candidate is still running. Its exact executable
+  and all five packaged DLLs were observed loaded from the pinned package and
+  matched to the build receipt. This establishes that process's library identity,
+  not quality, representative speed or a production parallel profile.
 - Shortened the README, setup guides, PC screen and website instructions.
   The website guide has 160 visible words, with search and troubleshooting
   behind optional sections. Desktop, phone and expanded-help rendering pass.
-  All five GitHub jobs pass at code revision `33eaa72`; 24 launcher/bootstrap,
+  All five GitHub jobs pass at app revision `d27aba8`; 24 launcher/bootstrap,
   34 indexer and six readiness tests also pass locally. Staging deployment
-  `a39d57d09e4a413e980544e34a7fbfd1` serves all13 matching public assets with
+  `08752be5fd0848349fbb2e643685ceb1` serves all13 matching public assets with
   the existing backend, bindings and privacy/security headers preserved.
   Account-code and qualification gates remain required.
 - Final packaged Windows/Linux native builds pass69 tests and their binary,
   library and source pins have been independently verified. The final Windows
   four-thread candidate completed its112-location check and three fresh full
   1,024-location trials with zero errors. It remains unqualified: the final
-  one/two-thread comparisons, loaded-library evidence and runtime policy are
-  still required. Private Linux image CI also built and checked actual
+  full comparison quality and runtime policy are still required. Private Linux image CI also built and checked actual
   payload/layout/auth startup. Independent retrieval verified all12 OCI blobs,
   the real runtime payload, helper pins and host source. GitHub's recorded
   temporary merge and tested branch have identical complete source trees.
@@ -546,8 +561,11 @@ production credit product.
   missing or returns invalid results. The prototype 96-dimensional extractor
   is not an acceptable substitute for VISION's four-view scene vectors.
   The native scene adapter, runtime packager and private bridge are implemented
-  and exercised locally on Mac/Windows; the actual native host, HTTPS ingress,
-  private service binding and live contribution snapshot remain to be deployed.
+  and exercised locally on Mac/Windows. A private Container controller and
+  named engine/verifier/operator service bindings are deployed in staging;
+  actual hosted inference, measured policy activation and a live contribution
+  snapshot remain unverified. See the
+  [private host instructions](../deploy/cloudflare/native-container-host/README.md).
 - [ ] Measure hosted compute, memory, latency and cost, including simultaneous
   requests and an index update during search. Compare held-out rankings with
   Andrew's application before advertising parity.
