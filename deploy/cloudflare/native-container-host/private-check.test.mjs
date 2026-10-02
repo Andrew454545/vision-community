@@ -146,3 +146,52 @@ test("combined check preserves offline launch evidence before testing model and 
   await check(env);
   assert.equal(calls.length, count);
 });
+
+test("large combined reports retain independently readable model and restart evidence", async () => {
+  const { env, values, receipt } = fixture(), fetch = env.NATIVE_OPERATOR.fetch;
+  env.CHECK_MODE = "launch-model-restart";
+  env.NATIVE_OPERATOR.fetch = async (url, init) => {
+    const path = new URL(url).pathname;
+    if (path === "/health") return Response.json({ status: "native_host_available",
+      runtimeSha256: "a".repeat(64), identityOnly: true, auditReady: false, searchReady: false,
+      activeNativeProcessesMaximum: 1, productionQualified: false });
+    if (path === "/operator/launch-check") return Response.json({ status: "native_launch_check_passed",
+      runtimeSha256: "a".repeat(64), pythonVersion: "3.12.15", uid: 10001,
+      modelFilesValidated: true, httpServerChecked: true, serviceAuthChecked: true,
+      operatorAuthChecked: true, productionQualified: false });
+    return path === "/operator/model-check" ? Response.json({ status: "native_model_check_passed", runtimeSha256: "a".repeat(64),
+      locations: 1, views: 4, fetchErrors: 0, inferenceErrors: 0, bytes: 3080,
+      outputSha256: "b".repeat(64), sceneGraph: "fp32", executionProvider: "cpu", threads: 1,
+      elapsedSeconds: 41.123, peakChildRssKiB: 1324000, productionQualified: false })
+    : fetch(url, init);
+  };
+  await check(env);
+  const report = receipt();
+  assert.ok(new TextEncoder().encode(values.get(env.CHECK_RECEIPT_KEY)).byteLength > 1800);
+  assert.equal(report.status, "PRIVATE_NATIVE_MODEL_AND_RESTART_CHECKS_PASSED");
+  const steps = [...values].filter(([key]) => key.startsWith(env.CHECK_RECEIPT_KEY + ".step-"));
+  assert.equal(steps.length, report.checks.length);
+  assert.deepEqual(steps.map(([, body]) => JSON.parse(body)), report.checks);
+  const count = values.size;
+  await check(env);
+  assert.equal(values.size, count);
+});
+
+test("a stage-receipt storage failure preserves the failure and cannot report a passed check", async () => {
+  for (const outcome of ["throw", "conflict"]) {
+    const { env, receipt, calls } = fixture(), put = env.CHECK_REPORTS.put;
+    env.CHECK_MODE = "launch";
+    env.CHECK_REPORTS.put = async (key, ...args) => {
+      if (key.includes(".step-")) {
+        if (outcome === "throw") throw Error("synthetic storage failure");
+        return null;
+      }
+      return put(key, ...args);
+    };
+    await check(env);
+    assert.equal(receipt().status, "FAILED");
+    assert.equal(receipt().failureStage, "receipt_details");
+    assert.equal(receipt().receiptDetailsUnavailable, true);
+    assert.deepEqual(calls.at(-1), ["/operator/restart", "POST"]);
+  }
+});

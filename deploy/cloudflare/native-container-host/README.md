@@ -14,6 +14,8 @@ CI exercises real workerd SQLite alarm delivery, renewed deadlines and active-op
 
 The checker also has a real workerd scheduled-event test: five delivered events run one synthetic launch, preserve its private R2 report and reject public requests. `private-check.wrangler.jsonc` contains no trigger and has an expired execution window. For a one-time check, set `CHECK_NOT_BEFORE` and `CHECK_NOT_AFTER` to absolute UTC timestamps such as `2026-10-02T19:40:00.000Z`, at most 30 minutes apart. Allow at least 15 minutes for a new trigger to propagate, then remove it after the result. Early or expired deliveries cannot write a marker or start compute. A missing start marker means the check has not established execution, regardless of a saved cron configuration.
 
+Each completed stage also has a private `<report-key>.step-<number>` receipt with matching body and list metadata. This keeps model hashes and resource measurements inspectable when the combined report exceeds the metadata budget. A failed or conflicting stage-receipt write preserves the failure and cannot produce a passed report.
+
 Startup uses explicit Python settings and a separate 60-second deadline. A failed boot stops compute and records a fixed failure code and numeric exit code, without exception text or credentials.
 
 Normal startup uses `/usr/local/bin/python -B /opt/vision/server.py`, matching the pinned image's own server command, with explicit Python and thread settings. It preserves the existing authentication, model and helper pins. The separately retained fixed Python diagnostic classifies import, manifest, state-directory, runtime-pin and credential failures; it never grants readiness and retains only allowed codes and numeric errno values.
