@@ -38,7 +38,7 @@
   <section class="welcome" aria-labelledby="welcome-heading">
     <div>
       <h2 id="welcome-heading">New to VISION? Start here.</h2>
-      <p>Download → open <strong>Start VISION</strong> → follow four steps.</p>
+      <p>Download → Extract All → <strong>Start VISION</strong>.</p>
       <p id="welcome-status" role="status" aria-live="polite">Preview: checking whether contributions are open…</p>
     </div>
     <div class="welcome-actions">
@@ -66,7 +66,7 @@
       <div class="editor-head">
         <div>
           <h1 id="job-title">New search</h1>
-          <p class="sub">Describe the places you want. You can leave the other settings alone.</p>
+          <p class="sub">Describe a place. Other settings are optional.</p>
         </div>
         <span class="ready" id="ready-badge">Needs input</span>
       </div>
@@ -266,14 +266,14 @@
     <div class="contribute">
       <p class="status" id="service-status" role="status" aria-live="polite">Checking the service before you start…</p>
       <button id="check-service" class="compact-btn" type="button">Check again</button>
-      <p class="rail-copy">First time here? <a href="/getting-started.html">Follow the simple Windows guide</a>. Create your account in the PC app, then use the same private code here to see your credits and search.</p>
+      <p class="rail-copy">New here? <a href="/getting-started.html">Start with the Windows app</a>. Use its saved code here.</p>
       <p class="rail-copy" id="account-chip">No account yet</p>
       <label class="field-label" for="recovery-code">Your private account code from the PC app</label>
       <form id="recover-form" class="recover">
         <input id="recovery-code" type="password" maxlength="80" autocomplete="off" placeholder="Paste or type your saved code">
         <button type="submit" class="compact-btn" disabled>Use my account</button>
       </form>
-      <details class="more"><summary>I need to create an account here</summary><p class="rail-copy">You can create an account here instead of in the PC app. Save its code and use the same code in the app. You do not need two accounts.</p><button id="create-account" class="primary" type="button" disabled>Create account</button></details>
+      <details class="more"><summary>I need to create an account here</summary><p class="rail-copy">Save the code and use it in the PC app too.</p><button id="create-account" class="primary" type="button" disabled>Create account</button></details>
       <p class="status warn" id="recovery-once" hidden>
         <span id="recovery-once-text"></span>
         <button id="copy-recovery" class="compact-btn" type="button">Copy</button>
@@ -303,11 +303,11 @@
         <label><input type="radio" name="process-lane" value="object"><span>Objects</span></label>
         <label><input type="radio" name="process-lane" value="both"><span>Both</span></label>
       </div>
-      <p class="rail-copy" id="process-lane-help">Scenes use the same indexer as VISION. Copy the command and paste it into Terminal. It keeps going until you stop it. Objects use the same object indexer as VISION and keep going too.</p>
+      <p class="rail-copy" id="process-lane-help">Copy the command into Terminal. Keep the computer awake.</p>
       <button id="process" class="primary" type="button" disabled>Copy scene command</button>
       <button id="pause" class="compact-btn" type="button" disabled>Pause</button>
       <p class="status" id="process-status">Get an account, then copy the scene command into Terminal.</p>
-      <p class="rail-copy">Windows users follow the <a href="/getting-started.html">simple starter guide</a>. These commands are for supported Mac computers and developer testing.</p>
+      <p class="rail-copy">Windows users: <a href="/getting-started.html">use the starter</a>.</p>
       <details><summary>Advanced setup for Mac</summary><p>In the downloaded project folder, run <code>python3 -m community.bootstrap</code>, then use the indexing command. Keep the computer awake.</p></details>
       </details>
       <p class="rail-copy" id="batch-label">You will get your own batch. Other people get different batches.</p>
@@ -366,7 +366,7 @@
 
       <details class="more" id="command-block">
         <summary>Advanced indexing command</summary>
-        <p class="rail-copy">For maintainers and supported Mac computers. Paste this after you have an account. The command keeps going until you stop it or the queue is empty.</p>
+        <p class="rail-copy">For Mac and developer testing. Use your saved account code.</p>
         <pre class="cli" id="cli-command">python3 -m community.vision_index --pace slow --recovery-code YOUR_CODE</pre>
         <button id="copy-cli" class="compact-btn" type="button" disabled>Copy command</button>
       </details>
