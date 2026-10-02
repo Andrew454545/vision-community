@@ -47,6 +47,11 @@ export async function check(env) {
   } catch {
     receipt.failureStage = stage;
     receipt.error = "private_native_check_failed";
+    try {
+      const state = await call(env, "/operator/status");
+      receipt.lastControlFailure = state.lastControlFailure ?? null;
+      receipt.lastContainerExit = state.lastContainerExit ?? null;
+    } catch { /* The stage still preserves a failure if status is unavailable. */ }
   } finally {
     // Stop compute after either result. A sealed production bundle is never used
     // by this identity-only check; durable metadata remains for diagnostics.
@@ -54,8 +59,16 @@ export async function check(env) {
       try { await call(env, "/operator/restart", "POST"); }
       catch { receipt.finalStopFailed = true; }
     }
-    await env.CHECK_REPORTS.put(key, JSON.stringify(receipt), {
+    const document = JSON.stringify(receipt);
+    await env.CHECK_REPORTS.put(key, document, {
       httpMetadata: { contentType: "application/json" },
+      // Account-private list metadata remains readable when a connector cannot
+      // unwrap raw R2 object responses. The complete report stays in the body.
+      customMetadata: { receipt: document.length <= 1800 ? document : JSON.stringify({
+        scope: receipt.scope, status: receipt.status, failureStage: receipt.failureStage,
+        lastControlFailure: receipt.lastControlFailure, lastContainerExit: receipt.lastContainerExit,
+        checksCompleted: receipt.checks.length, productionQualified: false,
+      }) },
     });
   }
 }

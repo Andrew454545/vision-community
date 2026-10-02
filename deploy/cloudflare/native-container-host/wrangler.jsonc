@@ -20,11 +20,11 @@
     "OPERATOR_BUCKET_NAME": "vision-community-staging",
     "NATIVE_IMAGERY_EGRESS": "disabled",
     "NATIVE_RUNTIME_SHA256": "bbc60e94e6590c657f256d89f6d63db47f7f3d53d1ba37ffeafba07b6211d64e",
-    "NATIVE_IMAGE": "registry.cloudflare.com/272760294910ef0b246980278aeb36e2/vision-community-native-scene@sha256:3c798fc3dd7a00e15bbdbd3c53545fb7c69f7eb000b6f89d5aee26851b07d257"
+    "NATIVE_IMAGE": "registry.cloudflare.com/272760294910ef0b246980278aeb36e2/vision-community-native-scene@sha256:333c32911772e09151b118ed212d7f42e2cf86cee3c175389a065ac344629606"
   },
   "containers": [{
     "class_name": "NativeHostProbe",
     "scheduling_policy": "durable_object",
-    "images": { "native": { "image": "registry.cloudflare.com/272760294910ef0b246980278aeb36e2/vision-community-native-scene@sha256:3c798fc3dd7a00e15bbdbd3c53545fb7c69f7eb000b6f89d5aee26851b07d257" } }
+    "images": { "native": { "image": "registry.cloudflare.com/272760294910ef0b246980278aeb36e2/vision-community-native-scene@sha256:333c32911772e09151b118ed212d7f42e2cf86cee3c175389a065ac344629606" } }
   }]
 }

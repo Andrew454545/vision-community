@@ -20,19 +20,26 @@ measurements into automatic production approval.
 
 ## Completed in this pass
 
-- Published and independently verified the private Linux OCI image in the
-  confirmed Cloudflare registry; image preparation is ready. Added a private
+- Published and independently verified the private Linux OCI images in the
+  confirmed Cloudflare registry. The smaller image stores each model payload
+  once (893,888,000-byte image archive); its preparation is pending. Added a private
   Container controller with streamed bundle checks, durable activation pointers,
   restart/eviction rehydration, one shared execution slot and bounded idle
   shutdown. The existing staging namespace is preserved; public routes, SSH
-  and invocation logs remain disabled. 131 JavaScript tests and21 actual
-  workerd route/binding checks pass. Windows Python ran323 tests with one skip;
-  full local gateway/verifier checks pass. A one-time private hosted model and
-  restart check is scheduled; its result remains pending. Bundle restoration
+  and invocation logs remain disabled. 133 JavaScript tests and 21 actual
+  workerd route/binding checks pass. Windows Python ran 323 tests with one skip;
+  full local gateway/verifier checks pass. The first one-time private hosted
+  check failed during initial startup; its report is preserved and its trigger
+  removed. A tested correction makes Python settings explicit, enforces a
+  separate startup deadline and preserves redacted lifecycle diagnostics.
+  Hosted model inference and restart verification still need a successful retry. Bundle restoration
   is tested locally; live qualified bundle restoration is still required.
-- The final packaged one-thread candidate also completed its112-location
-  check and three fresh1,024-location repetitions, with zero errors and complete
-  masks. The final two-thread candidate is still running. Its exact executable
+- The final packaged one- and two-thread candidates each completed their
+  112-location check and three fresh 1,024-location repetitions, with zero errors
+  and complete masks. Together with the completed four-thread candidate, this
+  finishes the full exploratory 1/2/4-thread trial matrix. Median batch times
+  were 1,344, 827 and 1,186 seconds respectively; these were not isolated speed
+  tests and do not establish a maximum production profile. The two-thread executable
   and all five packaged DLLs were observed loaded from the pinned package and
   matched to the build receipt. This establishes that process's library identity,
   not quality, representative speed or a production parallel profile.
