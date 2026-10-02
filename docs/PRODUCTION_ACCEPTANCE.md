@@ -29,7 +29,7 @@ measurements into automatic production approval.
   Container controller with streamed bundle checks, durable activation pointers,
   restart/eviction rehydration, one shared execution slot and bounded idle
   shutdown. The existing staging namespace is preserved; public routes, SSH
-  and invocation logs remain disabled. 138 JavaScript tests and 21 actual
+  and invocation logs remain disabled. 140 JavaScript tests and 21 actual
   workerd route/binding checks pass. Windows Python ran 323 tests with one skip;
   full local gateway/verifier checks pass. The first one-time private hosted
   check failed during initial startup; its report is preserved and its trigger
@@ -37,6 +37,8 @@ measurements into automatic production approval.
   separate startup deadline and preserves redacted lifecycle diagnostics. A
   durable idle alarm is tested independently of the monitor's eviction delay;
   it preserves seals across eviction and defers during an active native operation.
+  A fixed bootstrap classifier passes seven Python fault checks and retains only
+  allowed startup stages/codes/numeric errno values; it grants no readiness.
   Hosted model inference and restart verification still need a successful retry. Bundle restoration
   is tested locally; live qualified bundle restoration is still required.
 - The final packaged one- and two-thread candidates each completed their
