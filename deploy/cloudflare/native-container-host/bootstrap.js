@@ -71,11 +71,11 @@ else:
         front.server_close()
 `;
 
-const PHASES = new Set(["module_import", "runtime_manifest", "state_directory", "runtime_identity", "server_credentials"]);
+const PHASES = new Set(["module_import", "runtime_manifest", "state_directory", "runtime_identity", "server_credentials", "http_self_check"]);
 const CODES = new Set(["native_boot_failed", "invalid_native_runtime", "incomplete_native_runtime", "runtime_changed",
   "adapter_changed", "engine_source_changed", "invalid_runtime_file_pin", "runtime_size_limit", "runtime_file_changed",
   "unpinned_runtime_directory", "unpinned_runtime_file", "invalid_native_countries", "private_host_secret_required",
-  "separate_operator_secret_required", "linked_engine_path", "invalid_engine_path"]);
+  "separate_operator_secret_required", "linked_engine_path", "invalid_engine_path", "native_http_self_check_failed"]);
 
 export function checkedBootReceipt(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)

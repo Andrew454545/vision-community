@@ -339,10 +339,11 @@ function stream(value) {
 
 function launchReceipt() {
   return { status: "native_launch_check_passed", runtimeSha256: runtime, pythonVersion: "3.12.15",
-    uid: 10001, modelFilesValidated: true, productionQualified: false };
+    uid: 10001, modelFilesValidated: true, httpServerChecked: true,
+    serviceAuthChecked: true, operatorAuthChecked: true, productionQualified: false };
 }
 
-test("isolated launch checks Python without an HTTP bootstrap, secrets or imagery and always stops compute", async () => {
+test("isolated launch checks pinned Python and private HTTP without inherited secrets or imagery and always stops compute", async () => {
   const { host, ctx, control, pending } = fixture();
   ctx.container.exec = async (argv, options) => {
     assert.deepEqual(argv, ["/usr/local/bin/python", "-B", "-c", LAUNCH_CHECK]);
@@ -388,6 +389,8 @@ test("isolated launch retains only classified Python or VM failures", async () =
   assert.equal(stderrClass(new TextEncoder().encode("unknown sensitive log")), null);
   assert.throws(() => checkedLaunchReceipt({ ...launchReceipt(), secret: "private" }, runtime));
   assert.throws(() => checkedLaunchReceipt({ ...launchReceipt(), runtimeSha256: "f".repeat(64) }, runtime));
+  assert.throws(() => checkedLaunchReceipt({ ...launchReceipt(), httpServerChecked: false }, runtime));
+  assert.throws(() => checkedLaunchReceipt({ ...launchReceipt(), operatorAuthChecked: false }, runtime));
 });
 
 test("isolated launch has a hard deadline even if process creation stalls", async () => {
