@@ -12,6 +12,8 @@ The controller streams and checks each bundle before saving its pointer. After c
 
 CI exercises real workerd SQLite alarm delivery, renewed deadlines and active-operation deferral with synthetic compute. This verifies the timer/storage integration; hosted model and sealed-bundle recovery checks remain separate.
 
+The checker also has a real workerd scheduled-event test: five delivered events run one synthetic launch, preserve its private R2 report and reject public requests. `private-check.wrangler.jsonc` contains no trigger; configure a bounded one-time delivery only when needed. A missing start marker means the check has not established execution, regardless of a saved cron configuration.
+
 Startup uses explicit Python settings and a separate 60-second deadline. A failed boot stops compute and records a fixed failure code and numeric exit code, without exception text or credentials.
 
 The fixed Python entrypoint also classifies import, manifest, state-directory, runtime-pin and credential failures. Its authenticated diagnostic front door exists for at most 45 seconds and never grants readiness; only allowed codes and numeric errno values are retained. It starts the existing pinned host on success and does not change model or helper pins.

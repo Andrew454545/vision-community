@@ -52,9 +52,11 @@ jobs:
           node node_modules/wrangler/bin/wrangler.js deploy --dry-run --config native-scene-bridge/wrangler.toml --outdir "$PWD/.local-native-bridge-build"
           node node_modules/wrangler/bin/wrangler.js deploy --dry-run --config native-scene-verifier-bridge/wrangler.toml --outdir "$PWD/.local-verifier-bridge-build"
           node node_modules/wrangler/bin/wrangler.js deploy --dry-run --config native-container-host/wrangler.jsonc --outdir "$PWD/.local-native-host-build"
+          node node_modules/wrangler/bin/wrangler.js deploy --dry-run --config native-container-host/private-check.wrangler.jsonc --outdir "$PWD/.local-private-check-build"
           node tools/check-local-runtime.mjs node_modules/miniflare/dist/src/index.js .local-test-build/worker.js
           node tools/check-local-deletion-archive.mjs node_modules/miniflare/dist/src/index.js .local-test-build/worker.js
           node tools/check-local-maintenance.mjs node_modules/miniflare/dist/src/index.js .local-test-build/worker.js
           node tools/check-local-verifier.mjs node_modules/miniflare/dist/src/index.js
           node tools/check-local-native-host.mjs node_modules/miniflare/dist/src/index.js .local-native-host-build/worker.js
           node tools/check-local-native-idle.mjs node_modules/miniflare/dist/src/index.js .local-native-host-build/worker.js
+          node tools/check-local-native-checker.mjs node_modules/miniflare/dist/src/index.js .local-private-check-build/private-native-host-check.js
