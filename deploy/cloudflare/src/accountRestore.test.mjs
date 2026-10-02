@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
 import { PRIVACY_TABLES } from "./accountPrivacy.js";
-import { RESOURCE, applyDeletionLedger, exportDeletionLedger, preparePrivateRestore, validateLedger } from "../tools/account-restore.mjs";
+import { RESOURCE, RESOURCE_PROFILES, applyDeletionLedger, exportDeletionLedger, preparePrivateRestore, validateLedger } from "../tools/account-restore.mjs";
 
 const account = "a".repeat(32), other = "b".repeat(32), newer = "e".repeat(32);
 const quarantine = `scene-quarantine/${"d".repeat(32)}/${"e".repeat(64)}.i8`;
@@ -186,6 +186,27 @@ test("a conflicting cleanup owner fails the repair instead of silently losing re
   assert.equal(sql.prepare("SELECT COUNT(*) AS n FROM account_deletion_receipts").get().n, 0);
 });
 
+test("staging repair requires its explicit profile and rejects mixed or unknown resources before changing accounts", t => {
+  const document = { ...ledger(), resource: RESOURCE_PROFILES.staging }, sql = fixture(t);
+  assert.equal(validateLedger(document, 100, 210, "staging"), document);
+  assert.throws(() => applyDeletionLedger(sql, document, 100, 210), /invalid_or_stale_deletion_ledger/);
+  assert.throws(() => applyDeletionLedger(sql, ledger(), 100, 210, "staging"), /invalid_or_stale_deletion_ledger/);
+  for (const environment of ["unknown", "__proto__", "toString", null, {}]) {
+    assert.throws(() => applyDeletionLedger(sql, document, 100, 210, environment), /invalid_restore_environment/);
+  }
+  for (const resource of [ { ...RESOURCE_PROFILES.staging, databaseId: RESOURCE.databaseId },
+    { ...RESOURCE_PROFILES.staging, bucket: RESOURCE.bucket },
+    { ...RESOURCE_PROFILES.staging, accountId: "f".repeat(32) } ]) {
+    assert.throws(() => applyDeletionLedger(sql, { ...document, resource }, 100, 210, "staging"), /invalid_or_stale_deletion_ledger/);
+  }
+  assert.equal(sql.prepare("SELECT units FROM accounts WHERE id=?").get(account).units, 250000);
+  assert.deepEqual(applyDeletionLedger(sql, document, 100, 210, "staging"), { deletedAccounts: 1, closedRestoredUnits: 250000 });
+  const exported = exportDeletionLedger(sql, 250, "staging");
+  assert.deepEqual(exported.resource, RESOURCE_PROFILES.staging);
+  assert.deepEqual(exported.receipts, document.receipts);
+  assert.equal(sql.prepare("SELECT COUNT(*) AS n FROM published_index").get().n, 1);
+});
+
 test("repair transaction rolls back credentials, credits, receipts and cleanup when a later statement fails", t => {
   const sql = fixture(t);
   sql.exec("CREATE TRIGGER fail_restore BEFORE DELETE ON searches BEGIN SELECT RAISE(ABORT,'forced restore failure'); END;");
@@ -247,6 +268,38 @@ test("bad pins, active backup sidecars, changed fences and incompatible schema p
   assert.throws(() => applyDeletionLedger(sql, ledger(), 100, 210), /privacy_fence_definition_changed/);
   const missing = fixture(t); missing.exec("ALTER TABLE searches RENAME TO missing_searches");
   assert.throws(() => applyDeletionLedger(missing, ledger(), 100, 210), /unsupported_restore_schema/);
+});
+
+test("a staging backup produces a private staging copy only after explicit profile admission", t => {
+  const { options, root } = fileFixture(t);
+  const document = { ...ledger(), resource: RESOURCE_PROFILES.staging };
+  writeFileSync(options.deletions, bytes(document));
+  options.deletionsSha256 = digest(readFileSync(options.deletions));
+  assert.throws(() => preparePrivateRestore(options), /invalid_or_stale_deletion_ledger/);
+  assert.equal(existsSync(join(options.out, "restore-report.json")), false);
+  const report = preparePrivateRestore({ ...options, environment: "staging", out: join(root, "staging-repaired") });
+  assert.deepEqual(report.resource, RESOURCE_PROFILES.staging);
+  assert.equal(report.liveReady, false);
+  assert.equal(report.deletedAccounts, 1);
+  assert.equal(digest(readFileSync(options.backup)), options.backupSha256);
+  const restored = readFileSync(join(root, "staging-repaired", "restored.sqlite"));
+  assert.equal(restored.includes(Buffer.from("private-old-token")), false);
+  assert.equal(restored.includes(Buffer.from("private-old-result")), false);
+});
+
+test("the CLI accepts only the explicit staging mapping and keeps invalid profile failures redacted", t => {
+  const { options } = fileFixture(t), document = { ...ledger(), resource: RESOURCE_PROFILES.staging };
+  writeFileSync(options.deletions, bytes(document));
+  const args = [fileURLToPath(new URL("../tools/account-restore.mjs", import.meta.url)), "--backup", options.backup,
+    "--backup-sha256", options.backupSha256, "--deletions", options.deletions,
+    "--deletions-sha256", digest(readFileSync(options.deletions)), "--deletions-not-before", "100", "--out", options.out];
+  const result = spawnSync(process.execPath, [...args, "--environment", "staging"], { encoding: "utf8" });
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(JSON.parse(result.stdout).resource, RESOURCE_PROFILES.staging);
+  const invalid = spawnSync(process.execPath, [...args.slice(0, -1), options.out + "-bad", "--environment", "__proto__"], { encoding: "utf8" });
+  assert.equal(invalid.status, 1);
+  assert.deepEqual(JSON.parse(invalid.stdout), { complete: false, error: "invalid_restore_environment" });
+  assert.equal(invalid.stdout.includes(options.backup), false);
 });
 
 test("the operator CLI prepares a local copy and returns redacted errors for invalid arguments", t => {

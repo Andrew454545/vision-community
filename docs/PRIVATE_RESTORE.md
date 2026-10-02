@@ -103,6 +103,13 @@ The destination must be new and its parent must exist. The tool:
   a redacted `failure-report.json`, without a completion report. Never expose a
   failed or unreviewed copy. Completed destinations cannot be overwritten.
 
+Production is the default resource profile. For the isolated Community test
+database, add `--environment staging`; its ledger and report must name D1
+`17043cb7-5dab-4a6f-84ca-19ae1c14cc05` and `vision-community-staging`.
+The two confirmed mappings are fixed. Mixed resources, arbitrary environment
+names and production receipts supplied to a staging repair are rejected.
+The profile does not establish backup provenance: still verify its source.
+
 Limits: 512 MiB per backup, 4 MiB per deletion ledger and 10,000 receipts. Larger
 corpora require a separately reviewed restore approach. Store all outputs in a
 private operator folder; do not commit, publish or send them as calibration
@@ -128,11 +135,15 @@ The tool does not reconcile credits/searches earned or spent by other accounts
 after the backup, prevent replay against a restored ledger, restore R2 indexes,
 rotate other credentials, inventory orphan storage or establish provider
 retention. Those remain disaster-recovery requirements. A fresh complete deletion
-ledger needs durable, restricted storage outside the database being rolled back;
-that live storage and export process is not deployed by this utility.
+ledger needs durable, restricted storage outside the database being rolled back.
+The [private deletion archive](ACCOUNT_PRIVACY.md) is deployed and tested in
+staging; obtain a fresh complete inventory plus any pending database receipts
+while writers are stopped. This utility does not retrieve that inventory or
+establish completeness, and does not implement the live export/import process.
 
-Fourteen synthetic SQLite tests cover revocation, repeated repair, preserved
+Seventeen synthetic SQLite tests cover revocation, repeated repair, preserved
 contributions, changed/missing history, new-account tombstones, incorrect pins,
 freshness, rollback, candidate/journal cleanup ownership, journaled uploads
-without candidates, private-byte removal and the CLI. They
+without candidates, private-byte removal, explicit staging admission, rejection
+of mixed resource profiles and both CLI profiles. They
 are offline privacy-repair evidence, not a live backup/restore acceptance test.

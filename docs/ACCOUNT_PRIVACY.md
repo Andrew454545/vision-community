@@ -95,8 +95,13 @@ resource mappings are accepted. A wrong or missing required binding refuses
 deletion before changing credentials. Local demonstrations may omit archival.
 Unit and actual local workerd/D1/R2 tests cover readback, response loss, damaged
 storage, database acknowledgement failure and scheduled recovery. This archive
-extension still needs live staging rollout and complete restore evidence;
-the earlier live deletion checks did not exercise it. During restore, freeze
+extension passed live staging rollout on 2026-10-02: a disposable anonymous
+account stayed revoked, exact deletion replay succeeded, and the database
+recorded one deletion debit and a matching archived checksum. A separate
+signed-in R2 dashboard read matched the 387-byte canonical receipt checksum,
+resource and account. All 13 website assets and privacy headers remained intact.
+This is archive/deletion evidence; complete restore/import remains unverified.
+During restore, freeze
 writers and establish a fresh, complete archive inventory, including any
 pending D1 receipts; a directory of selected objects is insufficient.
 The new journal/fence protocol covers scene writes by this Worker version,

@@ -8,8 +8,13 @@ import { parseArgs } from "node:util";
 import { pathToFileURL } from "node:url";
 import { PRIVACY_FENCES, PRIVACY_TABLES } from "../src/accountPrivacy.js";
 
-export const RESOURCE = Object.freeze({ accountId: "272760294910ef0b246980278aeb36e2",
-  databaseId: "ed4705fa-1190-41fa-86a0-02d755db1b2a", bucket: "vision-community" });
+export const RESOURCE_PROFILES = Object.freeze({
+  production: Object.freeze({ accountId: "272760294910ef0b246980278aeb36e2",
+    databaseId: "ed4705fa-1190-41fa-86a0-02d755db1b2a", bucket: "vision-community" }),
+  staging: Object.freeze({ accountId: "272760294910ef0b246980278aeb36e2",
+    databaseId: "17043cb7-5dab-4a6f-84ca-19ae1c14cc05", bucket: "vision-community-staging" }),
+});
+export const RESOURCE = RESOURCE_PROFILES.production;
 export const DELETION_EXPORT_SQL = `SELECT a.id AS accountId,r.request_key AS requestKey,
   a.deleted_at AS deletedAt,r.deleted_at AS receiptDeletedAt,r.units_forfeited AS unitsForfeited
   FROM accounts a LEFT JOIN account_deletion_receipts r ON r.account_id=a.id
@@ -29,9 +34,13 @@ const REQUIRED = {
 
 export class RestoreError extends Error {}
 function integer(value) { return Number.isSafeInteger(value) && value >= 0; }
-function resourceMatches(value) {
+function resourceFor(environment) {
+  if (!["production", "staging"].includes(environment)) throw new RestoreError("invalid_restore_environment");
+  return RESOURCE_PROFILES[environment];
+}
+function resourceMatches(value, resource) {
   return value && typeof value === "object" && !Array.isArray(value) && Object.keys(value).length === 3
-    && Object.entries(RESOURCE).every(([key, expected]) => value[key] === expected);
+    && Object.entries(resource).every(([key, expected]) => value[key] === expected);
 }
 function encoded(value) { return Buffer.from(JSON.stringify(value) + "\n"); }
 function checksum(raw) { return createHash("sha256").update(raw).digest("hex"); }
@@ -67,10 +76,11 @@ function readLedger(path, pin) {
   return JSON.parse(raw.toString("utf8"));
 }
 
-export function validateLedger(document, notBefore, now = Math.floor(Date.now() / 1000)) {
+export function validateLedger(document, notBefore, now = Math.floor(Date.now() / 1000), environment = "production") {
+  const resource = resourceFor(environment);
   if (!integer(notBefore) || notBefore > now || !integer(now) || !document || document.version !== 1
       || document.scope !== "vision-community-account-deletions"
-      || !resourceMatches(document.resource)
+      || !resourceMatches(document.resource, resource)
       || !integer(document.exportedAt) || document.exportedAt < notBefore || document.exportedAt > now
       || !Array.isArray(document.receipts) || document.receipts.length > 10000) {
     throw new RestoreError("invalid_or_stale_deletion_ledger");
@@ -108,7 +118,8 @@ function installFences(sql) {
 
 // Export from a closed, current local rehearsal/copy. A live operator export
 // must provide the same complete envelope after stopping all account writes.
-export function exportDeletionLedger(sql, exportedAt = Math.floor(Date.now() / 1000)) {
+export function exportDeletionLedger(sql, exportedAt = Math.floor(Date.now() / 1000), environment = "production") {
+  const resource = resourceFor(environment);
   sql.exec("BEGIN");
   try {
     const rows = sql.prepare(DELETION_EXPORT_SQL).all();
@@ -116,16 +127,16 @@ export function exportDeletionLedger(sql, exportedAt = Math.floor(Date.now() / 1
     if (count !== rows.length || rows.some(row => row.receiptDeletedAt !== row.deletedAt)) {
       throw new RestoreError("incomplete_deletion_receipts");
     }
-    const document = { version: 1, scope: "vision-community-account-deletions", resource: RESOURCE, exportedAt,
+    const document = { version: 1, scope: "vision-community-account-deletions", resource, exportedAt,
       receipts: rows.map(({ receiptDeletedAt, ...row }) => row) };
-    validateLedger(document, exportedAt, exportedAt);
+    validateLedger(document, exportedAt, exportedAt, environment);
     sql.exec("COMMIT");
     return document;
   } catch (error) { sql.exec("ROLLBACK"); throw error; }
 }
 
-export function applyDeletionLedger(sql, ledger, notBefore, now = Math.floor(Date.now() / 1000)) {
-  validateLedger(ledger, notBefore, now);
+export function applyDeletionLedger(sql, ledger, notBefore, now = Math.floor(Date.now() / 1000), environment = "production") {
+  validateLedger(ledger, notBefore, now, environment);
   checkSchema(sql);
   sql.exec("PRAGMA foreign_keys=ON; PRAGMA secure_delete=ON; BEGIN IMMEDIATE;");
   try {
@@ -199,14 +210,15 @@ export function applyDeletionLedger(sql, ledger, notBefore, now = Math.floor(Dat
 }
 
 export function preparePrivateRestore({ backup, backupSha256, deletions, deletionsSha256, notBefore, out,
-  now = Math.floor(Date.now() / 1000) }) {
+  now = Math.floor(Date.now() / 1000), environment = "production" }) {
   const destination = resolve(out);
   mkdirSync(destination, { recursive: false, mode: 0o700 }); // Refuse overwrites, including completed outputs.
   let sql;
   try {
+    const resource = resourceFor(environment);
     if (!HEX.test(backupSha256 || "")) throw new RestoreError("invalid_checksum_pin");
     const ledger = readLedger(deletions, deletionsSha256);
-    validateLedger(ledger, notBefore, now);
+    validateLedger(ledger, notBefore, now, environment);
     // A raw backup is supported only when it is closed and self-contained.
     if (["-wal", "-shm", "-journal"].some(suffix => existsSync(backup + suffix))) {
       throw new RestoreError("backup_not_closed");
@@ -220,11 +232,11 @@ export function preparePrivateRestore({ backup, backupSha256, deletions, deletio
     if (sql.prepare("PRAGMA integrity_check").all().some(row => row.integrity_check !== "ok")) {
       throw new RestoreError("backup_integrity_failure");
     }
-    const result = applyDeletionLedger(sql, ledger, notBefore, now);
+    const result = applyDeletionLedger(sql, ledger, notBefore, now, environment);
     sql.exec("VACUUM"); // Remove deleted credential/search bytes from the new copy's unused pages.
     sql.close(); sql = null;
     syncFile(database);
-    const report = { version: 1, scope: "offline-privacy-repaired-community-copy", resource: RESOURCE,
+    const report = { version: 1, scope: "offline-privacy-repaired-community-copy", resource,
       ...result, backupSha256, deletionsSha256, deletionExportedAt: ledger.exportedAt,
       databaseSha256: fileChecksum(database, MAX_BACKUP_BYTES), liveReady: false };
     writeNew(join(destination, "restore-report.json"), encoded(report)); // Completion marker written last.
@@ -242,12 +254,13 @@ function main() {
     const { values } = parseArgs({ options: {
       backup: { type: "string" }, "backup-sha256": { type: "string" }, deletions: { type: "string" },
       "deletions-sha256": { type: "string" }, "deletions-not-before": { type: "string" }, out: { type: "string" },
+      environment: { type: "string", default: "production" },
     } });
     if (["backup", "backup-sha256", "deletions", "deletions-sha256", "deletions-not-before", "out"].some(key => !values[key])
         || !/^\d+$/.test(values["deletions-not-before"])) throw new RestoreError("invalid_restore_arguments");
     const report = preparePrivateRestore({ backup: values.backup, backupSha256: values["backup-sha256"],
       deletions: values.deletions, deletionsSha256: values["deletions-sha256"],
-      notBefore: Number(values["deletions-not-before"]), out: values.out });
+      notBefore: Number(values["deletions-not-before"]), out: values.out, environment: values.environment });
     console.log(JSON.stringify({ complete: true, ...report }));
   } catch (error) {
     console.log(JSON.stringify({ complete: false, error: error instanceof RestoreError ? error.message : "privacy_restore_failed" }));
