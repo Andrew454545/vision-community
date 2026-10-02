@@ -23,6 +23,7 @@ function fixture() {
     async destroy() { this.running = false; control.destroys++; control.active = false; },
     async setInactivityTimeout(milliseconds) { assert.equal(milliseconds, 180000); },
     async inspect() { return { image, labels: {} }; },
+    monitor() { return control.bootFailure ? Promise.reject(control.bootFailure) : new Promise(() => {}); },
     getTcpPort(port) {
       assert.equal(port, 8080);
       return { async fetch(url, init) {
@@ -100,6 +101,8 @@ test("identity startup pins image/runtime/pool/resources without approving infer
   assert.equal(control.starts.length, 1);
   assert.equal(control.starts[0].enableInternet, false);
   assert.deepEqual(control.starts[0].instance, { vcpu: 1, memoryMib: 3072, diskMb: 8000 });
+  assert.deepEqual(control.starts[0].entrypoint, ["/usr/local/bin/python", "-B", "/opt/vision/server.py"]);
+  assert.equal(control.starts[0].env.PYTHONPATH, "/opt/vision/client");
   for (const name of ["VISION_ORT_THREADS", "ORT_NUM_THREADS", "OMP_NUM_THREADS", "RAYON_NUM_THREADS"]) assert.equal(control.starts[0].env[name], "1");
 });
 
@@ -286,4 +289,26 @@ test("controller deadline stops uncertain diagnostic compute and retains only a 
   assert.equal(response.status, 503);
   assert.equal(control.destroys, 1);
   assert.equal(control.values.get("lastControlFailure").stage, "native_model_check_failed");
+});
+
+test("nonzero container boot exit is identified without retaining exception text or credentials", async () => {
+  const { host, control } = fixture();
+  control.bootFailure = Object.assign(Error("sensitive native path and synthetic-secret"), { exitCode: 1 });
+  const response = await host.health();
+  assert.equal(response.status, 503);
+  assert.equal(control.destroys, 1);
+  assert.equal(control.values.get("lastControlFailure").stage, "container_boot_failed");
+  assert.deepEqual(Object.keys(control.values.get("lastContainerExit")).sort(), ["at", "exitCode"]);
+  assert.equal(control.values.get("lastContainerExit").exitCode, 1);
+  assert.equal(JSON.stringify(await (await host.status()).json()).includes("synthetic-secret"), false);
+});
+
+test("startup has a separate hard deadline even if the port request ignores cancellation", async () => {
+  const { ctx, env, options, control } = fixture();
+  ctx.container.getTcpPort = () => ({ fetch() { return new Promise(() => {}); } });
+  const host = new NativeController(ctx, env, { ...options, startupBudgetMs: 5 });
+  const response = await host.health();
+  assert.equal(response.status, 503);
+  assert.equal(control.destroys, 1);
+  assert.equal(control.values.get("lastControlFailure").stage, "native_startup_unavailable");
 });

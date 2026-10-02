@@ -6,6 +6,12 @@ export const MAX_BUNDLE = 384 * 1024 * 1024;
 const HEX = /^[0-9a-f]{64}$/;
 const INSTANCE = Object.freeze({ vcpu: 1, memoryMib: 3072, diskMb: 8000 });
 const IDLE_MS = 180000;
+const CONTROL_FAILURES = new Set(["native_configuration_unavailable", "native_runtime_identity_changed",
+  "native_startup_unavailable", "native_image_changed", "container_boot_failed", "container_exited_during_startup",
+  "native_response_unavailable", "native_response_limit", "native_response_length",
+  "operator_bundle_missing_or_changed", "operator_bundle_size_changed", "operator_bundle_changed",
+  "operator_activation_unavailable"]);
+const safeStage = (error) => CONTROL_FAILURES.has(error?.message) ? error.message : "native_control_failed";
 const jsonHeaders = { "content-type": "application/json", "cache-control": "no-store" };
 export const failure = (code = "native_host_unavailable", status = 503) => Response.json({ error: code }, { status, headers: jsonHeaders });
 
@@ -67,6 +73,7 @@ export class NativeController {
     this.wait = options.wait ?? ((milliseconds) => scheduler.wait(milliseconds));
     this.fixedStream = options.fixedStream ?? ((bytes) => new FixedLengthStream(bytes));
     this.modelCheckTimeoutMs = options.modelCheckTimeoutMs ?? 110000;
+    this.startupBudgetMs = options.startupBudgetMs ?? 60000;
   }
 
   config() {
@@ -93,7 +100,7 @@ export class NativeController {
     if (this.busy) return failure("native_host_busy");
     this.busy = true;
     try { return await operation(); }
-    catch { await this.recordFailure("native_control_failed"); return failure(); }
+    catch (error) { await this.recordFailure(safeStage(error)); return failure(); }
     finally { this.busy = false; }
   }
 
@@ -175,17 +182,47 @@ export class NativeController {
       if (container.running) await container.destroy();
       container.start({ image: this.env.NATIVE_IMAGE, instance: INSTANCE,
         enableInternet: this.env.NATIVE_IMAGERY_EGRESS === "live-imagery",
+        entrypoint: ["/usr/local/bin/python", "-B", "/opt/vision/server.py"],
         env: { VISION_HOST_SECRET: this.env.VISION_HOST_SECRET,
           VISION_HOST_OPERATOR_SECRET: this.env.VISION_HOST_OPERATOR_SECRET,
+          PYTHONPATH: "/opt/vision/client", PYTHONDONTWRITEBYTECODE: "1", PYTHONUNBUFFERED: "1",
           VISION_ORT_THREADS: "1", ORT_NUM_THREADS: "1", OMP_NUM_THREADS: "1", RAYON_NUM_THREADS: "1" } });
       await container.setInactivityTimeout(IDLE_MS);
-      let health;
-      const deadline = Date.now() + 15000;
-      for (let attempt = 0; attempt < 50 && Date.now() < deadline; attempt++) {
-        try { health = await this.checkedHealth(Math.min(2000, Math.max(1, deadline - Date.now()))); break; }
-        catch { await this.wait(200); }
+      let timer, waitingForBoot = true;
+      const started = Date.now(), deadline = started + this.startupBudgetMs;
+      const bootExit = container.monitor().then(() => {
+        throw Error("container_exited_during_startup");
+      }, async (error) => {
+        if (waitingForBoot) {
+          // Native paths, exception text and inherited credentials stay private.
+          await this.ctx.storage.put("lastContainerExit", {
+            at: Date.now(), exitCode: Number.isInteger(error?.exitCode) && error.exitCode >= 0 && error.exitCode <= 255 ? error.exitCode : null,
+          });
+        }
+        throw Error("container_boot_failed");
+      });
+      // monitor observes this lifecycle without polling; later normal idle exits
+      // are ignored after startup and do not create a spurious failure marker.
+      bootExit.catch(() => {});
+      try {
+        const readiness = (async () => {
+          for (let attempt = 0; attempt < 300 && waitingForBoot && Date.now() < deadline; attempt++) {
+            try { return await this.checkedHealth(Math.min(2000, Math.max(1, deadline - Date.now()))); }
+            catch { if (waitingForBoot) await this.wait(200); }
+          }
+          throw Error("native_startup_unavailable");
+        })();
+        readiness.catch(() => {});
+        await Promise.race([readiness, bootExit, new Promise((_, reject) => {
+          timer = setTimeout(() => reject(Error("native_startup_unavailable")), this.startupBudgetMs);
+        })]);
+      } catch (error) {
+        await container.destroy().catch(() => {});
+        throw error;
+      } finally {
+        waitingForBoot = false;
+        clearTimeout(timer);
       }
-      if (!health) throw Error("native_startup_unavailable");
       const identity = await container.inspect();
       if (!identity || identity.image !== this.env.NATIVE_IMAGE) throw Error("native_image_changed");
       if (active) await this.upload(active);
@@ -210,6 +247,7 @@ export class NativeController {
   status() {
     return this.exclusive(async () => Response.json({ activeBundle: await this.active(),
       lastControlFailure: await this.ctx.storage.get("lastControlFailure") ?? null,
+      lastContainerExit: await this.ctx.storage.get("lastContainerExit") ?? null,
       productionQualified: false }, { headers: jsonHeaders }));
   }
 

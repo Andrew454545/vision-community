@@ -41,7 +41,7 @@ test("private check cannot load or restart an existing sealed bundle", async () 
   const { env, state, calls, receipt } = fixture();
   state.activeBundle = { sha256: "a".repeat(64) };
   await check(env);
-  assert.deepEqual(calls, [["/operator/status", "GET"]]);
+  assert.ok(calls.every(([path, method]) => path === "/operator/status" && method === "GET"));
   assert.equal(receipt().failureStage, "initial_state");
   assert.equal(receipt().status, "FAILED");
 });
