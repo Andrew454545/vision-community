@@ -34,8 +34,10 @@ measurements into automatic production approval.
   1,024-location trials with zero errors. It remains unqualified: the final
   one/two-thread comparisons, loaded-library evidence and runtime policy are
   still required. Private Linux image CI also built and checked actual
-  payload/layout/auth startup. Independent OCI verification and hosted model
-  inference remain pending; a successful build does not open service gates.
+  payload/layout/auth startup. Independent retrieval verified all12 OCI blobs,
+  the real runtime payload, helper pins and host source. GitHub's recorded
+  temporary merge and tested branch have identical complete source trees.
+  Hosted model inference remains pending; image identity does not open gates.
 - Integrated Andrew's beginner Windows starter, four-step desktop flow and
   simpler website without weakening saved-code or PC qualification gates.
   The isolated [test website](https://vision-community-staging.visioncommunity.workers.dev/)
