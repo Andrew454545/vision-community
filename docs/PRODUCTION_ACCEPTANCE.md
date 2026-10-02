@@ -30,7 +30,10 @@ measurements into automatic production approval.
   restart/eviction rehydration, one shared execution slot and bounded idle
   shutdown. The existing staging namespace is preserved; public routes, SSH
   and invocation logs remain disabled. 140 JavaScript tests and 21 actual
-  workerd route/binding checks pass. Windows Python ran 323 tests with one skip;
+  workerd route/binding checks pass. Three additional actual workerd SQLite
+  alarm checks prove delivery, renewal and active-operation deferral using
+  synthetic compute; they are included in CI. All five GitHub jobs pass at
+  `2853fa4`. Windows Python ran 323 tests with one skip;
   full local gateway/verifier checks pass. The first one-time private hosted
   check failed during initial startup; its report is preserved and its trigger
   removed. A tested correction makes Python settings explicit, enforces a

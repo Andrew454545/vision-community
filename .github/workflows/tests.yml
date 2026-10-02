@@ -55,3 +55,4 @@ jobs:
           node tools/check-local-runtime.mjs node_modules/miniflare/dist/src/index.js .local-test-build/worker.js
           node tools/check-local-verifier.mjs node_modules/miniflare/dist/src/index.js
           node tools/check-local-native-host.mjs node_modules/miniflare/dist/src/index.js .local-native-host-build/worker.js
+          node tools/check-local-native-idle.mjs node_modules/miniflare/dist/src/index.js .local-native-host-build/worker.js
