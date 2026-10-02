@@ -4,6 +4,7 @@ import test from "node:test";
 import { NativeController, authorized, descriptor, requestBytes } from "./controller.js";
 import { MODEL_CHECK } from "./model-check.js";
 import { BOOTSTRAP, checkedBootReceipt } from "./bootstrap.js";
+import { LAUNCH_CHECK, checkedLaunchReceipt, stderrClass } from "./launch-check.js";
 
 const sha = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const image = `registry.cloudflare.com/272760294910ef0b246980278aeb36e2/vision-community-native-scene@sha256:${"2".repeat(64)}`;
@@ -335,6 +336,77 @@ function modelReceipt() {
 function stream(value) {
   return new Blob([value]).stream();
 }
+
+function launchReceipt() {
+  return { status: "native_launch_check_passed", runtimeSha256: runtime, pythonVersion: "3.12.15",
+    uid: 10001, modelFilesValidated: true, productionQualified: false };
+}
+
+test("isolated launch checks Python without an HTTP bootstrap, secrets or imagery and always stops compute", async () => {
+  const { host, ctx, control, pending } = fixture();
+  ctx.container.exec = async (argv, options) => {
+    assert.deepEqual(argv, ["/usr/local/bin/python", "-B", "-c", LAUNCH_CHECK]);
+    assert.deepEqual(options.env, { PYTHONPATH: "/opt/vision/client", PYTHONDONTWRITEBYTECODE: "1", PYTHONUNBUFFERED: "1" });
+    return { stdout: stream(JSON.stringify(launchReceipt())), stderr: stream(""), exitCode: Promise.resolve(0) };
+  };
+  assert.deepEqual(await (await host.launchCheck()).json(), launchReceipt());
+  assert.deepEqual(control.starts[0].entrypoint, ["/usr/bin/sleep", "120"]);
+  assert.equal(control.starts[0].enableInternet, false);
+  assert.equal(control.starts[0].env, undefined);
+  assert.equal(ctx.container.running, false);
+  assert.equal(control.values.has("activeBundle"), false);
+  assert.equal(control.uploads, 0);
+  await Promise.all(pending);
+});
+
+test("isolated launch preserves a sealed workload and never starts a replacement", async () => {
+  const { host, control } = fixture();
+  control.values.set("activeBundle", bundle);
+  const response = await host.launchCheck();
+  assert.equal(response.status, 409);
+  assert.equal(control.starts.length, 0);
+  assert.equal(control.destroys, 0);
+  assert.deepEqual(control.values.get("activeBundle"), bundle);
+});
+
+test("isolated launch retains only classified Python or VM failures", async () => {
+  for (const vmFailure of [false, true]) {
+    const { host, ctx, control, pending } = fixture();
+    if (vmFailure) control.bootFailure = Object.assign(Error("private VM path or credential"), { exitCode: 1 });
+    ctx.container.exec = async () => ({ stdout: stream(""),
+      stderr: stream("Traceback with private paths\nModuleNotFoundError: private dependency and synthetic-secret"),
+      exitCode: Promise.resolve(1) });
+    assert.equal((await host.launchCheck()).status, 503);
+    assert.equal(ctx.container.running, false);
+    const failure = control.values.get("lastLaunchFailure");
+    assert.equal(failure.stage, vmFailure ? "container_launch" : "python_process");
+    assert.equal(failure.exitCode, 1);
+    assert.equal(JSON.stringify(failure).includes("synthetic-secret"), false);
+    assert.equal(JSON.stringify(failure).includes("private"), false);
+    await Promise.all(pending);
+  }
+  assert.equal(stderrClass(new TextEncoder().encode("unknown sensitive log")), null);
+  assert.throws(() => checkedLaunchReceipt({ ...launchReceipt(), secret: "private" }, runtime));
+  assert.throws(() => checkedLaunchReceipt({ ...launchReceipt(), runtimeSha256: "f".repeat(64) }, runtime));
+});
+
+test("isolated launch has a hard deadline even if process creation stalls", async () => {
+  const { ctx, env, options, control } = fixture();
+  ctx.container.exec = () => new Promise(() => {});
+  const host = new NativeController(ctx, env, { ...options, launchCheckTimeoutMs: 5 });
+  assert.equal((await host.launchCheck()).status, 503);
+  assert.equal(ctx.container.running, false);
+  assert.equal(control.values.get("lastLaunchFailure").stage, "deadline");
+});
+
+test("isolated launch deadline also covers a stalled platform inactivity setting", async () => {
+  const { ctx, env, options, control } = fixture();
+  ctx.container.setInactivityTimeout = () => new Promise(() => {});
+  const host = new NativeController(ctx, env, { ...options, launchCheckTimeoutMs: 5 });
+  assert.equal((await host.launchCheck()).status, 503);
+  assert.equal(ctx.container.running, false);
+  assert.equal(control.values.get("lastLaunchFailure").stage, "deadline");
+});
 
 test("fixed model check refuses implicit egress without starting compute", async () => {
   const { host, control } = fixture();

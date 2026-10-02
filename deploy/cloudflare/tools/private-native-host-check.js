@@ -11,6 +11,7 @@ async function call(env, path, method = "GET") {
 export async function check(env) {
   const key = env.CHECK_RECEIPT_KEY;
   if (env.OPERATOR_BUCKET_NAME !== "vision-community-staging"
+      || ![undefined, "model-restart", "launch"].includes(env.CHECK_MODE)
       || typeof key !== "string" || !/^native-host\/checks\/[a-z0-9-]{1,80}\.json$/.test(key)) {
     throw Error("private_native_check_configuration");
   }
@@ -27,6 +28,14 @@ export async function check(env) {
     const state = await call(env, "/operator/status");
     if (state.activeBundle !== null) throw Error("sealed_bundle_already_active");
     identityOnly = true;
+    if (env.CHECK_MODE === "launch") {
+      stage = "isolated_launch";
+      const result = await call(env, "/operator/launch-check", "POST");
+      if (result.status !== "native_launch_check_passed" || result.productionQualified !== false) throw Error("launch_check_unavailable");
+      receipt.checks.push({ stage, ...result });
+      receipt.status = "PRIVATE_NATIVE_LAUNCH_CHECKS_PASSED";
+      return;
+    }
     stage = "initial_identity";
     const identity = await call(env, "/health");
     if (!identity.identityOnly || identity.auditReady || identity.searchReady || identity.productionQualified) throw Error("unexpected_readiness");
@@ -52,6 +61,7 @@ export async function check(env) {
       receipt.lastControlFailure = state.lastControlFailure ?? null;
       receipt.lastContainerExit = state.lastContainerExit ?? null;
       receipt.lastBootFailure = state.lastBootFailure ?? null;
+      receipt.lastLaunchFailure = state.lastLaunchFailure ?? null;
     } catch { /* The stage still preserves a failure if status is unavailable. */ }
   } finally {
     // Stop compute after either result. A sealed production bundle is never used
@@ -69,6 +79,7 @@ export async function check(env) {
         scope: receipt.scope, status: receipt.status, failureStage: receipt.failureStage,
         lastControlFailure: receipt.lastControlFailure, lastContainerExit: receipt.lastContainerExit,
         lastBootFailure: receipt.lastBootFailure,
+        lastLaunchFailure: receipt.lastLaunchFailure,
         checksCompleted: receipt.checks.length, productionQualified: false,
       }) },
     });

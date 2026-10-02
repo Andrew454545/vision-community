@@ -23,24 +23,27 @@ measurements into automatic production approval.
 - Published and independently verified the private Linux OCI images in the
   confirmed Cloudflare registry. The smaller image stores each model payload
   once (893,888,000-byte image archive); preparation is ready. The tested startup
-  correction is deployed privately. Its second one-time check also failed during
-  initial startup and recorded Python exit code 1; both failure reports are
-  preserved and test triggers removed. Added a private
+  correction is deployed privately. Three one-time checks failed before model
+  processing; the later two record container exit code 1, and the third exited
+  before the authenticated bootstrap diagnostic became available. All reports
+  are preserved and triggers removed. This does not yet identify a Python fault.
+  A bounded offline launch probe is tested separately and refuses sealed work.
+  Added a private
   Container controller with streamed bundle checks, durable activation pointers,
   restart/eviction rehydration, one shared execution slot and bounded idle
   shutdown. The existing staging namespace is preserved; public routes, SSH
-  and invocation logs remain disabled. 140 JavaScript tests and 21 actual
+  and invocation logs remain disabled. 146 JavaScript tests and 24 actual
   workerd route/binding checks pass. Three additional actual workerd SQLite
   alarm checks prove delivery, renewal and active-operation deferral using
   synthetic compute; they are included in CI. All five GitHub jobs pass at
-  `2853fa4`. Windows Python ran 323 tests with one skip;
+  `58e7eed`, including 330 Windows Python tests with no skips;
   full local gateway/verifier checks pass. The first one-time private hosted
   check failed during initial startup; its report is preserved and its trigger
   removed. A tested correction makes Python settings explicit, enforces a
   separate startup deadline and preserves redacted lifecycle diagnostics. A
   durable idle alarm is tested independently of the monitor's eviction delay;
   it preserves seals across eviction and defers during an active native operation.
-  A fixed bootstrap classifier passes seven Python fault checks and retains only
+  The fixed bootstrap and offline probe pass ten Python checks and retain only
   allowed startup stages/codes/numeric errno values; it grants no readiness.
   Hosted model inference and restart verification still need a successful retry. Bundle restoration
   is tested locally; live qualified bundle restoration is still required.

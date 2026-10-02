@@ -16,6 +16,8 @@ Startup uses explicit Python settings and a separate 60-second deadline. A faile
 
 The fixed Python entrypoint also classifies import, manifest, state-directory, runtime-pin and credential failures. Its authenticated diagnostic front door exists for at most 45 seconds and never grants readiness; only allowed codes and numeric errno values are retained. It starts the existing pinned host on success and does not change model or helper pins.
 
+The fixed operator-only POST `/operator/launch-check` isolates image launch from HTTP startup: it starts a bounded sleeper, executes the same pinned Python/runtime checks offline, retains only fixed failure stages/classes, and always stops compute. It refuses an existing sealed bundle and passes no secrets to the diagnostic. A one-time checker may select `CHECK_MODE=launch`; remove its trigger afterward. This diagnostic cannot grant readiness or run models.
+
 Authenticated GET `/health` checks identity; GET `/operator/status` reads saved metadata without starting compute. POST `/operator/restart` stops compute while retaining the bundle pointer. The fixed POST `/operator/model-check` diagnostic requires explicit `NATIVE_IMAGERY_EGRESS=live-imagery`, processes one public canary location and returns hashes/resource measurements only. It accepts no commands, URLs or location data. Its temporary index is removed, and it never approves a runtime, device or contribution.
 
 Missing measured policy or a contributor-only snapshot leaves the corresponding service unavailable. Keep public admission gates closed until the production acceptance checklist passes. Never include calibration archives, reference corpora, accounts or credentials in an operator bundle.

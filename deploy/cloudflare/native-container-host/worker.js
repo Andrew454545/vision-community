@@ -12,6 +12,7 @@ export class NativeHostProbe extends DurableObject {
   activate(bundle) { return this.controller.activate(bundle); }
   restart() { return this.controller.restart(); }
   modelCheck() { return this.controller.modelCheck(); }
+  launchCheck() { return this.controller.launchCheck(); }
   alarm() { return this.controller.alarm(); }
   service(path, bytes) { return this.controller.service(path, bytes); }
 }
@@ -38,7 +39,7 @@ export class NativeSceneVerification extends WorkerEntrypoint {
 async function operatorRequest(request, env, privateBinding = false) {
     const path = new URL(request.url).pathname;
     if (![["GET", "/health"], ["GET", "/operator/status"], ["POST", "/operator/bundle"],
-      ["POST", "/operator/restart"], ["POST", "/operator/model-check"]].some(([method, route]) => request.method === method && path === route)) {
+      ["POST", "/operator/restart"], ["POST", "/operator/model-check"], ["POST", "/operator/launch-check"]].some(([method, route]) => request.method === method && path === route)) {
       return failure("not_found", 404);
     }
     if (!privateBinding && !authorized(request, env.HOST_OPERATOR_INGRESS_SECRET ?? env.PROBE_SECRET)) return failure("unauthorized", 401);
@@ -53,6 +54,7 @@ async function operatorRequest(request, env, privateBinding = false) {
       if (path === "/operator/status") return await host.status();
       if (path === "/operator/restart") return await host.restart();
       if (path === "/operator/model-check") return await host.modelCheck();
+      if (path === "/operator/launch-check") return await host.launchCheck();
       return await host.activate(bundle);
     } catch { return failure(); }
 }
