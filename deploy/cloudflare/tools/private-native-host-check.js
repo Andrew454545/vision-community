@@ -8,13 +8,33 @@ async function call(env, path, method = "GET") {
   return JSON.parse(body);
 }
 
+async function modelCheck(env) {
+  const receipt = await call(env, "/operator/model-check", "POST");
+  if (receipt.status !== "native_model_check_passed" || receipt.productionQualified !== false) {
+    throw Error("model_check_unavailable");
+  }
+  return receipt;
+}
+
 export async function check(env) {
   const key = env.CHECK_RECEIPT_KEY;
+  const start = Date.parse(env.CHECK_NOT_BEFORE), end = Date.parse(env.CHECK_NOT_AFTER);
+  const timestamp = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
   if (env.OPERATOR_BUCKET_NAME !== "vision-community-staging"
       || ![undefined, "model-restart", "launch"].includes(env.CHECK_MODE)
-      || typeof key !== "string" || !/^native-host\/checks\/[a-z0-9-]{1,80}\.json$/.test(key)) {
+      || typeof key !== "string" || !/^native-host\/checks\/[a-z0-9-]{1,80}\.json$/.test(key)
+      || !timestamp.test(env.CHECK_NOT_BEFORE) || !timestamp.test(env.CHECK_NOT_AFTER)
+      || !Number.isFinite(start) || !Number.isFinite(end)
+      || new Date(start).toISOString() !== env.CHECK_NOT_BEFORE
+      || new Date(end).toISOString() !== env.CHECK_NOT_AFTER
+      || end <= start || end - start > 30 * 60 * 1000) {
     throw Error("private_native_check_configuration");
   }
+  // Cron has no year field and trigger removal can take time to propagate.
+  // An absolute, short window prevents late or next-year deliveries from
+  // creating a marker or starting compute, even if a trigger is left behind.
+  const now = Date.now();
+  if (now < start || now >= end) return;
   // A persisted marker prevents a later cron delivery from repeating work.
   const marker = await env.CHECK_REPORTS.put(key + ".started", "one-time operator check", {
     onlyIf: { etagDoesNotMatch: "*" }, httpMetadata: { contentType: "text/plain" },
@@ -41,7 +61,7 @@ export async function check(env) {
     if (!identity.identityOnly || identity.auditReady || identity.searchReady || identity.productionQualified) throw Error("unexpected_readiness");
     receipt.checks.push({ stage, ...identity });
     stage = "real_model_before_restart";
-    receipt.checks.push({ stage, ...await call(env, "/operator/model-check", "POST") });
+    receipt.checks.push({ stage, ...await modelCheck(env) });
     stage = "container_restart";
     const stopped = await call(env, "/operator/restart", "POST");
     if (!stopped.stopped || stopped.activeBundleRetained) throw Error("unexpected_active_bundle");
@@ -51,7 +71,7 @@ export async function check(env) {
     if (JSON.stringify(reopened) !== JSON.stringify(identity)) throw Error("runtime_identity_changed");
     receipt.checks.push({ stage, ...reopened });
     stage = "real_model_after_restart";
-    receipt.checks.push({ stage, ...await call(env, "/operator/model-check", "POST") });
+    receipt.checks.push({ stage, ...await modelCheck(env) });
     receipt.status = "PRIVATE_NATIVE_MODEL_AND_RESTART_CHECKS_PASSED";
   } catch {
     receipt.failureStage = stage;
@@ -68,7 +88,14 @@ export async function check(env) {
     // by this identity-only check; durable metadata remains for diagnostics.
     if (identityOnly) {
       try { await call(env, "/operator/restart", "POST"); }
-      catch { receipt.finalStopFailed = true; }
+      catch {
+        receipt.finalStopFailed = true;
+        if (receipt.status !== "FAILED") {
+          receipt.status = "FAILED";
+          receipt.failureStage = "final_stop";
+          receipt.error = "private_native_check_failed";
+        }
+      }
     }
     const document = JSON.stringify(receipt);
     await env.CHECK_REPORTS.put(key, document, {
