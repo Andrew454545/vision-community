@@ -12,6 +12,7 @@ export class NativeHostProbe extends DurableObject {
   activate(bundle) { return this.controller.activate(bundle); }
   restart() { return this.controller.restart(); }
   modelCheck() { return this.controller.modelCheck(); }
+  alarm() { return this.controller.alarm(); }
   service(path, bytes) { return this.controller.service(path, bytes); }
 }
 

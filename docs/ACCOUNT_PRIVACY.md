@@ -1,7 +1,9 @@
 # Account deletion and retained contributions
 
-This feature is implemented and tested locally on the development branch. It
-has not yet been deployed or validated against live Community resources.
+This feature is deployed on the isolated Community staging site. Disposable
+live checks passed account recovery, session revocation, deletion and lost-response
+receipt recovery. Production rollout, retention and a complete restore exercise
+remain release requirements.
 
 On the hosted website, open **Index → Delete my account**, read the warning,
 type **DELETE**, and choose **Permanently delete my account**. The option is
