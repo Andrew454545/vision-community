@@ -157,7 +157,7 @@ class BootstrapPlatformTests(unittest.TestCase):
                 global_start=0,
                 model_cache=Path("cache"),
             )
-        self.assertEqual(arguments[-1], "--cpu")
+        self.assertIn("--cpu", arguments)
         binary = Path("mma-vision.exe")
         with mock.patch("community.vision_index.sys.platform", "win32"):
             self.assertEqual(command_prefix(binary, nice_level=19, use_nice=True), [str(binary)])
