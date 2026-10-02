@@ -72,6 +72,8 @@ measurements into automatic production approval.
   One-time checks require a short absolute UTC execution window and a create-only
   marker; expired or duplicate deliveries cannot restart compute. A failed final
   shutdown or incomplete model receipt cannot be reported as a passing check.
+  Completed stage receipts retain independently inspectable hashes and resource
+  measurements; a stage-storage failure or conflict cannot report a pass.
   Added a private
   Container controller with streamed bundle checks, durable activation pointers,
   restart/eviction rehydration, one shared execution slot and bounded idle

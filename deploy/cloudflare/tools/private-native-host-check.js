@@ -99,6 +99,29 @@ export async function check(env) {
         }
       }
     }
+    // Keep each small stage receipt independently inspectable when the complete
+    // combined report exceeds R2's custom-metadata budget. The API connector
+    // can list metadata even when it cannot unwrap a raw object response.
+    // These fixed diagnostics contain hashes/measurements, never source data.
+    try {
+      for (let index = 0; index < receipt.checks.length; index++) {
+        const document = JSON.stringify(receipt.checks[index]);
+        if (new TextEncoder().encode(document).byteLength > 1800) throw Error("receipt_detail_limit");
+        const saved = await env.CHECK_REPORTS.put(key + ".step-" + index, document, {
+          onlyIf: { etagDoesNotMatch: "*" },
+          httpMetadata: { contentType: "application/json" },
+          customMetadata: { receipt: document },
+        });
+        if (!saved) throw Error("receipt_detail_conflict");
+      }
+    } catch {
+      receipt.receiptDetailsUnavailable = true;
+      if (receipt.status !== "FAILED") {
+        receipt.status = "FAILED";
+        receipt.failureStage = "receipt_details";
+        receipt.error = "private_native_check_failed";
+      }
+    }
     const document = JSON.stringify(receipt);
     await env.CHECK_REPORTS.put(key, document, {
       httpMetadata: { contentType: "application/json" },

@@ -36,6 +36,11 @@ try {
   assert.equal(receipt.rawRecordsUploaded, false);
   assert.equal(receipt.acceptedContributions, 0);
   assert.equal(report.customMetadata.receipt, body);
+  const step = await bucket.get(key + ".step-0");
+  assert.ok(step);
+  const stepBody = await step.text();
+  assert.deepEqual(JSON.parse(stepBody), receipt.checks[0]);
+  assert.equal(step.customMetadata.receipt, stepBody);
   assert.equal(launches, 1); assert.equal(stops, 1);
   for (let i = 0; i < 4; i++) await worker.scheduled({ cron: "5,10,15,20,25 13 2 10 *" });
   assert.equal(launches, 1); assert.equal(stops, 1);
