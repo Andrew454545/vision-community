@@ -1,12 +1,14 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { bounded, MAX_REQUEST as SEARCH_REQUEST, MAX_RESPONSE as SEARCH_RESPONSE } from "../native-scene-bridge/worker.js";
 import { MODEL_CHECK, checkedModelReceipt } from "./model-check.js";
+import { BOOTSTRAP, checkedBootReceipt } from "./bootstrap.js";
 
 export const MAX_BUNDLE = 384 * 1024 * 1024;
 const HEX = /^[0-9a-f]{64}$/;
 const INSTANCE = Object.freeze({ vcpu: 1, memoryMib: 3072, diskMb: 8000 });
 const IDLE_MS = 180000;
 const CONTROL_FAILURES = new Set(["native_configuration_unavailable", "native_runtime_identity_changed",
+  "native_boot_failed", "native_boot_diagnostic_invalid",
   "native_startup_unavailable", "native_image_changed", "container_boot_failed", "container_exited_during_startup",
   "native_response_unavailable", "native_response_limit", "native_response_length",
   "operator_bundle_missing_or_changed", "operator_bundle_size_changed", "operator_bundle_changed",
@@ -167,6 +169,11 @@ export class NativeController {
   async checkedHealth(timeout = 20000) {
     const { bytes } = await this.call("/health", { timeout });
     const health = JSON.parse(new TextDecoder().decode(bytes));
+    if (health.status === "native_boot_unavailable") {
+      const diagnostic = checkedBootReceipt(health);
+      await this.ctx.storage.put("lastBootFailure", { ...diagnostic, at: Date.now() });
+      throw Error("native_boot_failed");
+    }
     if (health.status !== "native_host_available" || health.runtimeSha256 !== this.env.NATIVE_RUNTIME_SHA256
         || health.activeNativeProcessesMaximum !== 1
         || ["identityOnly", "auditReady", "searchReady"].some((key) => typeof health[key] !== "boolean")) {
@@ -229,7 +236,7 @@ export class NativeController {
       if (container.running) await container.destroy();
       container.start({ image: this.env.NATIVE_IMAGE, instance: INSTANCE,
         enableInternet: this.env.NATIVE_IMAGERY_EGRESS === "live-imagery",
-        entrypoint: ["/usr/local/bin/python", "-B", "/opt/vision/server.py"],
+        entrypoint: ["/usr/local/bin/python", "-B", "-c", BOOTSTRAP],
         env: { VISION_HOST_SECRET: this.env.VISION_HOST_SECRET,
           VISION_HOST_OPERATOR_SECRET: this.env.VISION_HOST_OPERATOR_SECRET,
           PYTHONPATH: "/opt/vision/client", PYTHONDONTWRITEBYTECODE: "1", PYTHONUNBUFFERED: "1",
@@ -255,7 +262,10 @@ export class NativeController {
         const readiness = (async () => {
           for (let attempt = 0; attempt < 300 && waitingForBoot && Date.now() < deadline; attempt++) {
             try { return await this.checkedHealth(Math.min(2000, Math.max(1, deadline - Date.now()))); }
-            catch { if (waitingForBoot) await this.wait(200); }
+            catch (error) {
+              if (["native_boot_failed", "native_boot_diagnostic_invalid"].includes(error?.message)) throw error;
+              if (waitingForBoot) await this.wait(200);
+            }
           }
           throw Error("native_startup_unavailable");
         })();
@@ -295,6 +305,7 @@ export class NativeController {
     return this.exclusive(async () => Response.json({ activeBundle: await this.active(),
       lastControlFailure: await this.ctx.storage.get("lastControlFailure") ?? null,
       lastContainerExit: await this.ctx.storage.get("lastContainerExit") ?? null,
+      lastBootFailure: await this.ctx.storage.get("lastBootFailure") ?? null,
       productionQualified: false }, { headers: jsonHeaders }));
   }
 

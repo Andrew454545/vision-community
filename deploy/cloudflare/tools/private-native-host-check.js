@@ -51,6 +51,7 @@ export async function check(env) {
       const state = await call(env, "/operator/status");
       receipt.lastControlFailure = state.lastControlFailure ?? null;
       receipt.lastContainerExit = state.lastContainerExit ?? null;
+      receipt.lastBootFailure = state.lastBootFailure ?? null;
     } catch { /* The stage still preserves a failure if status is unavailable. */ }
   } finally {
     // Stop compute after either result. A sealed production bundle is never used
@@ -67,6 +68,7 @@ export async function check(env) {
       customMetadata: { receipt: document.length <= 1800 ? document : JSON.stringify({
         scope: receipt.scope, status: receipt.status, failureStage: receipt.failureStage,
         lastControlFailure: receipt.lastControlFailure, lastContainerExit: receipt.lastContainerExit,
+        lastBootFailure: receipt.lastBootFailure,
         checksCompleted: receipt.checks.length, productionQualified: false,
       }) },
     });

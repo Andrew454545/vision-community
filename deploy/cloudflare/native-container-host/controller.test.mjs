@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import test from "node:test";
 import { NativeController, authorized, descriptor, requestBytes } from "./controller.js";
 import { MODEL_CHECK } from "./model-check.js";
+import { BOOTSTRAP, checkedBootReceipt } from "./bootstrap.js";
 
 const sha = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const image = `registry.cloudflare.com/272760294910ef0b246980278aeb36e2/vision-community-native-scene@sha256:${"2".repeat(64)}`;
@@ -14,7 +15,7 @@ function fixture() {
   const values = new Map(), calls = [], pending = [];
   const control = { starts: [], destroys: 0, uploads: 0, calls, values, wrongRuntime: false,
     searchReady: false, badSize: false, corrupt: false, missing: false, failCommit: false, now: 1000 };
-  const health = () => ({ status: "native_host_available", runtimeSha256: control.wrongRuntime ? "f".repeat(64) : runtime,
+  const health = () => control.bootDiagnostic ?? ({ status: "native_host_available", runtimeSha256: control.wrongRuntime ? "f".repeat(64) : runtime,
     identityOnly: !control.active, auditReady: !!control.active, searchReady: control.active && control.searchReady || false,
     activeNativeProcessesMaximum: 1 });
   const container = {
@@ -138,6 +139,31 @@ test("missing idle metadata stops an unidentified running container without star
   assert.equal(control.values.get("lastControlFailure").stage, "native_idle_guard_failed");
 });
 
+test("a classified bootstrap failure stops startup immediately and retains only bounded diagnostics", async () => {
+  const { host, control, ctx } = fixture();
+  control.bootDiagnostic = { status: "native_boot_unavailable", phase: "runtime_identity", code: "runtime_file_changed", errno: null };
+  assert.equal((await host.health()).status, 503);
+  assert.equal(control.calls.filter(p => p === "/health").length, 1);
+  assert.equal(ctx.container.running, false);
+  const saved = control.values.get("lastBootFailure");
+  assert.deepEqual({ ...saved, at: 0 }, { phase: "runtime_identity", code: "runtime_file_changed", errno: null, at: 0 });
+  assert.equal(control.values.get("lastControlFailure").stage, "native_boot_failed");
+});
+
+test("unrecognized bootstrap data cannot leak paths or credential values into saved status", async () => {
+  const { host, control, ctx } = fixture();
+  control.bootDiagnostic = { status: "native_boot_unavailable", phase: "runtime_identity", code: "sensitive native path and secret", errno: null };
+  assert.equal((await host.health()).status, 503);
+  assert.equal(ctx.container.running, false);
+  assert.equal(control.values.has("lastBootFailure"), false);
+  assert.equal(control.values.get("lastControlFailure").stage, "native_boot_diagnostic_invalid");
+  const good = { status: "native_boot_unavailable", phase: "state_directory", code: "native_boot_failed", errno: 13 };
+  assert.deepEqual(checkedBootReceipt(good), { phase: "state_directory", code: "native_boot_failed", errno: 13 });
+  for (const change of [{ phase: "private/path" }, { extra: "secret" }, { errno: -1 }, { errno: true }, { errno: 4096 }]) {
+    assert.throws(() => checkedBootReceipt({ ...good, ...change }), /native_boot_diagnostic_invalid/);
+  }
+});
+
 test("operator authentication fails closed without starting or reading a body", () => {
   const good = "a".repeat(64);
   assert.equal(authorized(new Request("https://host/health"), good), false);
@@ -171,7 +197,7 @@ test("identity startup pins image/runtime/pool/resources without approving infer
   assert.equal(control.starts.length, 1);
   assert.equal(control.starts[0].enableInternet, false);
   assert.deepEqual(control.starts[0].instance, { vcpu: 1, memoryMib: 3072, diskMb: 8000 });
-  assert.deepEqual(control.starts[0].entrypoint, ["/usr/local/bin/python", "-B", "/opt/vision/server.py"]);
+  assert.deepEqual(control.starts[0].entrypoint, ["/usr/local/bin/python", "-B", "-c", BOOTSTRAP]);
   assert.equal(control.starts[0].env.PYTHONPATH, "/opt/vision/client");
   for (const name of ["VISION_ORT_THREADS", "ORT_NUM_THREADS", "OMP_NUM_THREADS", "RAYON_NUM_THREADS"]) assert.equal(control.starts[0].env[name], "1");
 });
