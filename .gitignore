@@ -15,8 +15,10 @@ deploy/cloudflare/node_modules
 .local-release-build/
 .local-verifier-bridge-build/
 account-deletions.private.json
+*.private.json
 *.private.sql
 .private-restore/
+.private-d1-import/
 community/tests/__pycache__/
 
 # Machine-local development tools and diagnostics are not application data.

@@ -32,7 +32,18 @@ measurements into automatic production approval.
   checksum and resource; all 13 website assets and privacy headers still pass.
   The offline restore tool also supports an explicit isolated staging profile
   and rejects mixed resource mappings before changing accounts (17 SQLite/CLI
-  checks pass). Retention and a complete restore/import remain open.
+  checks pass). The isolated live deletion-aware database restore now passes:
+  seven independent R2 receipt preview checksums matched the complete frozen
+  current source; repaired older data was imported in one 103-statement D1
+  query batch while maintenance remained closed. Live privacy fences, revoked
+  session/recovery, exact deletion replay, retained balance/search and final
+  fixture deletion passed. All 13 assets still match after reopening. Two
+  provider bulk-import failures are preserved; production was unchanged.
+  A new offline SQL preparation tool preserves table/data/fence ordering,
+  private text/blob values and 64-bit automatic-ID high-water marks. Ten tests
+  and actual workerd replacement/rollback checks pass. Complete production
+  disaster recovery, R2 artifact restoration and retention remain open. See
+  [the restore runbook](PRIVATE_RESTORE.md).
 
 - Published and independently verified the private Linux OCI images in the
   confirmed Cloudflare registry. The smaller image stores each model payload
@@ -46,6 +57,9 @@ measurements into automatic production approval.
   runtime/model pins verified. It used no Internet or stored credentials,
   stopped compute and had its one-time trigger removed. This proves image and
   runtime launch, not HTTP startup, model inference or production admission.
+  The later hosted HTTP probe produced no receipt or start marker during its
+  finite scheduled window; its trigger was removed. Execution is unestablished.
+  Its local HTTP/auth diagnostic passes 12 Python checks; no hosted pass is claimed.
   Added a private
   Container controller with streamed bundle checks, durable activation pointers,
   restart/eviction rehydration, one shared execution slot and bounded idle
@@ -570,11 +584,12 @@ recorded evidence:
   of IP/search logging, public artifact metadata and maintainer identity audit.
   Removing names from a UI does not erase Git history or provider records.
   Account deletion, database fences and late scene-upload protection are tested locally; live
-  production rollout, a complete staging restore/import, wider orphan cleanup
+  production rollout, complete database/storage recovery, wider orphan cleanup
   and provider logging/retention review remain outstanding. Independent private
-  deletion-receipt storage now passes live staging verification. The offline
-  privacy-repair rehearsal is implemented and
-  tested; it does not satisfy the complete restore gate.
+  deletion-receipt storage now passes live staging verification. The
+  deletion-aware staging database restore passes with synthetic accounts and a
+  complete independent receipt inventory. It does not satisfy full production
+  recovery of storage, credits earned/spent after backup or retention.
 - [ ] Ledger concurrency, replay and failure tests; no credit expiry or cap
   unless the owner explicitly chooses one. A finite queue cannot guarantee an
   infinite supply of useful new work; wait for new work without re-crediting it.

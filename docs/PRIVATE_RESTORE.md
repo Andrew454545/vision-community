@@ -132,6 +132,64 @@ all tombstones, revoked sessions/recovery, private-search removal, accounting,
 retained publications, foreign keys, cleanup jobs and late-write rejection
 before exposing the restored service. Keep the rollback bookmark/export.
 
+Prepare private SQL from a completed, pinned repair with the same Node runtime:
+
+```text
+node tools/account-restore-sql.mjs --repaired-dir .private-restore --report-sha256 TRUSTED_RESTORE_REPORT_SHA256 --out .private-d1-import
+```
+
+Add `--environment staging` for the isolated test resource. The report pin is
+the SHA-256 of `restore-report.json`; its database pin is checked too. This tool
+does not connect to Cloudflare. It creates replacement SQL and an ordered query
+batch in a new private directory, verifies a local round trip and writes
+`sql-report.json` last. It rejects open databases, changed pins/resource mappings,
+unknown application tables, changed privacy fences and unrepaired private searches.
+Keep partial files and the redacted failure report if preparation fails.
+
+**The generated SQL replaces all Community application tables.** It must never
+be submitted to an accessible database. Confirm the intended resource, complete
+current deletion source, stopped/drained writers and rollback export before any
+operator import. Keep the service closed until every post-import check passes.
+All tables are created before rows; historical ledger rows are inserted before
+the current privacy fences. Automatic-ID high-water marks are retained. Do not
+split SQL on semicolons: triggers and saved text can contain them. The private
+`query-batch.private.json` preserves exact statements for the D1 query batch API.
+Submit its entire batch together; an actual local workerd test verifies that a
+failed replacement rolls back its table drops and inserted rows.
+
+Preparation limits are 16 MiB of SQL, 10,000 statements and 100,000 bytes per
+statement. Larger datasets need a separately tested import process. These limits
+do not establish hosted size, latency or cost budgets. The original database is
+read-only; private SQL, query batches and round-trip copies remain sensitive.
+`liveReady: false` still requires independent live validation and operator review.
+
+## Isolated live rehearsal: 2026-10-02
+
+Only staging D1 `17043cb7-5dab-4a6f-84ca-19ae1c14cc05` and R2
+`vision-community-staging` were used. An older backup contained two synthetic
+accounts. After deleting one, all seven independent private R2 receipt preview
+checksums matched the frozen current database and archive metadata. The repaired
+older backup kept the deleted account revoked, removed its private saved search
+and closed its restored 20-unit balance. The other account kept its 40 units and
+saved search. Production was unchanged.
+
+Cloudflare's bulk importer twice returned `D1_RESET_DO`; both failure reports,
+original exports and rollback bookmarks were preserved privately. The supported
+query batch API then successfully imported all 103 prepared statements while
+maintenance remained enabled. Live foreign-key checks and both account
+reactivation/late-search fences passed. After reopening, old session and recovery
+credentials failed, exact deletion replay returned the original forfeiture and
+the retained account still worked. Both fixtures were subsequently deleted:
+eight revoked accounts, eight receipts/archives and zero saved searches remained.
+All 13 website assets and privacy headers matched after reopening.
+
+This is a small account-deletion restore rehearsal. It does not restore R2
+contribution objects, reconcile unrelated activity after a backup, verify provider
+retention or satisfy complete production disaster recovery. Raw backups, receipt
+keys, SQL and credentials remain private and are not included in Git.
+
+## Remaining recovery requirements
+
 Preserve permanent R2 privacy markers and scene write intents across restore.
 Stop/drain old unconditional writers and retain only compatible create-only
 writers before reopening. Removing a marker, restoring private bytes over it,
