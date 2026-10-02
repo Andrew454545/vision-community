@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import test from "node:test";
 import { NativeController, authorized, descriptor, requestBytes } from "./controller.js";
 import { MODEL_CHECK } from "./model-check.js";
-import { BOOTSTRAP, checkedBootReceipt } from "./bootstrap.js";
+import { checkedBootReceipt } from "./bootstrap.js";
 import { LAUNCH_CHECK, checkedLaunchReceipt, stderrClass } from "./launch-check.js";
 
 const sha = (bytes) => createHash("sha256").update(bytes).digest("hex");
@@ -198,7 +198,7 @@ test("identity startup pins image/runtime/pool/resources without approving infer
   assert.equal(control.starts.length, 1);
   assert.equal(control.starts[0].enableInternet, false);
   assert.deepEqual(control.starts[0].instance, { vcpu: 1, memoryMib: 3072, diskMb: 8000 });
-  assert.deepEqual(control.starts[0].entrypoint, ["/usr/local/bin/python", "-B", "-c", BOOTSTRAP]);
+  assert.deepEqual(control.starts[0].entrypoint, ["/usr/local/bin/python", "-B", "/opt/vision/server.py"]);
   assert.equal(control.starts[0].env.PYTHONPATH, "/opt/vision/client");
   for (const name of ["VISION_ORT_THREADS", "ORT_NUM_THREADS", "OMP_NUM_THREADS", "RAYON_NUM_THREADS"]) assert.equal(control.starts[0].env[name], "1");
 });
