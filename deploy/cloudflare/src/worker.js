@@ -14,7 +14,7 @@ import { SEED_LOCATIONS } from "./seed.js";
 import { OBJECT_INDEX_MODEL, validateObjectIndex } from "./objectIndex.js";
 import { onlineSearch, onlineSearchConfigured, INDEX_DOWNLOAD_ROUTES } from "./onlineSearch.js";
 import { SearchError } from "./searchLedger.js";
-import { migrateAccountPrivacy, deleteAccount, cleanupAccountArtifacts } from "./accountPrivacy.js";
+import { migrateAccountPrivacy, deleteAccount, cleanupAccountArtifacts, archiveAccountDeletionReceipts } from "./accountPrivacy.js";
 import { writeSceneArtifact } from "./artifactWrites.js";
 import { loadSceneReferences, sceneCapabilities } from "./sceneQuality.js";
 import { SCENE_PIPELINE_SCHEMA, verifierConfigured, auditBatchLimit, pipelineCapabilities, activeQualification, qualificationStatus, qualifyDevice, auditScene, stageScene } from "./scenePipeline.js";
@@ -1316,6 +1316,7 @@ export default {
     if (!env.DB || !env.INDEX) return;
     await ready(env);
     await cleanupAccountArtifacts(env, null, 64);
+    await archiveAccountDeletionReceipts(env);
   },
   async fetch(request, env) {
     const url = new URL(request.url);

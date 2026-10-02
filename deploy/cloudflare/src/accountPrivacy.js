@@ -1,4 +1,4 @@
-import { randomHex } from "./model.js";
+import { randomHex, sha256Hex, encodeUtf8 } from "./model.js";
 import { ARTIFACT_WRITES_SCHEMA, PRIVACY_FENCE, sceneArtifactLease } from "./artifactWrites.js";
 
 export class AccountPrivacyError extends Error {
@@ -16,6 +16,9 @@ export const PRIVACY_TABLES = [
     artifact_key TEXT PRIMARY KEY, account_id TEXT NOT NULL REFERENCES accounts(id),
     created_at INTEGER NOT NULL, state TEXT NOT NULL DEFAULT 'pending')`,
   `CREATE INDEX IF NOT EXISTS account_cleanup_pending ON account_cleanup(state,created_at,artifact_key)`,
+  `CREATE TABLE IF NOT EXISTS account_deletion_archives (
+    account_id TEXT PRIMARY KEY REFERENCES account_deletion_receipts(account_id),
+    sha256 TEXT NOT NULL, archived_at INTEGER NOT NULL)`,
 ];
 
 // Database fences protect writes that were authenticated before a deletion,
@@ -83,6 +86,94 @@ function receiptResult(row) {
   return { deleted: true, contributionsRetained: true, unitsForfeited: row.units_forfeited };
 }
 
+const ARCHIVE_RESOURCES = Object.freeze({
+  production: { accountId: "272760294910ef0b246980278aeb36e2", databaseId: "ed4705fa-1190-41fa-86a0-02d755db1b2a", bucket: "vision-community" },
+  staging: { accountId: "272760294910ef0b246980278aeb36e2", databaseId: "17043cb7-5dab-4a6f-84ca-19ae1c14cc05", bucket: "vision-community-staging" },
+});
+
+function archiveSettings(env) {
+  // Local development may omit archival. Release environments explicitly
+  // require it; never infer a bucket or accept an arbitrary resource mapping.
+  if ([undefined, "0"].includes(env.DELETION_ARCHIVE_REQUIRED)) return null;
+  const resource = ["production", "staging"].includes(env.DELETION_ARCHIVE_ENVIRONMENT)
+    ? ARCHIVE_RESOURCES[env.DELETION_ARCHIVE_ENVIRONMENT] : null;
+  if (env.DELETION_ARCHIVE_REQUIRED !== "1" || !resource
+      || env.INDEX_BUCKET_NAME !== resource.bucket || env.DELETION_ARCHIVE_DB_ID !== resource.databaseId
+      || !env.INDEX?.get || !env.INDEX?.put) throw new AccountPrivacyError("deletion_archive_unavailable", 503);
+  return resource;
+}
+
+async function archiveDeletionReceipt(env, row, now = Math.floor(Date.now() / 1000)) {
+  const resource = archiveSettings(env);
+  if (!resource) return false;
+  try {
+    if (!/^[a-f0-9]{32}$/.test(row.account_id) || !/^[a-f0-9]{64}$/.test(row.request_key)
+        || !Number.isSafeInteger(row.deleted_at) || row.deleted_at < 0
+        || !Number.isSafeInteger(row.units_forfeited) || row.units_forfeited < 0) throw Error("invalid_receipt");
+    const document = encodeUtf8(JSON.stringify({ version: 1, scope: "vision-community-account-deletion",
+      resource, receipt: { accountId: row.account_id, requestKey: row.request_key,
+        deletedAt: row.deleted_at, unitsForfeited: row.units_forfeited } }) + "\n");
+    const sha256 = await sha256Hex(document);
+    const recorded = await env.DB.prepare("SELECT sha256 FROM account_deletion_archives WHERE account_id=?")
+      .bind(row.account_id).first();
+    if (recorded) {
+      if (recorded.sha256 !== sha256) throw Error("archive_changed");
+      return true;
+    }
+    const key = `privacy/account-deletions/v1/${await sha256Hex(encodeUtf8(row.account_id))}.json`;
+    let object = await env.INDEX.get(key);
+    if (!object) {
+      await env.INDEX.put(key, document, { onlyIf: { etagDoesNotMatch: "*" },
+        httpMetadata: { contentType: "application/json", cacheControl: "no-store" },
+        customMetadata: { visionDeletionReceipt: "1", sha256 } });
+      object = await env.INDEX.get(key);
+    }
+    if (!object?.body || object.size !== document.byteLength || object.size > 2048) throw Error("archive_unconfirmed");
+    // Bounded readback before acknowledging independent durability. Immutable
+    // conditional creation also handles concurrent retries without overwrites.
+    const reader = object.body.getReader(), chunks = [];
+    let size = 0;
+    try {
+      while (true) {
+        const next = await reader.read();
+        if (next.done) break;
+        size += next.value.byteLength;
+        if (size > document.byteLength) throw Error("archive_changed");
+        if (next.value.byteLength) chunks.push(next.value);
+      }
+    } finally { await reader.cancel().catch(() => {}); }
+    const bytes = new Uint8Array(size);
+    let offset = 0;
+    for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+    if (size !== document.byteLength || await sha256Hex(bytes) !== sha256) throw Error("archive_changed");
+    await env.DB.prepare(`INSERT OR IGNORE INTO account_deletion_archives (account_id,sha256,archived_at)
+      SELECT account_id,?,? FROM account_deletion_receipts WHERE account_id=? AND request_key=?`)
+      .bind(sha256, now, row.account_id, row.request_key).run();
+    const confirmed = await env.DB.prepare("SELECT sha256 FROM account_deletion_archives WHERE account_id=?")
+      .bind(row.account_id).first();
+    if (confirmed?.sha256 !== sha256) throw Error("archive_unconfirmed");
+    return true;
+  } catch {
+    // Revocation remains committed; the exact private deletion request can be
+    // replayed after loss/outage without restoring credentials or debiting twice.
+    throw new AccountPrivacyError("deletion_archive_unavailable", 503);
+  }
+}
+
+export async function archiveAccountDeletionReceipts(env, limit = 25) {
+  if (!archiveSettings(env)) return { enabled: false, archived: 0 };
+  if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new AccountPrivacyError("invalid_archive_limit");
+  const rows = (await env.DB.prepare(`SELECT r.* FROM account_deletion_receipts r
+    LEFT JOIN account_deletion_archives a ON a.account_id=r.account_id
+    WHERE a.account_id IS NULL ORDER BY r.deleted_at,r.account_id LIMIT ?`).bind(limit).all()).results || [];
+  let archived = 0;
+  for (const row of rows) {
+    try { await archiveDeletionReceipt(env, row); archived++; }
+    catch { break; } // A scheduled retry resumes the durable outbox on outage.
+  }
+  return { enabled: true, archived };
+}
+
 export async function deleteAccount(env, authenticatedAccount, body, now = Math.floor(Date.now() / 1000)) {
   const account = body.accountId, key = body.idempotencyKey;
   if (body.confirmation !== "DELETE" || typeof account !== "string" || !account || account.length > 128
@@ -90,11 +181,12 @@ export async function deleteAccount(env, authenticatedAccount, body, now = Math.
     throw new AccountPrivacyError("invalid_account_deletion");
   }
   if (authenticatedAccount && account !== authenticatedAccount) throw new AccountPrivacyError("account_changed", 409);
+  archiveSettings(env); // Refuse a misbound required archive before revocation.
   // An unguessable, account-bound receipt can recover a lost deletion response
   // after the session was revoked. It grants no account or search access.
   const receipt = await env.DB.prepare("SELECT * FROM account_deletion_receipts WHERE account_id=? AND request_key=?")
     .bind(account, key).first();
-  if (receipt) return receiptResult(receipt);
+  if (receipt) { await archiveDeletionReceipt(env, receipt); return receiptResult(receipt); }
   if (authenticatedAccount !== account) throw new AccountPrivacyError("unauthorized", 401);
   const claim = "EXISTS (SELECT 1 FROM account_deletion_receipts WHERE account_id=? AND request_key=?)";
   await env.DB.batch([
@@ -136,6 +228,7 @@ export async function deleteAccount(env, authenticatedAccount, body, now = Math.
   const saved = await env.DB.prepare("SELECT * FROM account_deletion_receipts WHERE account_id=? AND request_key=?")
     .bind(account, key).first();
   if (!saved) throw new AccountPrivacyError("account_changed", 409);
+  await archiveDeletionReceipt(env, saved);
   return receiptResult(saved);
 }
 
