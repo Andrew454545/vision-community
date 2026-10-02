@@ -21,7 +21,7 @@ export async function check(env) {
   const start = Date.parse(env.CHECK_NOT_BEFORE), end = Date.parse(env.CHECK_NOT_AFTER);
   const timestamp = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
   if (env.OPERATOR_BUCKET_NAME !== "vision-community-staging"
-      || ![undefined, "model-restart", "launch", "launch-model-restart"].includes(env.CHECK_MODE)
+      || ![undefined, "model-restart", "launch", "main", "launch-model-restart"].includes(env.CHECK_MODE)
       || typeof key !== "string" || !/^native-host\/checks\/[a-z0-9-]{1,80}\.json$/.test(key)
       || !timestamp.test(env.CHECK_NOT_BEFORE) || !timestamp.test(env.CHECK_NOT_AFTER)
       || !Number.isFinite(start) || !Number.isFinite(end)
@@ -48,6 +48,15 @@ export async function check(env) {
     const state = await call(env, "/operator/status");
     if (state.activeBundle !== null) throw Error("sealed_bundle_already_active");
     identityOnly = true;
+    if (env.CHECK_MODE === "main") {
+      stage = "main_program_startup";
+      const result = await call(env, "/operator/main-check", "POST");
+      if (result.status !== "native_main_check_passed" || result.mainProgramChecked !== true
+          || result.productionQualified !== false) throw Error("main_check_unavailable");
+      receipt.checks.push({ stage, ...result });
+      receipt.status = "PRIVATE_NATIVE_MAIN_CHECKS_PASSED";
+      return;
+    }
     if (["launch", "launch-model-restart"].includes(env.CHECK_MODE)) {
       stage = "isolated_launch";
       const result = await call(env, "/operator/launch-check", "POST");

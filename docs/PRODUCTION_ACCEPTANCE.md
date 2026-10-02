@@ -38,8 +38,14 @@ measurements into automatic production approval.
   with that single-thread budget and requires the runtime's confirmation on
   indexing and both verification passes; older runtimes stop with saved evidence.
   Mac reference process settings remain compatible. The complete 339-test local
-  Python suite passes with one platform skip. Frozen-image 1/2/4-thread inference
-  measurements are still exploratory; no production object gate was opened.
+  Python suite passes with one platform skip. All 18 frozen-image 1/2/4-thread
+  object commands completed with identical output values and view rankings in
+  the one-location sample. The actual Community command then indexed a location
+  at one thread/25% duty in 817.953 seconds and passed both native verifications.
+  CPU runs now checkpoint after each location before resuming. The dependency
+  inventory exposed four compiler DLLs requiring app-local packaging; its new
+  private build is being checked. See [the object report](PC_OBJECT_CALIBRATION_20261002.md).
+  These measurements remain exploratory; no production object gate was opened.
 
 - Unified hosted object assignment, resumed leases, publication/download authority
   and paid-search validation around the same Gen4 generation and complete
@@ -90,6 +96,13 @@ measurements into automatic production approval.
   receipt and establishes no execution. The controller now uses the immutable
   image's direct server command; a separate hosted retry is still required.
   These checks grant no production admission or hosted model/restart claim.
+  A later direct-server check actually executed, passed isolated HTTP/authentication,
+  then exited with code 1 at normal startup. Its report is retained and its cron
+  removed. A separate bounded private diagnostic now executes the image's exact
+  main program with the existing credential bindings, retains only fixed error
+  codes, verifies HTTP authentication and stops its process group. Local real
+  subprocess tests, 175 JavaScript checks and actual workerd route/scheduling
+  checks pass. Its hosted result is still required; scheduling is not execution.
   One-time checks require a short absolute UTC execution window and a create-only
   marker; expired or duplicate deliveries cannot restart compute. A failed final
   shutdown or incomplete model receipt cannot be reported as a passing check.

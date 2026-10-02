@@ -5,6 +5,7 @@ import { NativeController, authorized, descriptor, requestBytes } from "./contro
 import { MODEL_CHECK } from "./model-check.js";
 import { checkedBootReceipt } from "./bootstrap.js";
 import { LAUNCH_CHECK, checkedLaunchReceipt, stderrClass } from "./launch-check.js";
+import { MAIN_CHECK, checkedMainReceipt } from "./main-check.js";
 
 const sha = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const image = `registry.cloudflare.com/272760294910ef0b246980278aeb36e2/vision-community-native-scene@sha256:${"2".repeat(64)}`;
@@ -342,6 +343,42 @@ function launchReceipt() {
     uid: 10001, modelFilesValidated: true, httpServerChecked: true,
     serviceAuthChecked: true, operatorAuthChecked: true, productionQualified: false };
 }
+
+test("exact server diagnostic keeps credentials private, validates main receipt and always stops", async () => {
+  const { host, ctx, control, pending } = fixture();
+  const receipt = { ...launchReceipt(), status: "native_main_check_passed", mainProgramChecked: true };
+  ctx.container.exec = async (argv, options) => {
+    assert.deepEqual(argv, ["/usr/local/bin/python", "-B", "-c", MAIN_CHECK]);
+    assert.equal(options.env.VISION_HOST_SECRET, "a".repeat(64));
+    assert.equal(options.env.VISION_HOST_OPERATOR_SECRET, "b".repeat(64));
+    assert.equal(options.env.VISION_ORT_THREADS, "1");
+    return { stdout: stream(JSON.stringify(receipt)), stderr: stream(""), exitCode: Promise.resolve(0) };
+  };
+  assert.deepEqual(await (await host.mainCheck()).json(), receipt);
+  assert.equal(control.starts[0].enableInternet, false);
+  assert.equal(control.starts[0].env, undefined);
+  assert.equal(ctx.container.running, false);
+  for (const key of ["mainProgramChecked", "httpServerChecked", "productionQualified", "runtimeSha256"]) {
+    const damaged = { ...receipt, [key]: key === "runtimeSha256" ? "f".repeat(64) : !receipt[key] };
+    assert.throws(() => checkedMainReceipt(damaged, runtime));
+  }
+  control.values.set("activeBundle", bundle);
+  const starts = control.starts.length;
+  assert.equal((await host.mainCheck()).status, 409);
+  assert.equal(control.starts.length, starts);
+  await Promise.all(pending);
+});
+
+test("main diagnostic preserves a fixed startup classification without exposing environment", async () => {
+  const { host, ctx, control, pending } = fixture();
+  ctx.container.exec = async () => ({ stdout: stream(JSON.stringify({ status: "native_boot_unavailable",
+    phase: "main_program", code: "native_module_missing", errno: null })), stderr: stream(""), exitCode: Promise.resolve(1) });
+  assert.equal((await host.mainCheck()).status, 503);
+  assert.equal(control.values.get("lastBootFailure").code, "native_module_missing");
+  assert.equal(ctx.container.running, false);
+  assert.ok(!JSON.stringify([...control.values]).includes("a".repeat(64)));
+  await Promise.all(pending);
+});
 
 test("isolated launch checks pinned Python and private HTTP without inherited secrets or imagery and always stops compute", async () => {
   const { host, ctx, control, pending } = fixture();

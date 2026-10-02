@@ -3,6 +3,7 @@ import { bounded, MAX_REQUEST as SEARCH_REQUEST, MAX_RESPONSE as SEARCH_RESPONSE
 import { MODEL_CHECK, checkedModelReceipt } from "./model-check.js";
 import { checkedBootReceipt } from "./bootstrap.js";
 import { LAUNCH_CHECK, checkedLaunchReceipt, stderrClass } from "./launch-check.js";
+import { MAIN_CHECK, checkedMainReceipt } from "./main-check.js";
 
 export const MAX_BUNDLE = 384 * 1024 * 1024;
 const HEX = /^[0-9a-f]{64}$/;
@@ -347,7 +348,9 @@ export class NativeController {
     });
   }
 
-  launchCheck() {
+  mainCheck() { return this.launchCheck(true); }
+
+  launchCheck(mainProgram = false) {
     return this.exclusive(async () => {
       // Refuse any sealed workload before stopping or starting compute.
       if (await this.active()) return failure("sealed_bundle_already_active", 409);
@@ -370,8 +373,11 @@ export class NativeController {
         });
         bootExit.catch(() => {});
         const completion = (async () => {
-          const process = await container.exec(["/usr/local/bin/python", "-B", "-c", LAUNCH_CHECK], {
-            env: { PYTHONPATH: "/opt/vision/client", PYTHONDONTWRITEBYTECODE: "1", PYTHONUNBUFFERED: "1" },
+          const process = await container.exec(["/usr/local/bin/python", "-B", "-c", mainProgram ? MAIN_CHECK : LAUNCH_CHECK], {
+            env: { PYTHONPATH: "/opt/vision/client", PYTHONDONTWRITEBYTECODE: "1", PYTHONUNBUFFERED: "1",
+              ...(mainProgram ? { VISION_HOST_SECRET: this.env.VISION_HOST_SECRET,
+                VISION_HOST_OPERATOR_SECRET: this.env.VISION_HOST_OPERATOR_SECRET,
+                VISION_ORT_THREADS: "1", ORT_NUM_THREADS: "1", OMP_NUM_THREADS: "1", RAYON_NUM_THREADS: "1" } : {}) },
           });
           stage = "python_process";
           const [stdout, stderr, result] = await Promise.all([
@@ -389,7 +395,8 @@ export class NativeController {
           if (result !== 0 || stderr.byteLength) throw Error("native_launch_check_failed");
           const identity = await container.inspect();
           if (!identity || identity.image !== this.env.NATIVE_IMAGE) throw Error("native_launch_check_failed");
-          return checkedLaunchReceipt(parsed, this.env.NATIVE_RUNTIME_SHA256);
+          return mainProgram ? checkedMainReceipt(parsed, this.env.NATIVE_RUNTIME_SHA256)
+            : checkedLaunchReceipt(parsed, this.env.NATIVE_RUNTIME_SHA256);
         })();
         this.ctx.waitUntil(completion.catch(() => {}));
         const receipt = await Promise.race([completion, bootExit, deadline]);

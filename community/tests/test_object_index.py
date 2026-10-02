@@ -224,7 +224,10 @@ class ObjectIndexTest(unittest.TestCase):
             self.assertEqual(segment[-len(expected):], expected)
             self.assertIn("--duty-cycle-percent", segment)
             self.assertEqual(segment[segment.index("--duty-cycle-percent") + 1], "25")
-            self.assertEqual(segment[segment.index("--checkpoint-every") + 1], "10")
+            from community.object_index import object_uses_cpu
+            self.assertEqual(segment[segment.index("--checkpoint-every") + 1], "1" if object_uses_cpu() else "10")
+            if object_uses_cpu():
+                self.assertEqual(segment[segment.index("--stop-after") + 1], "1")
             self.assertTrue(segment[segment.index("--model") + 1].endswith("rfdetr-medium-576-b4.onnx"))
             self.assertTrue(segment[segment.index("--runtime-manifest") + 1].endswith("hybrid-object-runtime.json"))
             self.assertNotIn("object-hybrid-v1/coreml-cache", " ".join(segment))
