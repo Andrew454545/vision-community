@@ -2,6 +2,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { bounded, MAX_REQUEST as SEARCH_REQUEST, MAX_RESPONSE as SEARCH_RESPONSE } from "../native-scene-bridge/worker.js";
 import { MODEL_CHECK, checkedModelReceipt } from "./model-check.js";
 import { BOOTSTRAP, checkedBootReceipt } from "./bootstrap.js";
+import { LAUNCH_CHECK, checkedLaunchReceipt, stderrClass } from "./launch-check.js";
 
 export const MAX_BUNDLE = 384 * 1024 * 1024;
 const HEX = /^[0-9a-f]{64}$/;
@@ -76,6 +77,7 @@ export class NativeController {
     this.fixedStream = options.fixedStream ?? ((bytes) => new FixedLengthStream(bytes));
     this.modelCheckTimeoutMs = options.modelCheckTimeoutMs ?? 110000;
     this.startupBudgetMs = options.startupBudgetMs ?? 60000;
+    this.launchCheckTimeoutMs = options.launchCheckTimeoutMs ?? 45000;
     this.now = options.now ?? Date.now;
   }
 
@@ -306,6 +308,7 @@ export class NativeController {
       lastControlFailure: await this.ctx.storage.get("lastControlFailure") ?? null,
       lastContainerExit: await this.ctx.storage.get("lastContainerExit") ?? null,
       lastBootFailure: await this.ctx.storage.get("lastBootFailure") ?? null,
+      lastLaunchFailure: await this.ctx.storage.get("lastLaunchFailure") ?? null,
       productionQualified: false }, { headers: jsonHeaders }));
   }
 
@@ -338,6 +341,66 @@ export class NativeController {
       this.hydratedDigest = undefined;
       await this.ctx.container.destroy();
       return Response.json({ stopped: true, activeBundleRetained: (await this.active()) !== null }, { headers: jsonHeaders });
+    });
+  }
+
+  launchCheck() {
+    return this.exclusive(async () => {
+      // Refuse any sealed workload before stopping or starting compute.
+      if (await this.active()) return failure("sealed_bundle_already_active", 409);
+      const container = this.config();
+      this.hydratedDigest = undefined;
+      let timer, accepting = true, stage = "container_launch", exitCode = null, errorClass = null;
+      const code = value => Number.isInteger(value) && value >= 0 && value <= 255 ? value : null;
+      try {
+        const deadline = new Promise((_, reject) => {
+          timer = setTimeout(() => { stage = "deadline"; reject(Error("native_launch_check_failed")); }, this.launchCheckTimeoutMs);
+        });
+        deadline.catch(() => {});
+        if (container.running) await Promise.race([container.destroy(), deadline]);
+        container.start({ image: this.env.NATIVE_IMAGE, instance: INSTANCE,
+          enableInternet: false, entrypoint: ["/usr/bin/sleep", "120"] });
+        await Promise.race([container.setInactivityTimeout(IDLE_MS), deadline]);
+        const bootExit = container.monitor().then(() => { throw Error("container_launch_failed"); }, error => {
+          exitCode = code(error?.exitCode);
+          throw Error("container_launch_failed");
+        });
+        bootExit.catch(() => {});
+        const completion = (async () => {
+          const process = await container.exec(["/usr/local/bin/python", "-B", "-c", LAUNCH_CHECK], {
+            env: { PYTHONPATH: "/opt/vision/client", PYTHONDONTWRITEBYTECODE: "1", PYTHONUNBUFFERED: "1" },
+          });
+          stage = "python_process";
+          const [stdout, stderr, result] = await Promise.all([
+            bounded(process.stdout, 4096), bounded(process.stderr, 4096), process.exitCode]);
+          exitCode = code(result);
+          errorClass = stderrClass(stderr);
+          let parsed;
+          try { parsed = JSON.parse(new TextDecoder().decode(stdout)); } catch { /* Retain only bounded classes. */ }
+          if (!accepting) throw Error("native_launch_check_failed");
+          if (parsed?.status === "native_boot_unavailable") {
+            const diagnostic = checkedBootReceipt(parsed);
+            await this.ctx.storage.put("lastBootFailure", { ...diagnostic, at: Date.now() });
+            stage = "runtime_identity";
+          }
+          if (result !== 0 || stderr.byteLength) throw Error("native_launch_check_failed");
+          const identity = await container.inspect();
+          if (!identity || identity.image !== this.env.NATIVE_IMAGE) throw Error("native_launch_check_failed");
+          return checkedLaunchReceipt(parsed, this.env.NATIVE_RUNTIME_SHA256);
+        })();
+        this.ctx.waitUntil(completion.catch(() => {}));
+        const receipt = await Promise.race([completion, bootExit, deadline]);
+        return Response.json(receipt, { headers: jsonHeaders });
+      } catch (error) {
+        if (error?.message === "container_launch_failed") stage = "container_launch";
+        await this.ctx.storage.put("lastLaunchFailure", { stage, exitCode, errorClass, at: Date.now() });
+        await this.recordFailure("native_launch_check_failed");
+        return failure("native_launch_check_failed");
+      } finally {
+        accepting = false;
+        clearTimeout(timer);
+        await container.destroy();
+      }
     });
   }
 

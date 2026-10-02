@@ -18,7 +18,7 @@ function fixture() {
       if (state.fail === path) return Response.json({ error: "unavailable" }, { status: 503 });
       return Response.json(path === "/operator/status" ? { activeBundle: state.activeBundle }
         : path === "/health" ? identity : path === "/operator/restart" ? { stopped: true, activeBundleRetained: false }
-          : { status: "native_model_check_passed", productionQualified: false });
+          : { status: path === "/operator/launch-check" ? "native_launch_check_passed" : "native_model_check_passed", productionQualified: false });
     } } };
   return { env, state, values, calls, receipt: () => JSON.parse(values.get(key)) };
 }
@@ -66,4 +66,16 @@ test("wrong resources and public requests cannot trigger compute", async () => {
   env.OPERATOR_BUCKET_NAME = "geonections-images";
   await assert.rejects(check(env), /private_native_check_configuration/);
   assert.equal(calls.length, 0);
+});
+
+test("isolated launch mode runs once without health, model inference or imagery", async () => {
+  const { env, calls, receipt } = fixture();
+  env.CHECK_MODE = "launch";
+  await check(env);
+  assert.equal(receipt().status, "PRIVATE_NATIVE_LAUNCH_CHECKS_PASSED");
+  assert.equal(receipt().checks.length, 1);
+  assert.deepEqual(calls, [["/operator/status", "GET"], ["/operator/launch-check", "POST"], ["/operator/restart", "POST"]]);
+  const count = calls.length;
+  await check(env);
+  assert.equal(calls.length, count);
 });
