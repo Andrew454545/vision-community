@@ -26,8 +26,13 @@ measurements into automatic production approval.
   failure preserves revocation; replay cannot debit twice or restore access.
   152 JavaScript checks pass, including six archival fault/recovery cases.
   Actual local workerd/D1/R2 verifies the API, lost-response replay and scheduled
-  recovery with synthetic accounts. Live archive rollout, retention and a
-  complete restore/import remain open.
+  recovery with synthetic accounts. Live staging rollout now passes anonymous
+  deletion, revoked recovery/session, exact receipt replay and a single debit.
+  Independent private R2 preview verification matches the canonical receipt
+  checksum and resource; all 13 website assets and privacy headers still pass.
+  The offline restore tool also supports an explicit isolated staging profile
+  and rejects mixed resource mappings before changing accounts (17 SQLite/CLI
+  checks pass). Retention and a complete restore/import remain open.
 
 - Published and independently verified the private Linux OCI images in the
   confirmed Cloudflare registry. The smaller image stores each model payload
@@ -561,9 +566,10 @@ recorded evidence:
   of IP/search logging, public artifact metadata and maintainer identity audit.
   Removing names from a UI does not erase Git history or provider records.
   Account deletion, database fences and late scene-upload protection are tested locally; live
-  rollout, independent durable deletion-receipt storage, a complete staging
-  restore/import, wider orphan cleanup and provider logging/retention review
-  remain outstanding. The offline privacy-repair rehearsal is implemented and
+  production rollout, a complete staging restore/import, wider orphan cleanup
+  and provider logging/retention review remain outstanding. Independent private
+  deletion-receipt storage now passes live staging verification. The offline
+  privacy-repair rehearsal is implemented and
   tested; it does not satisfy the complete restore gate.
 - [ ] Ledger concurrency, replay and failure tests; no credit expiry or cap
   unless the owner explicitly chooses one. A finite queue cannot guarantee an
