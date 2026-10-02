@@ -10,6 +10,8 @@
   "r2_buckets": [{ "binding": "CHECK_REPORTS", "bucket_name": "vision-community-staging" }],
   "vars": {
     "CHECK_MODE": "launch",
+    "CHECK_NOT_BEFORE": "2000-01-01T00:00:00.000Z",
+    "CHECK_NOT_AFTER": "2000-01-01T00:01:00.000Z",
     "CHECK_RECEIPT_KEY": "native-host/checks/local-operator-check.json",
     "OPERATOR_BUCKET_NAME": "vision-community-staging"
   }

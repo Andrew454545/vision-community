@@ -8,6 +8,8 @@ function fixture() {
   const state = { activeBundle: null, fail: null };
   const identity = { identityOnly: true, auditReady: false, searchReady: false, productionQualified: false };
   const env = { CHECK_RECEIPT_KEY: key, OPERATOR_BUCKET_NAME: "vision-community-staging",
+    CHECK_NOT_BEFORE: new Date(Date.now() - 60000).toISOString(),
+    CHECK_NOT_AFTER: new Date(Date.now() + 60000).toISOString(),
     CHECK_REPORTS: { async put(name, bytes, options) {
       if (options?.onlyIf && values.has(name)) return null;
       values.set(name, bytes); return { key: name };
@@ -78,4 +80,54 @@ test("isolated launch mode runs once without health, model inference or imagery"
   const count = calls.length;
   await check(env);
   assert.equal(calls.length, count);
+});
+
+test("early and expired deliveries cannot write storage or start compute", async () => {
+  for (const offset of [-120000, 120000]) {
+    const { env, calls, values } = fixture();
+    env.CHECK_NOT_BEFORE = new Date(Date.now() + offset).toISOString();
+    env.CHECK_NOT_AFTER = new Date(Date.now() + offset + 60000).toISOString();
+    await check(env);
+    assert.equal(values.size, 0);
+    assert.equal(calls.length, 0);
+  }
+});
+
+test("missing, ambiguous, invalid or oversized execution windows fail closed", async () => {
+  for (const [start, end] of [
+    [undefined, undefined], ["2026-10-02T19:00:00Z", "2026-10-02T19:01:00Z"],
+    ["2026-02-30T19:00:00.000Z", "2026-02-30T19:01:00.000Z"],
+    ["2026-10-02T19:00:00.000Z", "2026-10-02T19:00:00.000Z"],
+    ["2026-10-02T19:00:00.000Z", "2026-10-02T19:31:00.000Z"],
+    ["2026-10-02T19:00:00.000Z", "2026-10-02T18:59:00.000Z"],
+  ]) {
+    const { env, calls, values } = fixture();
+    env.CHECK_NOT_BEFORE = start; env.CHECK_NOT_AFTER = end;
+    await assert.rejects(check(env), /private_native_check_configuration/);
+    assert.equal(values.size, 0);
+    assert.equal(calls.length, 0);
+  }
+});
+
+test("a successful HTTP response cannot substitute for a model check receipt", async () => {
+  for (const result of [{ error: "unavailable" },
+    { status: "native_model_check_passed", productionQualified: true }]) {
+    const { env, receipt, calls } = fixture(), fetch = env.NATIVE_OPERATOR.fetch;
+    env.NATIVE_OPERATOR.fetch = async (url, init) => new URL(url).pathname === "/operator/model-check"
+      ? Response.json(result) : fetch(url, init);
+    await check(env);
+    assert.equal(receipt().status, "FAILED");
+    assert.equal(receipt().failureStage, "real_model_before_restart");
+    assert.deepEqual(calls.at(-1), ["/operator/restart", "POST"]);
+  }
+});
+
+test("failed final shutdown cannot be reported as a passed launch check", async () => {
+  const { env, state, receipt } = fixture();
+  env.CHECK_MODE = "launch"; state.fail = "/operator/restart";
+  await check(env);
+  assert.equal(receipt().status, "FAILED");
+  assert.equal(receipt().failureStage, "final_stop");
+  assert.equal(receipt().finalStopFailed, true);
+  assert.equal(receipt().checks.length, 1);
 });
