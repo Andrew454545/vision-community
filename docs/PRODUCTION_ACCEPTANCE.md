@@ -1,6 +1,6 @@
 # Production acceptance and continuation
 
-Updated 2026-10-01. This checklist defines completion; "perfect" is not a
+Updated 2026-10-02 UTC. This checklist defines completion; "perfect" is not a
 testable release claim. Check off a requirement only with test or deployment
 evidence. Preserve earlier calibration failures and do not turn exploratory
 measurements into automatic production approval.
@@ -20,6 +20,22 @@ measurements into automatic production approval.
 
 ## Completed in this pass
 
+- Shortened the README, setup guides, PC screen and website instructions.
+  The website guide has 160 visible words, with search and troubleshooting
+  behind optional sections. Desktop, phone and expanded-help rendering pass.
+  All five GitHub jobs pass at code revision `33eaa72`; 24 launcher/bootstrap,
+  34 indexer and six readiness tests also pass locally. Staging deployment
+  `a39d57d09e4a413e980544e34a7fbfd1` serves all13 matching public assets with
+  the existing backend, bindings and privacy/security headers preserved.
+  Account-code and qualification gates remain required.
+- Final packaged Windows/Linux native builds pass69 tests and their binary,
+  library and source pins have been independently verified. The final Windows
+  four-thread candidate completed its112-location check and three fresh full
+  1,024-location trials with zero errors. It remains unqualified: the final
+  one/two-thread comparisons, loaded-library evidence and runtime policy are
+  still required. Private Linux image CI also built and checked actual
+  payload/layout/auth startup. Independent OCI verification and hosted model
+  inference remain pending; a successful build does not open service gates.
 - Integrated Andrew's beginner Windows starter, four-step desktop flow and
   simpler website without weakening saved-code or PC qualification gates.
   The isolated [test website](https://vision-community-staging.visioncommunity.workers.dev/)
@@ -46,9 +62,10 @@ measurements into automatic production approval.
   passed all68 private native checks and a locked Windows build. The new ordinary
   112-location CPU fp32 check and first two full1,024-location trials completed
   with no errors. The third timed out after30minutes, at640logged locations but
-  only16checkpointed. Its original report/index/logs are preserved; a separate
-  copied index is resuming with a two-hour limit and per-chunk checkpoints.
-  Recovery is reported separately from a fresh repetition. Its Mac canary
+  only16checkpointed. Its original report/index/logs are preserved; recovery
+  on a separate copied index completed all1,024locations with zero errors and
+  confirmed the original files stayed unchanged. Recovery is reported
+  separately from a fresh repetition. Its Mac canary
   comparison has409/448 identical packed views and
   minimum cosine0.999797169; separate live imagery is not a frozen comparison.
   This is not activation or admission. The older
