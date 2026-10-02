@@ -27,11 +27,11 @@ class VisionServiceReadiness {
   }
   message(lanes) {
     if (!this.checked) return "Checking the service before you start…";
-    if (!this.connected) return "The service is unavailable. Keep your account code and browser data. Check again later; saved credits and search requests stay saved.";
-    if (lanes.some(lane => lane !== "scene")) return "Object processing is still being validated. Choose Scene to check scene setup. Your saved credits are kept.";
-    if (!this.canContribute(lanes)) return "Scene setup is not available yet. The required computer check and contribution verification must be enabled first. You can restore your account and keep your credits.";
-    if (!this.canSearch()) return "Scene setup is available and requires the computer check. Online search is unavailable; unused credits stay saved for later.";
-    return "Scene setup is available and requires the computer check. Online search uses your saved credits.";
+    if (!this.connected) return "Service unavailable. Try later; your credits and searches stay saved. Keep your code and browser data.";
+    if (lanes.some(lane => lane !== "scene")) return "Objects are still being validated. Choose Scene. Your credits stay saved.";
+    if (!this.canContribute(lanes)) return "Scene setup is not available yet. Try later; your credits stay saved.";
+    if (!this.canSearch()) return "Run the PC check to start helping. Search is unavailable; unused credits stay saved.";
+    return "Run the PC check to start helping. Search uses your saved credits.";
   }
   static async capabilities(fetcher = fetch) {
     try {
