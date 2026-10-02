@@ -20,6 +20,13 @@ perform that operation or verify the account's actual backup retention settings.
 1. Stop all Community writers and keep public access closed during a restore.
    Record the stop time. Preserve the current database/export and rollback
    evidence before replacing anything.
+   Set `RESTORE_MAINTENANCE=1` in operator deployment configuration: all API
+   requests return a retryable `service_maintenance` response before database
+   access, and the scheduled handler stops. The guide stays available. Invalid
+   configured values also stay closed; absent or `0` resumes normal operation.
+   This does not cancel earlier requests, other services, external API writers
+   or an older deployed version: stop and drain those separately before backup
+   or restore. Verify the closed API and recorded writer-stop time first.
 2. Obtain the complete latest deletion ledger, independently of the old backup.
    Establish its SHA-256 through trusted operator configuration. Confirm its
    account/database identity against the Community configuration. Keep it private:

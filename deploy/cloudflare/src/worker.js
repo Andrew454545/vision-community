@@ -1313,6 +1313,7 @@ async function search(env, account, body) {
 
 export default {
   async scheduled(_event, env) {
+    if (env.RESTORE_MAINTENANCE !== undefined && env.RESTORE_MAINTENANCE !== "0") return;
     if (!env.DB || !env.INDEX) return;
     await ready(env);
     await cleanupAccountArtifacts(env, null, 64);
@@ -1320,6 +1321,11 @@ export default {
   },
   async fetch(request, env) {
     const url = new URL(request.url);
+    // Only operator configuration can close the control plane. Stop before
+    // migration, authentication, request-body reads or asynchronous writers.
+    // A malformed configured value stays closed; absent/"0" preserve normal use.
+    if (url.pathname.startsWith("/api/") && env.RESTORE_MAINTENANCE !== undefined
+        && env.RESTORE_MAINTENANCE !== "0") return error("service_maintenance", 503, { "retry-after": "60" });
     if (INDEX_DOWNLOAD_ROUTES.has(url.pathname)) return error("online_search_required", 410);
     if (url.pathname === "/api/capabilities" && request.method === "GET") {
       return json(verifierConfigured(env) ? pipelineCapabilities(env) : sceneCapabilities(await loadSceneReferences(env)));
