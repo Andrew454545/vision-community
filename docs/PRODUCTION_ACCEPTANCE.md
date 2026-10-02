@@ -42,6 +42,10 @@ measurements into automatic production approval.
   before the authenticated bootstrap diagnostic became available. All reports
   are preserved and triggers removed. This does not yet identify a Python fault.
   A bounded offline launch probe is tested separately and refuses sealed work.
+  The private v4 launch succeeded with Python3.12.15, uid10001 and the exact
+  runtime/model pins verified. It used no Internet or stored credentials,
+  stopped compute and had its one-time trigger removed. This proves image and
+  runtime launch, not HTTP startup, model inference or production admission.
   Added a private
   Container controller with streamed bundle checks, durable activation pointers,
   restart/eviction rehydration, one shared execution slot and bounded idle
