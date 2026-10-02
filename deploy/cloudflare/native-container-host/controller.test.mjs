@@ -13,7 +13,7 @@ const bundle = { version: 1, sha256: sha(sample), bytes: sample.byteLength, key:
 function fixture() {
   const values = new Map(), calls = [], pending = [];
   const control = { starts: [], destroys: 0, uploads: 0, calls, values, wrongRuntime: false,
-    searchReady: false, badSize: false, corrupt: false, missing: false, failCommit: false };
+    searchReady: false, badSize: false, corrupt: false, missing: false, failCommit: false, now: 1000 };
   const health = () => ({ status: "native_host_available", runtimeSha256: control.wrongRuntime ? "f".repeat(64) : runtime,
     identityOnly: !control.active, auditReady: !!control.active, searchReady: control.active && control.searchReady || false,
     activeNativeProcessesMaximum: 1 });
@@ -47,6 +47,9 @@ function fixture() {
   };
   const ctx = { container, storage: {
     async get(key) { return values.get(key); },
+    async delete(key) { values.delete(key); },
+    async setAlarm(deadline) { if (control.failAlarm) throw Error("synthetic alarm failure"); control.alarm = deadline; },
+    async deleteAlarm() { control.alarm = null; },
     async put(key, value) {
       if (key === "activeBundle" && control.failCommit) throw Error("synthetic storage failure");
       values.set(key, structuredClone(value));
@@ -63,10 +66,77 @@ function fixture() {
           controller.enqueue(bytes.subarray(0, 7)); controller.enqueue(bytes.subarray(7)); controller.close();
         } }) };
     } } };
-  const options = { wait: async () => {}, fixedStream: () => new TransformStream() };
+  const options = { wait: async () => {}, fixedStream: () => new TransformStream(), now: () => control.now };
   const host = new NativeController(ctx, env, options);
   return { host, ctx, env, control, options, pending };
 }
+
+test("durable idle alarm stops monitored compute and preserves the sealed pointer across eviction", async () => {
+  const { host, ctx, env, control, options } = fixture();
+  assert.equal((await host.activate(bundle)).status, 200);
+  assert.equal(control.alarm, control.now + 180000);
+  const saved = structuredClone(control.values.get("activeBundle"));
+  const reopened = new NativeController(ctx, env, options);
+  control.now = control.alarm;
+  await reopened.alarm();
+  assert.equal(ctx.container.running, false);
+  assert.deepEqual(control.values.get("activeBundle"), saved);
+  assert.equal(control.alarm, null);
+  assert.equal(control.values.has("idleDeadline"), false);
+  assert.equal((await reopened.health()).status, 200);
+  assert.equal(control.uploads, 2);
+});
+
+test("an old alarm honors renewed activity rather than stopping a recently used container", async () => {
+  const { host, ctx, control } = fixture();
+  await host.health();
+  const old = control.alarm;
+  control.now += 120000;
+  await host.health();
+  const renewed = control.alarm;
+  control.now = old;
+  await host.alarm();
+  assert.equal(ctx.container.running, true);
+  assert.equal(control.destroys, 0);
+  assert.equal(control.alarm, renewed);
+});
+
+test("idle alarm defers while a bounded native operation owns the shared slot", async () => {
+  const { host, ctx, control } = fixture();
+  await host.activate(bundle);
+  let release;
+  control.searchReady = true;
+  control.hold = new Promise(resolve => { release = resolve; });
+  const pending = host.service("/search", new TextEncoder().encode("{}"));
+  while (!control.calls.includes("/search")) await new Promise(resolve => setImmediate(resolve));
+  control.now = control.alarm;
+  await host.alarm();
+  assert.equal(ctx.container.running, true);
+  assert.equal(control.alarm, control.now + 30000);
+  release();
+  assert.equal((await pending).status, 200);
+  assert.equal(control.alarm, control.now + 180000);
+});
+
+test("failure to arm idle shutdown makes the result unavailable and stops uncertain compute", async () => {
+  const { host, ctx, control } = fixture();
+  control.failAlarm = true;
+  const response = await host.health();
+  assert.equal(response.status, 503);
+  assert.deepEqual(await response.json(), { error: "native_idle_guard_failed" });
+  assert.equal(ctx.container.running, false);
+  assert.equal(control.values.get("lastControlFailure").stage, "native_idle_guard_failed");
+  assert.equal(host.busy, false);
+});
+
+test("missing idle metadata stops an unidentified running container without starting another", async () => {
+  const { host, ctx, control } = fixture();
+  ctx.container.running = true;
+  await host.alarm();
+  assert.equal(ctx.container.running, false);
+  assert.equal(control.starts.length, 0);
+  assert.equal(control.values.get("lastControlFailure").stage, "native_idle_guard_failed");
+});
 
 test("operator authentication fails closed without starting or reading a body", () => {
   const good = "a".repeat(64);

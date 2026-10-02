@@ -74,6 +74,7 @@ export class NativeController {
     this.fixedStream = options.fixedStream ?? ((bytes) => new FixedLengthStream(bytes));
     this.modelCheckTimeoutMs = options.modelCheckTimeoutMs ?? 110000;
     this.startupBudgetMs = options.startupBudgetMs ?? 60000;
+    this.now = options.now ?? Date.now;
   }
 
   config() {
@@ -101,7 +102,53 @@ export class NativeController {
     this.busy = true;
     try { return await operation(); }
     catch (error) { await this.recordFailure(safeStage(error)); return failure(); }
-    finally { this.busy = false; }
+    finally {
+      try {
+        if (this.ctx.container?.running) await this.armIdle();
+        else await this.clearIdle();
+      } catch {
+        this.hydratedDigest = undefined;
+        await this.recordFailure("native_idle_guard_failed");
+        await this.ctx.container?.destroy().catch(() => {});
+        return failure("native_idle_guard_failed");
+      } finally { this.busy = false; }
+    }
+  }
+
+  async armIdle() {
+    const deadline = this.now() + IDLE_MS;
+    await this.ctx.storage.put("idleDeadline", deadline);
+    await this.ctx.storage.setAlarm(deadline);
+  }
+
+  async clearIdle() {
+    await this.ctx.storage.delete("idleDeadline");
+    await this.ctx.storage.deleteAlarm();
+  }
+
+  async alarm() {
+    // monitor() can keep a DO in memory beyond its platform inactivity timer.
+    // A durable alarm enforces idle shutdown without polling or losing the seal.
+    if (this.busy) {
+      await this.ctx.storage.setAlarm(this.now() + 30000);
+      return;
+    }
+    this.busy = true;
+    try {
+      if (!this.ctx.container?.running) { await this.clearIdle(); return; }
+      const deadline = await this.ctx.storage.get("idleDeadline");
+      if (!Number.isSafeInteger(deadline)) throw Error("native_idle_guard_failed");
+      if (this.now() < deadline) { await this.ctx.storage.setAlarm(deadline); return; }
+      this.hydratedDigest = undefined;
+      await this.ctx.container.destroy();
+      await this.clearIdle();
+    } catch {
+      this.hydratedDigest = undefined;
+      await this.recordFailure("native_idle_guard_failed");
+      // A failed destroy rejects the alarm so Cloudflare retries it.
+      await this.ctx.container?.destroy();
+      await this.clearIdle();
+    } finally { this.busy = false; }
   }
 
   async call(path, { body, operator = false, maximum = 65536, timeout = 20000, statuses = [200] } = {}) {

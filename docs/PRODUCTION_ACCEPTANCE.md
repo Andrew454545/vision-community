@@ -22,16 +22,21 @@ measurements into automatic production approval.
 
 - Published and independently verified the private Linux OCI images in the
   confirmed Cloudflare registry. The smaller image stores each model payload
-  once (893,888,000-byte image archive); its preparation is pending. Added a private
+  once (893,888,000-byte image archive); preparation is ready. The tested startup
+  correction is deployed privately. Its second one-time check also failed during
+  initial startup and recorded Python exit code 1; both failure reports are
+  preserved and test triggers removed. Added a private
   Container controller with streamed bundle checks, durable activation pointers,
   restart/eviction rehydration, one shared execution slot and bounded idle
   shutdown. The existing staging namespace is preserved; public routes, SSH
-  and invocation logs remain disabled. 133 JavaScript tests and 21 actual
+  and invocation logs remain disabled. 138 JavaScript tests and 21 actual
   workerd route/binding checks pass. Windows Python ran 323 tests with one skip;
   full local gateway/verifier checks pass. The first one-time private hosted
   check failed during initial startup; its report is preserved and its trigger
   removed. A tested correction makes Python settings explicit, enforces a
-  separate startup deadline and preserves redacted lifecycle diagnostics.
+  separate startup deadline and preserves redacted lifecycle diagnostics. A
+  durable idle alarm is tested independently of the monitor's eviction delay;
+  it preserves seals across eviction and defers during an active native operation.
   Hosted model inference and restart verification still need a successful retry. Bundle restoration
   is tested locally; live qualified bundle restoration is still required.
 - The final packaged one- and two-thread candidates each completed their
@@ -43,6 +48,13 @@ measurements into automatic production approval.
   and all five packaged DLLs were observed loaded from the pinned package and
   matched to the build receipt. This establishes that process's library identity,
   not quality, representative speed or a production parallel profile.
+- The exact final Windows package also completed nine frozen-image replays
+  (three each at 1/2/4 threads). All 81 comparisons with the supplied Mac packet
+  agree on ordered locations and selected views; settings repeat consistently
+  and packed native indexes/search results agree across thread counts. The
+  controlled sample has 16 locations, so broader quality coverage, measured
+  resource limits and admission remain open. See
+  [the calibration report](PC_CALIBRATION_20261002.md).
 - Shortened the README, setup guides, PC screen and website instructions.
   The website guide has 160 visible words, with search and troubleshooting
   behind optional sections. Desktop, phone and expanded-help rendering pass.
@@ -516,8 +528,11 @@ recorded evidence:
   compare all RF-DETR, YOLOE and OWLv2 lanes with the reference results.
 - [ ] Audit object submissions using trusted inference. Current structural
   validation alone does not prove that the volunteer performed inference.
-- [ ] Finish 1/2/4-thread measurements on fixed inputs; define quality/ranking
-  tolerances and approve only measured configurations. Compare numerical
+- [x] Complete the final packaged 1/2/4-thread exploratory full trials and
+  16-location frozen numerical/native-ranking studies. Evidence and limits are
+  recorded in [the calibration report](PC_CALIBRATION_20261002.md).
+- [ ] Define quality/ranking tolerances, broaden fixed-input coverage, measure
+  representative resource budgets and approve only measured configurations. Compare numerical
   outputs and rankings, not merely file bytes from changing live imagery.
 - [ ] Durable job queues and measured CPU/memory budgets for parallel scenes
   and objects; avoid two independent processes oversubscribing one device.
