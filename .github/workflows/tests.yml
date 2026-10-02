@@ -48,10 +48,10 @@ jobs:
       - name: Check the complete Worker in the Cloudflare runtime
         working-directory: deploy/cloudflare
         run: |
-          node node_modules/wrangler/bin/wrangler.js deploy --dry-run --outdir .local-test-build
-          node node_modules/wrangler/bin/wrangler.js deploy --dry-run --config native-scene-bridge/wrangler.toml --outdir .local-native-bridge-build
-          node node_modules/wrangler/bin/wrangler.js deploy --dry-run --config native-scene-verifier-bridge/wrangler.toml --outdir .local-verifier-bridge-build
-          node node_modules/wrangler/bin/wrangler.js deploy --dry-run --config native-container-host/wrangler.jsonc --outdir .local-native-host-build
+          node node_modules/wrangler/bin/wrangler.js deploy --dry-run --outdir "$PWD/.local-test-build"
+          node node_modules/wrangler/bin/wrangler.js deploy --dry-run --config native-scene-bridge/wrangler.toml --outdir "$PWD/.local-native-bridge-build"
+          node node_modules/wrangler/bin/wrangler.js deploy --dry-run --config native-scene-verifier-bridge/wrangler.toml --outdir "$PWD/.local-verifier-bridge-build"
+          node node_modules/wrangler/bin/wrangler.js deploy --dry-run --config native-container-host/wrangler.jsonc --outdir "$PWD/.local-native-host-build"
           node tools/check-local-runtime.mjs node_modules/miniflare/dist/src/index.js .local-test-build/worker.js
           node tools/check-local-verifier.mjs node_modules/miniflare/dist/src/index.js
           node tools/check-local-native-host.mjs node_modules/miniflare/dist/src/index.js .local-native-host-build/worker.js
