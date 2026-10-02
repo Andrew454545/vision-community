@@ -194,10 +194,10 @@ class ObjectIndexTest(unittest.TestCase):
                         json.dumps({"completed": True, "indexedLocations": 1}),
                         encoding="utf-8",
                     )
-                    return 0, "", ""
+                    return 0, "", "[vision-object] ONNX Runtime global threads: 1, spinning disabled"
                 if "--full" in argv:
-                    return 0, '{"valid": true, "indexVersion": 4, "full": true}\n', ""
-                return 0, '{"valid": true, "indexVersion": 4}\n', ""
+                    return 0, '{"valid": true, "indexVersion": 4, "full": true}\n', "[vision-object] ONNX Runtime global threads: 1, spinning disabled"
+                return 0, '{"valid": true, "indexVersion": 4}\n', "[vision-object] ONNX Runtime global threads: 1, spinning disabled"
 
             index_object_tsv(
                 root / "locations.tsv",

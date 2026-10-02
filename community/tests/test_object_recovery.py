@@ -1,4 +1,5 @@
 import json
+import os
 import sys
 import tempfile
 import unittest
@@ -8,6 +9,8 @@ from unittest.mock import patch
 from community.object_index import (OBJECT_FEATURE, _default_runner, index_object_tsv,
                                     object_index_is_complete)
 from community.vision_index import MAX_INDEX_FAILURES, MAX_NO_PROGRESS, VisionIndexError
+
+CPU_POOL = "[vision-object] ONNX Runtime global threads: 1, spinning disabled"
 
 
 class ObjectRecoveryTest(unittest.TestCase):
@@ -31,8 +34,9 @@ class ObjectRecoveryTest(unittest.TestCase):
         def runner(argv, _env, _cwd):
             self.calls.append(argv)
             if "index-segment" in argv:
-                return action()
-            return 0, json.dumps({"valid": True, "indexVersion": 4, "full": "--full" in argv}), ""
+                code, stdout, stderr = action()
+                return code, stdout, stderr + "\n" + CPU_POOL if code == 0 else stderr
+            return 0, json.dumps({"valid": True, "indexVersion": 4, "full": "--full" in argv}), CPU_POOL
         index_object_tsv(self.root / "locations.tsv", output_dir=self.output, source_id="synthetic",
                          total=total, binary=self.root / "vision-object", model_dir=self.root / "models",
                          runner=runner, use_nice=False)
@@ -144,13 +148,62 @@ class ObjectRecoveryTest(unittest.TestCase):
         self.complete()
         def runner(argv, _env, _cwd):
             self.calls.append(argv)
-            return 0, json.dumps({"valid": "--full" not in argv, "indexVersion": 4, "full": True}), ""
+            return 0, json.dumps({"valid": "--full" not in argv, "indexVersion": 4, "full": True}), CPU_POOL
         with self.assertRaisesRegex(VisionIndexError, "verification_failed"):
             index_object_tsv(self.root / "locations.tsv", output_dir=self.output, source_id="synthetic", total=1,
                              binary=self.root / "vision-object", model_dir=self.root / "models", runner=runner)
         self.assertEqual(len(self.calls), 2)
         self.assertTrue((self.output / "manifest.json").exists())
         self.assertEqual(self.failures()[0]["phase"], "verification")
+
+    def test_cpu_runtime_cannot_ignore_budget_or_retry_missing_attestation(self):
+        for stderr in ("", CPU_POOL.replace("threads: 1", "threads: 4")):
+            self.calls = []
+            def runner(argv, env, _cwd):
+                self.calls.append(argv)
+                for key in ("VISION_ORT_THREADS", "ORT_NUM_THREADS", "OMP_NUM_THREADS", "RAYON_NUM_THREADS"):
+                    self.assertEqual(env[key], "1")
+                self.complete()
+                return 0, "", stderr
+            with patch.dict(os.environ, {"VISION_ORT_THREADS": "64", "OMP_NUM_THREADS": "64"}):
+                with patch("community.object_index.object_uses_cpu", return_value=True):
+                    with self.assertRaisesRegex(VisionIndexError, "vision_object_runtime_update_required"):
+                        index_object_tsv(self.root / "locations.tsv", output_dir=self.output,
+                            source_id="synthetic", total=1, binary=self.root / "vision-object",
+                            model_dir=self.root / "models", runner=runner)
+            self.assertEqual(len(self.calls), 1)
+            self.assertTrue((self.output / "manifest.json").exists())
+            (self.output / "manifest.json").unlink()
+        self.assertTrue(all(x["code"] == "vision_object_runtime_update_required" for x in self.failures()))
+
+    def test_completed_cpu_checkpoint_still_requires_the_bounded_verifier(self):
+        self.output.mkdir()
+        self.complete()
+        def runner(argv, _env, _cwd):
+            self.calls.append(argv)
+            return 0, json.dumps({"valid": True, "indexVersion": 4, "full": True}), ""
+        with patch("community.object_index.object_uses_cpu", return_value=True):
+            with self.assertRaisesRegex(VisionIndexError, "vision_object_runtime_update_required"):
+                index_object_tsv(self.root / "locations.tsv", output_dir=self.output,
+                    source_id="synthetic", total=1, binary=self.root / "vision-object",
+                    model_dir=self.root / "models", runner=runner)
+        self.assertEqual(len(self.calls), 1)
+        self.assertEqual(self.failures()[0]["phase"], "verification")
+
+    def test_mac_reference_process_settings_remain_compatible(self):
+        def runner(argv, env, _cwd):
+            self.calls.append(argv)
+            self.assertEqual(env["VISION_ORT_THREADS"], "reference-setting")
+            if "index-segment" in argv:
+                self.assertNotIn("--cpu", argv)
+                self.complete()
+            return 0, json.dumps({"valid": True, "indexVersion": 4, "full": True}), ""
+        with patch.dict(os.environ, {"VISION_ORT_THREADS": "reference-setting"}):
+            with patch("community.object_index.object_uses_cpu", return_value=False):
+                index_object_tsv(self.root / "locations.tsv", output_dir=self.output,
+                    source_id="synthetic", total=1, binary=self.root / "vision-object",
+                    model_dir=self.root / "models", runner=runner)
+        self.assertEqual(len(self.calls), 3)
 
     def test_default_object_runner_times_out_and_keeps_logs_instead_of_hanging(self):
         with patch("community.vision_index.INDEX_TIMEOUT_SECONDS", 0.01):

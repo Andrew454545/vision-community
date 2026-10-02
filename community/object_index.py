@@ -46,6 +46,7 @@ from .vision_index import (
     community_support_root,
     default_runner as logged_native_runner,
     keep_lease_alive,
+    inference_environment,
     location_tsv_line,
     program_name,
     run_binary,
@@ -117,6 +118,12 @@ def installed_object_binary() -> Path:
 def object_uses_cpu(platform_name: str | None = None) -> bool:
     """Mac builds include CoreML. Windows and Linux builds run the same models on CPU."""
     return (sys.platform if platform_name is None else platform_name) != "darwin"
+
+
+def require_object_cpu_execution(stderr: str) -> None:
+    """Reject a CPU runtime that silently ignores the shared inference budget."""
+    if "[vision-object] ONNX Runtime global threads: 1, spinning disabled" not in stderr.splitlines():
+        raise VisionIndexError("vision_object_runtime_update_required")
 
 
 def file_sha256(path: Path) -> str:
@@ -691,7 +698,10 @@ def index_object_tsv(
     output_dir.mkdir(parents=True, exist_ok=True)
     cache.mkdir(parents=True, exist_ok=True)
     active = runner or _default_runner
-    env = os.environ.copy()
+    uses_cpu = object_uses_cpu()
+    # Object parallel profiles require their own measured approval. Until then,
+    # all CPU model sessions share one bounded pool regardless of inherited env.
+    env = inference_environment(output_dir.parent, 1) if uses_cpu else os.environ.copy()
     env["TMPDIR"] = str(output_dir.parent)
     nice_level = PACE_NICE[pace]
     failures = stalled = attempts = 0
@@ -706,7 +716,7 @@ def index_object_tsv(
             before = object_checkpoint_cursor(output_dir, total)
             attempts += 1
             try:
-                run_binary(
+                _stdout, execution_stderr = run_binary(
                     program,
                     index_segment_arguments(
                         model_dir=model, source_tsv=source_tsv, output_dir=output_dir,
@@ -715,6 +725,8 @@ def index_object_tsv(
                     env=env, cwd=output_dir.parent, runner=active, nice_level=nice_level,
                     use_nice=use_nice and runner is None,
                 )
+                if uses_cpu:
+                    require_object_cpu_execution(execution_stderr)
             except VisionIndexError as error:
                 failures += 1
                 if object_checkpoint_cursor(output_dir, total) < before:
@@ -744,6 +756,8 @@ def index_object_tsv(
                                  source_id=source_id, total=total, global_start=global_start, full=full),
                 env=env, cwd=output_dir.parent, runner=active, nice_level=nice_level, use_nice=False,
             )
+            if uses_cpu:
+                require_object_cpu_execution(_stderr)
             start, end = stdout.find("{"), stdout.rfind("}")
             try:
                 report = json.loads(stdout[start:end + 1]) if start >= 0 else {}

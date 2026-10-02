@@ -32,9 +32,14 @@ measurements into automatic production approval.
   native verification (47.875 seconds for indexing in this isolated test).
   These are private exploratory candidates: clean-device dependencies, Linux
   inference, reference ranking comparisons, trusted Gen4 admission and measured
-  shared thread budgets remain open. An explicit shared CPU pool is being tested
-  separately; environment-variable names alone did not configure the earlier
-  object model sessions. No production object gate was opened.
+  shared thread budgets remain open. Updated private CPU candidates now pass
+  49 native tests on both systems and confirm one shared inference pool with
+  spinning disabled. Community CPU indexing overrides inherited thread settings
+  with that single-thread budget and requires the runtime's confirmation on
+  indexing and both verification passes; older runtimes stop with saved evidence.
+  Mac reference process settings remain compatible. The complete 339-test local
+  Python suite passes with one platform skip. Frozen-image 1/2/4-thread inference
+  measurements are still exploratory; no production object gate was opened.
 
 - Unified hosted object assignment, resumed leases, publication/download authority
   and paid-search validation around the same Gen4 generation and complete
