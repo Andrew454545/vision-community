@@ -1,7 +1,7 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { bounded, MAX_REQUEST as SEARCH_REQUEST, MAX_RESPONSE as SEARCH_RESPONSE } from "../native-scene-bridge/worker.js";
 import { MODEL_CHECK, checkedModelReceipt } from "./model-check.js";
-import { BOOTSTRAP, checkedBootReceipt } from "./bootstrap.js";
+import { checkedBootReceipt } from "./bootstrap.js";
 import { LAUNCH_CHECK, checkedLaunchReceipt, stderrClass } from "./launch-check.js";
 
 export const MAX_BUNDLE = 384 * 1024 * 1024;
@@ -238,7 +238,10 @@ export class NativeController {
       if (container.running) await container.destroy();
       container.start({ image: this.env.NATIVE_IMAGE, instance: INSTANCE,
         enableInternet: this.env.NATIVE_IMAGERY_EGRESS === "live-imagery",
-        entrypoint: ["/usr/local/bin/python", "-B", "-c", BOOTSTRAP],
+        // Use the immutable image's server directly. The offline exec probe
+        // separately retains classified startup diagnostics; no inline Python
+        // program is transported through the PID1 entrypoint configuration.
+        entrypoint: ["/usr/local/bin/python", "-B", "/opt/vision/server.py"],
         env: { VISION_HOST_SECRET: this.env.VISION_HOST_SECRET,
           VISION_HOST_OPERATOR_SECRET: this.env.VISION_HOST_OPERATOR_SECRET,
           PYTHONPATH: "/opt/vision/client", PYTHONDONTWRITEBYTECODE: "1", PYTHONUNBUFFERED: "1",

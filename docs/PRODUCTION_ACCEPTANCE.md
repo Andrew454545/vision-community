@@ -61,13 +61,17 @@ measurements into automatic production approval.
   before the authenticated bootstrap diagnostic became available. All reports
   are preserved and triggers removed. This does not yet identify a Python fault.
   A bounded offline launch probe is tested separately and refuses sealed work.
-  The private v4 launch succeeded with Python3.12.15, uid10001 and the exact
-  runtime/model pins verified. It used no Internet or stored credentials,
-  stopped compute and had its one-time trigger removed. This proves image and
-  runtime launch, not HTTP startup, model inference or production admission.
-  The later hosted HTTP probe produced no receipt or start marker during its
-  finite scheduled window; its trigger was removed. Execution is unestablished.
-  Its local HTTP/auth diagnostic passes 12 Python checks; no hosted pass is claimed.
+  The later private hosted check passed Python3.12.15/runtime/model identity,
+  actual loopback HTTP and separate service/operator authentication, using
+  generated disposable credentials and no Internet. Normal startup then exited
+  with code 1 before model processing. Its report is preserved, compute stopped
+  and triggers removed. The earlier HTTP-only schedule had no start marker or
+  receipt and establishes no execution. The controller now uses the immutable
+  image's direct server command; a separate hosted retry is still required.
+  These checks grant no production admission or hosted model/restart claim.
+  One-time checks require a short absolute UTC execution window and a create-only
+  marker; expired or duplicate deliveries cannot restart compute. A failed final
+  shutdown or incomplete model receipt cannot be reported as a passing check.
   Added a private
   Container controller with streamed bundle checks, durable activation pointers,
   restart/eviction rehydration, one shared execution slot and bounded idle

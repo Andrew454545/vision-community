@@ -16,7 +16,7 @@ The checker also has a real workerd scheduled-event test: five delivered events 
 
 Startup uses explicit Python settings and a separate 60-second deadline. A failed boot stops compute and records a fixed failure code and numeric exit code, without exception text or credentials.
 
-The fixed Python entrypoint also classifies import, manifest, state-directory, runtime-pin and credential failures. Its authenticated diagnostic front door exists for at most 45 seconds and never grants readiness; only allowed codes and numeric errno values are retained. It starts the existing pinned host on success and does not change model or helper pins.
+Normal startup uses `/usr/local/bin/python -B /opt/vision/server.py`, matching the pinned image's own server command, with explicit Python and thread settings. It preserves the existing authentication, model and helper pins. The separately retained fixed Python diagnostic classifies import, manifest, state-directory, runtime-pin and credential failures; it never grants readiness and retains only allowed codes and numeric errno values.
 
 The fixed operator-only POST `/operator/launch-check` starts a bounded sleeper and checks pinned Python/runtime identity offline. It also binds the pinned host to loopback with generated disposable credentials, verifies service/operator authentication and closes the listening socket. No stored secrets are passed to this diagnostic. It retains only fixed failure stages/classes, refuses an existing sealed bundle and always stops compute. A one-time checker may select `CHECK_MODE=launch`; remove its trigger afterward. This diagnostic cannot grant readiness or run models, and does not prove the normal entrypoint starts successfully.
 
