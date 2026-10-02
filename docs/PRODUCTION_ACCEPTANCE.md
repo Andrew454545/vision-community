@@ -20,6 +20,22 @@ measurements into automatic production approval.
 
 ## Completed in this pass
 
+- Built private Windows and Linux CPU object candidates from the reference's
+  object-sidecar. Each passes 48 native tests and actual layout startup. Both
+  downloaded archives, binaries, observed dependencies and 14 source files were
+  independently checked; Linux pins match Git blobs and Windows pins match the
+  Git checkout with its explicit CRLF conversion. The Windows executable also
+  starts on this laptop with a restricted environment and matching layout.
+  All 11 pinned model assets were independently verified. Windows then completed
+  actual RF-DETR, YOLOE and OWLv2 processing on one canary view, and a complete
+  six-face, one-location object index with zero fetch/inference errors and full
+  native verification (47.875 seconds for indexing in this isolated test).
+  These are private exploratory candidates: clean-device dependencies, Linux
+  inference, reference ranking comparisons, trusted Gen4 admission and measured
+  shared thread budgets remain open. An explicit shared CPU pool is being tested
+  separately; environment-variable names alone did not configure the earlier
+  object model sessions. No production object gate was opened.
+
 - Unified hosted object assignment, resumed leases, publication/download authority
   and paid-search validation around the same Gen4 generation and complete
   lowercase SHA-256 receipt. The local service enforces the same requirements.
