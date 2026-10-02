@@ -20,7 +20,9 @@ function fixture() {
       if (state.fail === path) return Response.json({ error: "unavailable" }, { status: 503 });
       return Response.json(path === "/operator/status" ? { activeBundle: state.activeBundle }
         : path === "/health" ? identity : path === "/operator/restart" ? { stopped: true, activeBundleRetained: false }
-          : { status: path === "/operator/launch-check" ? "native_launch_check_passed" : "native_model_check_passed", productionQualified: false });
+          : { status: path === "/operator/launch-check" ? "native_launch_check_passed"
+            : path === "/operator/main-check" ? "native_main_check_passed" : "native_model_check_passed",
+            ...(path === "/operator/main-check" ? { mainProgramChecked: true } : {}), productionQualified: false });
     } } };
   return { env, state, values, calls, receipt: () => JSON.parse(values.get(key)) };
 }
@@ -80,6 +82,24 @@ test("isolated launch mode runs once without health, model inference or imagery"
   const count = calls.length;
   await check(env);
   assert.equal(calls.length, count);
+});
+
+test("exact main-program mode runs once and preserves failure without opening inference", async () => {
+  for (const unavailable of [false, true]) {
+    const { env, calls, receipt, state } = fixture();
+    env.CHECK_MODE = "main";
+    if (unavailable) state.fail = "/operator/main-check";
+    await check(env);
+    assert.equal(receipt().status, unavailable ? "FAILED" : "PRIVATE_NATIVE_MAIN_CHECKS_PASSED");
+    assert.equal(receipt().productionQualified, false);
+    assert.equal(receipt().acceptedContributions, 0);
+    assert.equal(calls.filter(([path]) => path === "/operator/main-check").length, 1);
+    assert.ok(!calls.some(([path]) => ["/health", "/operator/model-check"].includes(path)));
+    assert.deepEqual(calls.at(-1), ["/operator/restart", "POST"]);
+    const count = calls.length;
+    await check(env);
+    assert.equal(calls.length, count);
+  }
 });
 
 test("early and expired deliveries cannot write storage or start compute", async () => {

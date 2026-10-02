@@ -288,11 +288,11 @@ def index_segment_arguments(
         "--total-locations", str(int(total)),
         "--global-start", str(int(global_start)),
         "--duty-cycle-percent", str(DUTY_CYCLE_PERCENT),
-        "--checkpoint-every", str(CHECKPOINT_EVERY),
+        "--checkpoint-every", "1" if object_uses_cpu() else str(CHECKPOINT_EVERY),
         "--model-cache", str(model_cache),
     ]
     if object_uses_cpu():
-        arguments.append("--cpu")
+        arguments.extend(["--cpu", "--stop-after", "1"])
     return arguments
 
 

@@ -163,6 +163,8 @@ class ObjectRecoveryTest(unittest.TestCase):
                 self.calls.append(argv)
                 for key in ("VISION_ORT_THREADS", "ORT_NUM_THREADS", "OMP_NUM_THREADS", "RAYON_NUM_THREADS"):
                     self.assertEqual(env[key], "1")
+                self.assertEqual(argv[argv.index("--checkpoint-every") + 1], "1")
+                self.assertEqual(argv[argv.index("--stop-after") + 1], "1")
                 self.complete()
                 return 0, "", stderr
             with patch.dict(os.environ, {"VISION_ORT_THREADS": "64", "OMP_NUM_THREADS": "64"}):
@@ -196,6 +198,8 @@ class ObjectRecoveryTest(unittest.TestCase):
             self.assertEqual(env["VISION_ORT_THREADS"], "reference-setting")
             if "index-segment" in argv:
                 self.assertNotIn("--cpu", argv)
+                self.assertNotIn("--stop-after", argv)
+                self.assertEqual(argv[argv.index("--checkpoint-every") + 1], "10")
                 self.complete()
             return 0, json.dumps({"valid": True, "indexVersion": 4, "full": True}), ""
         with patch.dict(os.environ, {"VISION_ORT_THREADS": "reference-setting"}):

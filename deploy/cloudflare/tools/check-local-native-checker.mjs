@@ -70,3 +70,32 @@ for (const offset of [-120000, 120000]) {
 }
 console.log(JSON.stringify({ status: "ACTUAL_WORKERD_PRIVATE_CHECK_EXPIRY_PASSED",
   earlyAndExpiredDeliveriesRejected: true, storageUntouched: true, computeStarted: false }));
+
+let mainChecks = 0, mainStops = 0;
+const mainKey = "native-host/checks/local-main-check.json";
+const main = new Miniflare(convertV4MiniflareOptions({ modules: true, scriptPath,
+  modulesRoot: dirname(scriptPath), compatibilityDate: "2026-10-02", compatibilityFlags: ["nodejs_compat"],
+  r2Buckets: ["CHECK_REPORTS"], bindings: { CHECK_MODE: "main", CHECK_RECEIPT_KEY: mainKey,
+    OPERATOR_BUCKET_NAME: "vision-community-staging",
+    CHECK_NOT_BEFORE: new Date(Date.now() - 60000).toISOString(), CHECK_NOT_AFTER: new Date(Date.now() + 60000).toISOString() },
+  serviceBindings: { NATIVE_OPERATOR: async request => {
+    const path = new URL(request.url).pathname;
+    if (path === "/operator/status") return Response.json({ activeBundle: null });
+    if (path === "/operator/main-check") {
+      mainChecks++; return Response.json({ status: "native_main_check_passed", mainProgramChecked: true, productionQualified: false });
+    }
+    assert.equal(path, "/operator/restart"); mainStops++; return Response.json({ stopped: true });
+  } } }));
+try {
+  const worker = await main.getWorker(), bucket = await main.getR2Bucket("CHECK_REPORTS");
+  await worker.scheduled({ cron: "* * * * *" });
+  await worker.scheduled({ cron: "* * * * *" });
+  const report = JSON.parse(await (await bucket.get(mainKey)).text());
+  assert.equal(report.status, "PRIVATE_NATIVE_MAIN_CHECKS_PASSED");
+  assert.equal(report.checks[0].mainProgramChecked, true);
+  assert.equal(report.productionQualified, false);
+  assert.equal(mainChecks, 1); assert.equal(mainStops, 1);
+  assert.deepEqual(JSON.parse((await bucket.get(mainKey + ".step-0")).customMetadata.receipt), report.checks[0]);
+  console.log(JSON.stringify({ status: "ACTUAL_WORKERD_PRIVATE_MAIN_CHECK_PASSED", checks: 1,
+    replayDidNotRepeatCompute: true, privateStepReceiptRetained: true, actualModelInferenceTested: false }));
+} finally { await main.dispose(); }
