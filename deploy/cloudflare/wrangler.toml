@@ -20,6 +20,12 @@ database_id = "ed4705fa-1190-41fa-86a0-02d755db1b2a"
 binding = "INDEX"
 bucket_name = "vision-community"
 
+[vars]
+INDEX_BUCKET_NAME = "vision-community"
+DELETION_ARCHIVE_REQUIRED = "1"
+DELETION_ARCHIVE_ENVIRONMENT = "production"
+DELETION_ARCHIVE_DB_ID = "ed4705fa-1190-41fa-86a0-02d755db1b2a"
+
 [assets]
 directory = "../../community/web"
 binding = "ASSETS"

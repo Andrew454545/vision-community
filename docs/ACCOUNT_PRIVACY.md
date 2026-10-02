@@ -76,8 +76,29 @@ An [offline restore safeguard](PRIVATE_RESTORE.md) now reapplies independently
 pinned current deletion receipts to a new private SQLite copy before exposure.
 It revokes restored access, removes private results and preserves contributions;
 synthetic tests cover rollback, repeat repair and immutable outputs. The release
-still needs a documented backup retention period, independent durable receipt
-storage and a complete staging restore/import exercise before reopening D1.
+still needs a documented backup retention period and a complete staging
+restore/import exercise before reopening D1.
+
+Required-archive deployments also store each deletion receipt independently in
+the private Community R2 bucket before acknowledging success. Keys contain an
+account-ID hash; object metadata contains only a format marker and checksum.
+The private body retains the minimum pseudonymous receipt needed for restore.
+Conditional creation and bounded checksum readback prevent uncertain or changed
+copies from being acknowledged. The hourly handler retries unarchived receipts.
+An outage preserves revocation and returns a retryable error; the original
+private deletion request can recover the response without restoring access.
+
+Configure `DELETION_ARCHIVE_REQUIRED=1`, the exact
+`DELETION_ARCHIVE_ENVIRONMENT` (`production` or `staging`), matching
+`DELETION_ARCHIVE_DB_ID` and `INDEX_BUCKET_NAME`. Only the two confirmed Community
+resource mappings are accepted. A wrong or missing required binding refuses
+deletion before changing credentials. Local demonstrations may omit archival.
+Unit and actual local workerd/D1/R2 tests cover readback, response loss, damaged
+storage, database acknowledgement failure and scheduled recovery. This archive
+extension still needs live staging rollout and complete restore evidence;
+the earlier live deletion checks did not exercise it. During restore, freeze
+writers and establish a fresh, complete archive inventory, including any
+pending D1 receipts; a directory of selected objects is insufficient.
 The new journal/fence protocol covers scene writes by this Worker version,
 including writes already in flight at deletion. It does not inventory historical
 untracked storage, clean up abandoned work from active accounts, or protect

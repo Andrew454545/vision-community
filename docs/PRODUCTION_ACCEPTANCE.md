@@ -20,6 +20,15 @@ measurements into automatic production approval.
 
 ## Completed in this pass
 
+- Added independent private R2 account-deletion receipts, with immutable
+  creation, bounded checksum readback before acknowledgement, a durable retry
+  outbox and explicit confirmed-resource configuration. Storage or acknowledgement
+  failure preserves revocation; replay cannot debit twice or restore access.
+  152 JavaScript checks pass, including six archival fault/recovery cases.
+  Actual local workerd/D1/R2 verifies the API, lost-response replay and scheduled
+  recovery with synthetic accounts. Live archive rollout, retention and a
+  complete restore/import remain open.
+
 - Published and independently verified the private Linux OCI images in the
   confirmed Cloudflare registry. The smaller image stores each model payload
   once (893,888,000-byte image archive); preparation is ready. The tested startup

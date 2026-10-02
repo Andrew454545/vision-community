@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
-import { deleteAccount, cleanupAccountArtifacts, migrateAccountPrivacy } from "./accountPrivacy.js";
+import { deleteAccount, cleanupAccountArtifacts, migrateAccountPrivacy, archiveAccountDeletionReceipts } from "./accountPrivacy.js";
 import { PRIVACY_FENCE } from "./artifactWrites.js";
 
 const account = "a".repeat(32), other = "b".repeat(32);
@@ -61,6 +61,123 @@ async function fixture(t, legacy = false) {
   return { sql, env };
 }
 function row(sql, query) { return sql.prepare(query).get(); }
+
+function requiredArchive(env) {
+  Object.assign(env, { DELETION_ARCHIVE_REQUIRED: "1", DELETION_ARCHIVE_ENVIRONMENT: "staging",
+    INDEX_BUCKET_NAME: "vision-community-staging", DELETION_ARCHIVE_DB_ID: "17043cb7-5dab-4a6f-84ca-19ae1c14cc05" });
+  const values = new Map(), writes = [], controls = { failPut: false, failGet: false, corruptRead: false };
+  env.INDEX = {
+    async get(key) {
+      if (controls.failGet) throw Error("private R2 details");
+      if (!values.has(key)) return null;
+      const bytes = values.get(key);
+      return { size: bytes.byteLength,
+        body: new Blob([controls.corruptRead ? new Uint8Array(bytes).fill(0) : bytes]).stream() };
+    },
+    async put(key, bytes, options) {
+      if (controls.failPut) throw Error("private R2 credentials and path");
+      assert.deepEqual(options.onlyIf, { etagDoesNotMatch: "*" });
+      if (values.has(key)) return null;
+      values.set(key, new Uint8Array(bytes)); writes.push({ key, options });
+      return { key, size: bytes.byteLength };
+    },
+  };
+  return { values, writes, controls };
+}
+
+test("required deletion archive is read back privately before success and retries are immutable", async t => {
+  const { env, sql } = await fixture(t);
+  const { values, writes } = requiredArchive(env);
+  const result = await deleteAccount(env, account, request, 1234);
+  assert.equal(result.deleted, true);
+  assert.equal(writes.length, 1);
+  assert.match(writes[0].key, /^privacy\/account-deletions\/v1\/[a-f0-9]{64}\.json$/);
+  assert.ok(!writes[0].key.includes(account));
+  assert.deepEqual(Object.keys(writes[0].options.customMetadata).sort(), ["sha256", "visionDeletionReceipt"]);
+  const archived = JSON.parse(new TextDecoder().decode([...values.values()][0]));
+  assert.equal(archived.resource.bucket, "vision-community-staging");
+  assert.deepEqual(archived.receipt, { accountId: account, requestKey: request.idempotencyKey,
+    deletedAt: 1234, unitsForfeited: 250000 });
+  assert.equal(row(sql, "SELECT COUNT(*) AS n FROM account_deletion_archives").n, 1);
+  assert.deepEqual(await deleteAccount(env, null, request, 2345), result);
+  assert.equal(writes.length, 1);
+  assert.equal(row(sql, "SELECT COUNT(*) AS n FROM ledger WHERE reason='account_deleted'").n, 1);
+});
+
+test("archive outage preserves revocation and recovers with the exact lost-response request", async t => {
+  const { env, sql } = await fixture(t);
+  const { controls, writes } = requiredArchive(env);
+  controls.failPut = true;
+  await assert.rejects(deleteAccount(env, account, request, 1234), failure => failure.message === "deletion_archive_unavailable" && failure.status === 503);
+  assert.equal(row(sql, `SELECT units FROM accounts WHERE id='${account}'`).units, 0);
+  assert.equal(row(sql, `SELECT recovery_hash FROM accounts WHERE id='${account}'`).recovery_hash, null);
+  assert.equal(row(sql, "SELECT COUNT(*) AS n FROM account_deletion_archives").n, 0);
+  controls.failPut = false;
+  await assert.rejects(deleteAccount(env, null, { ...request, idempotencyKey: "f".repeat(64) }), failure => failure.status === 401);
+  assert.equal(writes.length, 0);
+  assert.equal((await deleteAccount(env, null, request)).deleted, true);
+  assert.equal(writes.length, 1);
+  assert.equal(row(sql, "SELECT COUNT(*) AS n FROM ledger WHERE reason='account_deleted'").n, 1);
+});
+
+test("damaged archive readback cannot be acknowledged, marked or overwritten", async t => {
+  const { env, sql } = await fixture(t);
+  const { controls, writes } = requiredArchive(env);
+  controls.corruptRead = true;
+  await assert.rejects(deleteAccount(env, account, request), failure => failure.status === 503);
+  assert.equal(row(sql, "SELECT COUNT(*) AS n FROM account_deletion_archives").n, 0);
+  await assert.rejects(deleteAccount(env, null, request), failure => failure.status === 503);
+  assert.equal(writes.length, 1);
+  controls.corruptRead = false;
+  assert.equal((await deleteAccount(env, null, request)).deleted, true);
+  assert.equal(writes.length, 1);
+});
+
+test("required wrong bucket, database or profile refuses deletion before credentials change", async t => {
+  for (const changed of [{ INDEX_BUCKET_NAME: "geonections-images" },
+    { DELETION_ARCHIVE_DB_ID: "different-database" }, { DELETION_ARCHIVE_ENVIRONMENT: "toString" }]) {
+    const { env, sql } = await fixture(t);
+    const { writes } = requiredArchive(env);
+    Object.assign(env, changed);
+    await assert.rejects(deleteAccount(env, account, request), failure => failure.status === 503);
+    assert.equal(row(sql, `SELECT token_hash FROM accounts WHERE id='${account}'`).token_hash, "old-token");
+    assert.equal(row(sql, "SELECT COUNT(*) AS n FROM account_deletion_receipts").n, 0);
+    assert.equal(writes.length, 0);
+  }
+});
+
+test("scheduled outbox resumes archived deletions after an outage without new account requests", async t => {
+  const { env, sql } = await fixture(t);
+  const { controls, writes } = requiredArchive(env);
+  controls.failPut = true;
+  await assert.rejects(deleteAccount(env, account, request), failure => failure.status === 503);
+  assert.deepEqual(await archiveAccountDeletionReceipts(env), { enabled: true, archived: 0 });
+  controls.failPut = false;
+  assert.deepEqual(await archiveAccountDeletionReceipts(env), { enabled: true, archived: 1 });
+  assert.deepEqual(await archiveAccountDeletionReceipts(env), { enabled: true, archived: 0 });
+  assert.equal(writes.length, 1);
+  assert.equal(row(sql, "SELECT COUNT(*) AS n FROM account_deletion_archives").n, 1);
+});
+
+test("a failed archive acknowledgement resumes from the immutable R2 copy without overwriting it", async t => {
+  const { env, sql } = await fixture(t);
+  const { writes } = requiredArchive(env);
+  const prepare = env.DB.prepare.bind(env.DB);
+  let failed = false;
+  env.DB.prepare = query => {
+    if (query.startsWith("INSERT OR IGNORE INTO account_deletion_archives") && !failed) {
+      failed = true;
+      return { bind: () => ({ run: async () => { throw Error("private D1 failure details"); } }) };
+    }
+    return prepare(query);
+  };
+  await assert.rejects(deleteAccount(env, account, request), failure => failure.status === 503);
+  assert.equal(writes.length, 1);
+  assert.equal(row(sql, "SELECT COUNT(*) AS n FROM account_deletion_archives").n, 0);
+  assert.equal((await deleteAccount(env, null, request)).deleted, true);
+  assert.equal(writes.length, 1);
+  assert.equal(row(sql, "SELECT COUNT(*) AS n FROM account_deletion_archives").n, 1);
+});
 test("deletion revokes credentials, removes private results, forfeits credits and releases only unpublished work", async t => {
   const { sql, env } = await fixture(t);
   const result = await deleteAccount(env, account, request, 1234);
