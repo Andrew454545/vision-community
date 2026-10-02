@@ -26,7 +26,10 @@ test("private SQL preserves historical ledger, retained index, NUL/blob values a
   const sql = new DatabaseSync(join(out, "roundtrip.sqlite"));
   try {
     assert.equal(sql.prepare("SELECT units FROM accounts WHERE id=?").get(retainedId).units, 40);
-    assert.equal(sql.prepare("SELECT query FROM searches").get().query, privateQuery);
+    // Node22's TEXT reader truncates at NUL. Compare SQLite bytes independently
+    // of that driver behavior rather than accepting a truncated restored value.
+    assert.equal(sql.prepare("SELECT hex(CAST(query AS BLOB)) bytes FROM searches").get().bytes,
+      Buffer.from(privateQuery).toString("hex").toUpperCase());
     assert.deepEqual(Buffer.from(sql.prepare("SELECT result_json FROM searches").get().result_json), Buffer.from([0, 255, 39]));
     assert.equal(sql.prepare("SELECT CAST(seq AS TEXT) value FROM sqlite_sequence WHERE name='locations'").get().value, "9007199254740993");
     assert.equal(sql.prepare("SELECT COUNT(*) n FROM published_index").get().n, 1);
