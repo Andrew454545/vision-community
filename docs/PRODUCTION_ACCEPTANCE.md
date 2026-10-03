@@ -34,7 +34,7 @@ The previous chronological development log remains in
 | Actual staging search | Independently sealed snapshot of only those eight contributions passed native search, filters and exact response recovery after restart. Hosted API charged once; exact/account-recovery retry did not charge again; conflicting/unfunded requests were rejected. | [Admission](STAGING_SCENE_ADMISSION_20261003.md) |
 | Hosted native operation | Real private Linux FP32 inference and restart, bounded eight-location audits, frozen capture/replay, lifecycle failure recovery and stopped compute with seal retained. Public/preview URLs, SSH and Container logs disabled. | [Startup](HOSTED_SCENE_CHECK_20261003.md), [budgets](HOSTED_SCENE_BUDGET_20261003.md) |
 | Objects on Windows | All three pinned models processed six views; full one-location index and both native verifications passed. Eighteen frozen 1/2/4-thread detector commands agree within the sample. App-local compiler libraries were observed and checked. | [Objects](PC_OBJECT_CALIBRATION_20261002.md) |
-| Portable object build | Private Windows/Linux CPU builds pass 49 native tests. All 11 model assets, source, binary and dependency receipts were checked. A new finite clean-Linux actual model/index check is running; no inference result is claimed yet. | [Objects](PC_OBJECT_CALIBRATION_20261002.md) |
+| Objects on Linux | Fresh Ubuntu CPU build passes 49 native tests. All 11 pinned assets, actual RF-DETR/YOLOE/OWLv2 six-view processing, identical within-run repeats, complete one-location index and full native verification pass. | [Linux evidence](LINUX_OBJECT_INFERENCE_20261003.md) |
 | Banked accounting | Transactional publication/credit and search/result/debit; concurrency, replay and rollback tests. Actual hosted search used a separate disposable synthetic 100,000-unit balance; the eight real earned units stayed unchanged. Synthetic account deleted. | [Admission](STAGING_SCENE_ADMISSION_20261003.md) |
 | Privacy and recovery | Anonymous recovery/deletion, revoked credentials, late scene-write fences, immutable R2 deletion receipts, real staging deletion-aware D1 restore. Offline published-index/catalog integrity checker rejects missing, corrupt or linked files. | [Privacy](ACCOUNT_PRIVACY.md), [restore](PRIVATE_RESTORE.md) |
 | Beginner flow | Short README/website guide, guided Windows starter, qualification/service checks, saved-code recovery, pause/resume and private diagnostics. Website assets/privacy headers verified in staging. | [Service readiness](WEBSITE_SERVICE_READINESS.md) |
@@ -43,8 +43,8 @@ The previous chronological development log remains in
 Latest completed Community code checks: 386 Python, 192 JavaScript, 37 actual
 workerd private-host cases and 15 private HTTP/preparation checks. Community
 CI passes at `a4b2630`; the code change also passed all five jobs at `b356398`.
-Actual Windows CI ran all 386 Python tests without skips. New private Linux
-inference checks must be evaluated separately from earlier successful builds.
+Actual Windows CI ran all 386 Python tests without skips. Private Linux inference
+and all three private CI jobs pass at `3214c92`; see the separate inference receipt.
 
 The admission/search experiment ended with eight published staging locations,
 eight spendable earned units, the disposable account deleted and compute stopped.
@@ -78,8 +78,10 @@ shipping newer offline helpers requires new runtime and policy pins.
 
 ### Portable Objects and coverage
 
-- [ ] Complete actual clean-Linux inference/indexing and clean-device runtime
-  dependency checks; publish checksum-pinned Windows/Linux assets.
+- [x] Complete actual clean-Linux inference/indexing with pinned assets and
+  bounded shared threads; preserve the failed guard job and passing receipt.
+- [ ] Complete clean-device runtime dependency checks and publish checksum-pinned
+  Windows/Linux object assets.
 - [ ] Compare full RF-DETR, YOLOE and OWLv2 production paths with Andrew's
   reference on broader identical inputs. The small development pilot and
   detector thread study do not approve production inference or parallelism.

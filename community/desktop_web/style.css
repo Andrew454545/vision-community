@@ -22,5 +22,8 @@ label,summary,a{font-size:17px}
 input{min-height:48px;font-size:18px}
 output{font-size:18px;line-height:1.6}
 code{font-size:15px}
+#batch-progress label{color:#fff;font-size:17px;margin-top:18px}
+#batch-progress progress{display:block;width:100%;height:18px;margin-top:8px;accent-color:#a9d6ba}
+#connection-error{background:#fbe8d5;color:#572e08;padding:14px;margin-top:16px;border-radius:9px}
 a{text-decoration:underline;text-underline-offset:3px}
 @media(max-width:780px){.steps{grid-template-columns:1fr}.card{padding:24px}.card.current{padding:22px}}

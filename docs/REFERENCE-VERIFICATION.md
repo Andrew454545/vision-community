@@ -1,5 +1,14 @@
 # Scene contribution verification
 
+For new-location native auditing, use the [private native host](../deploy/cloudflare/native-container-host/README.md).
+It independently recomputes submissions under a pinned runtime and measured
+operator policy. The finite [staging experiment](STAGING_SCENE_ADMISSION_20261003.md)
+passed; production admission remains closed. Engineering policy decisions are
+delegated and do not require a separate Andrew sign-off.
+
+The instructions below describe the older, **preapproved-locations-only** gate.
+It remains useful for a small reviewed pool; it does not replace native auditing.
+
 Public scene contributions are blocked until an operator installs a trusted
 reference policy. The previous path checked layout and a contributor-supplied
 checksum and then published and credited that output. Those checks detect
@@ -28,7 +37,7 @@ calibration reference as an automatic production acceptance policy.
 1. Freeze the input imagery and pose, model files, preprocessing, precision and
    runtime identity for reference validation. Compare per-view vectors and
    representative retrieval rankings to Andrew's gold standard. Establish and
-   record an acceptance policy with Andrew; a good average can hide failed views.
+   record an acceptance policy from the reference evidence; a good average can hide failed views.
 2. Independently review each allowed output under that policy. Record the
    policy identifier and SHA-256 of each accepted 3,080-byte location record.
 3. Store the manifest below privately, outside contributor-writable storage.
@@ -89,7 +98,7 @@ work and handle lease rejection without starting image processing.
 ## Remaining release gates
 
 General new-location indexing needs a trusted audit/verification service and
-an Andrew-approved tolerance policy tied to frozen reference provenance. It
+a measured tolerance policy tied to frozen reference provenance. It
 also needs abuse/rate limits and atomic concurrency checks, failure recovery,
 backup/restore exercises and operational monitoring. The object lane still
 validates the index contract, not independent object-model correctness; this

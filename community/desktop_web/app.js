@@ -39,7 +39,18 @@ function render(state) {
   }
   byId("completed").textContent = state.completed.toLocaleString();
   byId("units").textContent = state.units.toLocaleString();
-  byId("elapsed").textContent = Math.floor(state.elapsedSeconds / 60) + " min";
+  byId("elapsed").textContent = state.busy ? Math.floor(state.elapsedSeconds / 60) + " min" : "—";
+  const hasProgress = state.busy && ["indexing", "checking"].includes(state.phase)
+    && Number.isSafeInteger(state.batchTotal) && state.batchTotal > 0
+    && Number.isSafeInteger(state.batchCompleted) && state.batchCompleted >= 0 && state.batchCompleted <= state.batchTotal;
+  byId("batch-progress").hidden = !hasProgress;
+  if (hasProgress) {
+    byId("progress").max = state.batchTotal;
+    byId("progress").value = state.batchCompleted;
+    byId("progress-label").textContent = `${state.phase === "checking" ? "PC check" : "Current batch"}: ${state.batchCompleted.toLocaleString()} of ${state.batchTotal.toLocaleString()} locations processed.`;
+  }
+  byId("pending").hidden = !(state.pending > 0);
+  byId("pending").textContent = state.pending > 0 ? `${state.pending.toLocaleString()} saved ${state.pending === 1 ? "batch is" : "batches are"} waiting for delivery or a service check. Credits appear after acceptance.${state.busy ? "" : " Choose Start helping to resume."}` : "";
   byId("folder").textContent = state.folder;
   byId("undelivered").hidden = !(state.undelivered > 0);
   byId("undelivered").textContent = state.undelivered > 0 ? `${state.undelivered.toLocaleString()} saved batches could not be delivered because their assignment ended. They earned no credits. Their files are kept; VISION can continue with new work.` : "";
@@ -64,8 +75,15 @@ async function action(path, body={}) {
 }
 async function poll() {
   if (closed) return;
-  try { render(await request("/api/status")); }
-  catch (error) { showError(token ? "VISION is not responding. Reopen Start VISION if its starter window has closed." : "Open this page using Start VISION."); }
+  try {
+    render(await request("/api/status"));
+    byId("connection-error").hidden = true;
+    byId("connection-error").textContent = "";
+  }
+  catch (error) {
+    byId("connection-error").textContent = token ? "Reconnecting to VISION… If the starter window closed, reopen Start VISION." : "Open this page using Start VISION.";
+    byId("connection-error").hidden = false;
+  }
 }
 byId("prepare").onclick = () => action("/api/prepare");
 byId("go-next").onclick = () => {
