@@ -10,6 +10,20 @@ import { syntheticR2 } from "./syntheticR2.mjs";
 
 const leaseId = "d".repeat(32);
 
+test('staging policy identities cannot authorize production or a mixed bucket', async () => {
+  let calls = 0;
+  const env = { SCENE_VERIFIER: { fetch() { calls++; } }, SCENE_POLICY_ID: 'staging.measured-candidate',
+    DEPLOYMENT_ENVIRONMENT: 'staging', INDEX_BUCKET_NAME: 'vision-community-staging' };
+  assert.equal(verifierConfigured(env), true);
+  for (const change of [{ DEPLOYMENT_ENVIRONMENT: 'production' }, { DEPLOYMENT_ENVIRONMENT: undefined },
+    { INDEX_BUCKET_NAME: 'vision-community' }, { INDEX_BUCKET_NAME: undefined }]) {
+    const blocked = { ...env, ...change };
+    assert.equal(verifierConfigured(blocked), false);
+    await assert.rejects(qualifyDevice(blocked, 'anonymous', {}, () => true), /scene_verification_unavailable/);
+  }
+  assert.equal(calls, 0);
+});
+
 test('native audit capacity is bounded independently of user processing pace', () => {
   const env = { SCENE_VERIFIER: { fetch() {} }, SCENE_POLICY_ID: 'synthetic-test-only' };
   assert.equal(auditBatchLimit(env), 8);

@@ -20,6 +20,16 @@ measurements into automatic production approval.
 
 ## Completed in this pass
 
+- The isolated staging scene experiment now has verified helper/runtime pins,
+  a fresh 112-location PC qualification and actual verifier-only seal restoration
+  after a Container restart. The new eight-location submission was rejected by
+  native recomputation; no locations or credits were published. Staging's public
+  contribution gate was closed again. Reserved staging policy IDs cannot open
+  production or a mixed bucket, verified in five actual workerd configurations.
+  Private optional measurement evidence defaults off and cannot change approval
+  bounds. Contribution acceptance, banked credit and paid-search deployment
+  remain open. See [the staging admission report](STAGING_SCENE_ADMISSION_20261003.md).
+
 - Built private Windows and Linux CPU object candidates from the reference's
   object-sidecar. Each passes 48 native tests and actual layout startup. Both
   downloaded archives, binaries, observed dependencies and 14 source files were

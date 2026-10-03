@@ -242,6 +242,30 @@ test("valid activation persists only after streamed digest/native checks; retry 
   assert.equal(control.uploads, 1);
 });
 
+test("operator can replace an unreadable prior seal without hydrating it first", async () => {
+  const { host, control, pending } = fixture();
+  const previous = { ...bundle, sha256: '4'.repeat(64), key: `native-host/bundles/${'4'.repeat(64)}.zip` };
+  control.values.set('activeBundle', previous);
+  // The fixture's bucket serves only the new candidate; reading the prior key
+  // would fail. An image/helper upgrade must still permit explicit replacement.
+  assert.equal((await host.activate(bundle)).status, 200);
+  assert.equal(control.uploads, 1);
+  assert.deepEqual(control.values.get('activeBundle'), bundle);
+  await Promise.all(pending);
+});
+
+test("failed replacement preserves an unreadable prior pointer and stops candidate compute", async () => {
+  const { host, ctx, control, pending } = fixture();
+  const previous = { ...bundle, sha256: '4'.repeat(64), key: `native-host/bundles/${'4'.repeat(64)}.zip` };
+  control.values.set('activeBundle', previous);
+  control.corrupt = true;
+  assert.equal((await host.activate(bundle)).status, 503);
+  assert.deepEqual(control.values.get('activeBundle'), previous);
+  assert.equal(ctx.container.running, false);
+  assert.equal(control.values.get('lastControlFailure').stage, 'operator_activation_failed');
+  await Promise.all(pending);
+});
+
 test("missing, resized or tampered operator objects preserve the durable pointer", async () => {
   for (const name of ["missing", "badSize", "corrupt"]) {
     const { host, control } = fixture();
