@@ -7,7 +7,6 @@ import json
 import os
 from pathlib import Path
 import secrets
-import subprocess
 import sys
 import threading
 import time
@@ -20,7 +19,7 @@ if str(REPO) not in sys.path:
 
 from community.bootstrap import BootstrapError, install_runtime, load_manifest, runtime_platform
 from community.contribute import CommunityClient, ContributeError, DEFAULT_URL
-from community.vision_index import index_from_queue, parse_json_stdout, require_layout, VisionIndexError
+from community.vision_index import default_runner, index_from_queue, parse_json_stdout, require_layout, VisionIndexError
 from community.pc_canary import run_canary, canary_profile_matches
 from community.submission_outbox import SubmissionOutbox, MAX_PENDING_SUBMISSIONS
 
@@ -234,11 +233,10 @@ class DesktopApp:
         install_runtime(load_manifest(), self.root / "runtime", lane="scene",
                         progress=lambda n, total: self.update(message=f"Checking and downloading file {n} of {total}. Please keep this window open."))
         binary = self.root / "runtime/bin/mma-vision.exe"
-        checked = subprocess.run([str(binary), "index-layout"], capture_output=True, text=True, timeout=60,
-                                 creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
-        if checked.returncode:
+        code, stdout, _ = default_runner([str(binary), "index-layout"], os.environ.copy(), self.root)
+        if code:
             raise VisionIndexError("vision_binary_failed")
-        require_layout(parse_json_stdout(checked.stdout))
+        require_layout(parse_json_stdout(stdout))
         self.update(ready=True, phase="ready", message="Setup complete. Go to step 2 to create an account or use your saved code.")
 
     def capabilities(self, client):

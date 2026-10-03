@@ -54,7 +54,8 @@ def runtime_profile(binary: Path, model_dir: Path, *, inference_threads=1):
     profile = {"version": 1, "platform": sys.platform, "assets": assets,
                "settings": settings,
                "threads": {key: str(inference_threads) for key in THREAD_ENVIRONMENT_KEYS},
-               "pipeline": {name: sha(Path(__file__).with_name(name)) for name in ("vision_index.py", "four_view.py")}}
+               "pipeline": {name: sha(Path(__file__).with_name(name))
+                            for name in ("vision_index.py", "four_view.py", "process_owner.py")}}
     return {"sha256": fingerprint(profile), "profile": profile}
 
 
