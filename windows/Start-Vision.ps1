@@ -41,7 +41,7 @@ function Get-VisionSourceFiles([string]$Source) {
         'indexed_local', 'local_search', 'measure', 'mma', 'mma_cloud', 'object_index',
         'pano', 'parts', 'pc_canary', 'prompt', 'rank', 'scene_pipeline', 'scene_quality', 'search',
         'seal_index', 'segments', 'send_mma', 'server', 'service', 'source', 'store', 'submission_outbox',
-        'verify', 'vision_handoff', 'vision_index', 'worker')
+        'verify', 'vision_handoff', 'vision_index', 'process_owner', 'worker')
     $relative = @($modules | ForEach-Object { 'community/{0}.py' -f $_ })
     $relative += @('community/runtime_manifest.json', 'community/country-names.txt',
         'community/desktop_web/index.html', 'community/desktop_web/style.css', 'community/desktop_web/app.js',
@@ -50,7 +50,7 @@ function Get-VisionSourceFiles([string]$Source) {
         'generation-evidence.json', 'historical-reference.i8', 'local-vision-observation.json',
         'record-hashes.json') | ForEach-Object { "calibration/gen4-v1/$_" }
     Assert-VisionRegularPath $Source
-    $required = @('community/desktop.py', 'community/bootstrap.py', 'community/vision_index.py',
+    $required = @('community/desktop.py', 'community/bootstrap.py', 'community/vision_index.py', 'community/process_owner.py',
         'community/runtime_manifest.json', 'community/desktop_web/index.html', 'community/submission_outbox.py',
         'calibration/run_windows.py', 'calibration/quality.py', 'calibration/gen4-v1/checksums.json')
     foreach ($name in $relative | Sort-Object -Unique) {

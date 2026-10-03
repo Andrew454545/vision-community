@@ -11,6 +11,19 @@ from community import pc_canary as canary
 
 
 class CanaryTests(unittest.TestCase):
+    def test_process_owner_change_invalidates_the_admitted_runtime_profile(self):
+        helper_hash = ["a" * 64]
+        def source_hash(path):
+            return helper_hash[0] if Path(path).name == "process_owner.py" else "b" * 64
+        with patch.object(canary, "sha", side_effect=source_hash):
+            before = canary.runtime_profile(Path("binary"), Path("models"))
+            helper_hash[0] = "c" * 64
+            after = canary.runtime_profile(Path("binary"), Path("models"))
+        self.assertEqual(before["profile"]["assets"], after["profile"]["assets"])
+        self.assertEqual(before["profile"]["pipeline"]["process_owner.py"], "a" * 64)
+        self.assertEqual(after["profile"]["pipeline"]["process_owner.py"], "c" * 64)
+        self.assertNotEqual(before["sha256"], after["sha256"])
+
     def test_reference_subset_is_bound_to_sealed_full_fixture(self):
         blob, identity = canary.canary_reference()
         self.assertEqual(len(blob), 112 * 3080)

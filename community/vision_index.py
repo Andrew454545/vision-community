@@ -48,6 +48,7 @@ from .four_view import (
 )
 from .mma import RESULT_PRUNE_METERS, SCENE_MODEL_NAME, build_map, dump_map, search_location_extra
 from .pano import CLI_LEASE_CAP
+from .process_owner import run_owned
 from .prompt import snap_description_weight
 from .rank import cap_by_country, clamp_max_per_country, clamp_result_count, canonicalize_country, exclude_used
 
@@ -458,19 +459,26 @@ def default_runner(argv: list[str], env: dict, cwd: Path):
     stderr_path = stem.with_suffix(".stderr.log")
     timeout = 60 if "index-layout" in argv else INDEX_TIMEOUT_SECONDS
     started = time.monotonic()
-    outcome = {"status": "STARTED", "timeoutSeconds": timeout}
+    outcome = {"status": "STARTED", "timeoutSeconds": timeout,
+               "processOwnership": "windows-job" if os.name == "nt" else "parent-pipe-session"}
+    # Leave an unfinished receipt if the parent is forcibly terminated and
+    # cannot execute its finally block. Every invocation keeps its own files.
+    write_json(stem.with_suffix(".exit.json"), outcome)
     launch_options = {}
     if sys.platform == "win32":
         # Scheduling priority does not alter the calibrated model, batch shape
         # or inference thread environment. Native helpers need no console window.
         launch_options["creationflags"] = subprocess.BELOW_NORMAL_PRIORITY_CLASS | subprocess.CREATE_NO_WINDOW
+    def owned(pid):
+        outcome["supervisorPid"] = pid
+        write_json(stem.with_suffix(".exit.json"), outcome)
     try:
         with stdout_path.open("wb") as stdout, stderr_path.open("wb") as stderr:
-            completed = subprocess.run(argv, env=env, cwd=str(cwd), stdout=stdout,
-                                       stderr=stderr, check=False, timeout=timeout, **launch_options)
+            completed = run_owned(argv, env=env, cwd=cwd, stdout=stdout,
+                                  stderr=stderr, timeout=timeout, on_owned=owned, **launch_options)
         outcome.update(status="EXITED", exitCode=completed.returncode)
     except subprocess.TimeoutExpired as error:
-        # subprocess.run kills and waits for the direct native process first.
+        # The owned wrapper and all its native descendants have stopped first.
         outcome["status"] = "TIMEOUT"
         raise VisionIndexError("vision_binary_timeout") from error
     except OSError as error:

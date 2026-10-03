@@ -102,6 +102,10 @@ shipping newer offline helpers requires new runtime and policy pins.
 
 ### Days or weeks of unattended processing
 
+- [x] Bound native descendants to their caller and preserve unfinished receipts.
+  Real Windows child/grandchild fixtures and an actual half-finished native
+  index recover without overlapping writers. The installed windowless Python
+  path also passes; see [recovery evidence](NATIVE_PROCESS_RECOVERY_20261003.md).
 - [ ] Exercise real daytime/nighttime boundaries, overnight work, scheduled
   pause/resume and settings changes during a batch, using the PC's local clock.
 - [ ] Observe idle-sleep requests/release and actual sleep/wake plus Windows

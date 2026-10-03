@@ -270,7 +270,7 @@ class VisionIndexCommandTest(unittest.TestCase):
             with patch("community.vision_index.sys.platform", "win32"), \
                     patch("community.vision_index.subprocess.BELOW_NORMAL_PRIORITY_CLASS", 0x4000, create=True), \
                     patch("community.vision_index.subprocess.CREATE_NO_WINDOW", 0x08000000, create=True), \
-                    patch("community.vision_index.subprocess.run", return_value=completed) as process:
+                    patch("community.vision_index.run_owned", return_value=completed) as process:
                 default_runner(["mma-vision.exe", "index-layout"], environment, root)
             self.assertEqual(process.call_args.kwargs["creationflags"], 0x08004000)
             self.assertIs(process.call_args.kwargs["env"], environment)
@@ -281,7 +281,7 @@ class VisionIndexCommandTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             completed = subprocess.CompletedProcess(["mma-vision", "index-layout"], 0)
             with patch("community.vision_index.sys.platform", "linux"), \
-                    patch("community.vision_index.subprocess.run", return_value=completed) as process:
+                    patch("community.vision_index.run_owned", return_value=completed) as process:
                 default_runner(["mma-vision", "index-layout"], {}, Path(folder))
             self.assertNotIn("creationflags", process.call_args.kwargs)
 

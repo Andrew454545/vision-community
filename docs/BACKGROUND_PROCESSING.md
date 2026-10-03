@@ -227,5 +227,19 @@ schedule and resumed waiting with zero accepted locations. All 233 Python
 checks and 37 server/browser checks passed. Simulated clocks test schedule
 boundaries and restart-persistent cooldown; real overnight and active-batch
 recovery remain unverified.
+
+The 3 October source update also owns every scene/object native command. On
+Windows a private Job Object stops its descendants when the caller exits;
+Linux/macOS use a parent pipe and separate process session. Native work starts
+only after ownership is established. Abrupt-exit and timeout fixtures verify
+that children stop, the private-folder lock becomes available, and checkpoints
+and unfinished invocation receipts remain intact. These are bounded process
+recovery checks, not an accepted production batch, OS restart or endurance test.
+The helper is part of the PC profile; regenerate runtime/policy pins and rerun
+qualification before deploying it to an admitted service. Existing immutable
+preview downloads and hosted images are unchanged by source updates.
+An actual Windows native checkpoint interruption and recovery also passed,
+including the installed hidden Python launcher; see the
+[bounded recovery evidence](NATIVE_PROCESS_RECOVERY_20261003.md).
 Keep the installed folder in place; source checkout updates do not replace its
 versioned application snapshot. No repeated Codex status checks are needed.
