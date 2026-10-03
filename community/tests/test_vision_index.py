@@ -1,7 +1,9 @@
 import base64
 import hashlib
 import json
+import math
 import os
+import struct
 import subprocess
 import sys
 import tempfile
@@ -22,6 +24,7 @@ from community.tests.test_scene_quality import reference_policy
 from community.vision_index import (
     VisionIndexError,
     default_runner,
+    format_tsv_number,
     finish_scene_coordinates,
     four_view_input,
     index_is_complete,
@@ -120,6 +123,24 @@ class FourViewRecordTest(unittest.TestCase):
         self.assertEqual(parts[4], "257.38")
         self.assertEqual(parts[7], "ClPNSqYQCEm2Mow-ZQD6PA")
         self.assertEqual(parts[10], "no road name")
+
+    def test_native_pose_values_round_trip_without_losing_binary64_bits(self):
+        values = [39.411918644637325, -34.857567632173556, 1.2345678901234567,
+                  math.nextafter(180.0, 0.0), math.nextafter(1.0, 2.0),
+                  math.nextafter(0.0, 1.0), 1e-7, 0.0, -0.0]
+        for value in values:
+            with self.subTest(value=value):
+                self.assertEqual(struct.pack("<d", float(format_tsv_number(value))), struct.pack("<d", value))
+                item = {"locationId": 12, "lat": value, "lng": value, "heading": value,
+                        "pitch": value, "zoom": value, "panoId": "synthetic-pose"}
+                fields = location_tsv_line(item).split("\t")
+                for field in fields[2:7]:
+                    self.assertEqual(struct.pack("<d", float(field)), struct.pack("<d", value))
+        self.assertEqual(location_tsv_line({"locationId": 12, "lat": 1, "lng": 2,
+            "heading": None, "pitch": None, "zoom": None, "panoId": "synthetic-pose"}).split("\t")[4:7], ["0", "0", "0"])
+        for value in [math.nan, math.inf, -math.inf]:
+            with self.assertRaisesRegex(VisionIndexError, "invalid_location"):
+                format_tsv_number(value)
 
 
 class VisionIndexCommandTest(unittest.TestCase):

@@ -50,6 +50,7 @@ function fixture() {
           return Response.json(health());
         }
         control.forwarded = init.body;
+        if (control.searchFailure && path === "/search") return Response.json(control.searchFailure, { status: 503 });
         if (control.hold) await control.hold;
         return Response.json({ accepted: true }, { status: control.rejection ? 422 : 200 });
       } };
@@ -95,6 +96,29 @@ test("durable idle alarm stops monitored compute and preserves the sealed pointe
   assert.equal(control.values.has("idleDeadline"), false);
   assert.equal((await reopened.health()).status, 200);
   assert.equal(control.uploads, 2);
+});
+
+test("private search failures retain only allowlisted codes, stop compute and never replay inference", async () => {
+  for (const value of [{ error: "native_search_runtime_update_required" },
+    { error: "private prompt and credential" }, { error: "native_search_failed", prompt: "sensitive query" },
+    { error: "x".repeat(513) }]) {
+    const { host, ctx, control, pending } = fixture();
+    assert.equal((await host.activate(bundle)).status, 200);
+    control.searchReady = true;control.searchFailure = value;
+    const response = await host.service("/search", new TextEncoder().encode('{}'));
+    assert.equal(response.status, 503);assert.deepEqual(await response.json(), { error: "native_host_unavailable" });
+    assert.equal(ctx.container.running, false);assert.deepEqual(control.values.get("activeBundle"), bundle);
+    assert.equal(control.calls.filter(p => p === "/search").length, 1);
+    const saved = control.values.get("lastSearchFailure");
+    if (value.error === "native_search_runtime_update_required") {
+      assert.deepEqual(Object.keys(saved).sort(), ["at", "code"]);assert.equal(saved.code, value.error);
+    } else assert.equal(saved, undefined);
+    assert.equal(JSON.stringify(await (await host.status()).json()).includes("sensitive query"), false);
+    assert.equal(JSON.stringify(await (await host.status()).json()).includes("credential"), false);
+    control.searchFailure = null;
+    assert.equal((await host.service("/search", new TextEncoder().encode('{}'))).status, 200);
+    assert.equal(control.uploads, 2);await Promise.all(pending);
+  }
 });
 
 test("an old alarm honors renewed activity rather than stopping a recently used container", async () => {
