@@ -118,8 +118,10 @@ measurements into automatic production approval.
   API endpoint and returned 405 after upload; the documented script-download
   endpoint verified the complete source checksum. This is a code rollout, not
   evidence of hosted inference. The Cloudflare plugin works, but the laptop's
-  private service-binding connection returns an authorization error; its fresh
-  sign-in attempt timed out. No diagnostic trigger is left running.
+  private service-binding connection returns an authorization error. The saved
+  CLI sign-in grants account read and Containers write but lacks Workers write;
+  the fresh request for those permissions timed out. No diagnostic trigger is
+  left running.
   One-time checks require a short absolute UTC execution window and a create-only
   marker; expired or duplicate deliveries cannot restart compute. A failed final
   shutdown or incomplete model receipt cannot be reported as a passing check.
