@@ -587,8 +587,11 @@ selection. Inventories must match the complete confirmed resource pair; new
 manifests retain that identity and updates reject history from another
 environment. Legacy snapshots remain production only. Synthetic staging checks
 retain independent scene approval, object feature audits and official Gen4
-requirements. No live snapshot or policy has been activated by this change;
-updated hosted helpers require new runtime/policy pins before deployment.
+requirements. A separate finite staging experiment now activates and restores
+an eight-contribution snapshot and measured staging policy; see the
+[admission evidence](STAGING_SCENE_ADMISSION_20261003.md). That hosted image uses
+its independently pinned older engine helpers. Deploying the newer offline
+helpers still requires new runtime/policy pins; production remains closed.
 
 The offline storage restore checker now verifies all published modern scene
 records and object bundles plus the queue catalogs against a pinned,
