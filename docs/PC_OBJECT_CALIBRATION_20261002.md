@@ -58,5 +58,8 @@ closure, and loading DirectML.dll does not establish GPU inference.
 No accounts, accepted contributions or search credits were created by these
 checks. Raw images, indexes, diagnostic outputs and build receipts remain private.
 Production still needs frozen production-path/reference object comparisons,
-broader locations, clean Windows/Linux inference, trusted historical Gen4
+broader locations, clean-device dependency checks, trusted historical Gen4
 coverage and trusted inference audits. No production object gate was opened.
+
+The separate [Linux inference check](LINUX_OBJECT_INFERENCE_20261003.md) now
+passes real six-view model repetitions, complete indexing and full verification.

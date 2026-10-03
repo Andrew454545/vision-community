@@ -315,6 +315,7 @@ class DesktopApp:
         self.capabilities(self.client)
         self.qualification = None
         self.update(qualified=False, phase="checking", started=time.monotonic(),
+                    batchCompleted=0, batchTotal=112,
                     message="Checking 112 locations on this PC. Please keep this window open.")
         folder = self.root / "checks" / (time.strftime("%Y%m%d-%H%M%S") + "-" + secrets.token_hex(4))
         self.canary_report = self.canary(folder, **self.assets, progress_callback=self.progress)
@@ -347,7 +348,8 @@ class DesktopApp:
     def process(self):
         self.require_qualification()
         self.capabilities(self.client)
-        self.update(phase="indexing", message="Processing locations on this PC. Results wait for a service check before joining the search pool.", started=time.monotonic())
+        self.update(phase="indexing", message="Processing locations on this PC. Results wait for a service check before joining the search pool.",
+                    batchCompleted=0, batchTotal=0, started=time.monotonic())
         while not self.stop.is_set():
             if time.monotonic() - self.last_seen > 60:
                 break
