@@ -50,7 +50,13 @@ def terminated(pid):
             api.CloseHandle(handle)
     # A reparented Linux zombie cannot execute or update saved work.
     status = Path(f"/proc/{pid}/stat")
-    if status.exists() and status.read_text().rsplit(")", 1)[1].strip().startswith("Z"):
+    try:
+        state = status.read_text()
+    except FileNotFoundError:
+        # The child can disappear between enumeration and the procfs read.
+        # Verify with kill(0) below rather than treating that race as a failure.
+        state = ""
+    if state.rpartition(")")[2].strip().startswith("Z"):
         return True
     try:
         os.kill(pid, 0)
