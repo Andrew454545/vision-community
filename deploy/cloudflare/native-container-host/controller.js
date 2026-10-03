@@ -4,6 +4,8 @@ import { MODEL_CHECK, checkedModelReceipt } from "./model-check.js";
 import { checkedBootReceipt } from "./bootstrap.js";
 import { LAUNCH_CHECK, checkedLaunchReceipt, stderrClass } from "./launch-check.js";
 import { MAIN_CHECK, checkedMainReceipt, checkedMainFailureReceipt } from "./main-check.js";
+import { AUDIT_BUDGET_CHECK, checkedAuditBudgetReceipt } from "./audit-budget-check.js";
+import { REPEATABILITY_CHECK, checkedRepeatabilityReceipt, checkedRepeatabilityFailure } from "./repeatability-check.js";
 
 export const MAX_BUNDLE = 384 * 1024 * 1024;
 const HEX = /^[0-9a-f]{64}$/;
@@ -77,6 +79,8 @@ export class NativeController {
     this.wait = options.wait ?? ((milliseconds) => scheduler.wait(milliseconds));
     this.fixedStream = options.fixedStream ?? ((bytes) => new FixedLengthStream(bytes));
     this.modelCheckTimeoutMs = options.modelCheckTimeoutMs ?? 110000;
+    this.auditBudgetCheckTimeoutMs = options.auditBudgetCheckTimeoutMs ?? 65000;
+    this.repeatabilityCheckTimeoutMs = options.repeatabilityCheckTimeoutMs ?? 310000;
     this.startupBudgetMs = options.startupBudgetMs ?? 60000;
     this.launchCheckTimeoutMs = options.launchCheckTimeoutMs ?? 45000;
     this.now = options.now ?? Date.now;
@@ -313,6 +317,7 @@ export class NativeController {
       lastContainerExit: await this.ctx.storage.get("lastContainerExit") ?? null,
       lastBootFailure: await this.ctx.storage.get("lastBootFailure") ?? null,
       lastLaunchFailure: await this.ctx.storage.get("lastLaunchFailure") ?? null,
+      lastRepeatabilityFailure: await this.ctx.storage.get("lastRepeatabilityFailure") ?? null,
       productionQualified: false }, { headers: jsonHeaders }));
   }
 
@@ -416,33 +421,52 @@ export class NativeController {
     });
   }
 
-  modelCheck() {
+  auditBudgetCheck() { return this.modelCheck("audit"); }
+  repeatabilityCheck() { return this.modelCheck("repeatability"); }
+
+  modelCheck(kind = "model") {
     return this.exclusive(async () => {
+      // Diagnostics may never stop, hydrate or compete with sealed work.
+      if (await this.active()) return failure("sealed_bundle_already_active", 409);
       if (this.env.NATIVE_IMAGERY_EGRESS !== "live-imagery") return failure("model_check_egress_disabled");
-      await this.ensure(await this.active());
+      const diagnostic = kind === "audit" ? { program: AUDIT_BUDGET_CHECK, validate: checkedAuditBudgetReceipt,
+        seconds: "60", deadline: this.auditBudgetCheckTimeoutMs, failed: "native_audit_budget_check_failed" }
+        : kind === "repeatability" ? { program: REPEATABILITY_CHECK, validate: checkedRepeatabilityReceipt,
+          seconds: "300", deadline: this.repeatabilityCheckTimeoutMs, failed: "native_repeatability_check_failed" }
+          : { program: MODEL_CHECK, validate: checkedModelReceipt,
+            seconds: "100", deadline: this.modelCheckTimeoutMs, failed: "native_model_check_failed" };
+      const { program, validate, seconds, deadline, failed } = diagnostic;
       let timer;
       try {
+        await this.ensure(null);
         // timeout kills the entire native process group, including children.
         // A separate controller deadline destroys the container on uncertainty.
         const completion = (async () => {
-          const process = await this.ctx.container.exec(["timeout", "--kill-after=5", "100",
-            "/usr/local/bin/python", "-B", "-c", MODEL_CHECK]);
+          const process = await this.ctx.container.exec(["timeout", "--kill-after=5", seconds,
+            "/usr/local/bin/python", "-B", "-c", program]);
           const [stdout, stderr, exitCode] = await Promise.all([
             bounded(process.stdout, 4096), bounded(process.stderr, 4096), process.exitCode]);
-          if (exitCode !== 0 || stderr.byteLength) throw Error("native_model_check_failed");
-          return checkedModelReceipt(JSON.parse(new TextDecoder().decode(stdout)), this.env.NATIVE_RUNTIME_SHA256);
+          if (kind === "repeatability" && exitCode !== 0 && !stderr.byteLength) {
+            const diagnostic = checkedRepeatabilityFailure(JSON.parse(new TextDecoder().decode(stdout)));
+            await this.ctx.storage.put("lastRepeatabilityFailure", { ...diagnostic, at: Date.now() });
+          }
+          if (exitCode !== 0 || stderr.byteLength) throw Error(failed);
+          return validate(JSON.parse(new TextDecoder().decode(stdout)), this.env.NATIVE_RUNTIME_SHA256);
         })();
         this.ctx.waitUntil(completion.catch(() => {}));
         const receipt = await Promise.race([completion, new Promise((_, reject) => {
-          timer = setTimeout(() => reject(Error("native_model_check_timeout")), this.modelCheckTimeoutMs);
+          timer = setTimeout(() => reject(Error(failed)), deadline);
         })]);
         return Response.json(receipt, { headers: jsonHeaders });
       } catch {
+        await this.recordFailure(failed);
+        return failure(failed);
+      } finally {
+        clearTimeout(timer);
         this.hydratedDigest = undefined;
-        await this.recordFailure("native_model_check_failed");
+        // Always stop diagnostic compute, including successful and failed boot.
         await this.ctx.container.destroy();
-        return failure("native_model_check_failed");
-      } finally { clearTimeout(timer); }
+      }
     });
   }
 
