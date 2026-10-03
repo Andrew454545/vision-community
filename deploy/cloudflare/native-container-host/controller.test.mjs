@@ -36,6 +36,11 @@ function fixture() {
         calls.push(path);
         assert.equal(init.redirect, "manual");
         assert.equal(init.headers.authorization, "Bearer " + (path === "/operator/bundle" ? "b" : "a").repeat(64));
+        if (control.transportPath === path) throw Error("synthetic-secret transport failure at /private/path");
+        if (control.invalidResponsePath === path) return new Response("private-invalid-response", { headers: { "content-type": "text/plain" } });
+        if (control.timeoutPath === path) await new Promise((_, reject) => {
+          init.signal.addEventListener("abort", () => reject(Error("synthetic timeout credential")), { once: true });
+        });
         if (path === "/health") return Response.json(health());
         if (path === "/operator/bundle") {
           const bytes = new Uint8Array(await new Response(init.body).arrayBuffer());
@@ -323,6 +328,59 @@ test("private service preserves bytes and distinct native rejection status", asy
   control.rejection = true;
   assert.equal((await host.service("/audit", bytes)).status, 422);
   assert.deepEqual(control.forwarded, bytes);
+});
+
+test("failed native health or transport stops uncertain compute and the next request restores the same seal", async () => {
+  for (const [field, path, stage] of [
+    ["transportPath", "/health", "native_transport_unavailable"],
+    ["transportPath", "/audit", "native_transport_unavailable"],
+    ["invalidResponsePath", "/audit", "native_response_unavailable"],
+  ]) {
+    const { host, ctx, control } = fixture();
+    await host.activate(bundle);
+    control[field] = path;
+    assert.equal((await host.service("/audit", new TextEncoder().encode("{}"))).status, 503);
+    assert.equal(ctx.container.running, false);
+    assert.equal(host.hydratedDigest, undefined);
+    assert.equal(host.busy, false);
+    assert.deepEqual(control.values.get("activeBundle"), bundle);
+    assert.equal(control.values.get("lastControlFailure").stage, stage);
+    assert.equal(JSON.stringify(control.values.get("lastControlFailure")).includes("private"), false);
+    assert.equal(control.starts.length, 1); // No implicit retry of uncertain inference.
+    const callsBeforeRecovery = control.calls.filter((p) => p === "/audit").length;
+    assert.equal(callsBeforeRecovery, path === "/health" ? 0 : 1);
+    control[field] = null;
+    assert.equal((await host.service("/audit", new TextEncoder().encode("{}"))).status, 200);
+    assert.equal(control.starts.length, 2);
+    assert.equal(control.uploads, 2);
+    assert.equal(control.calls.filter((p) => p === "/audit").length, callsBeforeRecovery + 1);
+  }
+});
+
+test("native request deadlines stop compute without replaying the expired inference", async () => {
+  const { host, ctx, control } = fixture();
+  await host.activate(bundle);
+  control.timeoutPath = "/audit";
+  const call = host.call.bind(host);
+  host.call = (path, options) => call(path, { ...options, timeout: 5 });
+  assert.equal((await host.service("/audit", new TextEncoder().encode("{}"))).status, 503);
+  assert.equal(control.values.get("lastControlFailure").stage, "native_request_timeout");
+  assert.equal(ctx.container.running, false);
+  assert.deepEqual(control.values.get("activeBundle"), bundle);
+  assert.equal(control.calls.filter((p) => p === "/audit").length, 1);
+});
+
+test("a failed recovery shutdown retains the seal and cannot acknowledge a successful service result", async () => {
+  const { host, ctx, control } = fixture();
+  await host.activate(bundle);
+  control.transportPath = "/audit";
+  ctx.container.destroy = async () => { throw Error("synthetic private stop failure"); };
+  assert.equal((await host.service("/audit", new TextEncoder().encode("{}"))).status, 503);
+  assert.equal(control.values.get("lastControlFailure").stage, "native_recovery_stop_failed");
+  assert.equal(host.hydratedDigest, undefined);
+  assert.equal(host.busy, false);
+  assert.deepEqual(control.values.get("activeBundle"), bundle);
+  assert.equal(control.starts.length, 1);
 });
 
 test("shared request slot refuses concurrent search, activation and restart", async () => {
