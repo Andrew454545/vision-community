@@ -16,7 +16,8 @@ const CONTROL_FAILURES = new Set(["native_configuration_unavailable", "native_ru
   "native_startup_unavailable", "native_image_changed", "container_boot_failed", "container_exited_during_startup",
   "native_response_unavailable", "native_response_limit", "native_response_length",
   "operator_bundle_missing_or_changed", "operator_bundle_size_changed", "operator_bundle_changed",
-  "operator_activation_unavailable"]);
+  "operator_activation_unavailable", "native_transport_unavailable", "native_request_timeout",
+  "native_inactivity_timeout_unavailable", "native_recovery_stop_failed"]);
 const safeStage = (error) => CONTROL_FAILURES.has(error?.message) ? error.message : "native_control_failed";
 const jsonHeaders = { "content-type": "application/json", "cache-control": "no-store" };
 export const failure = (code = "native_host_unavailable", status = 503) => Response.json({ error: code }, { status, headers: jsonHeaders });
@@ -170,6 +171,10 @@ export class NativeController {
           ...(body === undefined ? {} : { "content-type": "application/json" }) }, body,
       });
       return { status: response.status, bytes: await responseBytes(response, maximum, statuses) };
+    } catch (error) {
+      // Retain only a fixed classification, never transport exception text.
+      if (CONTROL_FAILURES.has(error?.message)) throw error;
+      throw Error(abort.signal.aborted ? "native_request_timeout" : "native_transport_unavailable");
     } finally { clearTimeout(timer); }
   }
 
@@ -295,7 +300,8 @@ export class NativeController {
       if (active) await this.upload(active);
       this.hydratedDigest = digest;
     }
-    await container.setInactivityTimeout(IDLE_MS);
+    try { await container.setInactivityTimeout(IDLE_MS); }
+    catch { throw Error("native_inactivity_timeout_unavailable"); }
     return this.checkedHealth();
   }
 
@@ -483,11 +489,21 @@ export class NativeController {
     return this.exclusive(async () => {
       const active = await this.active();
       if (!active) return failure("native_service_unavailable");
-      const health = await this.ensure(active);
-      if (!(search ? health.searchReady : health.auditReady)) return failure("native_service_unavailable");
-      const response = await this.call(path, { body: bytes, maximum: search ? SEARCH_RESPONSE : 65536,
-        timeout: search ? 115000 : 55000, statuses: search ? [200] : [200, 422] });
-      return new Response(response.bytes, { status: response.status, headers: jsonHeaders });
+      try {
+        const health = await this.ensure(active);
+        if (!(search ? health.searchReady : health.auditReady)) return failure("native_service_unavailable");
+        const response = await this.call(path, { body: bytes, maximum: search ? SEARCH_RESPONSE : 65536,
+          timeout: search ? 115000 : 55000, statuses: search ? [200] : [200, 422] });
+        return new Response(response.bytes, { status: response.status, headers: jsonHeaders });
+      } catch (error) {
+        // Do not retry an uncertain inference request in the same call. Stop
+        // its compute and recover the unchanged durable seal on the next call.
+        // A failed connection must not leave cached readiness stuck forever.
+        this.hydratedDigest = undefined;
+        try { await this.ctx.container.destroy(); }
+        catch { throw Error("native_recovery_stop_failed"); }
+        throw error;
+      }
     });
   }
 }
