@@ -43,8 +43,14 @@ measurements into automatic production approval.
   the one-location sample. The actual Community command then indexed a location
   at one thread/25% duty in 817.953 seconds and passed both native verifications.
   CPU runs now checkpoint after each location before resuming. The dependency
-  inventory exposed four compiler DLLs requiring app-local packaging; its new
-  private build is being checked. See [the object report](PC_OBJECT_CALIBRATION_20261002.md).
+  inventory exposed four compiler DLLs requiring app-local packaging. The new
+  private Windows/Linux builds pass 49 native tests and their archives, source,
+  binaries and build helper were independently verified. Actual Windows model
+  processing loaded all four compiler DLLs and DirectML.dll from the package
+  folder with matching checksums; all six frozen-view output values and rankings
+  still match the earlier Windows candidate exactly. No global installation was
+  needed. Clean-device and reference admission remain open. See
+  [the object report](PC_OBJECT_CALIBRATION_20261002.md).
   These measurements remain exploratory; no production object gate was opened.
 
 - Unified hosted object assignment, resumed leases, publication/download authority
@@ -102,7 +108,9 @@ measurements into automatic production approval.
   main program with the existing credential bindings, retains only fixed error
   codes, verifies HTTP authentication and stops its process group. Local real
   subprocess tests, 175 JavaScript checks and actual workerd route/scheduling
-  checks pass. Its hosted result is still required; scheduling is not execution.
+  checks pass. Its later finite scheduled window produced no start marker or
+  result; the trigger was removed and read back empty. This establishes no
+  server execution. Its hosted result is still required; scheduling is not execution.
   One-time checks require a short absolute UTC execution window and a create-only
   marker; expired or duplicate deliveries cannot restart compute. A failed final
   shutdown or incomplete model receipt cannot be reported as a passing check.
