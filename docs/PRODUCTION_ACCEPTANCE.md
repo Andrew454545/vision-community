@@ -88,40 +88,30 @@ measurements into automatic production approval.
 
 - Published and independently verified the private Linux OCI images in the
   confirmed Cloudflare registry. The smaller image stores each model payload
-  once (893,888,000-byte image archive); preparation is ready. The tested startup
-  correction is deployed privately. Three one-time checks failed before model
-  processing; the later two record container exit code 1, and the third exited
-  before the authenticated bootstrap diagnostic became available. All reports
-  are preserved and triggers removed. This does not yet identify a Python fault.
-  A bounded offline launch probe is tested separately and refuses sealed work.
-  The later private hosted check passed Python3.12.15/runtime/model identity,
-  actual loopback HTTP and separate service/operator authentication, using
-  generated disposable credentials and no Internet. Normal startup then exited
-  with code 1 before model processing. Its report is preserved, compute stopped
-  and triggers removed. The earlier HTTP-only schedule had no start marker or
-  receipt and establishes no execution. The controller now uses the immutable
-  image's direct server command; a separate hosted retry is still required.
-  These checks grant no production admission or hosted model/restart claim.
-  A later direct-server check actually executed, passed isolated HTTP/authentication,
-  then exited with code 1 at normal startup. Its report is retained and its cron
-  removed. A separate bounded private diagnostic now executes the image's exact
-  main program with the existing credential bindings, retains only fixed error
-  codes, verifies HTTP authentication and stops its process group. Local real
-  subprocess tests, 175 JavaScript checks and actual workerd route/scheduling
-  checks pass. Its later finite scheduled window produced no start marker or
-  result; the trigger was removed and read back empty. This establishes no
-  server execution. Its hosted result is still required; scheduling is not execution.
-  The shutdown-race correction passes 11 real subprocess/launch tests and all
-  five GitHub jobs at `3ef06f3`. Its exact Worker bundle was deployed privately
-  and independently read back on 2026-10-03; existing bindings, image, namespace
-  and disabled public URLs were preserved. The initial readback used the wrong
-  API endpoint and returned 405 after upload; the documented script-download
-  endpoint verified the complete source checksum. This is a code rollout, not
-  evidence of hosted inference. The Cloudflare plugin works, but the laptop's
-  private service-binding connection returns an authorization error. The saved
-  CLI sign-in grants account read and Containers write but lacks Workers write;
-  the fresh request for those permissions timed out. No diagnostic trigger is
-  left running.
+  once (893,888,000-byte base image archive). Earlier startup failures and
+  scheduled checks with no execution marker are preserved as failures or
+  nonexecution, respectively; their triggers were removed.
+  On 2026-10-03 the user completed the scoped Cloudflare sign-in. Actual private
+  service-binding calls now work. Version readback found that a code-only
+  upload had omitted the Container image map despite retaining environment
+  bindings. A full Wrangler deployment restored the existing namespace and
+  explicitly named its Container attachment.
+  The fixed main-program diagnostic located a hostname-encoding failure in
+  HTTP listener construction. The private server now binds without reverse DNS,
+  verified with a real authenticated listener and a failing hostname resolver.
+  A verified server-only image overlay reuses every base model/runtime layer.
+  The immutable image's exact main program passed hosted authentication and
+  runtime checks. Two actual one-location, four-view FP32 CPU runs, separated
+  by a Container restart, passed with zero fetch/inference errors and the same
+  result hash. Compute was stopped afterward. This establishes hosted startup,
+  scene inference and unsealed restart; sealed-bundle recovery, contribution
+  acceptance, policy activation and paid search remain open. See
+  [the hosted check report](HOSTED_SCENE_CHECK_20261003.md).
+  Local validation passed 19 real diagnostic/launch tests, 176 JavaScript tests,
+  27 actual workerd private-host checks and 14 private server/preparation tests.
+  The existing namespace, credentials and staging bucket were preserved;
+  public URLs, SSH and container logs remain disabled. No diagnostic trigger
+  is left running, and no production gate or contribution was approved.
   One-time checks require a short absolute UTC execution window and a create-only
   marker; expired or duplicate deliveries cannot restart compute. A failed final
   shutdown or incomplete model receipt cannot be reported as a passing check.

@@ -5,7 +5,7 @@ import { NativeController, authorized, descriptor, requestBytes } from "./contro
 import { MODEL_CHECK } from "./model-check.js";
 import { checkedBootReceipt } from "./bootstrap.js";
 import { LAUNCH_CHECK, checkedLaunchReceipt, stderrClass } from "./launch-check.js";
-import { MAIN_CHECK, checkedMainReceipt } from "./main-check.js";
+import { MAIN_CHECK, checkedMainReceipt, checkedMainFailureReceipt } from "./main-check.js";
 
 const sha = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const image = `registry.cloudflare.com/272760294910ef0b246980278aeb36e2/vision-community-native-scene@sha256:${"2".repeat(64)}`;
@@ -372,12 +372,25 @@ test("exact server diagnostic keeps credentials private, validates main receipt 
 test("main diagnostic preserves a fixed startup classification without exposing environment", async () => {
   const { host, ctx, control, pending } = fixture();
   ctx.container.exec = async () => ({ stdout: stream(JSON.stringify({ status: "native_boot_unavailable",
-    phase: "main_program", code: "native_module_missing", errno: null })), stderr: stream(""), exitCode: Promise.resolve(1) });
+    phase: "main_program", code: "native_module_missing", errno: null,
+    childExitCode: 1, stdoutBytes: 0, stderrBytes: 80, serverLine: 321 })), stderr: stream(""), exitCode: Promise.resolve(1) });
   assert.equal((await host.mainCheck()).status, 503);
   assert.equal(control.values.get("lastBootFailure").code, "native_module_missing");
+  assert.equal(control.values.get("lastBootFailure").childExitCode, 1);
+  assert.equal(control.values.get("lastBootFailure").stderrBytes, 80);
   assert.equal(ctx.container.running, false);
   assert.ok(!JSON.stringify([...control.values]).includes("a".repeat(64)));
   await Promise.all(pending);
+});
+
+test("main failure measurements reject raw details and invalid numeric bounds", () => {
+  const receipt = { status: "native_boot_unavailable", phase: "main_program", code: "native_main_program_failed",
+    errno: null, childExitCode: -9, stdoutBytes: 0, stderrBytes: 8192, serverLine: 321 };
+  assert.deepEqual(checkedMainFailureReceipt(receipt), { childExitCode: -9, stdoutBytes: 0, stderrBytes: 8192, serverLine: 321 });
+  for (const patch of [{ childExitCode: -256 }, { childExitCode: "1" }, { stdoutBytes: 8193 },
+    { stderrBytes: -1 }, { serverLine: "private-path" }, { serverLine: 10000 }, { stderr: "private-token /sensitive/path" }]) {
+    assert.throws(() => checkedMainFailureReceipt({ ...receipt, ...patch }), /native_boot_diagnostic_invalid/);
+  }
 });
 
 test("isolated launch checks pinned Python and private HTTP without inherited secrets or imagery and always stops compute", async () => {
