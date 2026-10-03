@@ -188,6 +188,43 @@ contribution objects, reconcile unrelated activity after a backup, verify provid
 retention or satisfy complete production disaster recovery. Raw backups, receipt
 keys, SQL and credentials remain private and are not included in Git.
 
+## Checking downloaded storage before reopening
+
+An offline storage checker verifies a completed, checksum-pinned privacy repair
+against a downloaded private cache. It changes no database, bucket or credits.
+From the repository folder, using its private Python runtime:
+
+```text
+python -m community.storage_restore --repaired-dir .private-restore --report-sha256 TRUSTED_RESTORE_REPORT_SHA256 --artifact-cache .private-storage-cache --out .private-storage-check
+```
+
+Add `--environment staging` for the confirmed staging database and bucket.
+The report and database pins must match that complete resource pair. Store
+downloads in a private cache: scene files use `SHA256(R2_KEY).i8`, catalog files
+use `SHA256(R2_KEY).tsv`, and object bundles use a `SHA256(R2_PREFIX)` directory
+with their original manifest, TSV and binary filenames. These hashes are of the
+UTF-8 key labels, not the file contents. The tool does not download files.
+
+Every published database row must name a retained contributor and matching
+location/publication digests. Scene files must contain exactly the published
+records, including duplicate-record counts. Object bundles retain structural,
+pose and trusted official Gen4 receipt checks. Every queue catalog is checked
+against its recorded size and checksum. Missing, corrupt, changed or linked
+inputs stop the check; failed attempts preserve a redacted report. The inputs
+and each downloaded file are checked again before the completion report is
+written. Existing output directories cannot be overwritten.
+
+The successful report says `liveReady: false`, `inferenceApproved: false` and
+`creditRecoveryVerified: false`. It verifies the local downloaded copy, not a
+completed R2 upload or inference approval. It does not cover privacy markers,
+deletion archives, hosted sealed bundles, retired legacy segments, orphan
+objects or account/credit activity after the backup. Unsupported legacy
+publication records are a failure to investigate; never omit them to obtain a
+passing result. The original repair and SQL checks remain required. Keep the
+private input database and checksum receipts out of Git. Limits are 512 MiB per
+database, 128 MiB per catalog, 100,000 publications, 200,000 checked files and
+16 GiB total checked bytes. Larger restores need a reviewed approach.
+
 ## Remaining recovery requirements
 
 Preserve permanent R2 privacy markers and scene write intents across restore.

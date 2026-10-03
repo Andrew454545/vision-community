@@ -569,6 +569,20 @@ retain independent scene approval, object feature audits and official Gen4
 requirements. No live snapshot or policy has been activated by this change;
 updated hosted helpers require new runtime/policy pins before deployment.
 
+The offline storage restore checker now verifies all published modern scene
+records and object bundles plus the queue catalogs against a pinned,
+privacy-repaired database copy. It preserves contribution/Gen4 requirements,
+checks both location and publication digests, rejects missing or extra scene
+records, refuses linked inputs and rechecks every file before sealing its
+report. Twenty-two synthetic fault tests pass (one Windows symlink-permission
+skip). The complete Windows suite passed 381 tests before the final interruption
+case, which passes in the targeted suite. The actual offline repair/check CLI
+handoff verified three synthetic publications and 90 downloaded files; a missing
+download failed with preserved evidence and an unchanged database. No bucket was
+read or changed by this checker. Live storage restoration, deletion markers, post-backup credits and
+complete disaster recovery remain open. See the
+[operator restore guide](PRIVATE_RESTORE.md#checking-downloaded-storage-before-reopening).
+
 ### Long-running Windows processing
 
 The background worker is intended to remain available over days or weeks,
