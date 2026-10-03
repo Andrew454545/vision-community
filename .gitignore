@@ -19,6 +19,8 @@ account-deletions.private.json
 *.private.sql
 .private-restore/
 .private-d1-import/
+.private-storage-cache/
+.private-storage-check/
 community/tests/__pycache__/
 
 # Machine-local development tools and diagnostics are not application data.
