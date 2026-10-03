@@ -37,7 +37,7 @@ ThreadingHTTPServer(('127.0.0.1', PORT), Handler).serve_forever()
 '''
 
 class NativeMainCheckTests(unittest.TestCase):
-    def run_program(self, script, timeout=20, exited_during_signal=False):
+    def run_program(self, script, timeout=20, exited_during_signal=False, measurements=False):
         with socket.socket() as reserve:
             reserve.bind(('127.0.0.1', 0)); port = reserve.getsockname()[1]
         with tempfile.TemporaryDirectory() as directory:
@@ -74,6 +74,12 @@ class NativeMainCheckTests(unittest.TestCase):
                 probe.settimeout(0.2)
                 self.assertNotEqual(probe.connect_ex(('127.0.0.1', port)), 0)
             self.assertNotIn(str(root), output.getvalue())
+            if result['status'] == 'native_boot_unavailable':
+                self.assertEqual(set(result), {'status', 'phase', 'code', 'errno', 'childExitCode', 'stdoutBytes', 'stderrBytes', 'serverLine'})
+                for key in ('stdoutBytes', 'stderrBytes'):
+                    self.assertTrue(0 <= result[key] <= 8192)
+                if not measurements:
+                    result = {key: result[key] for key in ('status', 'phase', 'code', 'errno')}
             return result
 
     def test_exact_program_subprocess_checks_http_authentication_and_stops(self):
@@ -97,6 +103,65 @@ class NativeMainCheckTests(unittest.TestCase):
     def test_deadline_stops_a_server_that_never_listens(self):
         result = self.run_program('import time; time.sleep(120)', timeout=0.2)
         self.assertEqual(result['code'], 'native_main_program_failed')
+
+    def test_child_exception_classes_and_errno_hide_private_details(self):
+        cases = [('NameError', 'native_main_name_error', None),
+                 ('UnboundLocalError', 'native_main_name_error', None),
+                 ('TypeError', 'native_main_type_error', None),
+                 ('AttributeError', 'native_main_attribute_error', None),
+                 ('PermissionError', 'native_main_permission_error', 13),
+                 ('FileNotFoundError', 'native_main_file_missing', 2),
+                 ('OSError', 'native_main_os_error', 98),
+                 ('RuntimeError', 'native_main_runtime_error', None)]
+        for kind, code, number in cases:
+            with self.subTest(kind=kind):
+                args = repr('private-token /sensitive/path')
+                if number is not None:
+                    args = str(number) + ', ' + args
+                result = self.run_program('raise ' + kind + '(' + args + ')')
+                self.assertEqual(result, {'status': 'native_boot_unavailable', 'phase': 'main_program',
+                                         'code': code, 'errno': number})
+                self.assertNotIn('private-token', json.dumps(result))
+                self.assertNotIn('/sensitive', json.dumps(result))
+
+    def test_child_errno_outside_receipt_range_is_discarded(self):
+        result = self.run_program("raise OSError(9999, 'private-token /sensitive/path')")
+        self.assertEqual(result['code'], 'native_main_os_error')
+        self.assertIsNone(result['errno'])
+
+    def test_socket_resolution_error_discards_private_text(self):
+        result = self.run_program("import socket; raise socket.gaierror(-3, 'private-token /sensitive/path')")
+        self.assertEqual(result, {'status': 'native_boot_unavailable', 'phase': 'main_program',
+                                 'code': 'native_main_dns_error', 'errno': None})
+
+    def test_silent_child_exit_has_bounded_numeric_evidence(self):
+        result = self.run_program('import sys; sys.exit(7)', measurements=True)
+        self.assertEqual(result['childExitCode'], 7)
+        self.assertEqual((result['stdoutBytes'], result['stderrBytes']), (0, 0))
+
+    def test_large_private_child_output_stops_at_receipt_limit(self):
+        result = self.run_program("print('private-token' * 10000, flush=True)", measurements=True)
+        self.assertLessEqual(result['stdoutBytes'], 8192)
+        self.assertNotIn('private-token', json.dumps(result))
+
+    def test_pinned_native_exception_uses_only_an_allowlisted_code(self):
+        for message, expected in [('invalid_native_runtime', 'invalid_native_runtime'),
+                                  ('private-token /sensitive/path', 'native_main_program_failed')]:
+            script = "class NativeSearchError(ValueError): pass\nNativeSearchError.__module__ = 'community.native_scene_search'\nraise NativeSearchError(" + repr(message) + ')'
+            result = self.run_program(script)
+            self.assertEqual(result['code'], expected)
+            self.assertNotIn('private-token', json.dumps(result))
+
+    def test_only_immutable_server_frame_is_retained_as_a_number(self):
+        script = "import sys; print('  File \"/opt/vision/server.py\", line 321, in main', file=sys.stderr); print('  File \"/private-token/sensitive.py\", line 987, in private', file=sys.stderr); sys.exit(1)"
+        result = self.run_program(script, measurements=True)
+        self.assertEqual(result['serverLine'], 321)
+        self.assertNotIn('private-token', json.dumps(result))
+
+    def test_hostname_encoding_fault_is_classified_without_private_text(self):
+        result = self.run_program("raise UnicodeError('private-token /sensitive/path')")
+        self.assertEqual(result['code'], 'native_main_hostname_encoding_error')
+        self.assertNotIn('private-token', json.dumps(result))
 
     def test_incorrect_runtime_identity_is_rejected_and_server_is_stopped(self):
         result = self.run_program(SERVER.replace("'a'*64", "'b'*64"))

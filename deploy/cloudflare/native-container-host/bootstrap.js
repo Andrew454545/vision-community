@@ -76,7 +76,9 @@ const CODES = new Set(["native_boot_failed", "invalid_native_runtime", "incomple
   "adapter_changed", "engine_source_changed", "invalid_runtime_file_pin", "runtime_size_limit", "runtime_file_changed",
   "unpinned_runtime_directory", "unpinned_runtime_file", "invalid_native_countries", "private_host_secret_required",
   "separate_operator_secret_required", "linked_engine_path", "invalid_engine_path", "native_http_self_check_failed",
-  "native_main_program_failed", "native_module_missing"]);
+  "native_main_program_failed", "native_module_missing", "native_main_name_error", "native_main_type_error",
+  "native_main_attribute_error", "native_main_permission_error", "native_main_file_missing", "native_main_os_error",
+  "native_main_runtime_error", "native_main_dns_error", "native_main_hostname_encoding_error"]);
 
 export function checkedBootReceipt(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)

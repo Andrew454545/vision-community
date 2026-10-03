@@ -102,13 +102,38 @@ except Exception as error:
     for reader in locals().get('readers', []):
         reader.join(timeout=1)
     code = str(error) if str(error) in allowed | {'native_http_self_check_failed', 'native_main_program_failed'} else 'native_boot_failed'
+    if isinstance(error, UnicodeError):
+        code = 'native_main_hostname_encoding_error'
+    number = getattr(error, 'errno', None)
+    number = number if type(number) is int and 0 <= number <= 4095 else None
     text = bytes(buffers['stderr']).decode('utf-8', errors='replace')
+    classes = {'NameError': 'native_main_name_error', 'UnboundLocalError': 'native_main_name_error',
+        'TypeError': 'native_main_type_error', 'AttributeError': 'native_main_attribute_error',
+        'PermissionError': 'native_main_permission_error', 'FileNotFoundError': 'native_main_file_missing',
+        'OSError': 'native_main_os_error', 'RuntimeError': 'native_main_runtime_error',
+        'socket.gaierror': 'native_main_dns_error', 'socket.herror': 'native_main_dns_error',
+        'UnicodeError': 'native_main_hostname_encoding_error', 'UnicodeEncodeError': 'native_main_hostname_encoding_error',
+        'UnicodeDecodeError': 'native_main_hostname_encoding_error'}
     for line in text.splitlines():
+        line = re.sub(r'\x1b\[[0-9;]*m', '', line).strip()
         if line.startswith('ModuleNotFoundError:') or line.startswith('ImportError:'):
             code = 'native_module_missing'
-        elif line.startswith('ValueError: ') and line[12:] in allowed:
-            code = line[12:]
-    result = {'status': 'native_boot_unavailable', 'phase': phase, 'code': code, 'errno': None}
+        elif line.partition(': ')[0] in {'ValueError', 'NativeSearchError', 'SnapshotError',
+                'community.native_scene_search.NativeSearchError', 'community.search_snapshot.SnapshotError'} and line.partition(': ')[2] in allowed:
+            code = line.partition(': ')[2]
+        else:
+            kind = line.partition(':')[0]
+            if kind in classes:
+                code = classes[kind]
+                match = re.match(r'^[A-Za-z]+: \[Errno ([0-9]{1,4})\]', line)
+                if match and 0 <= int(match[1]) <= 4095:
+                    number = int(match[1])
+    child_code = child.poll() if child is not None else None
+    frames = re.findall(r'File "/opt/vision/server.py", line ([0-9]{1,4}),', text)
+    result = {'status': 'native_boot_unavailable', 'phase': phase, 'code': code, 'errno': number,
+        'childExitCode': child_code if type(child_code) is int and -255 <= child_code <= 255 else None,
+        'stdoutBytes': len(buffers['stdout']), 'stderrBytes': len(buffers['stderr']),
+        'serverLine': int(frames[-1]) if frames and 1 <= int(frames[-1]) <= 9999 else None}
 finally:
     stop()
     for reader in locals().get('readers', []):
@@ -126,4 +151,15 @@ export function checkedMainReceipt(value, runtimeSha256) {
       || ["httpServerChecked", "mainProgramChecked", "modelFilesValidated", "operatorAuthChecked", "serviceAuthChecked"].some(k => value[k] !== true)
       || value.productionQualified !== false) throw Error("native_main_check_failed");
   return value;
+}
+
+export function checkedMainFailureReceipt(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)
+      || Object.keys(value).sort().join(",") !== "childExitCode,code,errno,phase,serverLine,status,stderrBytes,stdoutBytes"
+      || !(value.childExitCode === null || Number.isInteger(value.childExitCode) && value.childExitCode >= -255 && value.childExitCode <= 255)
+      || !(value.serverLine === null || Number.isInteger(value.serverLine) && value.serverLine >= 1 && value.serverLine <= 9999)
+      || ["stdoutBytes", "stderrBytes"].some(k => !Number.isInteger(value[k]) || value[k] < 0 || value[k] > 8192)) {
+    throw Error("native_boot_diagnostic_invalid");
+  }
+  return { childExitCode: value.childExitCode, stdoutBytes: value.stdoutBytes, stderrBytes: value.stderrBytes, serverLine: value.serverLine };
 }

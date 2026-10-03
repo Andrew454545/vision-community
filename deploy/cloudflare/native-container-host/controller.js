@@ -3,7 +3,7 @@ import { bounded, MAX_REQUEST as SEARCH_REQUEST, MAX_RESPONSE as SEARCH_RESPONSE
 import { MODEL_CHECK, checkedModelReceipt } from "./model-check.js";
 import { checkedBootReceipt } from "./bootstrap.js";
 import { LAUNCH_CHECK, checkedLaunchReceipt, stderrClass } from "./launch-check.js";
-import { MAIN_CHECK, checkedMainReceipt } from "./main-check.js";
+import { MAIN_CHECK, checkedMainReceipt, checkedMainFailureReceipt } from "./main-check.js";
 
 export const MAX_BUNDLE = 384 * 1024 * 1024;
 const HEX = /^[0-9a-f]{64}$/;
@@ -388,8 +388,10 @@ export class NativeController {
           try { parsed = JSON.parse(new TextDecoder().decode(stdout)); } catch { /* Retain only bounded classes. */ }
           if (!accepting) throw Error("native_launch_check_failed");
           if (parsed?.status === "native_boot_unavailable") {
-            const diagnostic = checkedBootReceipt(parsed);
-            await this.ctx.storage.put("lastBootFailure", { ...diagnostic, at: Date.now() });
+            const measurements = mainProgram ? checkedMainFailureReceipt(parsed) : {};
+            const { childExitCode, stdoutBytes, stderrBytes, serverLine, ...boot } = parsed;
+            const diagnostic = checkedBootReceipt(mainProgram ? boot : parsed);
+            await this.ctx.storage.put("lastBootFailure", { ...diagnostic, ...measurements, at: Date.now() });
             stage = "runtime_identity";
           }
           if (result !== 0 || stderr.byteLength) throw Error("native_launch_check_failed");
