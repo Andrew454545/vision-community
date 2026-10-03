@@ -65,8 +65,12 @@ def check_storage_restore(repaired_dir: Path, report_sha256: str, cache: Path,
     destination.mkdir(exist_ok=False, mode=0o700)  # Preserve completed and failed attempts.
     sql = None
     try:
-        root = plain_path(repaired_dir, directory=True)
-        cache = plain_path(cache, directory=True)
+        # Windows 8.3 aliases and full names refer to the same ordinary folder.
+        # Reject links/reparse points BEFORE canonicalizing, then use one name
+        # consistently for containment checks and opaque inventory labels.
+        destination = plain_path(destination, directory=True).resolve(strict=True)
+        root = plain_path(repaired_dir, directory=True).resolve(strict=True)
+        cache = plain_path(cache, directory=True).resolve(strict=True)
         if any(folder == destination or folder in destination.parents for folder in (root, cache)):
             raise StorageRestoreError("output_overlaps_input")
         resource = resource_for_environment(environment)

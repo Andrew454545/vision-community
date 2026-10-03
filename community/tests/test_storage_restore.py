@@ -129,6 +129,24 @@ class StorageRestoreTest(unittest.TestCase):
         self.seal_report()
         self.assert_failed("invalid_repaired_copy_report")
 
+    @unittest.skipUnless(sys.platform == "win32", "Windows short-path aliases")
+    def test_windows_short_folder_names_use_the_same_cache_identity(self):
+        import ctypes
+        kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel.GetShortPathNameW.argtypes = [ctypes.c_wchar_p, ctypes.c_wchar_p, ctypes.c_uint32]
+        kernel.GetShortPathNameW.restype = ctypes.c_uint32
+        def short(path):
+            buffer = ctypes.create_unicode_buffer(32768)
+            if not kernel.GetShortPathNameW(str(path), buffer, len(buffer)):
+                self.skipTest("Filesystem does not supply Windows short-path aliases")
+            return Path(buffer.value)
+        if short(self.root) == self.root:
+            self.skipTest("Filesystem has no distinct short-path alias for this folder")
+        result = check_storage_restore(short(self.repaired), self.report_pin, short(self.cache),
+                                       short(self.root) / "short-path-check", environment="staging")
+        self.assertTrue(result["complete"])
+        self.assertEqual(result["publishedLocations"], 3)
+
     def test_changed_database_pin_preserves_failure(self):
         with closing(sqlite3.connect(self.database)) as sql, sql:
             sql.execute("UPDATE locations SET label='private modified label' WHERE id=1")

@@ -574,9 +574,12 @@ records and object bundles plus the queue catalogs against a pinned,
 privacy-repaired database copy. It preserves contribution/Gen4 requirements,
 checks both location and publication digests, rejects missing or extra scene
 records, refuses linked inputs and rechecks every file before sealing its
-report. Twenty-two synthetic fault tests pass (one Windows symlink-permission
-skip). The complete Windows suite passed 381 tests before the final interruption
-case, which passes in the targeted suite. The actual offline repair/check CLI
+report. Twenty-three synthetic fault tests pass (one Windows symlink-permission
+skip), including a real Windows short-path alias. The complete local Windows
+suite passed 381 tests before the final interruption/alias cases, which pass in
+the targeted suite. GitHub Windows exposed the short/full-name mismatch; its
+failure is retained, and directories are now checked for links before being
+canonicalized for containment and cache labels. The actual offline repair/check CLI
 handoff verified three synthetic publications and 90 downloaded files; a missing
 download failed with preserved evidence and an unchanged database. No bucket was
 read or changed by this checker. Live storage restoration, deletion markers, post-backup credits and
