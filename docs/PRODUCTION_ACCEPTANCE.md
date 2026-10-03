@@ -40,10 +40,11 @@ The previous chronological development log remains in
 | Beginner flow | Short README/website guide, guided Windows starter, qualification/service checks, saved-code recovery, pause/resume and private diagnostics. Website assets/privacy headers verified in staging. | [Service readiness](WEBSITE_SERVICE_READINESS.md) |
 | Background worker | Native scheduled startup, idle handover and idle forced-exit/pause/resume verified. Installed schedule: medium 06:00–00:00, max 00:00–06:00 local; saved account, 30-minute service retry, sign-in/recovery triggers and one worker. | [Background processing](BACKGROUND_PROCESSING.md) |
 
-Latest completed Community code checks: 398 Python, 195 JavaScript, 37 actual
+Latest completed Community code checks: 415 Python, 195 JavaScript, 37 actual
 workerd private-host cases and 15 private HTTP/preparation checks. Community
-CI passes all five jobs at `665f05b`, including process ownership and recovery.
-Actual Windows CI ran all 398 Python tests without skips; Linux passed with 18
+CI passes all five jobs at `644bd18`, including native ownership and the offline
+financial restore guard. Actual Windows CI ran all 415 Python tests without
+skips; Linux passed with 18
 platform-specific skips. The source-only Windows preview retains its tested
 `4e53420` revision, with actual progress, pending-work and reconnect notices.
 Private Linux inference

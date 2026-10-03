@@ -175,6 +175,8 @@ the matching current copy, with live approval still false. Seventeen regression
 cases also exercise equal-balance history changes, missing debit/result pairs,
 changed replay keys/responses, new accounts, deletion closures, cutoff/resource
 and input changes, and interruption. No real credits or provider data changed.
+All five Community CI jobs pass at `644bd18`, including all 415 Python checks
+on Windows with no skips, Linux with 18 platform skips and 195 JavaScript checks.
 
 ## Before reopening a live service
 
