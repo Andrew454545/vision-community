@@ -32,3 +32,9 @@ Authenticated GET `/health` checks identity; GET `/operator/status` reads saved 
 Private POST `/operator/audit-budget-check` measures the first eight public canary locations through the actual 50-second audit path. POST `/operator/repeatability-check` captures that fixed fixture once, then runs three native sealed-input replays and saved-index searches. Both return bounded measurements only. All model diagnostics refuse an active sealed bundle and stop compute afterward. The [saved measurements](../../../docs/HOSTED_SCENE_BUDGET_20261003.md) support retaining the initial eight-location limit; they do not grant admission.
 
 Missing measured policy or a contributor-only snapshot leaves the corresponding service unavailable. Keep public admission gates closed until the production acceptance checklist passes. Never include calibration archives, reference corpora, accounts or credentials in an operator bundle.
+
+Private search failures may retain one `lastSearchFailure` entry containing only
+an allowlisted adapter code and timestamp. Unknown, oversized or extra-field
+error bodies stay redacted. The controller stops uncertain compute, preserves
+the seal and does not replay inference in that request. The public gateway still
+returns its generic unavailable response and spends no credit on that failure.

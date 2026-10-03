@@ -20,15 +20,18 @@ measurements into automatic production approval.
 
 ## Completed in this pass
 
-- The isolated staging scene experiment now has verified helper/runtime pins,
-  a fresh 112-location PC qualification and actual verifier-only seal restoration
-  after a Container restart. The new eight-location submission was rejected by
-  native recomputation; no locations or credits were published. Staging's public
-  contribution gate was closed again. Reserved staging policy IDs cannot open
-  production or a mixed bucket, verified in five actual workerd configurations.
-  Private optional measurement evidence defaults off and cannot change approval
-  bounds. Contribution acceptance, banked credit and paid-search deployment
-  remain open. See [the staging admission report](STAGING_SCENE_ADMISSION_20261003.md).
+- The isolated staging scene experiment now passes fresh PC qualification,
+  actual eight-location native-audited publication, earned credit and exact
+  upload replay. Binary64 pose serialization is corrected, with an actual sealed
+  native regression. Two earlier strict-policy submissions remain rejected.
+  Separately measured staging bounds do not approve production. A snapshot of
+  only the eight accepted contributions passed hosted native search, filters
+  and identical results after restart. The ordinary hosted API also passed map
+  export, one debit and exact/recovery replay using a clearly labeled disposable
+  synthetic balance; the real eight earned units stayed unchanged. The test
+  account was deleted and temporary public contribution/search bindings closed.
+  Production admission, earned funding at scale and parallel quality/resource
+  budgets remain open. See [the staging evidence](STAGING_SCENE_ADMISSION_20261003.md).
 
 - Built private Windows and Linux CPU object candidates from the reference's
   object-sidecar. Each passes 48 native tests and actual layout startup. Both
@@ -533,10 +536,18 @@ open; unchanged input pixels and a fresh reference comparison are needed.
 - [ ] Deploy and test the trusted scene verifier and approved runtime policy.
   A private verifier is now implemented for staging: it independently compares
   the 112-location output with a checksum-pinned reference in a separate,
-  private policy bucket and fails closed for every unreviewed submission. It
-  still needs an independently validated calibration policy and a live staging exercise.
-  The live `/api/capabilities` returned `not_found` on 2026-09-29.
-- [ ] Complete the PC qualification against that policy. Never bypass it.
+  sealed private operator bundle and fails closed for every unreviewed submission.
+  The separate measured staging policy now passed fresh PC qualification,
+  actual eight-location publication, eight earned units and no extra award on
+  replay. Two earlier stricter-policy submissions remain rejected. A contributed
+  snapshot passed native search/restart; the hosted paid API passed with an
+  explicitly synthetic test balance. Public staging gates were closed again.
+  Production policy, broader reference evidence and continuous useful indexing
+  remain open; the laptop is not yet approved for production contributions.
+  See [the admission evidence](STAGING_SCENE_ADMISSION_20261003.md).
+- [ ] Complete the PC qualification against the production policy. Staging's
+  fresh 112-location qualification passed; production has no approved policy.
+  Never bypass it or reinterpret an exploratory report as approval.
 - [x] Confirm the source of real work: the shared Community queue. Read-only
   R2 manifests and D1 catalog aggregates on 2026-09-30 confirm 933 metadata
   shards registered for each lane, including 20,955,444 already-indexed
