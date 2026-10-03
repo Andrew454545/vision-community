@@ -14,6 +14,10 @@ CREATE TABLE IF NOT EXISTS scene_candidates (
 );`;
 
 export function verifierConfigured(env) {
+  // Policies reserved for measured staging experiments must never authorize
+  // real contributions when their binding/config is copied to production.
+  if (typeof env.SCENE_POLICY_ID === "string" && env.SCENE_POLICY_ID.startsWith("staging.") &&
+      (env.DEPLOYMENT_ENVIRONMENT !== "staging" || env.INDEX_BUCKET_NAME !== "vision-community-staging")) return false;
   return typeof env.SCENE_VERIFIER?.fetch === "function" && typeof env.SCENE_POLICY_ID === "string" && !!env.SCENE_POLICY_ID && auditBatchLimit(env) !== null;
 }
 

@@ -118,6 +118,10 @@ class NativeSceneVerifier:
                 or not isinstance(policy.get('profiles'), list) or not 1 <= len(policy['profiles']) <= 16):
             raise VerificationError('invalid_operator_policy')
         self.document, self.policy_id = policy, policy['policyId']
+        self.diagnostic_metrics = policy.get('diagnosticMetrics', False)
+        if (type(self.diagnostic_metrics) is not bool or self.diagnostic_metrics and
+                (not self.policy_id.startswith('staging.') or policy.get('deploymentEnvironment') != 'staging')):
+            raise VerificationError('invalid_operator_diagnostics')
         self.bounds = thresholds(policy.get('auditThresholds'))
         self.max_locations = policy.get('maxAuditLocations', 8)
         if type(self.max_locations) is not int or not 1 <= self.max_locations <= MAX_LOCATIONS:
@@ -211,8 +215,12 @@ class NativeSceneVerifier:
                 raise
             # A permanently invalid candidate must leave quarantine rejected,
             # rather than waiting forever as though native hosting is offline.
-            return {'policyId': self.policy_id, 'submissionSha256': body.get('submissionSha256'),
-                    'decision': 'rejected'}
+            result = {'policyId': self.policy_id, 'submissionSha256': body.get('submissionSha256'),
+                      'decision': 'rejected'}
+            if self.diagnostic_metrics:
+                result['auditEvidence'] = {'version': 1, 'scope': 'private-staging-audit-measurements',
+                                           'reason': 'invalid_submission'}
+            return result
         if not self.busy.acquire(blocking=False):
             raise VerificationError('scene_auditor_busy')
         try:
@@ -220,9 +228,22 @@ class NativeSceneVerifier:
                 job = Path(temporary)
                 reference = self.recompute(records, job)
                 self.verify_inputs()
-                approved = within(candidate, reference, self.bounds)
-            return {'policyId': self.policy_id, 'submissionSha256': body['submissionSha256'],
-                    'decision': 'approved' if approved else 'rejected'}
+                measured = decoded_difference(candidate, reference)
+                approved = (measured['cosine_similarity']['min'] >= self.bounds['minimumViewCosine']
+                            and measured['relative_l2_error']['max'] <= self.bounds['maximumViewRelativeL2'])
+            result = {'policyId': self.policy_id, 'submissionSha256': body['submissionSha256'],
+                      'decision': 'approved' if approved else 'rejected'}
+            if self.diagnostic_metrics:
+                # Private operator evidence, without locations, pixels, tensors,
+                # account details or native stderr. Changing live inputs remain
+                # an explicit limit; these numbers cannot infer input identity.
+                result['auditEvidence'] = {'version': 1, 'scope': 'private-staging-audit-measurements',
+                    'reason': 'within_bounds' if approved else 'outside_bounds',
+                    'inputIdentity': 'SOURCE_PIXELS_NOT_FROZEN', 'locations': len(records),
+                    'views': len(records) * 4, 'nativeReferenceSha256': digest(reference),
+                    'minimumViewCosine': measured['cosine_similarity']['min'],
+                    'maximumViewRelativeL2': measured['relative_l2_error']['max']}
+            return result
         except Exception:
             # Keep a fixed failure marker; never persist request/account/imagery
             # or inherited credentials. Native temporaries are always removed.

@@ -324,10 +324,14 @@ export class NativeController {
   activate(value) {
     return this.exclusive(async () => {
       const candidate = descriptor(value), previous = await this.active();
-      await this.ensure(previous);
       if (candidate.sha256 === previous?.sha256 && candidate.bytes === previous.bytes) {
+        await this.ensure(previous);
         return Response.json(await this.checkedHealth(), { headers: jsonHeaders });
       }
+      // A new image/helper policy may be unable to load the previous seal.
+      // Boot the independently pinned runtime before loading the replacement;
+      // retain the previous durable pointer until the new bundle fully validates.
+      await this.ensure(null);
       try {
         const health = await this.upload(candidate);
         // Persist before acknowledging activation. On an uncertain write,

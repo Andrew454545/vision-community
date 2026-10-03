@@ -115,6 +115,50 @@ class NativeSceneVerifierTest(unittest.TestCase):
         with patch.object(native, 'run_native', side_effect=self.fake_native):
             self.assertEqual(self.verifier.audit(body, raw)['decision'], 'rejected')
 
+    def test_private_staging_measurements_do_not_change_approval_or_expose_inputs(self):
+        policy = copy.deepcopy(self.policy)
+        policy.update(policyId='staging.measured-candidate', deploymentEnvironment='staging', diagnosticMetrics=True)
+        policy['profiles'][0]['policyId'] = policy['policyId']
+        self.policy_file.write_bytes(encoded(policy))
+        verifier = self.start()
+        for wrong in (False, True):
+            body, raw = self.request((b'\x00\x3c' + bytes([2])*768)*4 if wrong else None)
+            body['policyId'] = policy['policyId']
+            with patch.object(native, 'run_native', side_effect=self.fake_native):
+                result = verifier.audit(body, raw)
+            self.assertEqual(result['decision'], 'rejected' if wrong else 'approved')
+            measured = result['auditEvidence']
+            self.assertEqual(measured['scope'], 'private-staging-audit-measurements')
+            self.assertEqual(measured['inputIdentity'], 'SOURCE_PIXELS_NOT_FROZEN')
+            self.assertEqual(measured['locations'], 1)
+            self.assertEqual(measured['views'], 4)
+            self.assertEqual(measured['nativeReferenceSha256'], digest(self.record))
+            self.assertEqual(measured['minimumViewCosine'], 1)
+            self.assertEqual(measured['maximumViewRelativeL2'], 1 if wrong else 0)
+            self.assertNotIn('synthetic-pano', json.dumps(result))
+            self.assertNotIn('indexBase64', result)
+            self.assertEqual(list(self.work.iterdir()), [])
+        body, raw = self.request()
+        body['policyId'] = policy['policyId']
+        body['submissionSha256'] = 'f'*64
+        with patch.object(native, 'run_native') as run:
+            result = verifier.audit(body, raw)
+        run.assert_not_called()
+        self.assertEqual(result['auditEvidence']['reason'], 'invalid_submission')
+
+    def test_diagnostic_measurements_require_explicit_staging_policy_and_default_off(self):
+        body, raw = self.request()
+        with patch.object(native, 'run_native', side_effect=self.fake_native):
+            result = self.verifier.audit(body, raw)
+        self.assertEqual(set(result), {'policyId', 'submissionSha256', 'decision'})
+        for change in ({'diagnosticMetrics': True}, {'diagnosticMetrics': 'true'},
+                       {'diagnosticMetrics': True, 'deploymentEnvironment': 'production'},
+                       {'diagnosticMetrics': True, 'deploymentEnvironment': 'staging'}):
+            policy = {**copy.deepcopy(self.policy), **change}
+            self.policy_file.write_bytes(encoded(policy))
+            with self.subTest(change=change), self.assertRaisesRegex(audit.VerificationError, 'invalid_operator_diagnostics'):
+                self.start()
+
     def test_completed_legacy_graph_or_wrong_threads_cannot_approve_submission(self):
         body, raw = self.request()
         for message in ('legacy graph: vision_model.onnx', '[vision] scene image graph: vision_model_fp32.onnx (explicit input)\n[vision] ONNX Runtime global threads: 4, spinning disabled\n'):
