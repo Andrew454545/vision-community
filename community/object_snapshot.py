@@ -15,9 +15,10 @@ from pathlib import Path
 from .object_index import (CODEBOOK_SHA256, COMMON_MODEL_SHA256, OBJECT_INDEX_MODEL,
                            RUNTIME_IDENTITY, manifest_file_names, object_tsv_lines,
                            validate_object_index)
-from .search_snapshot import (CONFIRMED_RESOURCE, HEX, MAX_INVENTORY_BYTES,
+from .search_snapshot import (HEX, MAX_INVENTORY_BYTES,
                              MAX_LOCATIONS, SnapshotError, bounded_read, clean_text,
-                             digest, encoded, pinned_read, write_file)
+                             digest, encoded, pinned_read, write_file,
+                             resource_for_environment, snapshot_resource)
 from .vision_index import VisionIndexError
 
 VALIDATOR = "official-gen4-historical-v1"
@@ -249,13 +250,14 @@ def normalized_source(rows: list[dict]) -> bytes:
 
 def build_object_snapshot(inventory: Path, inventory_sha256: str, policy: Path, policy_sha256: str,
                           cache: Path, destination: Path, *, previous: Path | None = None,
-                          previous_sha256: str | None = None) -> dict:
+                          previous_sha256: str | None = None, environment: str = "production") -> dict:
     destination = Path(destination)
     destination.mkdir(parents=True, exist_ok=False)
     try:
+        resource = resource_for_environment(environment)
         document = json.loads(pinned_read(Path(inventory), inventory_sha256, MAX_INVENTORY_BYTES))
         if (not isinstance(document, dict) or document.get("version") != 1
-                or document.get("resource") != CONFIRMED_RESOURCE or not isinstance(document.get("rows"), list)
+                or document.get("resource") != resource or not isinstance(document.get("rows"), list)
                 or not 0 < len(document["rows"]) <= MAX_LOCATIONS):
             raise SnapshotError("invalid_community_inventory")
         approvals = load_policy(Path(policy), policy_sha256)
@@ -267,7 +269,7 @@ def build_object_snapshot(inventory: Path, inventory_sha256: str, policy: Path, 
         if previous is not None or previous_sha256 is not None:
             if previous is None or previous_sha256 is None:
                 raise SnapshotError("previous_snapshot_pin_required")
-            previous_document = verify_object_snapshot(previous, previous_sha256)
+            previous_document = verify_object_snapshot(previous, previous_sha256, environment=environment)
             previous_members = json.loads(bounded_read(Path(previous) / "members.json", MAX_INVENTORY_BYTES))
             by_id = {row["id"]: row for row in rows}
             if any(member["locationId"] not in by_id for member in previous_members):
@@ -318,6 +320,7 @@ def build_object_snapshot(inventory: Path, inventory_sha256: str, policy: Path, 
             raise SnapshotError("object_snapshot_metadata_too_large")
         members_file = write_file(destination / "members.json", members_raw)
         manifest = {"version": 1, "scope": "operator-sealed-contributed-objects", "lane": "object",
+                    "resource": resource,
                     "locations": len(rows), "outputModel": OBJECT_INDEX_MODEL, "inputModel": approvals["inputModel"],
                     "runtimeIdentity": RUNTIME_IDENTITY, "commonModelSha256": COMMON_MODEL_SHA256,
                     "codebookSha256": CODEBOOK_SHA256, "coverageValidator": VALIDATOR,
@@ -347,7 +350,7 @@ def verify_file(root: Path, name: str, expected: dict, limit: int) -> bytes:
     return raw
 
 
-def verify_object_snapshot(root: Path, expected_sha256: str) -> dict:
+def verify_object_snapshot(root: Path, expected_sha256: str, *, environment: str | None = None) -> dict:
     root = Path(root)
     document = json.loads(pinned_read(child_file(root, "snapshot.json"), expected_sha256, MAX_SNAPSHOT_METADATA_BYTES))
     if (not isinstance(document, dict) or document.get("version") != 1
@@ -361,6 +364,7 @@ def verify_object_snapshot(root: Path, expected_sha256: str) -> dict:
             or any(not isinstance(document.get(field), str) or not HEX.fullmatch(document[field]) for field in
                    ("inventorySha256", "approvalPolicySha256"))):
         raise SnapshotError("invalid_snapshot_manifest")
+    snapshot_resource(document, environment)
     clean_text(document.get("approvalPolicyId"), required=True, maximum=128)
     clean_text(document.get("inputModel"), required=True, maximum=128)
     members = json.loads(verify_file(root, "members.json", document["files"]["members.json"], MAX_SNAPSHOT_METADATA_BYTES))
@@ -448,11 +452,12 @@ def main() -> None:
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--previous", type=Path)
     parser.add_argument("--previous-sha256")
+    parser.add_argument("--environment", choices=("production", "staging"), default="production")
     args = parser.parse_args()
     try:
         report = build_object_snapshot(args.inventory, args.inventory_sha256, args.policy, args.policy_sha256,
                                        args.artifact_cache, args.out, previous=args.previous,
-                                       previous_sha256=args.previous_sha256)
+                                       previous_sha256=args.previous_sha256, environment=args.environment)
     except FileExistsError:
         print(json.dumps({"sealed": False, "error": "destination_already_exists"}))
         raise SystemExit(1)

@@ -8,12 +8,37 @@ from unittest.mock import patch
 from community.object_index import (OBJECT_INDEX_MODEL, RUNTIME_IDENTITY, global_id_record)
 from community.object_snapshot import (VALIDATOR, build_object_snapshot, cache_directory,
                                        load_bundle, row_member, verify_object_snapshot)
-from community.search_snapshot import (CONFIRMED_RESOURCE, SnapshotError, digest, encoded)
+from community.search_snapshot import (CONFIRMED_RESOURCE, CONFIRMED_STAGING_RESOURCE, SnapshotError, digest, encoded)
 from community.tests.test_object_index import contract_bundle
 from community.vision_index import VisionIndexError
 
 
 class ObjectSnapshotTest(unittest.TestCase):
+    def test_staging_object_snapshot_is_explicit_and_cannot_be_used_as_production(self):
+        self.inventory["resource"] = CONFIRMED_STAGING_RESOURCE
+        with self.assertRaisesRegex(SnapshotError, "invalid_community_inventory"):
+            self.build("implicit-staging")
+        report = self.build("staging", environment="staging")
+        document = verify_object_snapshot(self.root / "staging", report["snapshotSha256"], environment="staging")
+        self.assertEqual(document["resource"], CONFIRMED_STAGING_RESOURCE)
+        with self.assertRaisesRegex(SnapshotError, "snapshot_environment_mismatch"):
+            verify_object_snapshot(self.root / "staging", report["snapshotSha256"], environment="production")
+
+    def test_object_snapshot_history_cannot_cross_resource_pairs_with_matching_members(self):
+        previous = self.build("production")
+        self.inventory["resource"] = CONFIRMED_STAGING_RESOURCE
+        with self.assertRaisesRegex(SnapshotError, "snapshot_environment_mismatch"):
+            self.build("mixed", environment="staging", previous=self.root / "production",
+                       previous_sha256=previous["snapshotSha256"])
+        self.assertFalse((self.root / "mixed/snapshot.json").exists())
+
+    def test_staging_still_requires_trusted_gen4_evidence_and_feature_approval(self):
+        self.inventory["resource"] = CONFIRMED_STAGING_RESOURCE
+        self.rows[0]["camera_generation"] = "gen3"
+        with self.assertRaises(SnapshotError):
+            self.build("untrusted-staging", environment="staging")
+        self.assertFalse((self.root / "untrusted-staging/snapshot.json").exists())
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)

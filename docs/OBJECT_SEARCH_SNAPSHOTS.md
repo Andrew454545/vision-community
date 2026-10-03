@@ -5,6 +5,12 @@ hosted object search engine. It does not enable public search, approve a device,
 run inference, grant credit, download private indexes or change Cloudflare.
 Volunteers do not need to run this command.
 
+Use `--environment staging` for a staging inventory; production is the default.
+The selected account/database/bucket pair is checked and sealed into the
+snapshot. A later update cannot combine the two environments. Older snapshots
+without a resource field belong to production. This selection does not replace
+the trusted inference audit or official Generation 4 coverage evidence.
+
 ## Admission
 
 The operator must supply two independently trusted, checksum-pinned inputs:

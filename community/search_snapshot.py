@@ -22,6 +22,11 @@ CONFIRMED_RESOURCE = {
     "databaseId": "ed4705fa-1190-41fa-86a0-02d755db1b2a",
     "bucket": "vision-community",
 }
+CONFIRMED_STAGING_RESOURCE = {
+    "accountId": "272760294910ef0b246980278aeb36e2",
+    "databaseId": "17043cb7-5dab-4a6f-84ca-19ae1c14cc05",
+    "bucket": "vision-community-staging",
+}
 MAX_LOCATIONS = 100_000
 MAX_INVENTORY_BYTES = 64 * 1024 * 1024
 MAX_POLICY_BYTES = 4 * 1024 * 1024
@@ -38,6 +43,25 @@ HEX = re.compile(r"[0-9a-f]{64}\Z")
 
 class SnapshotError(ValueError):
     pass
+
+
+def resource_for_environment(environment: str) -> dict:
+    """Operator-selected confirmed pair; never inferred from inventory data."""
+    if environment == "production":
+        return dict(CONFIRMED_RESOURCE)
+    if environment == "staging":
+        return dict(CONFIRMED_STAGING_RESOURCE)
+    raise SnapshotError("invalid_snapshot_environment")
+
+
+def snapshot_resource(document: dict, environment: str | None = None) -> dict:
+    # Older independently sealed v1 snapshots came only from production.
+    resource = document.get("resource", CONFIRMED_RESOURCE)
+    if resource not in (CONFIRMED_RESOURCE, CONFIRMED_STAGING_RESOURCE):
+        raise SnapshotError("invalid_snapshot_resource")
+    if environment is not None and resource != resource_for_environment(environment):
+        raise SnapshotError("snapshot_environment_mismatch")
+    return dict(resource)
 
 
 def digest(raw: bytes) -> str:
@@ -133,7 +157,7 @@ def file_digest(path: Path) -> str:
 
 def build_snapshot(inventory: Path, inventory_sha256: str, policy: Path, policy_sha256: str,
                    cache: Path, destination: Path, *, previous: Path | None = None,
-                   previous_sha256: str | None = None) -> dict:
+                   previous_sha256: str | None = None, environment: str = "production") -> dict:
     """Seal one new directory; publish the checksummed manifest last.
 
     Refuse overwrites. A failed new directory retains a redacted failure report
@@ -142,10 +166,11 @@ def build_snapshot(inventory: Path, inventory_sha256: str, policy: Path, policy_
     destination = Path(destination)
     destination.mkdir(parents=True, exist_ok=False)
     try:
+        resource = resource_for_environment(environment)
         raw_inventory = pinned_read(Path(inventory), inventory_sha256, MAX_INVENTORY_BYTES)
         document = json.loads(raw_inventory)
         if (not isinstance(document, dict) or document.get("version") != 1
-                or document.get("resource") != CONFIRMED_RESOURCE
+                or document.get("resource") != resource
                 or not isinstance(document.get("rows"), list) or not 0 < len(document["rows"]) <= MAX_LOCATIONS):
             raise SnapshotError("invalid_community_inventory")
         pinned_read(Path(policy), policy_sha256, MAX_POLICY_BYTES)
@@ -157,7 +182,7 @@ def build_snapshot(inventory: Path, inventory_sha256: str, policy: Path, policy_
         if previous is not None or previous_sha256 is not None:
             if previous is None or previous_sha256 is None:
                 raise SnapshotError("previous_snapshot_pin_required")
-            verify_snapshot(previous, previous_sha256)
+            verify_snapshot(previous, previous_sha256, environment=environment)
             previous_members = json.loads(bounded_read(Path(previous) / "members.json", MAX_INVENTORY_BYTES))
             by_id = {row["id"]: row for row in rows}
             if any(member["locationId"] not in by_id for member in previous_members):
@@ -203,6 +228,7 @@ def build_snapshot(inventory: Path, inventory_sha256: str, policy: Path, policy_
         files = {"scene-records.i8": {"bytes": payload.stat().st_size, "sha256": file_digest(payload)},
                  "members.json": write_file(destination / "members.json", encoded(members))}
         manifest = {"version": 1, "scope": "operator-sealed-contributed-scenes", "lane": "scene",
+                    "resource": resource,
                     "locations": len(rows), "bytesPerLocation": BYTES_PER_LOCATION,
                     "inventorySha256": inventory_sha256, "approvalPolicyId": approvals.policy_id,
                     "approvalPolicySha256": policy_sha256, "inputModel": approvals.input_model,
@@ -221,7 +247,7 @@ def build_snapshot(inventory: Path, inventory_sha256: str, policy: Path, policy_
         raise
 
 
-def verify_snapshot(root: Path, expected_sha256: str) -> dict:
+def verify_snapshot(root: Path, expected_sha256: str, *, environment: str | None = None) -> dict:
     """Verify an operator-pinned bundle before an engine can use its members."""
     root = Path(root)
     if (root / "snapshot.json").resolve().parent != root.resolve():
@@ -233,6 +259,7 @@ def verify_snapshot(root: Path, expected_sha256: str) -> dict:
             or document.get("bytesPerLocation") != BYTES_PER_LOCATION or document.get("outputModel") != "vision-four-view-v4"
             or set(document.get("files", {})) != {"scene-records.i8", "members.json"}):
         raise SnapshotError("invalid_snapshot_manifest")
+    snapshot_resource(document, environment)
     for name, expected in document["files"].items():
         path = root / name
         if path.resolve().parent != root.resolve():
@@ -269,10 +296,12 @@ def main() -> None:
     parser.add_argument("--out", required=True, type=Path)
     parser.add_argument("--previous", type=Path)
     parser.add_argument("--previous-sha256")
+    parser.add_argument("--environment", choices=("production", "staging"), default="production")
     args = parser.parse_args()
     try:
         report = build_snapshot(args.inventory, args.inventory_sha256, args.policy, args.policy_sha256,
-                                args.artifact_cache, args.out, previous=args.previous, previous_sha256=args.previous_sha256)
+                                args.artifact_cache, args.out, previous=args.previous, previous_sha256=args.previous_sha256,
+                                environment=args.environment)
     except FileExistsError:
         print(json.dumps({"sealed": False, "error": "destination_already_exists"}))
         raise SystemExit(1)

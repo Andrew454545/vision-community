@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from community.search_snapshot import (CONFIRMED_RESOURCE, SnapshotError, build_snapshot,
+from community.search_snapshot import (CONFIRMED_RESOURCE, CONFIRMED_STAGING_RESOURCE, SnapshotError, build_snapshot,
                                        cache_file, encoded, verify_snapshot)
 
 
@@ -72,6 +72,47 @@ class SearchSnapshotTest(unittest.TestCase):
         second = self.build("second")
         self.assertEqual(second["snapshotSha256"], report["snapshotSha256"])
         self.assertEqual(document["roadNameAuthority"], "unavailable")
+
+    def test_staging_requires_explicit_selection_and_seals_the_confirmed_resource_pair(self):
+        self.inventory["resource"] = CONFIRMED_STAGING_RESOURCE
+        with self.assertRaisesRegex(SnapshotError, "invalid_community_inventory"):
+            self.build("implicit-staging")
+        report = self.build("staging", environment="staging")
+        document = verify_snapshot(self.root / "staging", report["snapshotSha256"], environment="staging")
+        self.assertEqual(document["resource"], CONFIRMED_STAGING_RESOURCE)
+        with self.assertRaisesRegex(SnapshotError, "snapshot_environment_mismatch"):
+            verify_snapshot(self.root / "staging", report["snapshotSha256"], environment="production")
+
+    def test_snapshot_updates_cannot_mix_environments_even_when_member_ids_and_hashes_match(self):
+        previous = self.build("production")
+        self.inventory["resource"] = CONFIRMED_STAGING_RESOURCE
+        with self.assertRaisesRegex(SnapshotError, "snapshot_environment_mismatch"):
+            self.build("mixed", environment="staging", previous=self.root / "production",
+                       previous_sha256=previous["snapshotSha256"])
+        self.assertFalse((self.root / "mixed/snapshot.json").exists())
+        self.assertTrue((self.root / "mixed/failure-report.json").exists())
+
+    def test_confirmed_resources_cannot_be_recombined_or_replaced_with_other_buckets(self):
+        for resource in ({**CONFIRMED_STAGING_RESOURCE, "databaseId": CONFIRMED_RESOURCE["databaseId"]},
+                         {**CONFIRMED_STAGING_RESOURCE, "bucket": "geonections-images"},
+                         {**CONFIRMED_STAGING_RESOURCE, "accountId": "another-account"}):
+            self.inventory["resource"] = resource
+            with self.assertRaisesRegex(SnapshotError, "invalid_community_inventory"):
+                self.build("bad-resource-" + str(len(list(self.root.iterdir()))), environment="staging")
+
+    def test_legacy_snapshot_remains_production_only_and_unknown_environment_preserves_failure(self):
+        report = self.build()
+        folder = self.root / "snapshot"
+        document = json.loads((folder / "snapshot.json").read_bytes())
+        del document["resource"]
+        raw = encoded(document)
+        (folder / "snapshot.json").write_bytes(raw)
+        verify_snapshot(folder, sha(raw), environment="production")
+        with self.assertRaisesRegex(SnapshotError, "snapshot_environment_mismatch"):
+            verify_snapshot(folder, sha(raw), environment="staging")
+        with self.assertRaisesRegex(SnapshotError, "invalid_snapshot_environment"):
+            self.build("unknown-environment", environment="unconfirmed")
+        self.assertFalse((self.root / "unknown-environment/snapshot.json").exists())
 
     def test_uncredited_unpublished_changed_publications_and_objects_are_denied(self):
         for changed in [{"contributor_id": ""}, {"contributor_id": None}, {"state": "pending"}, {"lane": "object"},

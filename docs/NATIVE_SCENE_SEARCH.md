@@ -16,6 +16,17 @@ registry ordinal. It never reads a maintainer corpus, imports queue catalogs,
 creates accounts or changes credits. A new private work directory is required;
 partial mounts retain a failure marker and cannot become completed mounts.
 
+For an offline staging export, pass `--environment staging` to
+`community.search_snapshot`. Production remains the default. The tool checks
+the complete confirmed account/database/bucket pair and records it in the sealed
+manifest. Updates cannot append a production snapshot to a staging snapshot,
+even if their location IDs and record hashes match. Older v1 snapshots without
+this field are treated as production only.
+
+This option does not activate a live snapshot or approve any contribution. When
+updating the hosted adapters, regenerate their helper/runtime/policy pins and
+repeat the live activation/recovery checks; source edits cannot reuse old pins.
+
 Pin `runtime.json` independently. Its SHA-256 is the gateway's
 `SEARCH_RUNTIME_SHA256`; the snapshot pin is `SEARCH_SNAPSHOT_SHA256`, and its
 `policyId` is `SEARCH_POLICY_ID`. The document has this shape:
