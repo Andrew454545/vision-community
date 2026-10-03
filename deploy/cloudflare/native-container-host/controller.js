@@ -9,6 +9,16 @@ import { REPEATABILITY_CHECK, checkedRepeatabilityReceipt, checkedRepeatabilityF
 
 export const MAX_BUNDLE = 384 * 1024 * 1024;
 const HEX = /^[0-9a-f]{64}$/;
+const SEARCH_FAILURES = new Set([
+  "search_identity_mismatch", "unsupported_search_lane", "search_request_mismatch",
+  "invalid_search_query", "unsupported_query_mode", "road_authority_unavailable",
+  "search_engine_busy", "native_search_runtime_update_required", "native_search_timeout",
+  "native_search_failed", "native_output_limit", "incomplete_native_search",
+  "invalid_native_search", "native_pose_mismatch", "native_filter_mismatch",
+  "search_candidate_budget_exceeded", "search_response_limit", "runtime_changed",
+  "adapter_changed", "engine_source_changed", "runtime_file_changed",
+  "native_mount_changed", "native_model_metadata_changed",
+]);
 const INSTANCE = Object.freeze({ vcpu: 1, memoryMib: 3072, diskMb: 8000 });
 const IDLE_MS = 180000;
 const CONTROL_FAILURES = new Set(["native_configuration_unavailable", "native_runtime_identity_changed",
@@ -44,11 +54,20 @@ export function descriptor(value) {
   return { version: 1, key: value.key, sha256: value.sha256, bytes: value.bytes };
 }
 
-async function responseBytes(response, maximum, statuses = [200]) {
+async function responseBytes(response, maximum, statuses = [200], search = false) {
   if (!statuses.includes(response.status)
       || response.headers.get("content-type")?.split(";")[0].trim().toLowerCase() !== "application/json") {
-    await response.body?.cancel();
-    throw Error("native_response_unavailable");
+    const error = Error("native_response_unavailable");
+    if (search && response.status === 503
+        && response.headers.get("content-type")?.split(";")[0].trim().toLowerCase() === "application/json") {
+      try {
+        const value = JSON.parse(new TextDecoder().decode(await bounded(response.body, 512)));
+        if (value && Object.keys(value).join(",") === "error" && SEARCH_FAILURES.has(value.error)) {
+          error.searchFailureCode = value.error;
+        }
+      } catch { /* Untrusted, oversized or malformed diagnostics stay redacted. */ }
+    } else await response.body?.cancel();
+    throw error;
   }
   const length = response.headers.get("content-length");
   if (length !== null && (!/^[0-9]+$/.test(length) || Number(length) > maximum)) {
@@ -170,7 +189,7 @@ export class NativeController {
         headers: { authorization: `Bearer ${operator ? this.env.VISION_HOST_OPERATOR_SECRET : this.env.VISION_HOST_SECRET}`,
           ...(body === undefined ? {} : { "content-type": "application/json" }) }, body,
       });
-      return { status: response.status, bytes: await responseBytes(response, maximum, statuses) };
+      return { status: response.status, bytes: await responseBytes(response, maximum, statuses, path === "/search") };
     } catch (error) {
       // Retain only a fixed classification, never transport exception text.
       if (CONTROL_FAILURES.has(error?.message)) throw error;
@@ -324,6 +343,7 @@ export class NativeController {
       lastBootFailure: await this.ctx.storage.get("lastBootFailure") ?? null,
       lastLaunchFailure: await this.ctx.storage.get("lastLaunchFailure") ?? null,
       lastRepeatabilityFailure: await this.ctx.storage.get("lastRepeatabilityFailure") ?? null,
+      lastSearchFailure: await this.ctx.storage.get("lastSearchFailure") ?? null,
       productionQualified: false }, { headers: jsonHeaders }));
   }
 
@@ -500,6 +520,10 @@ export class NativeController {
         // its compute and recover the unchanged durable seal on the next call.
         // A failed connection must not leave cached readiness stuck forever.
         this.hydratedDigest = undefined;
+        if (search && SEARCH_FAILURES.has(error?.searchFailureCode)) {
+          try { await this.ctx.storage.put("lastSearchFailure", { code: error.searchFailureCode, at: Date.now() }); }
+          catch { /* Missing diagnostics never grant readiness or spend credit. */ }
+        }
         try { await this.ctx.container.destroy(); }
         catch { throw Error("native_recovery_stop_failed"); }
         throw error;

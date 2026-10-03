@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import os
 import re
 import secrets
@@ -203,9 +204,14 @@ def format_tsv_number(value) -> str:
     number = float(value)
     if number != number or number in {float("inf"), float("-inf")}:
         raise VisionIndexError("invalid_location")
+    if number == 0 and math.copysign(1, number) < 0:
+        return "-0"
     if number == int(number) and abs(number) < 1e15:
         return str(int(number))
-    return format(number, ".16g")
+    # Seventeen significant digits round-trip every finite binary64 value.
+    # The native fetch URL and sealed-input pose both depend on exact angles;
+    # rounding to sixteen digits can change them before any inference occurs.
+    return format(number, ".17g")
 
 
 def tsv_field(value: str) -> str:
@@ -222,9 +228,9 @@ def location_tsv_line(item: dict) -> str:
             format_tsv_number(item.get("sourceLocationId") or item["locationId"]),
             format_tsv_number(item["lat"]),
             format_tsv_number(item.get("lng") if item.get("lng") is not None else item["lon"]),
-            format_tsv_number(item.get("heading") or 0),
-            format_tsv_number(item.get("pitch") or 0),
-            format_tsv_number(item.get("zoom") or 0),
+            format_tsv_number(0 if item.get("heading") is None else item["heading"]),
+            format_tsv_number(0 if item.get("pitch") is None else item["pitch"]),
+            format_tsv_number(0 if item.get("zoom") is None else item["zoom"]),
             tsv_field(item.get("panoId") or item.get("assetId")),
             tsv_field(item.get("country") or ""),
             tsv_field(item.get("cameraGeneration") or ""),
