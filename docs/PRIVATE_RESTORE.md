@@ -123,6 +123,59 @@ private operator folder; do not commit, publish or send them as calibration
 results. SQLite backups, `.private-restore/` and the illustrated private receipt
 filename are ignored by Git. Operators must still verify every chosen path.
 
+## Checking banked credits and paid-search history
+
+Before preparing an import, compare the repaired copy with a **separately
+trusted current financial snapshot**, captured after every writer has stopped
+and drained. A privacy repair alone cannot recover earnings or paid searches
+that happened after its old backup. Do not use that backup as the current source.
+Establish the current source's complete resource identity and SHA-256 independently.
+
+From the repository folder, using its existing private Python runtime:
+
+```text
+python -m community.financial_restore export --database CLOSED_CURRENT_SQLITE --database-sha256 TRUSTED_CURRENT_SHA256 --out .private-financial-source
+python -m community.financial_restore check --repaired-dir .private-restore --report-sha256 TRUSTED_RESTORE_REPORT_SHA256 --snapshot .private-financial-source/financial-snapshot.private.json --snapshot-sha256 TRUSTED_SNAPSHOT_SHA256 --writers-stopped-at WRITER_STOP_UNIX_SECONDS --out .private-financial-check
+```
+
+Add `--environment staging` to **both** commands for the confirmed test resource.
+These offline commands do not fetch a database, import SQL, change balances or
+grant credit. Each destination must be new. Inputs must be closed, regular files;
+database and snapshot pins, resource identity, row limits and writer-stop cutoff
+are checked. A checksum and a fresh timestamp cannot prove source completeness.
+
+The comparison requires every account and its banked balance to match. Active
+accounts must also have identical earnings/debit history and identical saved
+search IDs, request keys, query fingerprints and exact responses. Search receipts
+must pair with a debit; balances must equal their ledger totals. A same-balance
+history change, missing account or missing paid result stops the check. Deleted
+accounts must retain the same deletion date, zero balance and no saved searches;
+their historical ledger hashes are excluded because privacy repair can add a
+different balancing closure. Separate deletion-ledger checks remain required.
+
+Mismatch or interruption preserves a redacted failure report and no completion
+marker. A passing `financial-report.json` states
+`financialStateMatchesTrustedCutoff: true`, **`liveReady: false`** and
+**`creditRecoveryVerified: false`**. It proves equality of the offline copies at
+the trusted cutoff; it does not replay lost events, verify live retry behavior,
+approve credited publications or complete disaster recovery. Do not reopen on a
+mismatch or reconstruct credits from guesses. Preserve or recover a complete
+financial source first, then rehearse the actual service import and replay.
+
+The private snapshot contains opaque account IDs and history hashes, without
+credentials, raw prompts, request keys or ranked responses. Its input SQLite
+copy remains sensitive. Keep both private and out of Git. Limits: 512 MiB per
+database, 32 MiB per snapshot, 100,000 accounts and 1,000,000 ledger/search rows.
+
+A persisted synthetic command-line rehearsal added 16 earned units and a
+100,000-unit paid search after an old backup. The old copy retained 100,016
+units; the complete current copy had 32 units and the saved paid result. The
+checker rejected the old copy and preserved its failure, then accepted only
+the matching current copy, with live approval still false. Seventeen regression
+cases also exercise equal-balance history changes, missing debit/result pairs,
+changed replay keys/responses, new accounts, deletion closures, cutoff/resource
+and input changes, and interruption. No real credits or provider data changed.
+
 ## Before reopening a live service
 
 Cloudflare [imports and exports D1 using SQL](https://developers.cloudflare.com/d1/best-practices/import-export-data/);

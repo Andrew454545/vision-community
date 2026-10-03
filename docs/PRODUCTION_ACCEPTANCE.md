@@ -40,11 +40,13 @@ The previous chronological development log remains in
 | Beginner flow | Short README/website guide, guided Windows starter, qualification/service checks, saved-code recovery, pause/resume and private diagnostics. Website assets/privacy headers verified in staging. | [Service readiness](WEBSITE_SERVICE_READINESS.md) |
 | Background worker | Native scheduled startup, idle handover and idle forced-exit/pause/resume verified. Installed schedule: medium 06:00–00:00, max 00:00–06:00 local; saved account, 30-minute service retry, sign-in/recovery triggers and one worker. | [Background processing](BACKGROUND_PROCESSING.md) |
 
-Latest completed Community code checks: 388 Python, 195 JavaScript, 37 actual
+Latest completed Community code checks: 398 Python, 195 JavaScript, 37 actual
 workerd private-host cases and 15 private HTTP/preparation checks. Community
-CI passes all five jobs at `4e53420`. The source-only Windows preview contains
-that tested revision, with actual progress, pending-work and reconnect notices.
-Actual Windows CI ran all 388 Python tests without skips. Private Linux inference
+CI passes all five jobs at `665f05b`, including process ownership and recovery.
+Actual Windows CI ran all 398 Python tests without skips; Linux passed with 18
+platform-specific skips. The source-only Windows preview retains its tested
+`4e53420` revision, with actual progress, pending-work and reconnect notices.
+Private Linux inference
 and all three private CI jobs pass at `3214c92`; see the separate inference receipt.
 
 The [3 October Windows preview](https://github.com/Andrew454545/vision-community/releases/tag/windows-starter-preview-20261003)
@@ -105,7 +107,9 @@ shipping newer offline helpers requires new runtime and policy pins.
 - [x] Bound native descendants to their caller and preserve unfinished receipts.
   Real Windows child/grandchild fixtures and an actual half-finished native
   index recover without overlapping writers. The installed windowless Python
-  path also passes; see [recovery evidence](NATIVE_PROCESS_RECOVERY_20261003.md).
+  path also passes. The laptop's helper was updated by idle handover; the exact
+  tested bytes, schedule and unchanged recovery/failure files were verified.
+  Production admission still waits; see [recovery evidence](NATIVE_PROCESS_RECOVERY_20261003.md).
 - [ ] Exercise real daytime/nighttime boundaries, overnight work, scheduled
   pause/resume and settings changes during a batch, using the PC's local clock.
 - [ ] Observe idle-sleep requests/release and actual sleep/wake plus Windows
@@ -131,8 +135,10 @@ shipping newer offline helpers requires new runtime and policy pins.
   permanent privacy markers, deletion archives, sealed native bundles, retired
   legacy segments and secrets. Rehearse credential rotation/service recovery.
 - [ ] Reconcile credits and searches earned/spent after backup without replay
-  awards or duplicate debits. Existing privacy repair and offline artifact checks
-  explicitly do not establish credit recovery or full disaster recovery.
+  awards or duplicate debits. The offline financial comparison detects changed
+  balances, earnings/debits, replay keys and saved responses against a separately
+  trusted current cutoff. It does not recover missing events or establish live
+  credit recovery; see [the restore guide](PRIVATE_RESTORE.md).
 - [ ] Validate complete live publication/storage atomicity and failure recovery,
   load/cost budgets and published retention rules before reopening production.
 
