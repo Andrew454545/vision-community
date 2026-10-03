@@ -40,11 +40,18 @@ The previous chronological development log remains in
 | Beginner flow | Short README/website guide, guided Windows starter, qualification/service checks, saved-code recovery, pause/resume and private diagnostics. Website assets/privacy headers verified in staging. | [Service readiness](WEBSITE_SERVICE_READINESS.md) |
 | Background worker | Native scheduled startup, idle handover and idle forced-exit/pause/resume verified. Installed schedule: medium 06:00–00:00, max 00:00–06:00 local; saved account, 30-minute service retry, sign-in/recovery triggers and one worker. | [Background processing](BACKGROUND_PROCESSING.md) |
 
-Latest completed Community code checks: 386 Python, 192 JavaScript, 37 actual
+Latest completed Community code checks: 388 Python, 195 JavaScript, 37 actual
 workerd private-host cases and 15 private HTTP/preparation checks. Community
-CI passes at `a4b2630`; the code change also passed all five jobs at `b356398`.
-Actual Windows CI ran all 386 Python tests without skips. Private Linux inference
+CI passes all five jobs at `4e53420`. The source-only Windows preview contains
+that tested revision, with actual progress, pending-work and reconnect notices.
+Actual Windows CI ran all 388 Python tests without skips. Private Linux inference
 and all three private CI jobs pass at `3214c92`; see the separate inference receipt.
+
+The [3 October Windows preview](https://github.com/Andrew454545/vision-community/releases/tag/windows-starter-preview-20261003)
+is source-only, with 237 files independently checked after public download.
+ZIP SHA-256: `26e55b7d1b85b36a29742dff084741802e1d480f18f8966839be9db9f5307f1e`.
+Staging's 13 assets and short guide match that source revision; privacy headers
+remain enabled. Contribution and paid-search availability remain closed.
 
 The admission/search experiment ended with eight published staging locations,
 eight spendable earned units, the disposable account deleted and compute stopped.
