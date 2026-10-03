@@ -561,6 +561,14 @@ open; unchanged input pixels and a fresh reference comparison are needed.
 
 ## Remaining release gates
 
+Scene and object snapshot exporters now support explicit offline staging
+selection. Inventories must match the complete confirmed resource pair; new
+manifests retain that identity and updates reject history from another
+environment. Legacy snapshots remain production only. Synthetic staging checks
+retain independent scene approval, object feature audits and official Gen4
+requirements. No live snapshot or policy has been activated by this change;
+updated hosted helpers require new runtime/policy pins before deployment.
+
 ### Long-running Windows processing
 
 The background worker is intended to remain available over days or weeks,
