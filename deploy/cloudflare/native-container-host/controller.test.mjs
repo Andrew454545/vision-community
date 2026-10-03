@@ -3,6 +3,8 @@ import { createHash } from "node:crypto";
 import test from "node:test";
 import { NativeController, authorized, descriptor, requestBytes } from "./controller.js";
 import { MODEL_CHECK } from "./model-check.js";
+import { AUDIT_BUDGET_CHECK, checkedAuditBudgetReceipt } from "./audit-budget-check.js";
+import { REPEATABILITY_CHECK, checkedRepeatabilityReceipt, checkedRepeatabilityFailure } from "./repeatability-check.js";
 import { checkedBootReceipt } from "./bootstrap.js";
 import { LAUNCH_CHECK, checkedLaunchReceipt, stderrClass } from "./launch-check.js";
 import { MAIN_CHECK, checkedMainReceipt, checkedMainFailureReceipt } from "./main-check.js";
@@ -481,6 +483,159 @@ test("model diagnostic runs only the fixed bounded command and cannot grant read
   assert.deepEqual(await response.json(), modelReceipt());
   assert.equal(control.values.has("activeBundle"), false);
   assert.equal(control.active, false);
+  assert.equal(ctx.container.running, false);
+  assert.equal(control.destroys, 1);
+  await Promise.all(pending);
+});
+
+test("model and audit diagnostics refuse a sealed workload before starting, stopping or hydrating compute", async () => {
+  for (const diagnostic of ["modelCheck", "auditBudgetCheck", "repeatabilityCheck"]) {
+    const { host, ctx, env, control } = fixture();
+    env.NATIVE_IMAGERY_EGRESS = "live-imagery";
+    assert.equal((await host.activate(bundle)).status, 200);
+    const before = { starts: control.starts.length, stops: control.destroys, uploads: control.uploads };
+    ctx.container.exec = () => { throw Error("must not execute"); };
+    const response = await host[diagnostic]();
+    assert.equal(response.status, 409);
+    assert.deepEqual(await response.json(), { error: "sealed_bundle_already_active" });
+    assert.deepEqual({ starts: control.starts.length, stops: control.destroys, uploads: control.uploads }, before);
+    assert.equal(ctx.container.running, true);
+    assert.deepEqual(control.values.get("activeBundle"), bundle);
+  }
+});
+
+function auditBudgetReceipt() {
+  return { ...modelReceipt(), status: "native_audit_budget_check_passed", locations: 8, views: 32,
+    bytes: 24640, nativeTimeoutSeconds: 50, elapsedSeconds: 25.5 };
+}
+
+test("audit budget check uses only the fixed eight-location command, its own deadline and always stops", async () => {
+  const { host, ctx, env, control, pending } = fixture();
+  env.NATIVE_IMAGERY_EGRESS = "live-imagery";
+  ctx.container.exec = async (argv, options) => {
+    assert.deepEqual(argv, ["timeout", "--kill-after=5", "60", "/usr/local/bin/python", "-B", "-c", AUDIT_BUDGET_CHECK]);
+    assert.equal(options, undefined);
+    return { stdout: stream(JSON.stringify(auditBudgetReceipt())), stderr: stream(""), exitCode: Promise.resolve(0) };
+  };
+  const response = await host.auditBudgetCheck();
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), auditBudgetReceipt());
+  assert.equal(ctx.container.running, false);
+  assert.equal(control.destroys, 1);
+  assert.equal(control.values.has("activeBundle"), false);
+  await Promise.all(pending);
+});
+
+test("audit receipt rejects missing, leaked, wrong-size, nonfinite and failed outputs without retaining them", async () => {
+  for (const change of [{ locations: 7 }, { views: 31 }, { bytes: 3080 }, { nativeTimeoutSeconds: 90 },
+    { elapsedSeconds: Infinity }, { elapsedSeconds: 60.001 }, { peakChildRssKiB: 0 }, { fetchErrors: 1 },
+    { inferenceErrors: 1 }, { threads: 4 }, { productionQualified: true }, { credential: "private-fixture" }]) {
+    const receipt = { ...auditBudgetReceipt(), ...change };
+    assert.throws(() => checkedAuditBudgetReceipt(receipt, runtime), /native_audit_budget_check_failed/);
+    const { host, ctx, env, control, pending } = fixture();
+    env.NATIVE_IMAGERY_EGRESS = "live-imagery";
+    ctx.container.exec = async () => ({ stdout: stream(JSON.stringify(receipt)), stderr: stream(""), exitCode: Promise.resolve(0) });
+    const response = await host.auditBudgetCheck();
+    assert.equal(response.status, 503);
+    assert.deepEqual(await response.json(), { error: "native_audit_budget_check_failed" });
+    assert.equal(ctx.container.running, false);
+    assert.equal(control.values.get("lastControlFailure").stage, "native_audit_budget_check_failed");
+    assert.equal(JSON.stringify(await (await host.status()).json()).includes("private-fixture"), false);
+    await Promise.all(pending);
+  }
+});
+
+test("audit budget deadline destroys stalled compute; successful inference with failed shutdown is unavailable", async () => {
+  for (const stopFailure of [false, true]) {
+    const { ctx, env, control, options } = fixture();
+    env.NATIVE_IMAGERY_EGRESS = "live-imagery";
+    ctx.container.exec = stopFailure ? async () => ({ stdout: stream(JSON.stringify(auditBudgetReceipt())),
+      stderr: stream(""), exitCode: Promise.resolve(0) }) : () => new Promise(() => {});
+    if (stopFailure) ctx.container.destroy = async () => { throw Error("synthetic stop failure"); };
+    const host = new NativeController(ctx, env, { ...options, auditBudgetCheckTimeoutMs: 5 });
+    assert.equal((await host.auditBudgetCheck()).status, 503);
+    if (!stopFailure) { assert.equal(ctx.container.running, false); assert.equal(control.destroys, 1); }
+  }
+});
+
+function repeatabilityReceipt() {
+  return { status: "native_repeatability_check_completed", runtimeSha256: runtime, locations: 8, views: 32,
+    frozenManifestSha256: "d".repeat(64), sceneGraph: "fp32", executionProvider: "cpu", threads: 1,
+    nativeTimeoutSeconds: 50, elapsedSeconds: 95.5, peakChildRssKiB: 830000, productionQualified: false,
+    repetitions: [1, 2, 3].map(repetition => ({ repetition, elapsedSeconds: 22,
+      indexSha256: "e".repeat(64), preprocessedInputsIdentical: true, minimumNormalizedCosine: 1,
+      maximumNormalizedRelativeL2: 0, packedByteIdentical: true, minimumPackedCosine: 1,
+      maximumPackedRelativeL2: 0, nativeQueriesIdentical: true })) };
+}
+
+test("native repeatability freezes one fixed fixture, runs three independent replays and stops compute", async () => {
+  const { host, ctx, env, control, pending } = fixture();
+  env.NATIVE_IMAGERY_EGRESS = "live-imagery";
+  ctx.container.exec = async argv => {
+    assert.deepEqual(argv, ["timeout", "--kill-after=5", "300", "/usr/local/bin/python", "-B", "-c", REPEATABILITY_CHECK]);
+    return { stdout: stream(JSON.stringify(repeatabilityReceipt())), stderr: stream(""), exitCode: Promise.resolve(0) };
+  };
+  const response = await host.repeatabilityCheck();
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), repeatabilityReceipt());
+  assert.equal(ctx.container.running, false);
+  assert.equal(control.destroys, 1);
+  assert.equal(control.values.has("activeBundle"), false);
+  await Promise.all(pending);
+});
+
+test("repeatability reports numerical or ranking differences without inventing admission", () => {
+  const receipt = repeatabilityReceipt();
+  Object.assign(receipt.repetitions[1], { packedByteIdentical: false, nativeQueriesIdentical: false,
+    minimumNormalizedCosine: .99999, maximumNormalizedRelativeL2: .004,
+    minimumPackedCosine: .9999, maximumPackedRelativeL2: .01 });
+  assert.deepEqual(checkedRepeatabilityReceipt(receipt, runtime), receipt);
+  assert.equal(receipt.productionQualified, false);
+});
+
+test("repeatability receipt rejects changed input, geometry, duplicate runs, raw fields and invalid measurements", () => {
+  const invalid = [
+    r => { r.repetitions.pop(); }, r => { r.repetitions[1].repetition = 1; },
+    r => { r.repetitions[0].preprocessedInputsIdentical = false; },
+    r => { r.repetitions[0].maximumNormalizedRelativeL2 = -1; },
+    r => { r.repetitions[0].minimumPackedCosine = Infinity; },
+    r => { r.repetitions[0].nativeQueriesIdentical = "true"; },
+    r => { r.repetitions[0].rawVector = [1, 2]; }, r => { r.locations = 9; },
+    r => { r.frozenManifestSha256 = "https://untrusted.invalid/input"; },
+    r => { r.productionQualified = true; }, r => { r.elapsedSeconds = 301; },
+  ];
+  for (const mutate of invalid) {
+    const receipt = repeatabilityReceipt(); mutate(receipt);
+    assert.throws(() => checkedRepeatabilityReceipt(receipt, runtime), /native_repeatability_check_failed/);
+  }
+});
+
+test("repeatability deadline stops stalled compute without leaving a background diagnostic", async () => {
+  const { ctx, env, control, options } = fixture();
+  env.NATIVE_IMAGERY_EGRESS = "live-imagery";
+  ctx.container.exec = () => new Promise(() => {});
+  const host = new NativeController(ctx, env, { ...options, repeatabilityCheckTimeoutMs: 5 });
+  const response = await host.repeatabilityCheck();
+  assert.equal(response.status, 503);
+  assert.deepEqual(await response.json(), { error: "native_repeatability_check_failed" });
+  assert.equal(ctx.container.running, false);
+  assert.equal(control.destroys, 1);
+});
+
+test("repeatability failures retain a fixed phase/run only, never paths, outputs or exception text", async () => {
+  const failure = { error: "native_repeatability_check_failed", phase: "index_validation", repetition: 0 };
+  assert.deepEqual(checkedRepeatabilityFailure(failure), { phase: "index_validation", repetition: 0 });
+  for (const change of [{ phase: "sensitive-local-path" }, { repetition: 4 }, { rawError: "private-fixture" }]) {
+    assert.throws(() => checkedRepeatabilityFailure({ ...failure, ...change }), /native_repeatability_check_failed/);
+  }
+  const { host, ctx, env, control, pending } = fixture();
+  env.NATIVE_IMAGERY_EGRESS = "live-imagery";
+  ctx.container.exec = async () => ({ stdout: stream(JSON.stringify(failure)), stderr: stream(""), exitCode: Promise.resolve(1) });
+  assert.equal((await host.repeatabilityCheck()).status, 503);
+  const saved = control.values.get("lastRepeatabilityFailure");
+  assert.deepEqual(Object.keys(saved).sort(), ["at", "phase", "repetition"]);
+  assert.equal(saved.phase, "index_validation");
+  assert.equal(ctx.container.running, false);
   await Promise.all(pending);
 });
 

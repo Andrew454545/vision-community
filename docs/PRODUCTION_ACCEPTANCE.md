@@ -211,6 +211,13 @@ measurements into automatic production approval.
   explicitly bounds all four thread variables. Native audit batch capacity is
   independent of pace, default8; larger limits require measured host capacity
   inside the50-second audit budget and matching Worker/policy configuration.
+  On 2026-10-03, three actual hosted eight-location audits completed in
+  18.142–20.399 seconds, with full request times below26 seconds and native
+  RSS below812 MiB. A separate native capture/three-replay study produced
+  identical preprocessed inputs, normalized vectors, packed indexes and saved
+  native query results. Retain the initial eight-location limit; larger batches,
+  full-corpus quality, admission and paid-search budgets remain open. See
+  [the hosted budget report](HOSTED_SCENE_BUDGET_20261003.md).
   The new checks require new runtime/helper/policy pins; no admitted release
   profile or hosted native service is created by changing these helpers.
   Actual pinned CPU recomputation of16locations completed in47.09seconds during
@@ -690,7 +697,8 @@ production credit product.
   The native scene adapter, runtime packager and private bridge are implemented
   and exercised locally on Mac/Windows. A private Container controller and
   named engine/verifier/operator service bindings are deployed in staging;
-  actual hosted inference, measured policy activation and a live contribution
+  actual hosted startup, inference, eight-location audit budgets and small-fixture
+  repeatability now pass. Measured policy activation and a live contribution
   snapshot remain unverified. See the
   [private host instructions](../deploy/cloudflare/native-container-host/README.md).
 - [ ] Measure hosted compute, memory, latency and cost, including simultaneous
