@@ -44,9 +44,16 @@ Mac reference batching/settings are preserved.
 Both private CPU builds pass 49 native tests. Downloaded archives, binaries,
 observed dependencies and source identities were independently checked.
 All 11 model files matched their pinned checksums. Declared Windows imports
-exposed four additional Microsoft compiler runtime DLLs; app-local packaging is
-being verified separately. A successful run on this laptop does not prove a
-clean-PC package or complete dynamic dependency closure.
+exposed four additional Microsoft compiler runtime DLLs. The updated private
+package includes these beside the executable, with valid compiler-source
+signatures and independent file checksums. Both new builds pass 49 native tests;
+their archives, source and build-helper identities were independently verified.
+On this laptop, real processing loaded all four compiler DLLs and DirectML.dll
+from the package folder with matching checksums and a restricted environment.
+RF-DETR and hybrid processing of the same six saved views again matched every
+earlier Windows output value and ranking exactly. No global installation was
+needed. This does not prove a clean-PC package or complete dynamic dependency
+closure, and loading DirectML.dll does not establish GPU inference.
 
 No accounts, accepted contributions or search credits were created by these
 checks. Raw images, indexes, diagnostic outputs and build receipts remain private.

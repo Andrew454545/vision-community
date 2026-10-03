@@ -15,17 +15,23 @@ allowed = {'invalid_native_runtime', 'incomplete_native_runtime', 'runtime_chang
 def stop():
     if child is None or child.poll() is not None:
         return
-    if os.name == 'posix':
-        os.killpg(child.pid, signal.SIGTERM)
-    else:
-        child.terminate()
+    try:
+        if os.name == 'posix':
+            os.killpg(child.pid, signal.SIGTERM)
+        else:
+            child.terminate()
+    except ProcessLookupError:
+        pass  # The child can exit between poll() and signalling its group.
     try:
         child.wait(timeout=2)
     except subprocess.TimeoutExpired:
-        if os.name == 'posix':
-            os.killpg(child.pid, signal.SIGKILL)
-        else:
-            child.kill()
+        try:
+            if os.name == 'posix':
+                os.killpg(child.pid, signal.SIGKILL)
+            else:
+                child.kill()
+        except ProcessLookupError:
+            pass
         child.wait(timeout=2)
 def drain(name, stream):
     try:

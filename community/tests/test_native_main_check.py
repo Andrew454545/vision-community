@@ -37,7 +37,7 @@ ThreadingHTTPServer(('127.0.0.1', PORT), Handler).serve_forever()
 '''
 
 class NativeMainCheckTests(unittest.TestCase):
-    def run_program(self, script, timeout=20):
+    def run_program(self, script, timeout=20, exited_during_signal=False):
         with socket.socket() as reserve:
             reserve.bind(('127.0.0.1', 0)); port = reserve.getsockname()[1]
         with tempfile.TemporaryDirectory() as directory:
@@ -50,11 +50,24 @@ class NativeMainCheckTests(unittest.TestCase):
                 "'/opt/vision/server.py'", repr(str(server))).replace('8080', str(port)).replace(
                 'time.monotonic() + 20', 'time.monotonic() + ' + str(timeout))
             output = io.StringIO()
+            def exited_terminate(process):
+                # Exercise a real subprocess exiting while stop() signals it.
+                original_terminate(process)
+                process.wait(timeout=2)
+                raise ProcessLookupError()
+            import subprocess
+            original_terminate = subprocess.Popen.terminate
             with patch.dict(os.environ, {'VISION_HOST_SECRET': 'a' * 64, 'VISION_HOST_OPERATOR_SECRET': 'b' * 64}), \
                     patch('os.getuid', return_value=10001, create=True), patch('platform.python_version', return_value='3.12.15'), \
                     contextlib.redirect_stdout(output):
-                with self.assertRaises(SystemExit) as stopped:
-                    exec(compile(program, str(SOURCE), 'exec'), {})
+                with contextlib.ExitStack() as cleanup:
+                    if exited_during_signal:
+                        # Use the Windows signalling branch on either platform;
+                        # no orphan or platform-specific mock process is involved.
+                        program = program.replace("if os.name == 'posix':", 'if False:')
+                        cleanup.enter_context(patch('subprocess.Popen.terminate', exited_terminate))
+                    with self.assertRaises(SystemExit) as stopped:
+                        exec(compile(program, str(SOURCE), 'exec'), {})
             result = json.loads(output.getvalue())
             self.assertEqual(stopped.exception.code, 0 if result['status'] == 'native_main_check_passed' else 1)
             with socket.socket() as probe:
@@ -89,5 +102,13 @@ class NativeMainCheckTests(unittest.TestCase):
         result = self.run_program(SERVER.replace("'a'*64", "'b'*64"))
         self.assertEqual(result['phase'], 'http_self_check')
         self.assertEqual(result['code'], 'native_http_self_check_failed')
+
+    def test_child_exiting_during_shutdown_keeps_verified_receipt(self):
+        result = self.run_program(SERVER, exited_during_signal=True)
+        self.assertEqual(result['status'], 'native_main_check_passed')
+
+    def test_child_exiting_during_shutdown_preserves_original_failure(self):
+        result = self.run_program('import time; time.sleep(120)', timeout=0.2, exited_during_signal=True)
+        self.assertEqual(result['code'], 'native_main_program_failed')
 
 if __name__ == '__main__': unittest.main()
