@@ -1,6 +1,6 @@
 # Production acceptance and continuation
 
-Updated 2026-10-02 UTC. This checklist defines completion; "perfect" is not a
+Updated 2026-10-03 UTC. This checklist defines completion; "perfect" is not a
 testable release claim. Check off a requirement only with test or deployment
 evidence. Preserve earlier calibration failures and do not turn exploratory
 measurements into automatic production approval.
@@ -111,6 +111,15 @@ measurements into automatic production approval.
   checks pass. Its later finite scheduled window produced no start marker or
   result; the trigger was removed and read back empty. This establishes no
   server execution. Its hosted result is still required; scheduling is not execution.
+  The shutdown-race correction passes 11 real subprocess/launch tests and all
+  five GitHub jobs at `3ef06f3`. Its exact Worker bundle was deployed privately
+  and independently read back on 2026-10-03; existing bindings, image, namespace
+  and disabled public URLs were preserved. The initial readback used the wrong
+  API endpoint and returned 405 after upload; the documented script-download
+  endpoint verified the complete source checksum. This is a code rollout, not
+  evidence of hosted inference. The Cloudflare plugin works, but the laptop's
+  private service-binding connection returns an authorization error; its fresh
+  sign-in attempt timed out. No diagnostic trigger is left running.
   One-time checks require a short absolute UTC execution window and a create-only
   marker; expired or duplicate deliveries cannot restart compute. A failed final
   shutdown or incomplete model receipt cannot be reported as a passing check.
@@ -592,11 +601,17 @@ without Codex polling. Its operating contract is described in the
   unsent/rejected work and account recovery while resolving storage pressure;
   live disk growth and long-run acceptance remain open.
 
-The old scheduled worker's idle recovery evidence does not validate these new
-schedule controls. Do not convert the following into completed claims without
-recorded evidence:
+On 2026-10-03, the installed worker was safely updated while idle. The same
+private folder and checksum-verified Python were retained. Its actual scheduled
+action and fresh worker status agree: medium from 06:00 to midnight, max from
+midnight to 06:00, following this PC's local clock; retry every 30 minutes and
+prevent idle sleep while working. The task is Running, with unlimited runtime,
+sign-in/recovery triggers and no duplicate-instance launch. It remains
+`waiting_for_service`, with zero accepted locations. This confirms the installed
+options and idle handover only; it does not establish accepted work, real
+day/night boundary behavior, sleep/wake or weeks of continuous processing.
 
-- [ ] Confirm the installed task's actual options and fresh status match the
+- [x] Confirm the installed task's actual options and fresh status match the
   selected day/night schedule, retry interval and sleep preference.
 - [ ] Exercise daytime/nighttime boundaries, an overnight interval, scheduled
   pause/resume and changes while a batch is active, using the local clock.
