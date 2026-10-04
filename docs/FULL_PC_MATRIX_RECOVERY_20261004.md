@@ -55,6 +55,13 @@ rank displacement is six, maximum absolute score difference is 0.000224190,
 and one selected view differs in `snowy landscape`. These are measured
 diagnostic results, not new acceptance thresholds or byte-identical parity.
 
+All six Community CI jobs pass at `6a0cf3f`, including the complete Windows
+suite and both 75-test calibration jobs. The remaining eight trials are handed
+to a separate limited Windows task after saved-setting verification. It has
+a 40-hour outer limit, pins the corrected code and retained first case, and
+requires a verified launch receipt. It rechecks the original inputs before
+new inference; registration or a started marker alone is not native progress.
+
 One native trial cannot approve a parallel profile. The remaining rotated
 1/2/4-thread repeats, held-out tolerance, trusted live imagery, actual accepted
 background work and restart/endurance evidence remain release gates. This
