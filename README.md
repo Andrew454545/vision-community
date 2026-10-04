@@ -4,6 +4,9 @@ Your PC finds Street View locations. Accepted results earn credits for searches.
 
 **Preview: processing and online search are not open yet.**
 
+The finished app will support **Windows and Mac**, with **Scenes, Objects or Both**.
+The current guided download is a **Windows Scenes preview**.
+
 ## Get started — Windows
 
 1. [Download VISION](https://github.com/Andrew454545/vision-community/releases/download/windows-starter-preview-20261004-recovery/VISION-Community-Windows.zip).
