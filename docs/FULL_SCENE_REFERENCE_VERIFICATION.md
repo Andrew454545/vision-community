@@ -2,7 +2,7 @@
 
 Before new PC repeats, obtain the completed private Mac artifact and its exact
 byte count and SHA-256 from authenticated GitHub metadata. Keep its original
-archive. Use a new output folder:
+archive. Use a new output folder outside the public checkout:
 
 ```powershell
 python -m calibration.verify_full_scene_reference --archive <private.zip> --bytes <GitHub-byte-count> --sha256 <GitHub-SHA-256> --out <new-folder>
