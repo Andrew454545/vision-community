@@ -31,6 +31,40 @@ implemented. Rejected qualification is never treated as permission to upload.
 
 ## Enable after explicit consent
 
+The beginner option is **Background VISION.cmd**, next to **Start VISION.cmd**.
+Complete setup in Start VISION, save your account code, and close its window.
+Open Background VISION, paste that code once, choose the schedule and allowance,
+tick consent, then choose **Save and enable**. An existing background task keeps
+its original private folder, account and saved settings. The controls never
+replace its account, lease work, or claim credits themselves.
+
+New control-window defaults are **medium 06:00–00:00**, **max 00:00–06:00** and
+a **20 GB folder allowance**. Existing settings are preserved. The window uses
+this PC's clock, including clock/time-zone changes. Settings changes apply
+only through the installer; an active batch is never force-stopped. Use
+**Pause after batch**, wait, then save the changed schedule. Resume cannot clear
+`NEEDS-ATTENTION` or an installer stop. **Turn off automatic processing** removes
+the task only after safe handover and keeps saved files. Closing the controls
+does not stop the worker. Keep the extracted folder to reopen the controls.
+
+**Check status** explicitly reads the saved worker report and Windows task
+state. It does not poll in the background or spend Codex usage. Reports are
+labelled with their saved time; a stopped task is never shown as processing
+merely because its last report says so. A running task still does not prove
+current progress or an accepted contribution.
+
+Setup now independently reads Windows' saved task. It requires unlimited
+execution time, an unexpired 15-minute recovery trigger, sign-in recovery,
+limited current-user privileges, battery continuity and no overlapping task
+instances. Windows may omit default XML fields and represent the same user by
+name or SID; effective enabled/privilege settings are checked too. A stop marker
+is kept throughout installation, including abrupt installer exit, and removed
+only after readback and saving settings. Mismatch preserves the stop and a
+failure report. The receipt explicitly does not claim actual start or endurance.
+
+The following commands remain available for maintainers. Their legacy defaults
+are 08:00 and 22:00; the control window passes its selected times explicitly.
+
 Use the repository folder; setup downloads and verifies its own private Python:
 
 ```powershell
@@ -199,6 +233,12 @@ Do not delete recovery files merely to clear a warning. The pending-batch limit
 does not cap historical files; safe disk growth over weeks remains unvalidated.
 
 ## Remaining validation
+
+The delivery journal now uses partial indexes for pending and lost-lease rows,
+so recovery/count queries do not scan the accumulated accepted receipts. Tests
+verify query plans and saved payloads with 10,000 historical receipts, plus
+migration of an older journal. This preserves history; it is not a storage
+rotation or contribution-file cleanup policy.
 
 Unit tests cover unavailable services, restart/account reuse, empty queues,
 rejected checks, low disk, pause, corrupt credentials and duplicate processes.

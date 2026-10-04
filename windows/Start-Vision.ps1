@@ -1,7 +1,8 @@
 [CmdletBinding()]
 param(
     [switch]$AcceptDownloadsAndLiveImagery,
-    [switch]$PrepareOnly
+    [switch]$PrepareOnly,
+    [switch]$BackgroundControls
 )
 
 $ErrorActionPreference = 'Stop'
@@ -205,6 +206,10 @@ function Start-Vision {
         Assert-VisionRegularPath (Split-Path -Parent $root)
         Assert-VisionRegularPath $root
         [IO.Directory]::CreateDirectory($root) | Out-Null
+        if ($BackgroundControls) {
+            & (Join-Path $PSScriptRoot 'Background-Control.ps1')
+            return 0
+        }
         if (-not $PrepareOnly -and (Open-VisionExisting $root)) { return 0 }
         try { $guard = [IO.File]::Open((Join-Path $root 'launcher.lock'), [IO.FileMode]::OpenOrCreate, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None) }
         catch { Write-Host 'VISION setup is already running. Please use its existing window and wait for setup to finish.'; return 0 }

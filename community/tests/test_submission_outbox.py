@@ -75,6 +75,48 @@ class OutboxTest(unittest.TestCase):
                 self.assertEqual(other.pending(), [])
             self.assertEqual(first.outbox.count(), 1)
 
+    def test_months_of_receipts_do_not_require_scanning_history_to_recover(self):
+        with tempfile.TemporaryDirectory() as root:
+            client = self.client(root)
+            path = Path(root) / 'submissions.sqlite'
+            with closing(sqlite3.connect(path)) as connection:
+                connection.executemany('''INSERT INTO deliveries
+                    (origin,account_id,lease_id,payload_json,payload_sha256,state,result_json,updated_at)
+                    VALUES (?, ?, ?, NULL, ?, 'accepted', ?, ?)''',
+                    [(self.url, self.account, f'{n:032x}', 'c' * 64, '{"accepted":16}', n) for n in range(10000)])
+                connection.commit()
+            for n in (10001, 10002):
+                client.outbox.remember(f'{n:032x}', self.outputs)
+            client.outbox.result(f'{10002:032x}', {'pendingAudit': True})
+            self.assertEqual([row['lease_id'] for row in client.outbox.pending()], [f'{10001:032x}', f'{10002:032x}'])
+            self.assertEqual(client.pending, 2)
+            self.assertTrue(client.submission_is_saved(f'{5:032x}'))
+            with closing(sqlite3.connect(path)) as connection:
+                queries = (
+                    ("SELECT lease_id,state,payload_json FROM deliveries WHERE origin=? AND account_id=? AND state IN ('ready','pending') ORDER BY updated_at,rowid LIMIT 16", 'deliveries_pending'),
+                    ("SELECT COUNT(*) FROM deliveries WHERE origin=? AND account_id=? AND state IN ('ready','pending')", 'deliveries_pending'),
+                    ("SELECT COUNT(*) FROM deliveries WHERE origin=? AND account_id=? AND state='lease_lost'", 'deliveries_lost'),
+                )
+                for query, index in queries:
+                    plan = ' '.join(row[3] for row in connection.execute('EXPLAIN QUERY PLAN ' + query, (self.url, self.account)))
+                    self.assertIn(index, plan)
+                    self.assertNotIn('TEMP B-TREE', plan)
+                self.assertEqual(connection.execute('SELECT COUNT(*) FROM deliveries').fetchone()[0], 10002)
+
+    def test_older_journal_migration_preserves_pending_payloads(self):
+        with tempfile.TemporaryDirectory() as root:
+            path = Path(root) / 'submissions.sqlite'
+            with closing(sqlite3.connect(path)) as connection:
+                connection.execute('''CREATE TABLE deliveries (origin TEXT,account_id TEXT,lease_id TEXT,
+                    payload_json TEXT,payload_sha256 TEXT,state TEXT,result_json TEXT,
+                    PRIMARY KEY(origin,account_id,lease_id))''')
+                connection.execute('INSERT INTO deliveries VALUES (?,?,?,?,?,?,?)',
+                    (self.url, self.account, self.lease, json.dumps(self.outputs), 'c' * 64, 'ready', None))
+                connection.commit()
+            migrated = self.client(root)
+            self.assertEqual(json.loads(migrated.outbox.pending()[0]['payload_json']), self.outputs)
+            self.assertEqual(migrated.pending, 1)
+
     def test_altered_local_payload_and_empty_response_preserve_saved_work(self):
         with tempfile.TemporaryDirectory() as root:
             client = self.client(root)

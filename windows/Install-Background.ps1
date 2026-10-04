@@ -40,6 +40,59 @@ function Open-BackgroundGuard([string]$Folder) {
     }
 }
 
+function Assert-BackgroundRegistration([string]$Name, [string]$Executable, [string]$Arguments) {
+    # Read back Windows' saved task, rather than treating registration as proof
+    # of an unlimited lifetime. Never start an expiring or differently scoped task.
+    [xml]$document = Export-ScheduledTask -TaskName $Name -ErrorAction Stop
+    $ns = New-Object Xml.XmlNamespaceManager($document.NameTable)
+    $ns.AddNamespace('t', 'http://schemas.microsoft.com/windows/2004/02/mit/task')
+    function Task-Text([string]$Path) {
+        $node = $document.SelectSingleNode('/t:Task/' + $Path, $ns)
+        if ($node) { return $node.InnerText }
+        return ''
+    }
+    $expected = @{
+        't:Actions/t:Exec/t:Command' = $Executable
+        't:Actions/t:Exec/t:Arguments' = $Arguments
+        't:Principals/t:Principal/t:LogonType' = 'InteractiveToken'
+        't:Settings/t:MultipleInstancesPolicy' = 'IgnoreNew'
+        't:Settings/t:ExecutionTimeLimit' = 'PT0S'
+        't:Settings/t:StartWhenAvailable' = 'true'
+        't:Settings/t:DisallowStartIfOnBatteries' = 'false'
+        't:Settings/t:StopIfGoingOnBatteries' = 'false'
+        't:Settings/t:RestartOnFailure/t:Interval' = 'PT5M'
+        't:Settings/t:RestartOnFailure/t:Count' = '3'
+        't:Triggers/t:TimeTrigger/t:Repetition/t:Interval' = 'PT15M'
+    }
+    foreach ($path in $expected.Keys) {
+        if ((Task-Text $path) -cne $expected[$path]) { throw 'Windows did not save the expected recovery settings. The worker was not started; its stop request and reports were kept.' }
+    }
+    # Windows omits default Enabled/least-privilege fields in exported XML.
+    # Check their effective saved values as well as any explicit XML values.
+    $saved = Get-ScheduledTask -TaskName $Name -ErrorAction Stop
+    if (-not $saved -or $saved.Settings.Enabled -ne $true -or [int]$saved.Principal.RunLevel -ne 0 -or
+        $saved.Settings.RunOnlyIfIdle -ne $false -or $saved.Settings.RunOnlyIfNetworkAvailable -ne $false -or
+        (Task-Text 't:Settings/t:Enabled') -notin @('', 'true') -or
+        (Task-Text 't:Settings/t:RunOnlyIfIdle') -notin @('', 'false') -or
+        (Task-Text 't:Settings/t:RunOnlyIfNetworkAvailable') -notin @('', 'false') -or
+        (Task-Text 't:Principals/t:Principal/t:RunLevel') -notin @('', 'LeastPrivilege')) {
+        throw 'Windows did not save an enabled task with limited privileges. The worker was not started; its stop request and reports were kept.'
+    }
+    $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+    $principal = Task-Text 't:Principals/t:Principal/t:UserId'
+    $logonUser = Task-Text 't:Triggers/t:LogonTrigger/t:UserId'
+    if ($principal -notin @($identity.Name, $identity.User.Value) -or $logonUser -notin @($identity.Name, $identity.User.Value) -or
+        $document.SelectNodes('/t:Task/t:Actions/*', $ns).Count -ne 1 -or
+        $document.SelectNodes('/t:Task/t:Principals/*', $ns).Count -ne 1 -or
+        $document.SelectNodes('/t:Task/t:Triggers/*', $ns).Count -ne 2 -or
+        $document.SelectNodes('/t:Task/t:Triggers/*/t:EndBoundary', $ns).Count -ne 0 -or
+        $document.SelectNodes('/t:Task/t:Triggers/*[t:Enabled="false"]', $ns).Count -ne 0 -or
+        (Task-Text 't:Triggers/t:TimeTrigger/t:Repetition/t:Duration') -notin @('', 'PT0S') -or
+        (Task-Text 't:Triggers/t:TimeTrigger/t:Repetition/t:StopAtDurationEnd') -notin @('', 'false')) {
+        throw 'Windows saved a different owner or an expiring recovery schedule. The worker was not started; its stop request and reports were kept.'
+    }
+}
+
 $installGuard = $null
 $workerGuard = $null
 $handoverStarted = $false
@@ -65,7 +118,7 @@ try {
         $idleStates = @('paused', 'scheduled_pause', 'waiting_for_schedule', 'waiting_for_work',
             'waiting_for_service', 'waiting_for_verification', 'waiting_for_space', 'needs_attention', 'running', 'stopped')
         if ($state -notin $idleStates) {
-            throw 'VISION is processing or its state cannot be confirmed. Create a PAUSE file in its private folder, wait for the current batch to finish, then retry. No active work was interrupted.'
+            throw 'VISION is still open or processing. Close Start VISION, or choose Pause after batch in Background VISION and wait for the batch to finish, then retry. No active work was interrupted.'
         }
         # An idle worker observes this marker between batches and during waits.
         # Never force-stop a native process or replace source while it owns work.
@@ -81,6 +134,11 @@ try {
         }
     }
     $handoverStarted = $true
+    # Keep recovery launches stopped throughout setup, including an abrupt
+    # installer exit after registration. Clear only after readback and settings.
+    if (-not (Test-Path -LiteralPath $stopPath)) {
+        [IO.File]::WriteAllText($stopPath, '', $script:VisionUtf8)
+    }
     if ($Remove) {
         if ($existing) { Unregister-ScheduledTask -TaskName $taskName -Confirm:$false }
         Write-Output 'Automatic indexing removed after the worker stopped. Saved accounts, checkpoints, pause requests and failure reports were preserved.'
@@ -130,6 +188,7 @@ except Exception as error:
     $logon = New-ScheduledTaskTrigger -AtLogOn -User $identity
     # Scheduler recovery is independent of the worker's service retry cooldown.
     $recovery = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) -RepetitionInterval (New-TimeSpan -Minutes 15)
+    $recovery.Repetition.StopAtDurationEnd = $false
     $settings = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew -StartWhenAvailable `
         -ExecutionTimeLimit ([TimeSpan]::Zero) -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 5) `
         -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
@@ -138,6 +197,12 @@ except Exception as error:
         -Description 'Opt-in VISION contributor with local day/night pacing. Resumes after sign-in and saved checkpoints. No Codex usage. Pause using the PAUSE file in its private folder.'
     Register-ScheduledTask -TaskName $taskName -InputObject $task -Force | Out-Null
     $registrationSucceeded = $true
+    Assert-BackgroundRegistration $taskName $windowlessPython $arguments
+    Write-VisionJson (Join-Path $rootPath 'background-registration.json') @{
+        status = 'SAVED_RECOVERY_SETTINGS_VERIFIED'; timeUtc = [DateTime]::UtcNow.ToString('o')
+        unlimitedTaskLifetime = $true; recoveryEveryMinutes = 15; resumesAfterSignIn = $true
+        preventsOverlappingTasks = $true; actualStartVerified = $false; enduranceVerified = $false
+    }
     Write-VisionJson (Join-Path $rootPath 'background-settings.json') @{
         dayPace = $DayPace; nightPace = $NightPace; dayStart = $DayStart; nightStart = $NightStart
         retryMinutes = $RetryMinutes; keepAwake = -not [bool]$AllowSleep; clock = 'Windows local time'
@@ -149,6 +214,7 @@ except Exception as error:
     Write-Output "Background schedule saved: $DayStart day ($DayPace), $NightStart night ($NightPace), retry every $RetryMinutes minutes. Times follow this PC's local clock."
     if ($StorageLimitGB) { Write-Output "Private folder allowance: $StorageLimitGB GB. New processing pauses at batch boundaries; existing work is kept. This is not a hard disk quota." }
     Write-Output 'Registration and a start request do not confirm that the worker started.'
+    Write-Output 'Saved Windows recovery settings were verified: no task expiry, sign-in recovery, 15-minute recovery trigger, and no overlapping tasks.'
     Write-Output "Check $rootPath\background-status.json for a fresh status. Startup failures may be saved in startup-failure.json."
     Write-Output 'After a restart, sign into Windows to resume. Power-off suspends computation. PAUSE and existing account/work files were preserved.'
 } catch {
