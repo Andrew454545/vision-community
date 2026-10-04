@@ -81,6 +81,16 @@ actual 1,024-location study configuration. Helpers and input pins are checked
 again after processing. Fifteen new failure/transport guards and all 66 local
 calibration tests pass; the full native matrix has not yet run.
 
+All six Community CI jobs pass at `5d1bb33`. A separate private compatibility
+check verifies a copy of the earlier actual 128-location PC results, all 512
+views, 1,536 tensor files and twelve queries. Original hashes stay unchanged;
+no new native command runs. A finite local Windows task is registered to wait
+for the exact completed Mac artifact, verify its independent GitHub byte/hash
+pins and start the matrix. It checks immutable helper/runtime pins and preserves
+failure instead of silently retrying inference. It neither supervises nor
+changes the contributor worker. Registration alone is not restart/endurance
+evidence or completed native comparison.
+
 This is a private controlled diagnostic. It creates no account, contribution,
 credit or approval policy, retrieves no live imagery and does not inspect or
 change the installed background worker. It cannot settle trusted live-image

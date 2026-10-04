@@ -186,7 +186,8 @@ test("a delayed device qualification cannot recreate access after deletion", asy
   env.SCENE_VERIFIER.fetch = async request => {
     const body = await request.json();
     await deleteAccount(env, "anonymous", { accountId: "anonymous", confirmation: "DELETE", idempotencyKey: "c".repeat(64) });
-    return Response.json({ ...body, approved: true, expiresAt: Math.floor(Date.now() / 1000) + 3600 });
+    return Response.json({ policyId: body.policyId, profileId: body.profileId,
+      canarySha256: body.canarySha256, approved: true, expiresAt: Math.floor(Date.now() / 1000) + 3600 });
   };
   await assert.rejects(qualifyDevice(env, "anonymous", { profileId: "a".repeat(64), canary }, () => true), /account_not_active/);
   assert.equal(sql.prepare("SELECT COUNT(*) AS n FROM scene_qualifications WHERE expires_at>0").get().n, 0);
@@ -217,6 +218,43 @@ test("an explicit negative qualification remains a PC rejection", async t => {
     await assert.rejects(qualifyDevice(env, "anonymous", { profileId: "a".repeat(64), canary }, () => true),
       error => error.message === "scene_device_not_qualified" && error.status === 422);
   }
+});
+
+test('malformed, oversized or uncorrelated approvals stay service failures without recording qualification', async t => {
+  const {sql,env,now}=await fixture(t);
+  const blob=new Uint8Array(112*3080);
+  const canary={locations:112,records:Array(112).fill(Buffer.alloc(3080).toString('base64')),
+    outputSha256:await sha256Hex(blob)};
+  const before=sql.prepare('SELECT COUNT(*) AS n FROM scene_qualifications').get().n;
+  for (const change of [{approved:undefined},{policyId:'wrong-policy'},{profileId:'0'.repeat(64)},
+      {canarySha256:'0'.repeat(64)},{expiresAt:now},{padding:'X'.repeat(65536)}]) {
+    env.SCENE_VERIFIER.fetch=async request=>{
+      const body=await request.json();
+      return Response.json({approved:true,policyId:body.policyId,profileId:body.profileId,
+        canarySha256:body.canarySha256,expiresAt:now+3600,...change});
+    };
+    await assert.rejects(qualifyDevice(env,'anonymous',{profileId:'a'.repeat(64),canary},()=>true,now),
+      error=>error.message==='scene_verification_unavailable'&&error.status===503);
+  }
+  assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM scene_qualifications').get().n,before);
+});
+
+test('oversized audit approval preserves quarantine and awards nothing until a valid retry', async t => {
+  const {sql,env}=await fixture(t);
+  const original=env.SCENE_VERIFIER.fetch;
+  env.SCENE_VERIFIER.fetch=async request=>{
+    const body=await request.json();
+    return Response.json({policyId:body.policyId,submissionSha256:body.submissionSha256,
+      decision:'approved',padding:'X'.repeat(65536)});
+  };
+  const pending=await auditScene(env,'anonymous',leaseId);
+  assert.equal(pending.unitsEarned,0);
+  assert.equal(sql.prepare('SELECT state FROM scene_candidates').get().state,'pending');
+  assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM ledger').get().n,0);
+  assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM published_index').get().n,0);
+  env.SCENE_VERIFIER.fetch=original;
+  assert.equal((await auditScene(env,'anonymous',leaseId)).unitsEarned,1);
+  assert.equal((await auditScene(env,'anonymous',leaseId)).unitsEarned,0);
 });
 
 const deletion = { accountId: "anonymous", confirmation: "DELETE", idempotencyKey: "c".repeat(64) };
