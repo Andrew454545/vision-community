@@ -20,7 +20,8 @@ if str(REPO) not in sys.path:
 from community.bootstrap import BootstrapError, install_runtime, load_manifest, runtime_platform
 from community.contribute import CommunityClient, ContributeError, DEFAULT_URL
 from community.vision_index import default_runner, index_from_queue, parse_json_stdout, require_layout, VisionIndexError
-from community.pc_canary import run_canary, canary_profile_matches, released_canary_policy
+from community.pc_canary import (run_canary, canary_profile_matches, released_canary_policy,
+                                 compact_approved_canary)
 from community.submission_outbox import SubmissionOutbox, MAX_PENDING_SUBMISSIONS
 
 WEB = Path(__file__).with_name("desktop_web")
@@ -336,7 +337,19 @@ class DesktopApp:
         _, decision, _ = self.client.request("POST", "/api/scene-qualifications", self.canary_report["submission"])
         if not self.set_qualification(decision):
             raise DesktopError("scene_qualification_rejected")
-        self.update(phase="ready", message="PC approved. Go to step 4 and choose Start helping.", batchCompleted=0, batchTotal=16)
+        message = "PC approved. Go to step 4 and choose Start helping."
+        try:
+            compact_approved_canary(folder, self.canary_report, decision, policy)
+        except Exception as error:
+            # Approval stands; cleanup failure must not erase evidence or rerun inference.
+            message = "PC approved. Temporary check files could not be fully cleared; the cleanup report was kept. You can start helping."
+            try:
+                (self.root/'pc-check-cleanup-failure.json').write_text(json.dumps({
+                    'status':'INCOMPLETE', 'errorType':type(error).__name__,
+                    'code':'pc_check_temporary_cleanup_incomplete'}, indent=2), encoding='utf-8')
+            except OSError:
+                message = "PC approved. Temporary file cleanup was interrupted. Check your free space before continuing."
+        self.update(phase="ready", message=message, batchCompleted=0, batchTotal=16)
 
     def require_qualification(self):
         self.require_account()
