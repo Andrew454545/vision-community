@@ -10,9 +10,77 @@ from unittest.mock import patch
 spec = importlib.util.spec_from_file_location("calibration_runner", Path(__file__).with_name("run_windows.py"))
 runner = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(runner)
+smoke_spec = importlib.util.spec_from_file_location("calibration_smoke", Path(__file__).with_name("smoke_windows_runtime.py"))
+smoke = importlib.util.module_from_spec(smoke_spec)
+with patch.dict("sys.modules", {"run_windows": runner}):
+    smoke_spec.loader.exec_module(smoke)
 
 
 class CalibrationTest(unittest.TestCase):
+    def test_native_smoke_preserves_successful_executable_and_has_no_inference_assets(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp) / "evidence"
+            root.mkdir()
+            downloads = []
+
+            def download(path, assets):
+                downloads.extend(assets)
+                (path / "bin").mkdir(parents=True)
+                (path / "bin/mma-vision.exe").write_bytes(b"retained executable")
+
+            layout = {"completeViewMask": 15}
+            with patch.object(smoke.tempfile, "mkdtemp", return_value=str(root)), \
+                 patch.object(runner, "download_runtime", side_effect=download), \
+                 patch.object(runner, "LoggedProcess") as process, \
+                 patch.object(runner, "require_layout"):
+                process.return_value.return_value = (0, json.dumps(layout), "")
+                self.assertEqual(smoke.main(), root)
+            self.assertTrue(downloads)
+            self.assertFalse(any(item["asset"].startswith("siglip-") for item in downloads))
+            self.assertEqual(process.return_value.call_args.args[0][-1], "index-layout")
+            self.assertEqual((root / "runtime/bin/mma-vision.exe").read_bytes(), b"retained executable")
+            report = json.loads((root / "layout-smoke-report.json").read_text())
+            self.assertEqual(report["status"], "WINDOWS_SCENE_BINARY_LAYOUT_OK_NO_INFERENCE")
+            self.assertFalse(report["nativeInferencePerformed"])
+            self.assertFalse(report["productionQualified"])
+
+    def test_native_smoke_retains_failed_native_log_and_redacted_failure(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp) / "evidence"
+            root.mkdir()
+
+            def failed_native(*_args):
+                (root / "process-01.stderr.log").write_text("diagnostic startup failure")
+                raise RuntimeError("example_sensitive_value_should_not_enter_report")
+
+            with patch.object(smoke.tempfile, "mkdtemp", return_value=str(root)), \
+                 patch.object(runner, "download_runtime"), \
+                 patch.object(runner, "LoggedProcess") as process:
+                process.return_value.side_effect = failed_native
+                with self.assertRaises(RuntimeError):
+                    smoke.main()
+            self.assertEqual((root / "process-01.stderr.log").read_text(), "diagnostic startup failure")
+            report = json.loads((root / "layout-smoke-report.json").read_text())
+            self.assertEqual(report["status"], "FAILED")
+            self.assertEqual(report["phase"], "native_layout")
+            self.assertEqual(report["error"], "RuntimeError")
+            self.assertNotIn("example_sensitive", json.dumps(report))
+
+    def test_native_smoke_pin_failure_cannot_download_or_start_native_code(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp) / "evidence"
+            root.mkdir()
+            with patch.object(smoke.tempfile, "mkdtemp", return_value=str(root)), \
+                 patch.object(runner, "sha", return_value="wrong"), \
+                 patch.object(runner, "download_runtime") as download, \
+                 patch.object(runner, "LoggedProcess") as process:
+                with self.assertRaisesRegex(ValueError, "runtime_manifest_pin_mismatch"):
+                    smoke.main()
+            download.assert_not_called()
+            process.assert_not_called()
+            report = json.loads((root / "layout-smoke-report.json").read_text())
+            self.assertEqual((report["status"], report["phase"]), ("FAILED", "runtime_pin"))
+
     def test_decoded_metrics_respect_direction_signed_values_and_scale(self):
         def record(values, scale=1):
             return (struct.pack("<e", scale) + struct.pack("<768b", *(values + [0] * (768 - len(values))))) * 4
