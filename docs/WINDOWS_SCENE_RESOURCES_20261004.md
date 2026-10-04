@@ -37,7 +37,10 @@ These are measured differences, not newly fitted production tolerances.
 Windows' private Job Object once, before owned cleanup, and keeps kill-on-close
 protection. Cumulative accounting includes exited native descendants and the
 private Python wrapper. Peak **committed memory is not working set or total
-physical-memory pressure**. No recurring sampler or Codex check-in is added.
+physical-memory pressure**. The default adapter still queries accounting once.
+An opt-in observer for finite isolated commands now records
+[sampled working sets](WINDOWS_SCENE_WORKING_SET_20261004.md); it never monitors
+the installed background worker or adds Codex check-ins.
 The structures and units follow [Microsoft's accounting API](https://learn.microsoft.com/en-us/windows/win32/api/jobapi2/nf-jobapi2-queryinformationjobobject).
 
 Windows' console host could remain active after the native program exited.
