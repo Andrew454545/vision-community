@@ -120,3 +120,12 @@ thread settings or comparison requirements. Report replacement is atomic and
 keeps the previous readable receipt on failure. Sleep-request restoration is
 reported on failures as well as success; a failed release is never recorded as
 restored. Actual sleep/wake, OS restart and months of endurance remain unproven.
+
+All 72 local calibration guards pass in 6.398 seconds; seven private retry
+supervisor guards also pass. The explicitly authorized fresh attempt is in a
+separate limited Windows task with verified saved settings, a 40-hour outer
+task bound and no automatic rerun of a started attempt. Completed Mac gold and
+the unchanged runtime/profile were rechecked before launch. A bounded startup
+review records the first native command and 56 saved locations without fetch or
+inference errors. No full case is complete in that review; the task runs
+independently of Codex and does not inspect or modify the installed contributor.

@@ -225,6 +225,13 @@ they do not satisfy the actual restart, accepted-work or endurance gates below.
   bounded transport retries; terminal HTTP statuses remain terminal even with
   an unreadable error body. This is synthetic delivery evidence, not an actual
   qualified batch or OS restart; see [interrupted replies](INTERRUPTED_REPLY_RECOVERY_20261004.md).
+  The complete local suite and final Windows CI both pass 482 tests. All six
+  Community CI jobs pass at `1e85807`. Its separate source-only recovery preview
+  is published and all 274 files independently verified after public download;
+  24 checks against that downloaded copy pass. Confirmed staging version
+  `d37b0842-3421-482c-b6bf-15e3f29cd1c3` (4 October, 11:39 UTC) serves the updated
+  short guide with all 13 assets, privacy headers and bindings verified.
+  Admission remains closed and the installed contributor is unchanged.
 - [ ] Exercise installer handover/removal during active work, preserving account,
   checkpoint, delivery and failure files; do not force-kill inference.
 - [ ] Run an extended qualified workload measuring accepted batches, temperature,

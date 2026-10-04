@@ -33,4 +33,24 @@ setup downloads, qualification, new leases and inference. Cooldown clocks are
 simulated. The service and accounting are disposable fixtures, not production
 or an accepted native contribution. OS restart, sleep/wake, accepted workload,
 parallel budgets and long-term endurance remain separate release gates. The
-installed contributor and immutable preview are unchanged by this source repair.
+installed contributor and earlier immutable previews are unchanged.
+
+The complete local Windows suite passes 482 tests in 426.933 seconds with two
+existing filesystem-link permission skips. All six Community CI jobs pass for
+the repair and the synchronized-guide revision `1e85807`; its Windows job
+passes all 482 tests in 320.233 seconds without skips.
+
+The [separate recovery preview](https://github.com/Andrew454545/vision-community/releases/tag/windows-starter-preview-20261004-recovery)
+contains all 274 public tracked files from `1e85807`. A fresh public download
+matches every file and ZIP SHA-256:
+`26b7b58a5e18361fee231ac62cac7ba3772a61aad66d301e3053ee8fdde86012`.
+Twenty-four checks run against that downloaded copy pass in 52.509 seconds,
+including HTTP recovery, guide links, progress and native control construction.
+The configured PowerShell runtime is used; a separate check without that setting
+hit the host's existing script policy and an incorrect test-module name. Its
+log is retained; no security settings were changed.
+
+The short guide is deployed to confirmed staging. All 13 assets, privacy
+headers and expected bindings pass readback. Admission remains closed; no
+account, credit or native work was created by those checks. This is a source
+preview, not a signed or production-qualified runtime release.
