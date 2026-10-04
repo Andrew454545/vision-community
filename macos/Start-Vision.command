@@ -108,7 +108,7 @@ export SSL_CERT_FILE="$private/python/lib/python3.14/site-packages/pip/_vendor/c
 phase=application
 if [[ "$mode" == python ]]; then
     /usr/bin/env -i HOME="$HOME" PATH="$PATH" SSL_CERT_FILE="$SSL_CERT_FILE" "$python" -I -B -c \
-        'import platform,ssl,sqlite3,urllib.request; assert platform.system()=="Darwin" and platform.machine()=="arm64"; urllib.request.urlopen("https://api.github.com/",timeout=20).close(); print("Private Mac Python and verified HTTPS work. No account or imagery used.")'
+        'import platform,ssl,sqlite3,urllib.request; assert platform.system()=="Darwin" and platform.machine()=="arm64"; response=urllib.request.urlopen("https://www.python.org/robots.txt",timeout=20); assert response.status==200 and response.url.startswith("https://www.python.org/"); response.close(); print("Private Mac Python and verified HTTPS work. No account or imagery used.")'
 else
     arguments=(--root "$root")
     [[ "$mode" != snapshot ]] || arguments+=(--snapshot-only)
