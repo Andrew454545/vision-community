@@ -45,6 +45,12 @@ now exercises actual process ownership, timeout and abrupt-parent-exit fixtures
 without models or imagery. Its first attempt passed actual timeout and parent
 exit but exposed a test-only macOS temporary-path alias (`/var` versus
 `/private/var`). The test now resolves its temporary directory before launch;
-the original failed log is retained. This does not change process ownership or
-explain the supplied executable's recorded permission error. Confirm the rerun
-before making a broader Mac cleanup claim.
+the original failed log is retained. That corrected CI rerun passes all seven
+applicable process fixtures, with two Windows-only GUI tests skipped.
+
+A separate actual supplied-executable probe then reproduced a redundant second
+group stop hiding a successful timeout. Its failure remains preserved. The
+[cleanup repair and bounded native recheck](MAC_TIMEOUT_CLEANUP_20261004.md)
+are separate from the original full-run failure, whose receipt lacks a causal
+stack. Neither short Python fixtures nor a native timeout check complete the
+full reference or attest protected macOS service lifetime.

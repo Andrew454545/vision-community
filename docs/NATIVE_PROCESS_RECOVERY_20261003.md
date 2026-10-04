@@ -40,8 +40,11 @@ completed with sixteen unique hits each. Live imagery was retrieved independentl
 this is recovery evidence, not a cross-run ranking comparison. This diagnostic
 used eight-location checkpoint chunks and created no account, credit or upload.
 
-Final helper SHA-256:
+Helper SHA-256 used by this recovery exercise and installed snapshot:
 `019fc3c055eb680dab4bfafd4851d3a082580f1a3a115b7ca6016a6433726f7f`.
+A later [Mac timeout cleanup repair](MAC_TIMEOUT_CLEANUP_20261004.md) changes
+the source helper. It does not rewrite this evidence or update the installed
+worker; new runtime/profile qualification remains required.
 Native executable SHA-256:
 `6ce8f5c9dbfeb8404da13daa71afecfd07a56f118fc61819d07c1d2330f191ba`.
 Private windowless interruption receipt SHA-256:

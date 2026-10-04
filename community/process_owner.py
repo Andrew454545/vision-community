@@ -94,10 +94,16 @@ def run_owned(argv, *, env, cwd, stdout, stderr, timeout, creationflags=0, on_ow
     The wrapper receives the original argv, environment and working directory.
     """
     job, process = _make_job(), None
+    group_stop_attempted = False
     def stop_children():
+        nonlocal group_stop_attempted
         if job is not None:
             job.close()
-        elif process is not None:
+        elif process is not None and not group_stop_attempted:
+            # A repeated signal after successful timeout cleanup can target
+            # only protected OS helpers, or a later reused process-group ID.
+            # Preserve a first denial; never retry the same group implicitly.
+            group_stop_attempted = True
             try:
                 os.killpg(process.pid, signal.SIGKILL)
             except ProcessLookupError:
@@ -126,12 +132,18 @@ def run_owned(argv, *, env, cwd, stdout, stderr, timeout, creationflags=0, on_ow
             raise OSError("native_process_launch_failed")
         return subprocess.CompletedProcess(argv, code)
     finally:
-        stop_children()
-        if process is not None:
-            process.stdin.close()
-            if process.poll() is None:
-                process.kill()
-            process.wait(timeout=10)
+        try:
+            stop_children()
+        finally:
+            # A denied group/job close must still release the parent pipe and
+            # stop/wait the wrapper. The cleanup error remains a failure.
+            if process is not None:
+                try:
+                    process.stdin.close()
+                finally:
+                    if process.poll() is None:
+                        process.kill()
+                    process.wait(timeout=10)
 
 
 def _wrapper():

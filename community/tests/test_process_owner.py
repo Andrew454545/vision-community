@@ -66,6 +66,60 @@ def terminated(pid):
 
 
 class ProcessOwnerTest(unittest.TestCase):
+    def test_posix_timeout_sends_group_signal_once_and_keeps_timeout(self):
+        process=Mock(pid=12345)
+        process.wait.side_effect=[subprocess.TimeoutExpired(['fixture'],1),0,0]
+        process.poll.return_value=0
+        with patch.object(process_owner,'_make_job',return_value=None), \
+             patch.object(process_owner.subprocess,'Popen',return_value=process), \
+             patch.object(process_owner.signal,'SIGKILL',9,create=True), \
+             patch.object(process_owner.os,'killpg',side_effect=[None,PermissionError('second signal denied')],create=True) as kill:
+            with self.assertRaises(subprocess.TimeoutExpired):
+                process_owner.run_owned(['fixture'],env={},cwd=REPO,stdout=None,stderr=None,timeout=1)
+        kill.assert_called_once_with(12345,9)
+        process.stdin.close.assert_called_once()
+        self.assertEqual(process.wait.call_count,3)
+
+    def test_first_group_signal_denial_is_preserved_after_wrapper_cleanup(self):
+        process=Mock(pid=12345)
+        process.wait.side_effect=[subprocess.TimeoutExpired(['fixture'],1),0]
+        process.poll.return_value=None
+        with patch.object(process_owner,'_make_job',return_value=None), \
+             patch.object(process_owner.subprocess,'Popen',return_value=process), \
+             patch.object(process_owner.signal,'SIGKILL',9,create=True), \
+             patch.object(process_owner.os,'killpg',side_effect=PermissionError('first signal denied'),create=True) as kill:
+            with self.assertRaisesRegex(PermissionError,'first signal denied'):
+                process_owner.run_owned(['fixture'],env={},cwd=REPO,stdout=None,stderr=None,timeout=1)
+        kill.assert_called_once_with(12345,9)
+        process.stdin.close.assert_called_once()
+        process.kill.assert_called_once()
+        self.assertEqual(process.wait.call_count,2)
+
+    def test_job_close_denial_still_releases_stdin_and_stops_wrapper(self):
+        process,job=Mock(pid=12345),Mock()
+        process.wait.side_effect=[subprocess.TimeoutExpired(['fixture'],1),0]
+        process.poll.return_value=None
+        job.close.side_effect=OSError('job close denied')
+        with patch.object(process_owner,'_make_job',return_value=job), \
+             patch.object(process_owner.subprocess,'Popen',return_value=process):
+            with self.assertRaisesRegex(OSError,'job close denied'):
+                process_owner.run_owned(['fixture'],env={},cwd=REPO,stdout=None,stderr=None,timeout=1)
+        process.stdin.close.assert_called_once()
+        process.kill.assert_called_once()
+        self.assertEqual(process.wait.call_count,2)
+
+    def test_stdin_close_failure_does_not_skip_wrapper_kill_and_wait(self):
+        process,job=Mock(pid=12345),Mock()
+        process.wait.return_value=0
+        process.poll.return_value=None
+        process.stdin.close.side_effect=OSError('pipe close denied')
+        with patch.object(process_owner,'_make_job',return_value=job), \
+             patch.object(process_owner.subprocess,'Popen',return_value=process):
+            with self.assertRaisesRegex(OSError,'pipe close denied'):
+                process_owner.run_owned(['fixture'],env={},cwd=REPO,stdout=None,stderr=None,timeout=1)
+        process.kill.assert_called_once()
+        self.assertEqual(process.wait.call_count,2)
+
     def wait_for(self, predicate, timeout=10):
         deadline = time.monotonic() + timeout
         while not predicate():
