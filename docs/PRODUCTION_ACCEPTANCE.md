@@ -32,6 +32,7 @@ The previous chronological development log remains in
 | Scenes on Windows | Final pinned package completed three fresh 1,024-location trials at each of 1/2/4 threads, zero errors and complete masks. Nine frozen 16-location replays agree with Mac on all 81 query orders/selected views. Bytes differ across platforms. | [Calibration](PC_CALIBRATION_20261002.md) |
 | Larger controlled Scenes | Andrew's unchanged supplied Mac binary captures/replays 128 new locations; nine identical-input PC repeats match all top-ten/top-100 sets. Two near-score rank pairs and one selected view differ in every repeat. All PC packed indexes/search results agree across threads; cumulative CPU and committed-memory receipts verify descendant cleanup. | [Held-out evidence](HELD_OUT_SCENE_REFERENCE_20261004.md) |
 | Fixed starter inputs | Three fixed synthetic Mac repeats and fresh PC 1/2/4-thread checks finish all 112 locations. Preprocessing hashes match Mac; PC packed indexes agree across threads and meet unchanged experimental bounds. Full production qualification remains separate. | [Fixed check](FIXED_PC_CHECK_20261004.md) |
+| Windows working-set observations | Three additional fixed 112-location runs record sampled sums around 797 MiB and peak committed memory around 957 MiB. All accounted processes were observed; owned cleanup passed and packed results stayed identical. This is not exact physical RAM, sustained capacity or thermal approval. | [Memory evidence](WINDOWS_SCENE_WORKING_SET_20261004.md) |
 | Actual staging contribution | Corrected binary64 pose serialization; fresh 112-location qualification; new eight-location batch independently audited, published and credited once. Two earlier strict-policy submissions remain rejected. | [Admission](STAGING_SCENE_ADMISSION_20261003.md) |
 | Actual staging search | Independently sealed snapshot of only those eight contributions passed native search, filters and exact response recovery after restart. Hosted API charged once; exact/account-recovery retry did not charge again; conflicting/unfunded requests were rejected. | [Admission](STAGING_SCENE_ADMISSION_20261003.md) |
 | Hosted native operation | Real private Linux FP32 inference and restart, bounded eight-location audits, frozen capture/replay, lifecycle failure recovery and stopped compute with seal retained. Public/preview URLs, SSH and Container logs disabled. | [Startup](HOSTED_SCENE_CHECK_20261003.md), [budgets](HOSTED_SCENE_BUDGET_20261003.md) |
@@ -42,9 +43,11 @@ The previous chronological development log remains in
 | Beginner flow | Short README/website guide, guided Windows starter, qualification/service checks, saved-code recovery, pause/resume and private diagnostics. Website assets/privacy headers verified in staging. | [Service readiness](WEBSITE_SERVICE_READINESS.md) |
 | Background worker | Native scheduled startup, idle handover and idle forced-exit/pause/resume verified. Installed schedule: medium 06:00–00:00, max 00:00–06:00 local; saved account, 30-minute service retry, sign-in/recovery triggers and one worker. | [Background processing](BACKGROUND_PROCESSING.md) |
 
-Community CI passes all five jobs at `1da831f`: actual Windows CI runs all 441
-Python tests without skips, and all 31 calibration/resource/generator guards
-pass. The unchanged Worker coverage includes 195 JavaScript, 37 actual workerd
+Community CI passes all five jobs at `596024f`: actual Windows CI runs all 461
+Python tests without skips in 263.072 seconds, and all 43 calibration/resource/
+generator/transport guards pass. The newer memory observer passes all 51 local
+calibration guards in 6.012 seconds; its fresh CI remains to be confirmed.
+The unchanged Worker coverage includes 195 JavaScript, 37 actual workerd
 private-host and 15 private HTTP/preparation checks. The source-only Windows
 preview retains its tested `4e53420` revision, with actual progress, pending-work
 and reconnect notices. New fixed-check code is recorded separately from that
@@ -111,8 +114,12 @@ shipping newer offline helpers requires new runtime and policy pins.
   it does not promise all-core processing or an approved parallel profile.
   Nine additional frozen scene trials measure actual Windows cumulative CPU and
   peak committed memory, with verified descendant shutdown. Two threads provide
-  most of the short-sample gain; working-set/thermal pressure and sustained
-  shared scene/object capacity remain open. See [resource evidence](WINDOWS_SCENE_RESOURCES_20261004.md).
+  most of the short-sample gain. Three fixed 112-location runs additionally
+  observe sampled working sets, with every accounted process observed and
+  verified shutdown. Exact simultaneous/unique physical RAM, thermal pressure
+  and sustained shared scene/object capacity remain open. See
+  [CPU/commit evidence](WINDOWS_SCENE_RESOURCES_20261004.md) and
+  [working-set evidence](WINDOWS_SCENE_WORKING_SET_20261004.md).
 
 ### Portable Objects and coverage
 
