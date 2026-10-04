@@ -15,6 +15,7 @@ import os
 from pathlib import Path
 import shutil
 import stat
+import sys
 import threading
 import time
 
@@ -159,6 +160,7 @@ def single_instance(root):
 def keep_awake(enabled=True):
     """Inhibit idle sleep during work or pacing rests; never change the power plan."""
     previous = None
+    mac_request = None
     if enabled and os.name == "nt":
         try:
             previous = _sleep_state(0x80000001)
@@ -166,9 +168,19 @@ def keep_awake(enabled=True):
             raise DesktopError('keep_awake_failed') from None
         if not previous:
             raise DesktopError('keep_awake_failed')
+    elif enabled and sys.platform == 'darwin':
+        try:
+            mac_request = _MacSleepRequest()
+        except (OSError, AttributeError):
+            raise DesktopError('keep_awake_failed') from None
     try:
         yield
     finally:
+        if mac_request is not None:
+            try:
+                mac_request.close()
+            except (OSError, AttributeError):
+                raise DesktopError('keep_awake_release_failed') from None
         if previous is not None:
             try:
                 released = _sleep_state(previous | 0x80000000)
@@ -183,6 +195,56 @@ def _sleep_state(flags):
     setter = ctypes.windll.kernel32.SetThreadExecutionState
     setter.argtypes, setter.restype = [ctypes.c_uint32], ctypes.c_uint32
     return setter(flags)
+
+
+class _MacSleepRequest:
+    """A process-owned idle-system-sleep assertion, with no helper process.
+
+    IOKit owns this assertion and removes it when the caller exits, including
+    an abrupt exit. Display sleep, explicit sleep, lid closure and emergency
+    sleep remain under macOS control. No system settings or privileges change.
+    """
+    def __init__(self):
+        import ctypes
+
+        self.assertion = None
+        self.cf = ctypes.CDLL('/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation')
+        self.io = ctypes.CDLL('/System/Library/Frameworks/IOKit.framework/IOKit')
+        self.cf.CFStringCreateWithCString.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_uint32]
+        self.cf.CFStringCreateWithCString.restype = ctypes.c_void_p
+        self.cf.CFRelease.argtypes = [ctypes.c_void_p]
+        self.cf.CFRelease.restype = None
+        self.io.IOPMAssertionCreateWithDescription.argtypes = [
+            ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p,
+            ctypes.c_void_p, ctypes.c_double, ctypes.c_void_p, ctypes.POINTER(ctypes.c_uint32)]
+        self.io.IOPMAssertionCreateWithDescription.restype = ctypes.c_int32
+        self.io.IOPMAssertionRelease.argtypes = [ctypes.c_uint32]
+        self.io.IOPMAssertionRelease.restype = ctypes.c_int32
+        strings = []
+        try:
+            for text in (b'PreventUserIdleSystemSleep', b'VISION Community processing'):
+                value = self.cf.CFStringCreateWithCString(None, text, 0x08000100)  # UTF-8.
+                if not value:
+                    raise OSError('keep_awake_failed')
+                strings.append(value)
+            token = ctypes.c_uint32()
+            # Zero timeout: protect a batch of any length, then explicitly release.
+            # This API creates an assertion at the on level without retaining a
+            # child, polling, forcing the display awake or changing power policy.
+            result = self.io.IOPMAssertionCreateWithDescription(
+                strings[0], strings[1], None, None, None, 0.0, None, ctypes.byref(token))
+            if result != 0:
+                raise OSError('keep_awake_failed')
+            self.assertion = token.value
+        finally:
+            for value in reversed(strings):
+                self.cf.CFRelease(value)
+
+    def close(self):
+        if self.assertion is not None:
+            token, self.assertion = self.assertion, None
+            if self.io.IOPMAssertionRelease(token) != 0:
+                raise OSError('keep_awake_release_failed')
 
 
 class BackgroundContributor:
@@ -342,7 +404,7 @@ class BackgroundContributor:
             except DesktopError as error:
                 if str(error) != "pc_check_required":
                     raise
-                self.status("checking_pc", "Running the short PC check and requesting trusted approval.")
+                self.status("checking_pc", "Running the short computer check and requesting trusted approval.")
                 self.app.qualify()
             if not self.space_available():
                 return self.wait_for_space()
@@ -420,7 +482,7 @@ class BackgroundContributor:
                                "Processing stopped safely. The failure report and work are saved for review.")
                     self.status("needs_attention", message)
                     if code in SLEEP_REQUEST_ERRORS:
-                        # Exit the calling thread as well; it owns the Windows sleep request.
+                        # Exit the caller as well; it owns the OS sleep request.
                         return
                     delay = self.retry_seconds
             if once:
@@ -449,7 +511,7 @@ def main():
     parser.add_argument("--retry-minutes", type=int, default=30)
     parser.add_argument("--storage-limit-gb", type=int, default=0,
                         help="Private folder allowance in binary GB (0 disables; checked between batches, not a hard quota).")
-    parser.add_argument("--no-keep-awake", action="store_true", help="Allow normal Windows idle sleep during work.")
+    parser.add_argument("--no-keep-awake", action="store_true", help="Allow normal idle sleep during work.")
     args = parser.parse_args()
     if not args.accept_contributions:
         parser.error("Opt in with --accept-contributions to allow private downloads, imagery retrieval, an anonymous account, and verified submissions.")
