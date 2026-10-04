@@ -3,12 +3,30 @@ import time
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from community.desktop import DesktopApp
 
 
 class DesktopProgressTests(unittest.TestCase):
+    def test_guided_processing_uses_the_same_platform_assets_as_the_computer_check(self):
+        for name in ('mma-vision.exe', 'mma-vision'):
+            with self.subTest(program=name), tempfile.TemporaryDirectory() as folder, \
+                 patch('community.desktop.program_name', return_value=name):
+                native = Mock(return_value={'batches': 0})
+                app = DesktopApp(Path(folder), indexer=native)
+                app.client = SimpleNamespace(pending=0, undelivered=0,
+                    resume_submissions=lambda: {'accepted': 0, 'unitsEarned': 0})
+                with patch.object(app, 'require_qualification') as approval, patch.object(app, 'capabilities'):
+                    app.process()
+                self.assertEqual(approval.call_count, 2)
+                self.assertEqual(native.call_args.kwargs['binary'], app.assets['binary'])
+                self.assertEqual(native.call_args.kwargs['binary'].name, name)
+                self.assertEqual(native.call_args.kwargs['model_dir'], app.assets['model_dir'])
+                self.assertEqual(native.call_args.kwargs['work_dir'], app.root / 'indexes')
+                self.assertEqual(app.snapshot()['completed'], 0)
+                self.assertEqual(app.snapshot()['units'], 0)
+
     def test_new_pc_check_resets_previous_batch_before_native_work(self):
         observed = []
         with tempfile.TemporaryDirectory() as folder:
