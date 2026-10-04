@@ -122,6 +122,10 @@ class MMASearchOutputTest(unittest.TestCase):
             pose = result["results"][0]["pose"]
             self.assertEqual(pose["panoId"], "CommunityPano000000000001")
             self.assertAlmostEqual(pose["lat"], 41.9, places=4)
+            with service._connection() as connection:
+                ids = [row[0] for row in connection.execute("SELECT id FROM locations WHERE lane='object'")]
+                connection.execute("UPDATE locations SET camera_generation='gen4' WHERE lane='object'")
+            service.certify_official_gen4_objects(ids, "d" * 64)
             extra = service.lease(account["accountId"], "object", 1)
             manifest, files, tsv = contract_bundle(
                 extra["items"], extra["leaseId"], Path(folder) / "locations.tsv"
@@ -169,7 +173,7 @@ class ShardImportAndHttpTest(unittest.TestCase):
             self.assertEqual(second["imported"], 0)
             import sqlite3
 
-            with sqlite3.connect(service.database) as connection:
+            with service._connection() as connection:
                 pending = connection.execute(
                     "SELECT COUNT(*) FROM locations WHERE queue_state='pending'"
                 ).fetchone()[0]

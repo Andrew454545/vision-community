@@ -9,5 +9,20 @@ community/.data/
 .env
 .wrangler/
 node_modules/
+deploy/cloudflare/node_modules
+.local-test-build/
+.local-native-bridge-build/
+.local-release-build/
+.local-verifier-bridge-build/
+account-deletions.private.json
+*.private.json
+*.private.sql
+.private-restore/
+.private-d1-import/
+.private-storage-cache/
+.private-storage-check/
 community/tests/__pycache__/
 
+# Machine-local development tools and diagnostics are not application data.
+.agents/skills/
+work/

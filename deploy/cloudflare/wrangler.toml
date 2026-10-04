@@ -4,6 +4,10 @@ compatibility_date = "2026-09-19"
 compatibility_flags = ["nodejs_compat"]
 workers_dev = true
 
+# Bounded retries for unpublished artifacts after an account deletion.
+[triggers]
+crons = ["0 * * * *"]
+
 # D1 holds the prototype ledger. INDEX is the durable sealed-segment copy.
 # Production 200M search will not run in this Worker. Do not bind any other bucket.
 
@@ -15,6 +19,12 @@ database_id = "ed4705fa-1190-41fa-86a0-02d755db1b2a"
 [[r2_buckets]]
 binding = "INDEX"
 bucket_name = "vision-community"
+
+[vars]
+INDEX_BUCKET_NAME = "vision-community"
+DELETION_ARCHIVE_REQUIRED = "1"
+DELETION_ARCHIVE_ENVIRONMENT = "production"
+DELETION_ARCHIVE_DB_ID = "ed4705fa-1190-41fa-86a0-02d755db1b2a"
 
 [assets]
 directory = "../../community/web"

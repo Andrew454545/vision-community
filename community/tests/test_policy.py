@@ -39,12 +39,14 @@ class PublicCreditPolicyTest(unittest.TestCase):
         self.assertIn("scene: 1", source)
         self.assertIn("object: 10", source)
         worker = (ROOT / "deploy" / "cloudflare" / "src" / "worker.js").read_text(encoding="utf-8")
-        self.assertIn("reason='search' AND units<0", worker)
-        self.assertIn("UPDATE accounts SET units=units-? WHERE id=? AND units>=?", worker)
+        ledger = (ROOT / "deploy/cloudflare/src/searchLedger.js").read_text(encoding="utf-8")
+        self.assertIn("onlineSearch(env, account", worker)
+        self.assertIn("await db.batch", ledger)
+        self.assertIn("UPDATE accounts SET units=units-?", ledger)
 
 
 class PublicSurfaceIdentityTest(unittest.TestCase):
-    def test_public_web_does_not_link_a_personal_github_user(self):
+    def test_public_web_github_links_are_project_resources_not_personal_profiles(self):
         import re
 
         web = ROOT / "community" / "web"
@@ -52,10 +54,8 @@ class PublicSurfaceIdentityTest(unittest.TestCase):
             if not path.is_file() or path.suffix not in {".html", ".js", ".css", ".json", ".txt"}:
                 continue
             text = path.read_text(encoding="utf-8")
-            self.assertIsNone(
-                re.search(r"github\.com/[A-Za-z0-9_-]+", text),
-                msg=str(path),
-            )
+            for link in re.finditer(r"github\.com/([A-Za-z0-9_-]+)(/[A-Za-z0-9_.-]+)?", text):
+                self.assertEqual(link.groups(), ("Andrew454545", "/vision-community"), msg=str(path))
             self.assertNotIn("/Users/", text)
             self.assertNotIn("\\Users\\", text)
 
@@ -74,10 +74,12 @@ class PublicSurfaceIdentityTest(unittest.TestCase):
 
     def test_hosted_worker_tags_each_hit_with_country_name(self):
         source = (ROOT / "deploy" / "cloudflare" / "src" / "worker.js").read_text(encoding="utf-8")
-        self.assertIn("tags: [canonicalizeCountry(hit.country || \"\")]", source)
-        self.assertNotIn("tags: hit.country ? [hit.country] : []", source)
+        online = (ROOT / "deploy/cloudflare/src/onlineSearch.js").read_text(encoding="utf-8")
+        self.assertIn("exportSearchMap(query, hits, computed.processedLocations)", online)
+        export = (ROOT / "deploy/cloudflare/src/searchExport.js").read_text()
+        self.assertIn("tags: [hit.pose.country]", export)
         self.assertIn('body.execute === "local"', source)
-        self.assertIn("search_on_computer", source)
+        self.assertIn("online_search_required", source)
 
     def test_app_offers_scene_and_object_processing(self):
         html = (ROOT / "community" / "web" / "index.html").read_text(encoding="utf-8")
@@ -99,8 +101,8 @@ class PublicSurfaceIdentityTest(unittest.TestCase):
         self.assertIn('name="description-weight"', html)
         self.assertIn("Search input", html)
         self.assertIn(">Scene<", html)
-        self.assertIn("descriptionEmbedding", worker)
-        self.assertIn("mixEmbeddings", worker)
+        self.assertIn("descriptionWeight: snapDescriptionWeight", worker)
+        self.assertIn("lane, prompt, examples", worker)
 
     def test_indexing_avoids_full_status_on_every_batch(self):
         app = (ROOT / "community" / "web" / "app.js").read_text(encoding="utf-8")
@@ -125,4 +127,3 @@ class PublicSurfaceIdentityTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

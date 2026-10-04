@@ -2,7 +2,7 @@ name: tests
 
 on:
   push:
-    branches: [main]
+    branches: [main, codex/windows-production-readiness]
   pull_request:
 
 jobs:
@@ -17,3 +17,48 @@ jobs:
         run: python -m pip install --upgrade pip && python -m pip install -r requirements.txt
       - name: Run unit tests
         run: PYTHONDONTWRITEBYTECODE=1 python -m unittest discover -s community/tests -q
+
+  windows-python:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install test dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Run Windows unit tests
+        shell: pwsh
+        run: |
+          $env:VISION_TEST_POWERSHELL = Join-Path $PSHOME "pwsh.exe"
+          python -B -m unittest discover -s community/tests -q
+
+  cloudflare-javascript:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Run worker scene gate tests
+        run: node --test deploy/cloudflare/src/*.test.mjs deploy/cloudflare/scene-verifier/*.test.mjs deploy/cloudflare/native-scene-bridge/*.test.mjs deploy/cloudflare/native-scene-verifier-bridge/*.test.mjs deploy/cloudflare/native-container-host/*.test.mjs
+      - name: Install private Worker test tools
+        working-directory: deploy/cloudflare
+        run: npm install --no-save --package-lock=false --ignore-scripts wrangler@4.144.0 miniflare@5.20260926.1-alpha
+      - name: Check the complete Worker in the Cloudflare runtime
+        working-directory: deploy/cloudflare
+        run: |
+          node node_modules/wrangler/bin/wrangler.js deploy --dry-run --outdir "$PWD/.local-test-build"
+          node node_modules/wrangler/bin/wrangler.js deploy --dry-run --config native-scene-bridge/wrangler.toml --outdir "$PWD/.local-native-bridge-build"
+          node node_modules/wrangler/bin/wrangler.js deploy --dry-run --config native-scene-verifier-bridge/wrangler.toml --outdir "$PWD/.local-verifier-bridge-build"
+          node node_modules/wrangler/bin/wrangler.js deploy --dry-run --config native-container-host/wrangler.jsonc --outdir "$PWD/.local-native-host-build"
+          node node_modules/wrangler/bin/wrangler.js deploy --dry-run --config native-container-host/private-check.wrangler.jsonc --outdir "$PWD/.local-private-check-build"
+          node tools/check-local-runtime.mjs node_modules/miniflare/dist/src/index.js .local-test-build/worker.js
+          node tools/check-staging-scene-policy.mjs node_modules/miniflare/dist/src/index.js .local-test-build/worker.js
+          node tools/check-local-deletion-archive.mjs node_modules/miniflare/dist/src/index.js .local-test-build/worker.js
+          node tools/check-local-maintenance.mjs node_modules/miniflare/dist/src/index.js .local-test-build/worker.js
+          node tools/check-local-restore-sql.mjs node_modules/miniflare/dist/src/index.js
+          node tools/check-local-verifier.mjs node_modules/miniflare/dist/src/index.js
+          node tools/check-local-native-host.mjs node_modules/miniflare/dist/src/index.js .local-native-host-build/worker.js
+          node tools/check-local-native-idle.mjs node_modules/miniflare/dist/src/index.js .local-native-host-build/worker.js
+          node tools/check-local-native-checker.mjs node_modules/miniflare/dist/src/index.js .local-private-check-build/private-native-host-check.js

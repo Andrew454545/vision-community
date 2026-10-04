@@ -1,0 +1,29 @@
+:root{color-scheme:light;font-family:Segoe UI,system-ui,sans-serif;color:#172f32;background:#f4f6f2}*{box-sizing:border-box}body{margin:0}main{max-width:1160px;margin:auto;padding:36px 28px}header{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:56px}.brand{font-size:25px;font-weight:750;letter-spacing:2px}.brand span{font-size:10px;display:block;letter-spacing:3px;margin-top:5px}.local{font-size:13px;background:#e0ebe1;border-radius:30px;padding:9px 14px}h1{font-size:clamp(30px,4vw,46px);letter-spacing:-1.6px;margin-bottom:12px;line-height:1.1}.intro{max-width:650px;font-size:18px;color:#526569;line-height:1.6}.status{background:#173b3e;color:#fff;border-radius:18px;padding:26px 30px;margin:32px 0}.status>span{font-size:11px;letter-spacing:2px;color:#a9d6ba}.status h2{font-size:23px;line-height:1.4;margin:10px 0}.status p{color:#c6d8d6;margin-bottom:0}.steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px}.card{background:#fff;border:1px solid #dce3de;border-radius:16px;padding:24px;min-width:0}.number{border:1px solid #c5d5ca;border-radius:50%;width:30px;height:30px;display:grid;place-items:center;font-weight:700;font-size:13px}.card h2{font-size:20px;margin:18px 0 12px}p{line-height:1.55;font-size:14px;color:#506367}button{font:inherit;font-size:13px;font-weight:650;border:1px solid transparent;border-radius:9px;padding:12px 15px;background:#1b6255;color:white;cursor:pointer}button:hover:not(:disabled){background:#144d43}button:focus-visible,input:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid #cb8818;outline-offset:3px}button:disabled{opacity:.5;cursor:default}.secondary{background:transparent;border-color:#c8d4cd;color:#284f49}.secondary:hover:not(:disabled){background:#e9f0eb}.buttons{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.note{font-size:12px;color:#687877}label{font-size:12px;display:block;margin:18px 0 6px}input{width:100%;padding:12px;border:1px solid #b9cbc0;border-radius:8px;font:inherit}output{display:block;overflow-wrap:anywhere;background:#eef3eb;padding:14px;margin:10px 0;border-radius:8px;font-family:monospace}#new-code button{margin:4px 0}#error{background:#fbe8d5;color:#572e08;padding:14px;margin-top:16px;border-radius:9px}.totals{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;padding:30px 6px}.totals strong{font-size:29px;display:block}.totals span{font-size:12px;color:#647670;display:block;margin-top:7px}details{border-top:1px solid #d7e0d9;padding-top:22px}summary{cursor:pointer;font-size:14px}code{overflow-wrap:anywhere;display:block;font-size:12px}footer{display:flex;justify-content:space-between;align-items:center;gap:14px;padding-top:30px}a{color:#246351;font-size:14px}body.closed .steps,body.closed .totals{display:none}@media(max-width:1000px){.steps{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:780px){header{margin-bottom:34px}.steps{grid-template-columns:1fr}.totals{grid-template-columns:1fr;gap:24px}main{padding:25px 18px}.status{padding:22px}.local{font-size:11px}footer{flex-wrap:wrap}}
+:root{font-size:18px}
+[hidden]{display:none!important}
+main{max-width:1040px}
+header{margin-bottom:32px}
+.intro{max-width:760px}
+.steps{grid-template-columns:repeat(2,minmax(0,1fr))}
+.card{padding:28px;scroll-margin-top:20px}
+.card.current{border:3px solid #1b6255;padding:26px;background:#fafff8}
+.number{width:40px;height:40px;font-size:18px}
+.card h2{font-size:24px}
+p{font-size:17px;line-height:1.65}
+button{font-size:17px;min-height:48px;padding:12px 18px}
+label,summary,a{font-size:17px}
+.note,.totals span{font-size:15px;line-height:1.6;color:#435853}
+.status>span{font-size:14px;letter-spacing:1px;color:#d2eadd}
+.status .secondary{color:white;border-color:#c6d8d6;margin-top:12px}
+.status .secondary:hover:not(:disabled){background:#245055}
+#next-step{font-weight:650;color:white}
+.card details{margin-top:18px;padding-top:18px}
+.card details button{margin-top:12px}
+input{min-height:48px;font-size:18px}
+output{font-size:18px;line-height:1.6}
+code{font-size:15px}
+#batch-progress label{color:#fff;font-size:17px;margin-top:18px}
+#batch-progress progress{display:block;width:100%;height:18px;margin-top:8px;accent-color:#a9d6ba}
+#connection-error{background:#fbe8d5;color:#572e08;padding:14px;margin-top:16px;border-radius:9px}
+a{text-decoration:underline;text-underline-offset:3px}
+@media(max-width:780px){.steps{grid-template-columns:1fr}.card{padding:24px}.card.current{padding:22px}}

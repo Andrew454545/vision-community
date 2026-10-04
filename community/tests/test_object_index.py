@@ -194,10 +194,10 @@ class ObjectIndexTest(unittest.TestCase):
                         json.dumps({"completed": True, "indexedLocations": 1}),
                         encoding="utf-8",
                     )
-                    return 0, "", ""
+                    return 0, "", "[vision-object] ONNX Runtime global threads: 1, spinning disabled"
                 if "--full" in argv:
-                    return 0, '{"valid": true, "indexVersion": 4, "full": true}\n', ""
-                return 0, '{"valid": true, "indexVersion": 4}\n', ""
+                    return 0, '{"valid": true, "indexVersion": 4, "full": true}\n', "[vision-object] ONNX Runtime global threads: 1, spinning disabled"
+                return 0, '{"valid": true, "indexVersion": 4}\n', "[vision-object] ONNX Runtime global threads: 1, spinning disabled"
 
             index_object_tsv(
                 root / "locations.tsv",
@@ -224,7 +224,10 @@ class ObjectIndexTest(unittest.TestCase):
             self.assertEqual(segment[-len(expected):], expected)
             self.assertIn("--duty-cycle-percent", segment)
             self.assertEqual(segment[segment.index("--duty-cycle-percent") + 1], "25")
-            self.assertEqual(segment[segment.index("--checkpoint-every") + 1], "10")
+            from community.object_index import object_uses_cpu
+            self.assertEqual(segment[segment.index("--checkpoint-every") + 1], "1" if object_uses_cpu() else "10")
+            if object_uses_cpu():
+                self.assertEqual(segment[segment.index("--stop-after") + 1], "1")
             self.assertTrue(segment[segment.index("--model") + 1].endswith("rfdetr-medium-576-b4.onnx"))
             self.assertTrue(segment[segment.index("--runtime-manifest") + 1].endswith("hybrid-object-runtime.json"))
             self.assertNotIn("object-hybrid-v1/coreml-cache", " ".join(segment))
@@ -247,9 +250,16 @@ class ObjectIndexTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             service = CommunityService(Path(folder) / "community.sqlite", search_cost=100)
             service.import_synthetic(json.loads(FIXTURE.read_text(encoding="utf-8"))["locations"])
-            with sqlite3.connect(service.database) as connection:
-                connection.execute("UPDATE locations SET lat=1.25, lon=-2.5, country='Greece' WHERE lane='object'")
+            with service._connection() as connection:
+                connection.execute("UPDATE locations SET lat=1.25, lon=-2.5, country='Greece', camera_generation='gen4' WHERE lane='object'")
             account = service.create_account()["accountId"]
+            with service._connection() as connection:
+                connection.execute("DELETE FROM object_coverage")
+            with self.assertRaisesRegex(ServiceError, "no_available_work"):
+                service.lease(account, "object", 1)
+            with service._connection() as connection:
+                ids = [row[0] for row in connection.execute("SELECT id FROM locations WHERE lane='object'")]
+            self.assertEqual(service.certify_official_gen4_objects(ids, "a" * 64), len(ids))
             lease = service.lease(account, "object", 1)
             source = Path(folder) / "locations.tsv"
             manifest, files, tsv = contract_bundle(lease["items"], lease["leaseId"], source)
@@ -282,6 +292,50 @@ class ObjectIndexTest(unittest.TestCase):
                     "outputSha256": "ab" * 32,
                 }])
 
+    def test_object_coverage_refuses_a_claimed_generation_without_a_trusted_receipt(self):
+        with tempfile.TemporaryDirectory() as folder:
+            service = CommunityService(Path(folder) / "community.sqlite")
+            service.import_synthetic(json.loads(FIXTURE.read_text(encoding="utf-8"))["locations"])
+            with service._connection() as connection:
+                object_id = connection.execute("SELECT id FROM locations WHERE lane='object' LIMIT 1").fetchone()[0]
+                connection.execute("UPDATE locations SET camera_generation='gen4' WHERE id=?", (object_id,))
+            with self.assertRaisesRegex(ServiceError, "invalid_object_coverage"):
+                service.certify_official_gen4_objects([object_id], "not-a-hash")
+            with self.assertRaisesRegex(ServiceError, "object_coverage_requires_official_gen4"):
+                service.certify_official_gen4_objects([object_id + 999], "b" * 64)
+
+    def test_incomplete_coverage_cannot_assign_or_resume_object_work(self):
+        for evidence, generation in (("", "gen4"), ("a" * 63, "gen4"), ("g" * 64, "gen4"),
+                                     ("A" * 64, "gen4"), (b"a" * 64, "gen4"), ("a" * 64, "gen3")):
+            with self.subTest(evidence=repr(evidence)), tempfile.TemporaryDirectory() as folder:
+                service = CommunityService(Path(folder) / "community.sqlite")
+                service.import_synthetic(json.loads(FIXTURE.read_text(encoding="utf-8"))["locations"])
+                account = service.create_account()["accountId"]
+                with service._connection() as connection:
+                    connection.execute("UPDATE locations SET lat=1.25,lon=-2.5,country='Greece',camera_generation=? WHERE lane='object'", (generation,))
+                    connection.execute("UPDATE object_coverage SET evidence_sha256=?", (evidence,))
+                with self.assertRaisesRegex(ServiceError, "no_available_work"):
+                    service.lease(account, "object", 1)
+                with service._connection() as connection:
+                    connection.execute("UPDATE locations SET camera_generation='gen4' WHERE lane='object'")
+                    connection.execute("UPDATE object_coverage SET evidence_sha256=?", ("a" * 64,))
+                lease = service.lease(account, "object", 1)
+                manifest, files, tsv = contract_bundle(lease["items"], lease["leaseId"], Path(folder) / "source.tsv")
+                outputs = validate_object_index(manifest, files, tsv, lease["items"], lease_id=lease["leaseId"])
+                with service._connection() as connection:
+                    connection.execute("UPDATE locations SET camera_generation=? WHERE lane='object'", (generation,))
+                    connection.execute("UPDATE object_coverage SET evidence_sha256=?", (evidence,))
+                with self.assertRaisesRegex(ServiceError, "object_coverage_required"):
+                    service.lease(account, "object", 1)
+                with self.assertRaisesRegex(ServiceError, "object_coverage_required"):
+                    service.submit(account, lease["leaseId"], outputs,
+                                   object_index=encode_object_submission(manifest, files, tsv))
+                with service._connection() as connection:
+                    self.assertEqual(connection.execute("SELECT units FROM accounts WHERE id=?", (account,)).fetchone()[0], 0)
+                    self.assertEqual(connection.execute("SELECT state FROM leases WHERE id=?", (lease["leaseId"],)).fetchone()[0], "active")
+                    self.assertEqual(connection.execute("SELECT COUNT(*) FROM published_index").fetchone()[0], 0)
+                self.assertFalse((service.artifacts / "object-index-v4" / lease["leaseId"]).exists())
+
     def test_site_and_worker_use_the_object_indexer(self):
         app = (ROOT / "community/web/app.js").read_text(encoding="utf-8")
         worker = (ROOT / "deploy/cloudflare/src/worker.js").read_text(encoding="utf-8")
@@ -294,11 +348,10 @@ class ObjectIndexTest(unittest.TestCase):
         self.assertIn("object_index_required", worker)
         self.assertIn("validateObjectIndex", worker)
         self.assertIn("skip=skip", (ROOT / "community/object_index.py").read_text(encoding="utf-8"))
-        self.assertIn('"--search"', app)
-        self.assertIn("--confidence", app)
-        self.assertIn("--import-cutoff", app)
-        self.assertIn("--reject-road-names", app)
-        self.assertIn("/api/object-indexes", worker)
+        self.assertIn("objectConfidence:", app)
+        self.assertIn("minimumGlobalLocation:", app)
+        self.assertIn("rejectRoadNames:", app)
+        self.assertIn("onlineSearch(env, account", worker)
         self.assertIn("objectIndexes", worker)
 
     def test_object_prompt_routes_like_vision(self):
@@ -381,7 +434,8 @@ class ObjectIndexTest(unittest.TestCase):
             self.assertEqual(spec["queries"][0]["route"], "common")
             self.assertEqual(spec["queries"][0]["rejectRoadNames"], False)
             self.assertNotIn("minimumGlobalLocation", spec["queries"][0])
-            self.assertEqual(spec["cpu"], False)
+            from community.object_index import object_uses_cpu
+            self.assertEqual(spec["cpu"], object_uses_cpu())
             self.assertTrue(str(spec["modelCache"]).endswith("cache"))
 
     def test_paid_search_downloads_a_finished_object_index(self):
@@ -394,8 +448,14 @@ class ObjectIndexTest(unittest.TestCase):
             stored.mkdir(parents=True)
             (stored / "manifest.json").write_bytes(b'{"completed":true}')
             (stored / "locations.tsv").write_bytes(b"header\n")
-            with sqlite3.connect(service.database) as connection:
+            service.import_synthetic(json.loads(FIXTURE.read_text(encoding="utf-8"))["locations"])
+            with service._connection() as connection:
                 connection.execute("UPDATE accounts SET units=4 WHERE id=?", (account,))
+                location_id = connection.execute("SELECT id FROM locations WHERE lane='object' LIMIT 1").fetchone()[0]
+                connection.execute("UPDATE locations SET state='published', contributor_id=?, camera_generation='gen4' WHERE id=?", (account, location_id))
+                connection.execute("INSERT INTO published_index (location_id, index_text, output_sha256, published_at, object_index_key) VALUES (?, '', ?, 1, ?)",
+                                   (location_id, "a" * 64, f"object-index-v4/{lease}/"))
+            service.certify_official_gen4_objects([location_id], "c" * 64)
             paid = service.search(
                 account,
                 None,

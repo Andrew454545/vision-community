@@ -1,23 +1,32 @@
-# How to help
+# Contributing locations
 
-Scenes use the same four-view indexer as the VISION app. Objects use the same hybrid object indexer (RF-DETR, YOLOE, and OWLv2). Those programs cannot run inside the browser, so both run in Terminal.
+# Windows contributors
 
-1. On a new computer, download this project, open a terminal in that folder, and run `python3 -m community.bootstrap` once. On Windows, use `python` if `python3` is not recognized.
-2. Open the site.
-3. Click **Get a free account**. Write down or screenshot the code. That code is your only login.
-4. Click **Copy scene command**, or switch to Objects and click **Copy object command**. Open Terminal, or PowerShell on Windows, paste, and press Return. Leave that window open.
-5. When the bar reaches 100,000, copy the search command and run it in Terminal.
-6. Connect [map-making.app](https://map-making.app) with an API key to add the results to a map, or copy/download the JSON and drop it onto the local Map Making App.
+1. Download this project as a ZIP and unzip it.
+2. Double-click **Start VISION.cmd**.
+3. If asked, type **Y** and press **Enter** in the small starter window.
+   In the VISION page, choose **Set up this PC**.
+4. Connect an existing account or create one, and save the account code.
+5. Choose **Run the PC check**. This checks 112 fixed locations and must
+   be approved before regular work is available.
+6. Choose **Start helping**. Keep the PC awake and connected. You can pause
+   safely after the current batch.
 
-If the VISION app is already indexing on the same computer, leave speed on Gentle.
+The maintainer's 1,024-location calibration runs qualify the approved runtime
+profile. Contributors run only the short check. Results are quarantined until
+the trusted service audit approves them; a local “complete” report is not an
+approval by itself.
 
-Coming back later: paste your saved code and click Restore.
+The starter stores its private runtime, account session, checkpoints, and
+failure reports under your Windows user profile. It does not install Python
+globally or require administrator access. Do not send raw imagery, account
+codes, or private reports unless Andrew asks for a specific file.
 
-```sh
-python3 -m pip install -r requirements.txt
-python3 -m community.vision_index --pace slow --recovery-code YOUR_CODE
-python3 -m community.vision_index --search --prompt "red barn in snow" --recovery-code YOUR_CODE
-python3 -m community.send_mma YourSearch.json --new-map
-```
+## Advanced maintainers' workflow
 
-`python3 -m community.bootstrap` downloads `mma-vision`, the `siglip-b16-224-canonical` model folder, `vision-object`, and the `object-hybrid-v1` model folder into the usual VISION folders. Set `VISION_FOUR_VIEW_BINARY`, `VISION_MODEL_DIR`, `VISION_OBJECT_BINARY`, and `VISION_OBJECT_MODEL_DIR` only when those files already live somewhere else. Create the account on the site first so the work counts toward the same search. Object indexing is `python3 -m community.object_index`.
+The command-line tools remain for maintainers, Mac users, and release testing.
+See [the development guide](docs/DEVELOPER_GUIDE.md), [calibration/START-HERE.md](calibration/START-HERE.md),
+and [docs/REFERENCE-VERIFICATION.md](docs/REFERENCE-VERIFICATION.md). A
+maintainer must install a trusted owner policy and independent verifier before
+enabling a production scene queue. Numerical similarity by itself does not
+publish or credit a location.

@@ -8,6 +8,9 @@
   <link rel="stylesheet" href="/style.css">
   <script src="/visual.js" defer></script>
   <script src="/mma.js" defer></script>
+  <script src="/search-journal.js" defer></script>
+  <script src="/account-deletion.js" defer></script>
+  <script src="/service-readiness.js" defer></script>
   <script src="/app.js" defer></script>
 </head>
 <body>
@@ -18,28 +21,41 @@
       </span>
       <div>
         <strong>VISION</strong>
-        <small>Scene and object search</small>
+        <small id="site-description">Scene and object search</small>
       </div>
     </div>
     <div class="top-meta">
       <span id="index-label">Checking index</span>
-      <button id="show-outputs" class="icon-btn" type="button" title="Show output JSONs">
+      <button id="show-outputs" class="icon-btn" type="button" title="Show downloaded maps" aria-label="Show downloaded maps">
         <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M4 6.5A2.5 2.5 0 0 1 6.5 4H10l2 2h5.5A2.5 2.5 0 0 1 20 8.5v9A2.5 2.5 0 0 1 17.5 20h-11A2.5 2.5 0 0 1 4 17.5v-11z"/></svg>
       </button>
       <a class="compact-btn" href="https://map-making.app" target="_blank" rel="noopener">Open map-making.app</a>
-      <button id="open-index" class="compact-btn" type="button">Index</button>
+      <a class="compact-btn" href="/getting-started.html">Start here</a>
+      <button id="open-index" class="compact-btn" type="button">My account</button>
     </div>
   </header>
+
+  <section class="welcome" aria-labelledby="welcome-heading">
+    <div>
+      <h2 id="welcome-heading">New to VISION? Start here.</h2>
+      <p>Download → Extract All → <strong>Start VISION</strong>.</p>
+      <p id="welcome-status" role="status" aria-live="polite">Preview: checking whether contributions are open…</p>
+    </div>
+    <div class="welcome-actions">
+      <a class="primary" href="https://github.com/Andrew454545/vision-community/releases/download/windows-starter-preview-20261002/VISION-Community-Windows.zip">Download for Windows</a>
+      <a class="compact-btn" href="/getting-started.html">Show me the steps</a>
+    </div>
+  </section>
 
   <div class="workspace">
     <aside class="search-list">
       <div class="list-head">
         <span>SEARCH BATCH</span>
-        <button id="add-job" class="icon-btn" type="button" title="Add search">+</button>
+        <button id="add-job" class="icon-btn" type="button" title="Add search" aria-label="Add search">+</button>
       </div>
       <ol class="jobs" id="jobs"></ol>
       <div class="list-foot">
-        <button id="duplicate-job" class="icon-btn" type="button" title="Duplicate selected search">
+        <button id="duplicate-job" class="icon-btn" type="button" title="Duplicate selected search" aria-label="Duplicate selected search">
           <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M8 7a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-8a2 2 0 0 1-2-2V7zm-4 4a2 2 0 0 1 2-2v9h9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7z"/></svg>
         </button>
         <span id="ready-count">0 ready</span>
@@ -50,11 +66,36 @@
       <div class="editor-head">
         <div>
           <h1 id="job-title">New search</h1>
-          <p class="sub">Output folder: MMA Main / VISION NEW</p>
+          <p class="sub">Describe a place. Other settings are optional.</p>
         </div>
         <span class="ready" id="ready-badge">Needs input</span>
       </div>
 
+      <section class="form-section">
+        <h2>Search input</h2>
+        <div class="card">
+          <div class="labeled top">
+            <label class="labeled-name" id="prompt-label" for="prompt">Description</label>
+            <textarea id="prompt" rows="4" maxlength="400" placeholder="What should the locations look like?"></textarea>
+          </div>
+          <div class="labeled" id="json-row">
+            <span class="labeled-name">Example locations (optional)</span>
+            <div>
+              <div class="file-row">
+                <input id="query-map" type="file" accept="application/json,.json" hidden>
+                <button id="choose-json" class="file-btn" type="button">Choose JSON</button>
+                <button id="load-sample" class="compact-btn" type="button">Example</button>
+                <button id="clear-json" class="icon-btn" type="button" title="Remove example file" aria-label="Remove example file">×</button>
+              </div>
+              <p class="file-name" id="file-name">No JSON yet</p>
+            </div>
+          </div>
+          <p class="hint" id="prompt-help" hidden>Type a description, choose a JSON file of example scenes, or use both.</p>
+        </div>
+      </section>
+
+      <details class="search-options">
+        <summary>Optional: search settings and filters</summary>
       <section class="form-section">
         <h2>Search mode</h2>
         <div class="card">
@@ -69,46 +110,23 @@
         <h2>Output</h2>
         <div class="card">
           <div class="labeled">
-            <span class="labeled-name">JSON name</span>
+            <label class="labeled-name" for="output-name">Map name</label>
             <input id="output-name" maxlength="80" placeholder="Map name">
           </div>
           <div class="labeled">
-            <span class="labeled-name">Locations</span>
+            <label class="labeled-name" for="result-count">Number of places</label>
             <div class="inline-field">
               <input id="result-count" type="number" min="1" max="10000" value="200">
               <small>1-10,000 · default 200</small>
             </div>
           </div>
           <div class="labeled">
-            <span class="labeled-name">Max per country</span>
+            <label class="labeled-name" for="max-per-country">Max per country</label>
             <div class="inline-field">
               <input id="max-per-country" type="number" min="1" max="10000" value="25">
               <small>1-10,000 · default 25</small>
             </div>
           </div>
-        </div>
-      </section>
-
-      <section class="form-section">
-        <h2>Search input</h2>
-        <div class="card">
-          <div class="labeled top">
-            <span class="labeled-name" id="prompt-label">Description</span>
-            <textarea id="prompt" rows="4" maxlength="400" placeholder="What should the locations look like?"></textarea>
-          </div>
-          <div class="labeled" id="json-row">
-            <span class="labeled-name">Location JSON</span>
-            <div>
-              <div class="file-row">
-                <input id="query-map" type="file" accept="application/json,.json" hidden>
-                <button id="choose-json" class="file-btn" type="button">Choose JSON</button>
-                <button id="load-sample" class="compact-btn" type="button">Example</button>
-                <button id="clear-json" class="icon-btn" type="button" title="Remove JSON">×</button>
-              </div>
-              <p class="file-name" id="file-name">No JSON yet</p>
-            </div>
-          </div>
-          <p class="hint" id="prompt-help" hidden>Type a description, choose a JSON file of example scenes, or use both.</p>
         </div>
       </section>
 
@@ -215,6 +233,8 @@
         </div>
       </section>
 
+      </details>
+
       <section class="form-section" id="last-run" hidden>
         <h2>Last run</h2>
         <div class="card">
@@ -228,7 +248,7 @@
     <span class="stage-dot" id="stage-dot" aria-hidden="true"></span>
     <div class="stage-copy">
       <strong id="build-label">Ready</strong>
-      <span id="search-status">Checking local indexes</span>
+      <span id="search-status">Checking online search</span>
     </div>
     <div class="status-actions">
       <button id="send-mma" class="compact-btn" type="button" hidden>Add to my map</button>
@@ -240,39 +260,63 @@
 
   <dialog id="index-sheet">
     <div class="sheet-head">
-      <strong>Index</strong>
-      <button id="close-index" class="icon-btn" type="button" title="Close">×</button>
+      <strong>My account and credits</strong>
+      <button id="close-index" class="icon-btn" type="button" title="Close account window" aria-label="Close account window">×</button>
     </div>
     <div class="contribute">
+      <p class="status" id="service-status" role="status" aria-live="polite">Checking the service before you start…</p>
+      <button id="check-service" class="compact-btn" type="button">Check again</button>
+      <p class="rail-copy">New here? <a href="/getting-started.html">Start with the Windows app</a>. Use its saved code here.</p>
       <p class="rail-copy" id="account-chip">No account yet</p>
-      <button id="create-account" class="primary" type="button">Get a free account</button>
+      <label class="field-label" for="recovery-code">Your private account code from the PC app</label>
       <form id="recover-form" class="recover">
-        <input id="recovery-code" maxlength="80" autocomplete="off" placeholder="Paste your saved code">
-        <button type="submit" class="compact-btn">Restore</button>
+        <input id="recovery-code" type="password" maxlength="80" autocomplete="off" placeholder="Paste or type your saved code">
+        <button type="submit" class="compact-btn" disabled>Use my account</button>
       </form>
+      <details class="more"><summary>I need to create an account here</summary><p class="rail-copy">Save the code and use it in the PC app too.</p><button id="create-account" class="primary" type="button" disabled>Create account</button></details>
       <p class="status warn" id="recovery-once" hidden>
         <span id="recovery-once-text"></span>
         <button id="copy-recovery" class="compact-btn" type="button">Copy</button>
         <button id="dismiss-recovery" class="compact-btn" type="button">Got it</button>
       </p>
 
-      <p class="filter-kicker">What to index</p>
+      <details id="account-privacy" hidden>
+        <summary>Delete my account</summary>
+        <p class="rail-copy">This permanently removes your account access, saved search results and unused credits. Your recovery code will stop working, including in the desktop app.</p>
+        <p class="rail-copy">Verified anonymous contributions stay in the shared pool. Files you already downloaded or sent to a map app stay on those devices or services. Local processing files and backup copies are not erased by this button.</p>
+        <form id="delete-account-form" autocomplete="off">
+          <label for="delete-confirmation">Type DELETE to confirm</label>
+          <input id="delete-confirmation" type="text" maxlength="6" autocomplete="off" spellcheck="false" required>
+          <button id="delete-account" class="compact-btn" type="submit">Permanently delete my account</button>
+        </form>
+      </details>
+      <div id="pending-deletion" hidden>
+        <p class="rail-copy">A deletion request is saved on this browser. Check its outcome before starting more searches. Keep this browser's data until deletion is confirmed.</p>
+        <button id="check-deletion" class="compact-btn" type="button">Check deletion status</button>
+      </div>
+      <p id="deletion-status" class="status" role="status" aria-live="polite"></p>
+
+      <details class="more"><summary>Advanced: commands for Mac and developer testing</summary>
+      <p class="filter-kicker">What to process</p>
       <div class="segmented" id="process-lane">
         <label><input type="radio" name="process-lane" value="scene" checked><span>Scene</span></label>
         <label><input type="radio" name="process-lane" value="object"><span>Objects</span></label>
         <label><input type="radio" name="process-lane" value="both"><span>Both</span></label>
       </div>
-      <p class="rail-copy" id="process-lane-help">Scenes use the same indexer as VISION. Copy the command and paste it into Terminal. It keeps going until you stop it. Objects use the same object indexer as VISION and keep going too.</p>
-      <p class="rail-copy">On a new computer, download the project, open a terminal in that folder, and run <code>python3 -m community.bootstrap</code> once. On Windows, open PowerShell and use <code>python</code> if <code>python3</code> is not recognized. Then paste the command below.</p>
+      <p class="rail-copy" id="process-lane-help">Copy the command into Terminal. Keep the computer awake.</p>
       <button id="process" class="primary" type="button" disabled>Copy scene command</button>
       <button id="pause" class="compact-btn" type="button" disabled>Pause</button>
       <p class="status" id="process-status">Get an account, then copy the scene command into Terminal.</p>
-      <p class="rail-copy">Scene and object indexing run in Terminal, the same way as VISION. Leave that window open. Object indexing uses VISION's 25% duty. If VISION is already indexing on this computer, keep speed on Gentle.</p>
+      <p class="rail-copy">Windows users: <a href="/getting-started.html">use the starter</a>.</p>
+      <details><summary>Advanced setup for Mac</summary><p>In the downloaded project folder, run <code>python3 -m community.bootstrap</code>, then use the indexing command. Keep the computer awake.</p></details>
+      </details>
       <p class="rail-copy" id="batch-label">You will get your own batch. Other people get different batches.</p>
       <div class="progress" role="progressbar" aria-labelledby="progress-label">
         <div id="progress-fill"></div>
       </div>
       <p id="progress-label">0 of 100,000 toward a search</p>
+      <p class="rail-copy">You can keep contributing after earning a search. Unused search credits stay in your account for later. Save your private account code so you can recover them.</p>
+      <p class="rail-copy">Search here in your browser. One completed search uses one banked credit. Failed searches do not spend credits, and retrying the same search recovers its results.</p>
       <div class="balance">
         <span id="units-label">Toward a search</span>
         <strong id="units">0</strong>
@@ -321,13 +365,10 @@
       </details>
 
       <details class="more" id="command-block">
-        <summary>Index and search command</summary>
-        <p class="rail-copy">Scenes and objects have to run in Terminal so they use the same indexers as VISION. Paste this after you have an account. The command keeps going until you stop it or the queue is empty.</p>
+        <summary>Advanced indexing command</summary>
+        <p class="rail-copy">For Mac and developer testing. Use your saved account code.</p>
         <pre class="cli" id="cli-command">python3 -m community.vision_index --pace slow --recovery-code YOUR_CODE</pre>
-        <button id="copy-cli" class="compact-btn" type="button">Copy command</button>
-        <pre class="cli" id="local-search-command">python3 -m community.object_index --search --prompt "red barn" --confidence balanced --recovery-code YOUR_CODE</pre>
-        <p class="hint">Scene search uses <code>python3 -m community.vision_index --search</code>, the same four-view search as VISION. Object search uses <code>python3 -m community.object_index --search</code>, the same object search as VISION. Then add the JSON to a map: <code>python3 -m community.send_mma result.json --new-map</code></p>
-        <button id="copy-local-search" class="compact-btn" type="button">Copy search command</button>
+        <button id="copy-cli" class="compact-btn" type="button" disabled>Copy command</button>
       </details>
     </div>
   </dialog>

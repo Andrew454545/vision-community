@@ -40,6 +40,8 @@ from .rank import (
     prune_nearby,
 )
 from .search import query_vector, ranked_search_embedding
+from .scene_quality import ApprovedSceneReferences, scene_capabilities
+from . import scene_pipeline
 from .segments import SegmentRegistry
 from .source import haversine_meters
 from .store import r2_public_status
@@ -52,6 +54,21 @@ LEASE_SECONDS = 30 * 60
 CLI_LEASE_SECONDS = 6 * 60 * 60
 UNITS_PER_LOCATION = {"scene": 1, "object": 10}
 RECOVERY_PEPPER_HEADER = "VISION-COMMUNITY-RECOVERY-V1"
+OFFICIAL_GEN4_VALIDATOR = "official-gen4-historical-v1"
+
+
+def certified_object_ids(connection, ids):
+    ids = list(ids)
+    if not ids:
+        return set()
+    return {row[0] for row in connection.execute(
+        f"""SELECT l.id FROM locations l JOIN object_coverage c ON c.location_id=l.id
+            WHERE l.id IN ({','.join('?' for _ in ids)}) AND l.lane='object'
+              AND l.camera_generation='gen4' AND c.validator=?
+              AND typeof(c.evidence_sha256)='text' AND length(c.evidence_sha256)=64
+              AND c.evidence_sha256 NOT GLOB '*[^0-9a-f]*'""",
+        [*ids, OFFICIAL_GEN4_VALIDATOR],
+    )}
 
 
 class ServiceError(Exception):
@@ -121,6 +138,8 @@ class CommunityService:
         segment_capacity: int = 500_000,
         owner_account_id: str | None = None,
         operational: bool = False,
+        scene_references: ApprovedSceneReferences | None = None,
+        scene_verifier=None,
     ):
         if not isinstance(search_cost, int) or search_cost < 1:
             raise ValueError("search_cost must be a positive integer")
@@ -130,6 +149,8 @@ class CommunityService:
         self.database.parent.mkdir(parents=True, exist_ok=True)
         self.search_cost = search_cost
         self.operational = operational
+        self.scene_references = scene_references
+        self.scene_verifier = scene_verifier
         self.artifacts = Path(artifacts) if artifacts is not None else self.database.parent / "artifacts"
         self.registry = SegmentRegistry(self.artifacts / "index", capacity=segment_capacity)
         with self._connection() as connection:
@@ -197,11 +218,18 @@ class CommunityService:
                     imported INTEGER NOT NULL,
                     imported_at INTEGER NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS object_coverage (
+                    location_id INTEGER PRIMARY KEY REFERENCES locations(id),
+                    validator TEXT NOT NULL,
+                    evidence_sha256 TEXT NOT NULL,
+                    validated_at INTEGER NOT NULL
+                );
                 """
             )
             self._migrate(connection)
 
     def _migrate(self, connection: sqlite3.Connection) -> None:
+        scene_pipeline.migrate(connection)
         location_cols = {row[1] for row in connection.execute("PRAGMA table_info(locations)")}
         additions = {
             "source": "TEXT",
@@ -226,6 +254,7 @@ class CommunityService:
             """CREATE INDEX IF NOT EXISTS locations_nearby
                ON locations (lane, capture, model, lat, lon)"""
         )
+
         account_cols = {row[1] for row in connection.execute("PRAGMA table_info(accounts)")}
         if "recovery_hash" not in account_cols:
             connection.execute("ALTER TABLE accounts ADD COLUMN recovery_hash TEXT")
@@ -321,6 +350,33 @@ class CommunityService:
                  )"""
         )
 
+    def certify_official_gen4_objects(self, location_ids: list[int], evidence_sha256: str, *,
+                                      validator: str = OFFICIAL_GEN4_VALIDATOR) -> int:
+        """Record a trusted historical-coverage decision made outside volunteer input.
+
+        This deliberately is not an HTTP operation. The caller must have checked a
+        signed/catalogued official-coverage receipt before it can release object work.
+        """
+        if (not isinstance(location_ids, list) or not location_ids or
+                any(type(location_id) is not int for location_id in location_ids) or
+                not isinstance(evidence_sha256, str) or not re.fullmatch(r"[0-9a-f]{64}", evidence_sha256) or
+                validator != OFFICIAL_GEN4_VALIDATOR):
+            raise ServiceError("invalid_object_coverage")
+        now = int(time.time())
+        with self._connection() as connection:
+            rows = connection.execute(
+                f"SELECT id FROM locations WHERE id IN ({','.join('?' for _ in location_ids)}) "
+                "AND lane='object' AND camera_generation='gen4'",
+                location_ids,
+            ).fetchall()
+            if {row["id"] for row in rows} != set(location_ids):
+                raise ServiceError("object_coverage_requires_official_gen4")
+            connection.executemany(
+                "INSERT OR REPLACE INTO object_coverage (location_id, validator, evidence_sha256, validated_at) VALUES (?, ?, ?, ?)",
+                [(location_id, validator, evidence_sha256, now) for location_id in location_ids],
+            )
+        return len(location_ids)
+
     @contextmanager
     def _connection(self):
         connection = sqlite3.connect(str(self.database), timeout=30)
@@ -336,6 +392,25 @@ class CommunityService:
             raise
         finally:
             connection.close()
+
+    def capabilities(self) -> dict:
+        if scene_pipeline.configured(self.scene_verifier):
+            return {"version": 1, "sceneContributions": {
+                "ready": True, "reason": None, "model": VISION_FOUR_VIEW_MODEL,
+                "policyId": self.scene_verifier.policy_id, "scope": "audited-new-locations",
+                "deviceQualificationRequired": True, "canaryLocations": scene_pipeline.CANARY_LOCATIONS,
+                "verification": "trusted-profile-canary-and-submission-audit",
+            }}
+        return scene_capabilities(self.scene_references)
+
+    def qualify_scene_device(self, account_id, profile_id, canary):
+        return scene_pipeline.qualify(self, account_id, profile_id, canary)
+
+    def scene_qualification_status(self, account_id, profile_id):
+        return scene_pipeline.qualification_status(self, account_id, profile_id)
+
+    def audit_scene_submission(self, account_id, lease_id):
+        return scene_pipeline.audit(self, account_id, lease_id)
 
     def import_synthetic(self, records: list[dict]) -> int:
         """Admit only test records, with one canonical identity per lane/version."""
@@ -353,13 +428,25 @@ class CommunityService:
             checked.append(tuple(fields))
         with self._connection() as connection:
             connection.execute("BEGIN IMMEDIATE")
-            before = connection.total_changes
+            before = connection.execute("SELECT COUNT(*) FROM locations").fetchone()[0]
             connection.executemany(
                 """INSERT OR IGNORE INTO locations
                    (asset_id, capture, lane, model, label) VALUES (?, ?, ?, ?, ?)""",
                 checked,
             )
-            return connection.total_changes - before
+            # Synthetic fixtures have no relation to real imagery or Community
+            # admission. Marking only these test rows lets contract tests cover
+            # object processing without weakening the production gate.
+            connection.execute(
+                "UPDATE locations SET camera_generation='gen4' WHERE lane='object' AND asset_id LIKE 'synthetic:%'"
+            )
+            connection.execute(
+                """INSERT OR IGNORE INTO object_coverage (location_id, validator, evidence_sha256, validated_at)
+                   SELECT id, ?, ?, 0 FROM locations
+                   WHERE lane='object' AND asset_id LIKE 'synthetic:%'""",
+                (OFFICIAL_GEN4_VALIDATOR, "0" * 64),
+            )
+            return connection.execute("SELECT COUNT(*) FROM locations").fetchone()[0] - before
 
     def _recovery_hash(self, recovery_code: str) -> str:
         return hashlib.sha256(f"{RECOVERY_PEPPER_HEADER}\n{recovery_code}".encode("utf-8")).hexdigest()
@@ -508,11 +595,24 @@ class CommunityService:
     def list_object_indexes(self, account_id: str, search_id: str) -> dict:
         with self._connection() as connection:
             self._require_paid_search(connection, account_id, search_id)
+            published = {row[0] for row in connection.execute(
+                """SELECT DISTINCT i.object_index_key FROM published_index i
+                   JOIN locations l ON l.id=i.location_id
+                   WHERE l.lane='object' AND l.state='published'
+                     AND l.contributor_id IS NOT NULL AND l.contributor_id!='' AND i.object_index_key IS NOT NULL
+                     AND l.camera_generation='gen4'
+                     AND EXISTS (SELECT 1 FROM object_coverage c WHERE c.location_id=l.id AND c.validator=?
+                       AND typeof(c.evidence_sha256)='text' AND length(c.evidence_sha256)=64
+                       AND c.evidence_sha256 NOT GLOB '*[^0-9a-f]*')""",
+                (OFFICIAL_GEN4_VALIDATOR,),
+            )}
         indexes = []
         root = self.artifacts / "object-index-v4"
         if root.is_dir():
             for child in sorted(path for path in root.iterdir() if path.is_dir()):
                 if not re.fullmatch(r"[0-9a-f]{32}", child.name):
+                    continue
+                if f"object-index-v4/{child.name}/" not in published:
                     continue
                 files = []
                 for path in sorted(item for item in child.iterdir() if item.is_file()):
@@ -530,6 +630,18 @@ class CommunityService:
             self._require_paid_search(connection, account_id, search_id)
         if not re.fullmatch(r"object-index-v4/[0-9a-f]{32}/[A-Za-z0-9._-]{1,80}", key or ""):
             raise ServiceError("invalid_index", 400)
+        with self._connection() as connection:
+            published = connection.execute(
+                """SELECT 1 FROM published_index i JOIN locations l ON l.id=i.location_id
+                   WHERE i.object_index_key=? AND l.lane='object' AND l.state='published'
+                     AND l.contributor_id IS NOT NULL AND l.contributor_id!='' AND l.camera_generation='gen4'
+                     AND EXISTS (SELECT 1 FROM object_coverage c WHERE c.location_id=l.id AND c.validator=?
+                       AND typeof(c.evidence_sha256)='text' AND length(c.evidence_sha256)=64
+                       AND c.evidence_sha256 NOT GLOB '*[^0-9a-f]*')
+                   LIMIT 1""", (key.rsplit('/', 1)[0] + '/', OFFICIAL_GEN4_VALIDATOR)
+            ).fetchone()
+            if published is None:
+                raise ServiceError("not_found", 404)
         path = self.artifacts.joinpath(*str(key).split("/"))
         if not path.is_file() or not path.resolve().is_relative_to(self.artifacts.resolve()):
             raise ServiceError("not_found", 404)
@@ -543,6 +655,7 @@ class CommunityService:
                           l.pitch, l.zoom, l.country, l.camera_generation
                    FROM published_index i JOIN locations l ON l.id=i.location_id
                    WHERE i.four_view_key IS NOT NULL AND l.lane='scene'
+                     AND l.state='published' AND l.contributor_id IS NOT NULL
                    ORDER BY i.four_view_key, l.id"""
             ).fetchall()
         grouped: dict[str, list] = {}
@@ -565,6 +678,14 @@ class CommunityService:
             self._require_paid_search(connection, account_id, search_id)
         if not re.fullmatch(r"four-view-v4/[0-9a-f]{32}\.i8", key or ""):
             raise ServiceError("invalid_index", 400)
+        with self._connection() as connection:
+            published = connection.execute(
+                """SELECT 1 FROM published_index i JOIN locations l ON l.id=i.location_id
+                   WHERE i.four_view_key=? AND l.lane='scene' AND l.state='published'
+                     AND l.contributor_id IS NOT NULL LIMIT 1""", (key,)
+            ).fetchone()
+            if published is None:
+                raise ServiceError("not_found", 404)
         path = self.artifacts.joinpath(*str(key).split("/"))
         if not path.is_file() or not path.resolve().is_relative_to(self.artifacts.resolve()):
             raise ServiceError("not_found", 404)
@@ -1025,8 +1146,12 @@ class CommunityService:
                       state, lease_until
                FROM locations WHERE lane=? AND catalog_shard=? AND COALESCE(queue_state, 'pending')='pending'
                  AND (state='pending' OR (state='leased' AND lease_until<=?))
+                 AND (lane!='object' OR (camera_generation='gen4' AND EXISTS (SELECT 1 FROM object_coverage c
+                       WHERE c.location_id=locations.id AND c.validator=?
+                         AND typeof(c.evidence_sha256)='text' AND length(c.evidence_sha256)=64
+                         AND c.evidence_sha256 NOT GLOB '*[^0-9a-f]*')))
                ORDER BY id LIMIT ?""",
-            (lane, shard_id, now, count),
+            (lane, shard_id, now, OFFICIAL_GEN4_VALIDATOR, count),
         ).fetchall()
 
     def _pending_shared(
@@ -1042,8 +1167,12 @@ class CommunityService:
                       state, lease_until
                FROM locations WHERE lane=? AND COALESCE(queue_state, 'pending')='pending'
                  AND (state='pending' OR (state='leased' AND lease_until<=?))
+                 AND (lane!='object' OR (camera_generation='gen4' AND EXISTS (SELECT 1 FROM object_coverage c
+                       WHERE c.location_id=locations.id AND c.validator=?
+                         AND typeof(c.evidence_sha256)='text' AND length(c.evidence_sha256)=64
+                         AND c.evidence_sha256 NOT GLOB '*[^0-9a-f]*')))
                ORDER BY id LIMIT ?""",
-            (lane, now, count),
+            (lane, now, OFFICIAL_GEN4_VALIDATOR, count),
         ).fetchall()
 
     def _release_exhausted_shard(self, connection: sqlite3.Connection, lane: str, shard_id: int) -> None:
@@ -1147,7 +1276,7 @@ class CommunityService:
                        FROM locations WHERE asset_id=? AND capture=? AND lane=? AND model=?""",
                     (job["assetId"], job["capture"], job["lane"], job["model"]),
                 ).fetchone()
-                if row is None or row["state"] == "published" or row["queue_state"] == "skipped":
+                if row is None or row["state"] == "published" or row["queue_state"] != "pending":
                     continue
                 if row["state"] == "leased" and row["lease_until"] and int(row["lease_until"]) > now:
                     continue
@@ -1166,9 +1295,12 @@ class CommunityService:
         pace: str | None = None,
         client: str | None = None,
         part: int | None = None,
+        profile_id: str | None = None,
     ) -> dict:
         if lane not in UNITS_PER_LOCATION or type(count) is not int or not 1 <= count <= MAX_LEASE_SIZE:
             raise ServiceError("invalid_lease_request")
+        if lane == "scene" and self.operational and self.scene_references is None and not scene_pipeline.configured(self.scene_verifier):
+            raise ServiceError("scene_verification_unavailable", 503)
         if pace is not None and pace not in {"slow", "medium", "max"}:
             raise ServiceError("invalid_pace")
         if client is not None and client not in {"browser", "cli"}:
@@ -1184,6 +1316,10 @@ class CommunityService:
         work = None
         with self._connection() as connection:
             connection.execute("BEGIN IMMEDIATE")
+            qualification = None
+            if lane == "scene" and scene_pipeline.configured(self.scene_verifier):
+                qualification = scene_pipeline.active_qualification(connection, account_id, self.scene_verifier, now,
+                                                                    profile_id=profile_id)
             # An expired lease loses its claim before any task can be reassigned.
             connection.execute(
                 "UPDATE leases SET state='expired' WHERE state='active' AND expires_at<=?", (now,)
@@ -1195,11 +1331,20 @@ class CommunityService:
                 (account_id, lane, now),
             ).fetchone()
             if existing is not None:
+                if qualification is not None and existing["scene_qualification_id"] != qualification["id"]:
+                    raise ServiceError("scene_qualification_changed", 409)
                 rows = connection.execute(
                     """SELECT l.* FROM locations l JOIN lease_items i ON i.location_id=l.id
                        WHERE i.lease_id=? ORDER BY l.id""",
                     (existing["id"],),
                 ).fetchall()
+                if lane == "object" and (not rows or certified_object_ids(connection, (row["id"] for row in rows))
+                                         != {row["id"] for row in rows}):
+                    raise ServiceError("object_coverage_required", 409)
+                if qualification is None and lane == "scene" and self.scene_references is not None and any(
+                    not self.scene_references.covers(row) for row in rows
+                ):
+                    raise ServiceError("scene_reference_not_approved", 409)
                 items = self._lease_items(rows, {row["id"]: int(row["generation"] or 0) for row in rows})
                 payload = {
                     "leaseId": existing["id"],
@@ -1216,7 +1361,9 @@ class CommunityService:
             lease_id = secrets.token_hex(16)
             rows: list = []
             active_shard = None
-            if self._catalog_remaining(connection, lane):
+            # The generic pose catalog has no historical coverage receipt. Object
+            # work can only use rows admitted through object_coverage.
+            if lane != "object" and self._catalog_remaining(connection, lane):
                 hops = 0
                 while len(rows) < count and hops < 32:
                     hops += 1
@@ -1253,6 +1400,13 @@ class CommunityService:
                 rows = list(self._pending_shared(connection, lane, now, count))
             if not rows:
                 raise ServiceError("no_available_work", 409)
+            if lane == "object":
+                if certified_object_ids(connection, (row["id"] for row in rows)) != {row["id"] for row in rows}:
+                    raise ServiceError("object_coverage_required", 409)
+            if qualification is None and lane == "scene" and self.scene_references is not None and any(
+                not self.scene_references.covers(row) for row in rows
+            ):
+                raise ServiceError("scene_reference_not_approved", 409)
             generations = []
             for row in rows:
                 next_generation = int(row["generation"] or 0) + 1
@@ -1266,6 +1420,9 @@ class CommunityService:
                 "INSERT INTO lease_items (lease_id, location_id) VALUES (?, ?)",
                 [(lease_id, row["id"]) for row in rows],
             )
+            if qualification is not None:
+                connection.execute("UPDATE leases SET scene_qualification_id=? WHERE id=?",
+                                   (qualification["id"], lease_id))
             connection.executemany(
                 """UPDATE locations SET state='leased', active_lease=?, lease_until=?, generation=? WHERE id=?""",
                 [(lease_id, expires_at, generation, location_id) for generation, location_id in generations],
@@ -1333,6 +1490,9 @@ class CommunityService:
             if lease is None:
                 raise ServiceError("unknown_lease", 404)
             if lease["state"] == "submitted":
+                candidate = connection.execute("SELECT * FROM scene_candidates WHERE lease_id=?", (lease_id,)).fetchone()
+                if candidate is not None:
+                    return scene_pipeline.candidate_result(candidate)
                 return {"released": 0, "alreadySubmitted": True}
             if skip:
                 released = connection.execute(
@@ -1466,6 +1626,9 @@ class CommunityService:
                 accepted = connection.execute(
                     "SELECT COUNT(*) FROM lease_items WHERE lease_id=?", (lease_id,)
                 ).fetchone()[0]
+                candidate = connection.execute("SELECT * FROM scene_candidates WHERE lease_id=?", (lease_id,)).fetchone()
+                if candidate is not None:
+                    return scene_pipeline.candidate_result(candidate)
                 return {"accepted": accepted, "unitsEarned": 0, "replayed": True}
             if lease["state"] != "active" or lease["expires_at"] <= now or lease["lane"] != "object":
                 raise ServiceError("expired_lease", 409)
@@ -1479,6 +1642,8 @@ class CommunityService:
             for row in rows:
                 if row["state"] != "leased" or row["active_lease"] != lease_id or row["lane"] != "object":
                     raise ServiceError("lease_lost", 409)
+            if certified_object_ids(connection, (row["id"] for row in rows)) != {row["id"] for row in rows}:
+                raise ServiceError("object_coverage_required", 409)
             lease_items = [
                 {
                     "locationId": row["id"],
@@ -1502,7 +1667,8 @@ class CommunityService:
             prefix = f"object-index-v4/{lease_id}/"
             dest = self.artifacts / prefix
             dest.mkdir(parents=True, exist_ok=True)
-            (dest / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+            # The absolute source path can contain the contributor's real name.
+            (dest / "manifest.json").write_text(json.dumps({**manifest, "sourceTsv": "locations.tsv"}), encoding="utf-8")
             (dest / "locations.tsv").write_bytes(source_tsv)
             for name, payload in files.items():
                 (dest / name).write_bytes(payload)
@@ -1580,6 +1746,9 @@ class CommunityService:
             if lease is None:
                 raise ServiceError("unknown_lease", 404)
             if lease["state"] == "submitted":
+                candidate = connection.execute("SELECT * FROM scene_candidates WHERE lease_id=?", (lease_id,)).fetchone()
+                if candidate is not None:
+                    return scene_pipeline.candidate_result(candidate)
                 accepted = connection.execute(
                     "SELECT COUNT(*) FROM lease_items WHERE lease_id=?", (lease_id,)
                 ).fetchone()[0]
@@ -1597,6 +1766,11 @@ class CommunityService:
             four_view = models == {VISION_FOUR_VIEW_MODEL}
             if VISION_FOUR_VIEW_MODEL in models and not four_view:
                 raise ServiceError("invalid_submission")
+            pipeline = four_view and scene_pipeline.configured(self.scene_verifier)
+            if four_view and self.scene_references is None and not pipeline:
+                raise ServiceError("scene_verification_unavailable", 503)
+            if self.operational and any(row["lane"] == "scene" for row in items) and not four_view:
+                raise ServiceError("unsupported_model", 422)
             verified = {}
             audit = locations_to_recompute(items)
             four_view_key = None
@@ -1615,6 +1789,8 @@ class CommunityService:
                     digest = sha256_hex(embedding)
                     if not hmac.compare_digest(payload["digest"], digest):
                         raise ServiceError("verification_failed", 422)
+                    if not pipeline and not self.scene_references.verify(row, digest):
+                        raise ServiceError("scene_reference_not_approved", 422)
                     embed_digest = payload.get("embeddingSha256")
                     if isinstance(embed_digest, str) and not hmac.compare_digest(embed_digest, digest):
                         raise ServiceError("verification_failed", 422)
@@ -1670,6 +1846,8 @@ class CommunityService:
                         "embedding": None,
                     }
             earned = sum(UNITS_PER_LOCATION[row["lane"]] for row in items)
+            if pipeline:
+                return scene_pipeline.stage(self, connection, account_id, lease, items, verified, now)
             if four_view:
                 blob = b"".join(verified[row["id"]]["four_view"] for row in items)
                 four_view_key = f"four-view-v4/{lease_id}.i8"
