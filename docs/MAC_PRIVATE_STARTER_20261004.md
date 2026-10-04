@@ -12,6 +12,10 @@ Objects setup and Mac automatic processing still require separate evidence.
 - The archive is checked before extraction. Every interpreter file, executable
   permission and permitted internal link is checked before Python runs. Unknown,
   missing, changed or escaping files stop setup and preserve a private report.
+- First setup extracts into a new staging folder and publishes it atomically
+  only after complete verification. A power interruption retains the unfinished
+  stage; the next attempt can use a fresh verified stage. Existing interpreters
+  are still checked and never silently overwritten or approved.
 - The private application snapshot contains named public source/UI/fixture files
   only. Account codes, queues, private imagery, models and repository credentials
   are excluded. Reopening verifies the snapshot rather than overwriting it.
@@ -66,6 +70,10 @@ privacy headers pass, unauthenticated status access is denied, authenticated
 status works, a second setup-only entry is refused and the owned window exits.
 Its receipt records zero accounts, native commands and uploads, no imagery,
 and `productionQualified: false`. The private interpreter is Python **3.14.8**.
+The updated job additionally seeds an interrupted extraction and checks that
+its bytes remain unchanged while a fresh staged interpreter starts. Record that
+job's completion separately; the earlier successful job predates this recovery
+check. This is an extraction-interruption fixture, not an actual Mac restart.
 
 The first remote Mac bootstrap stopped safely on a checksum mismatch: Windows
 had generated the inventory's final newline as CRLF, while the Git download is

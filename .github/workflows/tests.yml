@@ -75,7 +75,12 @@ jobs:
       - name: Download and verify private Mac Python and HTTPS
         shell: bash
         run: |
+          # Simulate files retained after an interrupted earlier extraction.
+          mkdir -p "$RUNNER_TEMP/mac-starter-private/python-staging-interrupted/python/bin"
+          printf 'preserved interrupted setup\n' > "$RUNNER_TEMP/mac-starter-private/python-staging-interrupted/python/bin/python3.14"
           /bin/bash --noprofile --norc './Start VISION.command' --accept-downloads --python-only --root "$RUNNER_TEMP/mac-starter-private" 2>&1 | tee "$RUNNER_TEMP/mac-private-python.log"
+          test "$(cat "$RUNNER_TEMP/mac-starter-private/python-staging-interrupted/python/bin/python3.14")" = 'preserved interrupted setup'
+          printf 'Interrupted extraction preserved; fresh verified interpreter used.\n' | tee -a "$RUNNER_TEMP/mac-private-python.log"
       - name: Verify the public-source-only private snapshot
         shell: bash
         run: |

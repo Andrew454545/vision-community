@@ -87,10 +87,18 @@ fi
 [[ $(wc -c < "$archive" | tr -d ' ') -eq 26798928 ]]
 [[ $(shasum -a 256 "$archive" | awk '{print $1}') == "$archive_sha" ]]
 if [[ ! -d "$private" ]]; then
-    mkdir "$private"
-    # Only the independently pinned archive reaches extraction. Never overwrite
-    # an existing or partial interpreter; preserve it if any check fails.
-    tar -xzf "$archive" -C "$private" --no-same-owner
+    # An interrupted extraction never occupies the active interpreter path.
+    # Preserve incomplete stages and verify a fresh stage before publication.
+    stage="$root/python-staging-$(date -u +%Y%m%dT%H%M%SZ)-$$-$RANDOM"
+    regular_path "$stage"
+    mkdir "$stage"
+    tar -xzf "$archive" -C "$stage" --no-same-owner
+    /usr/bin/env -i PATH="$PATH" /usr/bin/perl "$source_root/macos/verify-python.pl" \
+        "$source_root/macos/python-arm64-inventory.json" "$inventory_sha" "$stage"
+    # rename is atomic and refuses an existing nonempty interpreter directory;
+    # unlike mv, it cannot nest a competing stage inside a verified runtime.
+    /usr/bin/env -i PATH="$PATH" /usr/bin/perl -e \
+        'rename($ARGV[0],$ARGV[1]) or die "private_python_publish_failed\n"' "$stage" "$private"
 fi
 /usr/bin/env -i PATH="$PATH" /usr/bin/perl "$source_root/macos/verify-python.pl" \
     "$source_root/macos/python-arm64-inventory.json" "$inventory_sha" "$private"
