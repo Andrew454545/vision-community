@@ -37,6 +37,10 @@ grows; it does not cap disk growth or establish months of endurance.
   passes, including the subsequently added cross-service/account guard.
   The final seventeen-case installer run passes in 107.039 seconds, including
   saved-setting mismatch cases and preserved stops/accounts/failures.
+  The first external Windows job completed all 478 tests with one folder-name
+  assertion failure: PowerShell returned a long path for Python's short Windows
+  parent name. Resolving both paths corrects the assertion; the original failed
+  job and log are retained.
 - Real Windows task registration/readback passes with a temporary diagnostic
   task. It was removed without starting inference or touching the installed
   contributor. Original XML/default-representation failures are preserved.

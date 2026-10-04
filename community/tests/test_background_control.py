@@ -90,7 +90,9 @@ class BackgroundControlTests(unittest.TestCase):
             for code in (self.task(other), "function Get-ScheduledTask { [pscustomobject]@{Actions=@([pscustomobject]@{Execute='unrelated.exe';Arguments='--root \"x\"'})} }; "):
                 self.command(code + 'Set-VisionControlPause ' + ps_string(root) + ' $true', expected=1)
                 self.assertFalse((root / 'PAUSE').exists())
-            self.assertEqual(Path(self.command(self.task(other) + 'Get-VisionControlRoot')), other)
+            # Hosted Windows can supply RUNNER~1 for an existing parent while
+            # PowerShell returns runneradmin. Compare filesystem identities.
+            self.assertEqual(Path(self.command(self.task(other) + 'Get-VisionControlRoot')).resolve(), other.resolve())
             self.command(self.task(other) + 'Get-VisionControlRoot ' + ps_string(root), expected=1)
 
     def test_saved_account_is_written_once_without_console_disclosure(self):
