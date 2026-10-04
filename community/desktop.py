@@ -19,7 +19,7 @@ if str(REPO) not in sys.path:
 
 from community.bootstrap import BootstrapError, install_runtime, load_manifest, runtime_platform
 from community.contribute import CommunityClient, ContributeError, DEFAULT_URL
-from community.vision_index import default_runner, index_from_queue, parse_json_stdout, require_layout, VisionIndexError
+from community.vision_index import default_runner, index_from_queue, parse_json_stdout, require_layout, program_name, VisionIndexError
 from community.pc_canary import (run_canary, canary_profile_matches, released_canary_policy,
                                  compact_approved_canary)
 from community.submission_outbox import SubmissionOutbox, MAX_PENDING_SUBMISSIONS
@@ -29,11 +29,11 @@ ERRORS = {
     "network_error": "The service could not be reached. Check your connection and try again.",
     "runtime_download_failed": "A download was interrupted. Check your connection and choose Download again; verified files will be reused.",
     "runtime_mismatch": "A downloaded file failed its safety check. It was not used. Try downloading again.",
-    "unsupported_platform": "This starter supports 64-bit Intel or AMD Windows PCs. This computer is not supported.",
+    "unsupported_platform": "This preview supports Intel or AMD Windows PCs and Apple silicon Macs. A compatible download for this computer is not ready yet.",
     "recovery_failed": "That account code was not accepted. Check it and try again.",
     "unauthorized": "Please reconnect your account using your saved code.",
     "scene_verification_unavailable": "VISION is not open for contributions yet. You have done nothing wrong. Close VISION and come back when the project maintainer announces it is ready.",
-    "vision_scene_runtime_update_required": "Your VISION processing program needs an update. Get the latest VISION download and choose Set up this PC again. Your saved work and account code are kept.",
+    "vision_scene_runtime_update_required": "Your VISION processing program needs an update. Get the latest VISION download and choose Set up this computer again. Your saved work and account code are kept.",
     "vision_object_runtime_update_required": "Object processing needs newer files. Your saved work is kept. Update VISION when the new object download is available.",
     "scene_reference_required": "The service has not approved this batch for contribution. Your local evidence has been kept.",
     "verification_failed": "The service did not accept this batch. Your local results have been kept for review.",
@@ -41,14 +41,14 @@ ERRORS = {
     "account_required": "Connect an account first.",
     "save_code_first": "Confirm that you have saved your account code before indexing.",
     "runtime_not_ready": "Download and check the processing files first.",
-    "pc_check_required": "Run the short PC check before indexing. Approval must be current and match these processing files.",
-    "scene_qualification_required": "Your PC approval is missing or has expired. Run the short PC check again.",
-    "canary_failed": "The PC check could not finish. Its report and logs have been kept. You can retry.",
-    "pc_check_files_invalid": "The PC check files could not be verified. Choose Set up this PC again. Your saved work and account code are kept.",
-    "scene_qualification_rejected": "The service could not approve this PC's check. Its report has been kept for review.",
-    "scene_device_not_qualified": "The service could not approve this PC's check. Its report has been kept for review.",
-    "scene_device_qualification_required": "Run the short PC check before indexing.",
-    "scene_qualification_changed": "The PC approval changed. Run the short PC check again.",
+    "pc_check_required": "Run the short computer check before indexing. Approval must be current and match these processing files.",
+    "scene_qualification_required": "Your computer approval is missing or has expired. Run the short computer check again.",
+    "canary_failed": "The computer check could not finish. Its report and logs have been kept. You can retry.",
+    "pc_check_files_invalid": "The computer check files could not be verified. Choose Set up this computer again. Your saved work and account code are kept.",
+    "scene_qualification_rejected": "The service could not approve this computer's check. Its report has been kept for review.",
+    "scene_device_not_qualified": "The service could not approve this computer's check. Its report has been kept for review.",
+    "scene_device_qualification_required": "Run the short computer check before indexing.",
+    "scene_qualification_changed": "The computer approval changed. Run the short computer check again.",
     "scene_submission_rejected": "The service rejected this batch. Processing has stopped and your results are saved for review.",
     "scene_audit_backlog": "Your completed batches are waiting for verification. Processing will continue when they have been checked.",
     "invalid_request": "That request could not be used. Refresh the page and try again.",
@@ -56,7 +56,7 @@ ERRORS = {
     "indexer_no_progress": "The indexer stopped making progress. Its logs were kept for review.",
     "indexer_cancelled": "Indexing stopped. Your completed batches are safe.",
     "storage_check_failed": "Saved files could not be checked safely. Processing stopped and your files were kept. Ask the maintainer to review the local storage report.",
-    "keep_awake_failed": "Windows could not keep this PC awake. Processing stopped and your work was kept. Ask the maintainer to review the saved report.",
+    "keep_awake_failed": "Windows could not keep this computer awake. Processing stopped and your work was kept. Ask the maintainer to review the saved report.",
     "keep_awake_release_failed": "Windows could not release VISION's sleep request. The worker has stopped and your work was kept. Ask the maintainer to review the saved report.",
 }
 
@@ -66,7 +66,7 @@ class DesktopError(RuntimeError):
 
 
 class DesktopClient(CommunityClient):
-    """Bind each scene lease to the configuration checked on this PC."""
+    """Bind each scene lease to the configuration checked on this computer."""
     def __init__(self, url):
         super().__init__(url)
         self.profile_id = None
@@ -178,13 +178,14 @@ class DesktopApp:
             pass
         self.last_seen = time.monotonic()
         self.state = dict(ready=False, connected=False, savedCode=False, busy=False,
-                          phase="setup", message="Prepare this PC to begin.", completed=0,
+                          phase="setup", message="Prepare this computer to begin.", completed=0,
                           units=0, batchCompleted=0, batchTotal=16, started=None,
-                          stopping=False, serviceReady=False, qualified=False, pending=0, undelivered=0)
+                          stopping=False, serviceReady=False, qualified=False, pending=0, undelivered=0,
+                          backgroundAvailable=sys.platform == 'win32')
 
     @property
     def assets(self):
-        return {"binary": self.root / "runtime/bin/mma-vision.exe",
+        return {"binary": self.root / "runtime/bin" / program_name("mma-vision"),
                 "model_dir": self.root / "runtime/models/siglip-b16-224-canonical"}
 
     def update(self, **values):
@@ -232,13 +233,13 @@ class DesktopApp:
         self.qualification = None
         self.update(qualified=False)
         self.update(phase="download", message="Checking processing files. Downloads may take a few minutes.", ready=False)
-        if runtime_platform() != "windows-x86_64":
+        if runtime_platform() not in {"windows-x86_64", "darwin-arm64"}:
             raise BootstrapError("unsupported_platform")
         manifest = load_manifest()
         install_runtime(manifest, self.root / "runtime", lane="scene",
                         progress=lambda n, total: self.update(message=f"Checking and downloading file {n} of {total}. Please keep this window open."))
         self.release_pc_check(manifest)
-        binary = self.root / "runtime/bin/mma-vision.exe"
+        binary = self.assets['binary']
         code, stdout, _ = default_runner([str(binary), "index-layout"], os.environ.copy(), self.root)
         if code:
             raise VisionIndexError("vision_binary_failed")
@@ -248,7 +249,7 @@ class DesktopApp:
     def release_pc_check(self, manifest=None):
         try:
             return released_canary_policy(load_manifest() if manifest is None else manifest,
-                                          self.root / 'runtime')
+                                          self.root / 'runtime', platform_name=runtime_platform())
         except (OSError, ValueError, BootstrapError):
             raise DesktopError('pc_check_files_invalid') from None
 
@@ -284,12 +285,12 @@ class DesktopApp:
             self.qualification = None
             self.update(connected=True, savedCode=not create, phase="ready", units=int(me.get("units", 0)),
                         qualified=False, pending=client.pending, undelivered=client.undelivered,
-                        message="Account connected. Run the short PC check next.")
+                        message="Account connected. Run the short computer check next.")
             if self.canary_report and self.profile_matches(self.canary_report, **self.assets):
                 profile = self.canary_report["runtimeProfile"]["sha256"]
                 _, previous, _ = client.request("GET", "/api/scene-qualifications?profileId=" + profile)
                 if self.set_qualification(previous):
-                    self.update(message="This PC's existing approval is current. You can start indexing.")
+                    self.update(message="This computer's existing approval is current. You can start indexing.")
             return {"recoveryCode": account.get("recoveryCode")} if create else {"connected": True}
         finally:
             self.update(busy=False)
@@ -327,7 +328,7 @@ class DesktopApp:
         self.qualification = None
         self.update(qualified=False, phase="checking", started=time.monotonic(),
                     batchCompleted=0, batchTotal=112,
-                    message="Checking 112 locations on this PC. Please keep this window open.")
+                    message="Checking 112 locations on this computer. Please keep this window open.")
         folder = self.root / "checks" / (time.strftime("%Y%m%d-%H%M%S") + "-" + secrets.token_hex(4))
         policy = self.release_pc_check()
         self.canary_report = self.canary(folder, **self.assets, policy=policy, progress_callback=self.progress)
@@ -335,22 +336,22 @@ class DesktopApp:
             raise DesktopError("canary_failed")
         # This contains public fixture results and processing-file hashes, never account codes.
         (self.root / "pc-check.json").write_text(json.dumps(self.canary_report), encoding="utf-8")
-        self.update(message="PC check complete. Asking the service to verify the results.")
+        self.update(message="computer check complete. Asking the service to verify the results.")
         _, decision, _ = self.client.request("POST", "/api/scene-qualifications", self.canary_report["submission"])
         if not self.set_qualification(decision):
             raise DesktopError("scene_qualification_rejected")
-        message = "PC approved. Go to step 4 and choose Start helping."
+        message = "Computer approved. Go to step 4 and choose Start helping."
         try:
             compact_approved_canary(folder, self.canary_report, decision, policy)
         except Exception as error:
             # Approval stands; cleanup failure must not erase evidence or rerun inference.
-            message = "PC approved. Temporary check files could not be fully cleared; the cleanup report was kept. You can start helping."
+            message = "Computer approved. Temporary check files could not be fully cleared; the cleanup report was kept. You can start helping."
             try:
                 (self.root/'pc-check-cleanup-failure.json').write_text(json.dumps({
                     'status':'INCOMPLETE', 'errorType':type(error).__name__,
                     'code':'pc_check_temporary_cleanup_incomplete'}, indent=2), encoding='utf-8')
             except OSError:
-                message = "PC approved. Temporary file cleanup was interrupted. Check your free space before continuing."
+                message = "Computer approved. Temporary file cleanup was interrupted. Check your free space before continuing."
         self.update(phase="ready", message=message, batchCompleted=0, batchTotal=16)
 
     def require_qualification(self):
@@ -372,7 +373,7 @@ class DesktopApp:
     def process(self):
         self.require_qualification()
         self.capabilities(self.client)
-        self.update(phase="indexing", message="Processing locations on this PC. Results wait for a service check before joining the search pool.",
+        self.update(phase="indexing", message="Processing locations on this computer. Results wait for a service check before joining the search pool.",
                     batchCompleted=0, batchTotal=0, started=time.monotonic())
         while not self.stop.is_set():
             if time.monotonic() - self.last_seen > 60:
@@ -491,10 +492,6 @@ def main():
     parser.add_argument("--prepare-only", action="store_true")
     args = parser.parse_args()
     app = DesktopApp(args.root)
-    if args.prepare_only:
-        app.prepare()
-        print("This PC is ready. No account was created and no imagery was retrieved.")
-        return
     # Prevent two copies from leasing work from the same local working directory.
     guard = (app.root / "desktop.lock").open("a+b")
     try:
@@ -508,6 +505,13 @@ def main():
     except OSError:
         guard.close()
         print("VISION is already open. Use the existing VISION window.")
+        return
+    if args.prepare_only:
+        try:
+            app.prepare()
+            print("Processing files are ready. No account was created and no imagery was retrieved.")
+        finally:
+            guard.close()
         return
     token = secrets.token_urlsafe(32)
     server = ThreadingHTTPServer(("127.0.0.1", 0), handler_for(app, token))

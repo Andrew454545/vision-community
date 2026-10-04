@@ -4,7 +4,7 @@ const token = location.hash.slice(1);
 history.replaceState(null, "", "/");
 let requesting = false;
 let closed = false;
-let latest = {phase:"setup",message:"Checking this PC…",completed:0,units:0,elapsedSeconds:0,folder:"",busy:false,ready:false,connected:false,savedCode:false,qualified:false,stopping:false};
+let latest = {phase:"setup",message:"Checking this computer…",completed:0,units:0,elapsedSeconds:0,folder:"",busy:false,ready:false,connected:false,savedCode:false,qualified:false,stopping:false};
 async function request(path, body) {
   const options = {headers: {"X-Vision-Token": token}, cache: "no-store"};
   if (body !== undefined) {
@@ -23,11 +23,13 @@ function showError(message) {
 }
 function render(state) {
   latest = state;
-  byId("phase").textContent = ({setup:"GETTING READY",download:"PREPARING THIS PC",checking:"RUNNING THE SHORT PC CHECK",ready:"READY",indexing:"INDEXING ON THIS PC",error:"NEEDS ATTENTION"})[state.phase] || "VISION";
+  byId("windows-background").hidden = state.backgroundAvailable !== true;
+  byId("mac-background").hidden = state.backgroundAvailable === true;
+  byId("phase").textContent = ({setup:"GETTING READY",download:"PREPARING THIS COMPUTER",checking:"RUNNING THE SHORT COMPUTER CHECK",ready:"READY",indexing:"INDEXING ON THIS COMPUTER",error:"NEEDS ATTENTION"})[state.phase] || "VISION";
   byId("message").textContent = state.message;
-  byId("detail").textContent = state.phase === "indexing" ? (state.stopping ? "Pausing after the current batch. Please wait." : "Keep your computer awake and connected. Your credits update when results are accepted.") : state.phase === "checking" ? "Please wait. Regular work starts after the PC check is approved." : "Keep this page and the small VISION starter window open.";
+  byId("detail").textContent = state.phase === "indexing" ? (state.stopping ? "Pausing after the current batch. Please wait." : "Keep your computer awake and connected. Your credits update when results are accepted.") : state.phase === "checking" ? "Please wait. Regular work starts after the computer check is approved." : "Keep this page and the small VISION starter window open.";
   const step = !state.ready ? 1 : !state.connected || !state.savedCode ? 2 : !state.qualified ? 3 : 4;
-  const next = state.busy ? "Please wait for this step to finish." : state.connected && !state.savedCode ? "Next: Save your private account code in step 2." : `Next: Step ${step} — ${["set up this PC", "create an account, or use your saved code", "run the PC check", "start helping"][step - 1]}.`;
+  const next = state.busy ? "Please wait for this step to finish." : state.connected && !state.savedCode ? "Next: Save your private account code in step 2." : `Next: Step ${step} — ${["set up this computer", "create an account, or use your saved code", "run the computer check", "start helping"][step - 1]}.`;
   if (byId("next-step").textContent !== next) byId("next-step").textContent = next;
   byId("go-next").textContent = `Go to step ${step}`;
   byId("go-next").disabled = state.busy || requesting;
@@ -47,7 +49,7 @@ function render(state) {
   if (hasProgress) {
     byId("progress").max = state.batchTotal;
     byId("progress").value = state.batchCompleted;
-    byId("progress-label").textContent = `${state.phase === "checking" ? "PC check" : "Current batch"}: ${state.batchCompleted.toLocaleString()} of ${state.batchTotal.toLocaleString()} locations processed.`;
+    byId("progress-label").textContent = `${state.phase === "checking" ? "computer check" : "Current batch"}: ${state.batchCompleted.toLocaleString()} of ${state.batchTotal.toLocaleString()} locations processed.`;
   }
   byId("pending").hidden = !(state.pending > 0);
   byId("pending").textContent = state.pending > 0 ? `${state.pending.toLocaleString()} saved ${state.pending === 1 ? "batch is" : "batches are"} waiting for delivery or a service check. Credits appear after acceptance.${state.busy ? "" : " Choose Start helping to resume."}` : "";
@@ -57,11 +59,11 @@ function render(state) {
   byId("account-status").textContent = state.connected ? "Your account is connected." : "Keep your private code. You will also use it on the search website.";
   const busy = state.busy || requesting;
   byId("prepare").disabled = busy;
-  byId("prepare").textContent = state.ready ? "Check setup again" : "Set up this PC";
+  byId("prepare").textContent = state.ready ? "Check setup again" : "Set up this computer";
   byId("connect").disabled = busy || !state.ready;
   byId("create").disabled = busy || !state.ready;
   byId("check-pc").disabled = busy || !state.ready || !state.connected || !state.savedCode || state.qualified;
-  byId("check-pc").textContent = state.qualified ? "PC approved" : "Run the PC check";
+  byId("check-pc").textContent = state.qualified ? "Computer approved" : "Run the computer check";
   byId("start").disabled = busy || !state.ready || !state.connected || !state.savedCode || !state.qualified;
   byId("stop").disabled = state.phase !== "indexing" || !state.busy || state.stopping;
   byId("quit").disabled = busy;

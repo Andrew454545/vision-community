@@ -193,6 +193,13 @@ shipping newer offline helpers requires new runtime and policy pins.
 
 ### Portable Objects and coverage
 
+The [private Mac starter](MAC_PRIVATE_STARTER_20261004.md) adds a checksum-pinned
+private interpreter, verified public-source snapshot and platform-aware guided
+Scenes setup. Mac qualification cannot borrow the Windows released policy.
+Actual Mac bootstrap/window CI is separate from native model, inference,
+admission and unattended-processing acceptance; none of those gates is closed
+by introducing the launcher.
+
 - [ ] Finish the guided Scenes / Objects / Both choice on both Windows and Mac,
   with separate trusted qualification, delivery recovery and earned-credit
   evidence for each lane. Keep unavailable lanes clearly labelled.
