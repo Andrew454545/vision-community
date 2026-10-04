@@ -76,7 +76,9 @@ jobs:
       - name: Check the complete Worker in the Cloudflare runtime
         working-directory: deploy/cloudflare
         run: |
+          node tools/check-staging-config.mjs
           node node_modules/wrangler/bin/wrangler.js deploy --dry-run --outdir "$PWD/.local-test-build"
+          node node_modules/wrangler/bin/wrangler.js deploy --dry-run --config wrangler.staging.jsonc --outdir "$PWD/.local-staging-build"
           node node_modules/wrangler/bin/wrangler.js deploy --dry-run --config native-scene-bridge/wrangler.toml --outdir "$PWD/.local-native-bridge-build"
           node node_modules/wrangler/bin/wrangler.js deploy --dry-run --config native-scene-verifier-bridge/wrangler.toml --outdir "$PWD/.local-verifier-bridge-build"
           node node_modules/wrangler/bin/wrangler.js deploy --dry-run --config native-container-host/wrangler.jsonc --outdir "$PWD/.local-native-host-build"
