@@ -72,8 +72,8 @@ class SyntheticCanaryTests(unittest.TestCase):
         for key,digest in anchors.items():
             self.assertEqual(hashlib.sha256(image_bytes(*key)).hexdigest(),digest)
 
-    def test_signed_zero_pose_matches_native_float_bits(self):
-        self.create(self.fixture.replace(b'70.54816',b'-0'))
+    def test_negative_full_turn_pose_matches_native_float_bits(self):
+        self.create(self.fixture.replace(b'70.54816',b'-360'))
         manifest = json.loads((self.root/'manifest.json').read_text())
         self.assertEqual(manifest['frames'][0]['headingBits'],'8000000000000000')
         self.assertEqual(manifest['frames'][1]['headingBits'],'4056800000000000')
