@@ -8,6 +8,11 @@ The previous chronological development log remains in
 
 ## Boundaries and architecture
 
+- Required release scope is Windows and macOS, with Scenes, Objects and Both
+  available in the guided application on each. A Windows Scenes release alone
+  does not complete this project. Track each combination in the
+  [platform acceptance matrix](PLATFORM_ACCEPTANCE.md); experimental commands
+  or another platform's tests do not establish beginner or unattended support.
 - Andrew454545/VISION is the reference. Preserve its model, geometry, query,
   ranking and map-export behavior where verified. Development reconstructions
   do not alone establish equivalence with his installed application.
@@ -188,10 +193,13 @@ shipping newer offline helpers requires new runtime and policy pins.
 
 ### Portable Objects and coverage
 
+- [ ] Finish the guided Scenes / Objects / Both choice on both Windows and Mac,
+  with separate trusted qualification, delivery recovery and earned-credit
+  evidence for each lane. Keep unavailable lanes clearly labelled.
 - [x] Complete actual clean-Linux inference/indexing with pinned assets and
   bounded shared threads; preserve the failed guard job and passing receipt.
 - [ ] Complete clean-device runtime dependency checks and publish checksum-pinned
-  Windows/Linux object assets.
+  Windows/macOS object assets; retain the existing Linux backend checks.
 - [ ] Compare full RF-DETR, YOLOE and OWLv2 production paths with Andrew's
   reference on broader identical inputs. The small development pilot and
   detector thread study do not approve production inference or parallelism.
@@ -204,6 +212,12 @@ shipping newer offline helpers requires new runtime and policy pins.
   do not show that the contributor ran the models.
 
 ### Days or weeks of unattended processing
+
+- [ ] Implement and exercise macOS background startup/sign-in recovery,
+  scheduled pacing, pause/resume and preserved account/batch/delivery state.
+  The current Windows task does not establish Mac support. Exercise both lanes
+  and Both on each OS without overlapping native writers or granting duplicate
+  credits; verify shared CPU/memory limits and failures separately.
 
 The [4 October background controls](BACKGROUND_CONTROLS_20261004.md) add a
 beginner schedule/pause/resume/status window and verify Windows' saved recovery
