@@ -83,6 +83,7 @@ jobs:
           node node_modules/wrangler/bin/wrangler.js deploy --dry-run --config native-container-host/private-check.wrangler.jsonc --outdir "$PWD/.local-private-check-build"
           node tools/check-local-runtime.mjs node_modules/miniflare/dist/src/index.js .local-test-build/worker.js
           node tools/check-staging-scene-policy.mjs node_modules/miniflare/dist/src/index.js .local-test-build/worker.js
+          node tools/check-local-verifier-replies.mjs node_modules/miniflare/dist/src/index.js .local-test-build/worker.js
           node tools/check-local-deletion-archive.mjs node_modules/miniflare/dist/src/index.js .local-test-build/worker.js
           node tools/check-local-maintenance.mjs node_modules/miniflare/dist/src/index.js .local-test-build/worker.js
           node tools/check-local-restore-sql.mjs node_modules/miniflare/dist/src/index.js

@@ -43,15 +43,21 @@ The previous chronological development log remains in
 | Beginner flow | Short README/website guide, guided Windows starter, qualification/service checks, saved-code recovery, pause/resume and private diagnostics. Website assets/privacy headers verified in staging. | [Service readiness](WEBSITE_SERVICE_READINESS.md) |
 | Background worker | Native scheduled startup, idle handover and idle forced-exit/pause/resume verified. Installed schedule: medium 06:00–00:00, max 00:00–06:00 local; saved account, 30-minute service retry, sign-in/recovery triggers and one worker. | [Background processing](BACKGROUND_PROCESSING.md) |
 
-Community CI passes all six jobs at `b7c7bec`, including the repaired Mac
+Community CI passes all six jobs at `5d1bb33`, including the repaired Mac
 ownership job. The cleanup repair passes 465 local Windows
 tests in 225.461 seconds (two existing filesystem-link permission skips), 28
 ownership/resource guards and all 51 calibration guards. Two fresh actual
 supplied-Mac timeouts also pass with own-user private-group cleanup verified;
 protected OS service lifetime remains outside the check. See
 [the cleanup report](MAC_TIMEOUT_CLEANUP_20261004.md).
-The unchanged Worker coverage includes 195 JavaScript, 37 actual workerd
-private-host and 15 private HTTP/preparation checks. The source-only Windows
+The verifier reply-boundary change passes all 206 JavaScript tests and 13 new
+actual local workerd gateway cases. Broken approvals are retryable service
+errors and cannot create qualification, publication or credit; valid audit
+retry still awards once. Gateway accounting/privacy, deletion archive,
+maintenance, restore SQL and independent verifier regressions also pass.
+See [reply-boundary evidence](VERIFIER_REPLY_BOUNDARIES_20261004.md). The existing
+private-host coverage remains 37 workerd and 15 private HTTP/preparation checks.
+The source-only Windows
 preview retains its tested `4e53420` revision, with actual progress, pending-work
 and reconnect notices. New fixed-check code is recorded separately from that
 immutable preview.
@@ -105,6 +111,13 @@ shipping newer offline helpers requires new runtime and policy pins.
   gold, rotates three fresh trials each at 1/2/4 threads, retains all PC tensor
   bytes, records resource/cleanup receipts and reports full query differences.
   It has not run the full native comparison yet and grants no qualification.
+  All six Community CI jobs pass with the matrix at `5d1bb33`. A private
+  format-compatibility check verifies a copy of earlier actual 128-location PC
+  output, retains its raw tensors and confirms the original files unchanged;
+  this runs no new native command. A separate finite Windows scheduled task
+  waits for the exact completed Mac run and then starts the matrix with pinned
+  source/runtime files. It is independent of Codex and the installed contributor
+  worker. Its registration does not establish actual restart or endurance.
   The first full attempt failed near its original two-hour bound during repeat
   two; its original receipt reports `PermissionError`. Its pinned archive and
   logs are preserved, and the offline verifier rejects it as incomplete.

@@ -41,6 +41,46 @@ export class ScenePipelineError extends Error {
   constructor(code, status = 400) { super(code); this.status = status; }
 }
 
+export async function readVerifierJson(response, timeoutMs = 10000) {
+  // Match the private host's decision-response budget. This is never an image
+  // transport endpoint. A broken/oversized service reply cannot reject a PC,
+  // approve a contribution or consume the Worker's memory without a bound.
+  const maximum = 65536;
+  const length = response.headers.get("content-length");
+  if (!response.body || !/^application\/json(?:\s*;|$)/i.test(response.headers.get("content-type") || "") ||
+      (length !== null && (!/^[0-9]+$/.test(length) || Number(length) > maximum)) ||
+      !Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 10000) {
+    if (response.body) void response.body.cancel().catch(() => {});
+    throw Error("invalid_verifier_response");
+  }
+  const reader = response.body.getReader(), bytes = new Uint8Array(maximum);
+  let total = 0, timer;
+  const deadline = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(Error("verifier_response_timeout")), timeoutMs);
+  });
+  try {
+    // Empty chunks consume no space, but may not create an endless microtask
+    // loop that starves the deadline. Single-byte replies fit this read bound.
+    for (let reads = 0; reads <= maximum; reads++) {
+      const { value, done } = await Promise.race([reader.read(), deadline]);
+      if (done) {
+        const result = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes.subarray(0, total)));
+        if (!result || typeof result !== "object" || Array.isArray(result)) throw Error("invalid_verifier_response");
+        return result;
+      }
+      if (!(value instanceof Uint8Array) || total + value.byteLength > maximum) throw Error("verifier_response_budget");
+      bytes.set(value, total);
+      total += value.byteLength;
+    }
+    throw Error("verifier_response_read_budget");
+  } finally {
+    clearTimeout(timer);
+    // Cancellation is housekeeping, never a new unbounded awaited operation.
+    void reader.cancel().catch(() => {});
+    reader.releaseLock();
+  }
+}
+
 async function callVerifier(env, action, body) {
   try {
     const response = await env.SCENE_VERIFIER.fetch(new Request(`https://scene-verifier.internal/${action}`, {
@@ -48,12 +88,15 @@ async function callVerifier(env, action, body) {
       signal: AbortSignal.timeout(60000),
     }));
     if (response.status === 422 && action === "qualify") {
-      const result = await response.json();
+      const result = await readVerifierJson(response);
       return result?.approved === false || ["scene_device_not_qualified", "invalid_submission"].includes(result?.error)
         ? { approved: false } : null;
     }
-    if (!response.ok) return null;
-    return await response.json();
+    if (!response.ok) {
+      if (response.body) void response.body.cancel().catch(() => {});
+      return null;
+    }
+    return await readVerifierJson(response);
   } catch { return null; }
 }
 
@@ -86,10 +129,13 @@ export async function qualifyDevice(env, account, body, validRecord, now = Math.
   const result = await callVerifier(env, "qualify", { accountId: account, profileId,
     policyId: env.SCENE_POLICY_ID, canarySha256, canary });
   if (!result) throw new ScenePipelineError("scene_verification_unavailable", 503);
-  if (!result || result.approved !== true || result.policyId !== env.SCENE_POLICY_ID ||
+  if (result.approved === false) throw new ScenePipelineError("scene_device_not_qualified", 422);
+  if (result.approved !== true || result.policyId !== env.SCENE_POLICY_ID ||
       result.profileId !== profileId || result.canarySha256 !== canarySha256 ||
       !Number.isSafeInteger(result.expiresAt) || result.expiresAt <= now || result.expiresAt > now + 30 * 86400) {
-    throw new ScenePipelineError("scene_device_not_qualified", 422);
+    // An uncorrelated/malformed approval is a broken service response, not
+    // evidence that this PC failed its check. Never store such an approval.
+    throw new ScenePipelineError("scene_verification_unavailable", 503);
   }
   const id = randomHex(16);
   await env.DB.prepare("INSERT INTO scene_qualifications VALUES (?, ?, ?, ?, ?, ?, ?)")
