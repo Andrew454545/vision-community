@@ -56,6 +56,25 @@ The private recovery receipt has SHA-256
 Twelve private continuation safeguards pass, including configuration/source
 pins, exact retained execution provenance, verified launch permission and no
 automatic repetition after a started attempt. Five fresh rotated trials remain.
+An isolated version adds a thirteenth guard rejecting foreign source imports.
+All 276 tracked public files were copied and byte-checked in a new private tree;
+278 pins cover that tree and its two operator helpers. A fresh interpreter
+imports only this copy and passes all 80 calibration tests in 9.688 seconds.
+Further repository edits cannot change this trial source.
+
+The limited own-user Windows task is registered after actual settings readback,
+with one-instance protection, no automatic native retry and a 40-hour outer
+limit. Its supervisor started at 20:23:12 UTC and rechecks the four retained
+cases before five new trials: four/one threads for replica two, then four/one/two
+threads for replica three. It has a 36-hour internal limit, four hours per index
+and ten minutes per search. A started supervisor is not proof of new inference.
+The installed contributor remains unchanged; this finite comparison is separate
+from ongoing contribution recovery.
+
+All six Community CI jobs pass at `741c6da`, including both 80-test calibration
+jobs and all 482 Windows application tests. The initial timed-fixture failure
+and private test-discovery setup failure remain retained. Neither was counted
+as a passing run.
 The full repeats, held-out tolerances, trusted live contributions and actual
 restart/endurance checks remain release gates. No accounts, submissions,
 credits or uploads are created by this recovery; the installed contributor is

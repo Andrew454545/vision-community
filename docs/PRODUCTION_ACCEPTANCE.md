@@ -141,6 +141,12 @@ shipping newer offline helpers requires new runtime and policy pins.
   and preserves the original failed receipt. All packed indexes agree; four-thread
   raw tensors have 712 hash differences from one thread, with identical PC query
   results. Five fresh trials still remain. See [accounting recovery](WINDOWS_MATRIX_ACCOUNTING_RECOVERY_20261004.md).
+  All six CI jobs pass at `741c6da`, including both 80-test calibration jobs and
+  all 482 Windows application checks. The remaining finite comparison has a
+  verified limited Windows task and its own byte-pinned copy of 276 public files;
+  actual isolated Windows imports and all 80 guards pass. Its supervisor started
+  independently of Codex, rechecking retained cases before fresh native work.
+  No production profile is approved by registration or these checks.
   All six Community CI jobs pass with the matrix at `5d1bb33`. A private
   format-compatibility check verifies a copy of earlier actual 128-location PC
   output, retains its raw tensors and confirms the original files unchanged;
