@@ -76,10 +76,24 @@ check neither approves a runtime without its full 1,024-location qualification
 nor verifies the provenance of later live contributions.
 
 Each attempt requires at least 1 GiB free space and caps native study evidence
-at 384 MiB. Reports and failures remain private. Long-term attempt cleanup and
-release distribution remain open requirements; these checks do not establish
-a hard storage quota. No version-3 production policy or runtime release is
-published by this code change.
+at 384 MiB. After independent service approval, the updated guided starter
+verifies the completed attempt and removes only its 448 synthetic RGB files and
+448 large preprocessing tensors (337,182,720 bytes). Reports, logs, indexes,
+checkpoint, manifests and small normalized/pooler tensors remain private.
+Failed, rejected, diagnostic-only and legacy attempts are not cleaned.
+
+`cleanup-receipt.json` lists the exact omitted transports and hashes. `COMPLETE`
+means all listed temporary files were removed. `PREPARED` or `INTERRUPTED` means
+cleanup may be partial; it is never silently resumed. A cleanup failure retains
+PC approval and a fixed private failure report. Modified files, linked paths,
+unexpected inventory or damaged indexes stop cleanup. Synthetic filesystem and
+guided-flow tests cover these cases; live approved-release cleanup remains to
+be exercised when the production profile is distributed.
+
+This is not a general retention policy or hard storage quota. Contribution
+files, pending deliveries, recovery codes and older attempts are not removed.
+Long-term storage growth and release distribution remain open requirements.
+No version-3 production policy or runtime release is published by this change.
 
 ## Why live inputs remain separate
 

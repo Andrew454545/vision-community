@@ -11,8 +11,10 @@ import base64
 import hashlib
 import json
 import math
+import os
 from pathlib import Path
 import re
+import secrets
 import shutil
 import stat
 import sys
@@ -428,6 +430,172 @@ def canary_profile_matches(report, *, binary, model_dir, inference_threads=1):
         return report.get("runtimeProfile") == runtime_profile(binary, model_dir, inference_threads=inference_threads)
     except (OSError, ValueError):
         return False
+
+
+def _plain_check_path(path, *, directory=False):
+    """Check the absolute deletion target and every ancestor, without following links."""
+    path = Path(path).absolute()
+    if '..' in path.parts:
+        raise ValueError('unsafe_pc_check_cleanup_path')
+    for ancestor in reversed(path.parents):
+        info = ancestor.lstat()
+        if not stat.S_ISDIR(info.st_mode) or getattr(info, 'st_file_attributes', 0) & 0x400:
+            raise ValueError('unsafe_pc_check_cleanup_path')
+    info = path.lstat()
+    kind = stat.S_ISDIR if directory else stat.S_ISREG
+    if (not kind(info.st_mode) or getattr(info, 'st_file_attributes', 0) & 0x400
+            or not directory and info.st_nlink != 1):
+        raise ValueError('unsafe_pc_check_cleanup_path')
+    return info
+
+
+def _check_cleanup_file(path, pin):
+    if (not isinstance(pin, dict) or set(pin) != {'name', 'bytes', 'sha256'}
+            or pin['name'] != path.name or type(pin['bytes']) is not int
+            or not isinstance(pin['sha256'], str) or not re.fullmatch(r'[a-f0-9]{64}', pin['sha256'])):
+        raise ValueError('invalid_pc_check_cleanup_inventory')
+    before = _plain_check_path(path)
+    if before.st_size != pin['bytes'] or sha(path) != pin['sha256']:
+        raise ValueError('pc_check_cleanup_file_changed')
+    after = _plain_check_path(path)
+    if (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns) != (
+            after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns):
+        raise ValueError('pc_check_cleanup_file_changed')
+
+
+def _cleanup_json(path, maximum):
+    if _plain_check_path(path).st_size > maximum:
+        raise ValueError('pc_check_cleanup_report_too_large')
+    raw = path.read_bytes()
+    if len(raw) > maximum:
+        raise ValueError('pc_check_cleanup_report_too_large')
+    return json.loads(raw), hashlib.sha256(raw).hexdigest()
+
+
+def _save_cleanup_receipt(work, receipt):
+    _plain_check_path(work, directory=True)
+    temporary = work / ('cleanup-' + secrets.token_hex(8) + '.tmp')
+    with temporary.open('x', encoding='utf-8') as stream:
+        stream.write(json.dumps(receipt, indent=2, allow_nan=False) + '\n')
+        stream.flush()
+        os.fsync(stream.fileno())
+    target = work / 'cleanup-receipt.json'
+    if target.exists() or target.is_symlink():
+        _plain_check_path(target)
+    temporary.replace(target)
+
+
+def compact_approved_canary(work_dir, report, qualification, policy):
+    """Compact only the freshly service-approved V3 attempt supplied by the caller.
+
+    No folder scan, recursive deletion, old-attempt cleanup or contribution cleanup.
+    Keep indexes, reports, logs, manifests and small normalized/pooler tensors.
+    Failed, diagnostic-only, rejected and legacy checks retain every input file.
+    A PREPARED receipt after interruption means cleanup may be partial; never
+    silently resume deletion or describe omitted preprocessing bytes as retained.
+    """
+    if policy is None or policy.document['version'] != 3:
+        return None
+    if (not isinstance(report, dict) or report.get('status') != 'COMPLETE'
+            or report.get('complete') is not True or report.get('qualified') is not True
+            or report.get('inputIdentity') != 'SEALED_SYNTHETIC_RGB_BYTES'
+            or report.get('reference') != 'RELEASE_PINNED_SYNTHETIC_REFERENCE'
+            or report.get('policyId') != policy.document['policyId']
+            or report.get('syntheticInputs') != policy.document['dataset']['syntheticInputs']
+            or report.get('runtimeProfile', {}).get('sha256') != policy.document['runtimeProfileSha256']
+            or not isinstance(qualification, dict) or qualification.get('qualified') is not True
+            or qualification.get('profileId') != policy.document['runtimeProfileSha256']
+            or type(qualification.get('expiresAt')) not in (int, float)
+            or not math.isfinite(qualification['expiresAt'])
+            or not time.time() < qualification['expiresAt']):
+        raise ValueError('pc_check_cleanup_approval_required')
+    work = Path(work_dir).absolute()
+    _plain_check_path(work, directory=True)
+    receipt_path = work / 'cleanup-receipt.json'
+    if receipt_path.exists() or receipt_path.is_symlink():
+        raise ValueError('pc_check_cleanup_already_started')
+    saved, report_sha = _cleanup_json(work/'canary-report.json', 1024**2)
+    if saved != report:
+        raise ValueError('pc_check_cleanup_report_changed')
+    inputs = policy.pinned_inputs()
+    reference, identity = canary_reference(policy)
+    source = work/'release-canary-112.tsv'
+    _check_cleanup_file(source, {'name':source.name, 'bytes':len(inputs['fixtureBytes']),
+                                'sha256':identity['fixtureSha256']})
+    if report.get('identity') != identity:
+        raise ValueError('pc_check_cleanup_report_changed')
+    for folder in ('index', 'synthetic-rgb', 'synthetic-evidence'):
+        _plain_check_path(work/folder, directory=True)
+    for name in ('checkpoint.json', 'index/manifest.json', 'index/shard-000000.mask', 'index/shard-000000.i8'):
+        _plain_check_path(work/name)
+    require_complete_index(work/'checkpoint.json', work/'index', LOCATIONS)
+    blob = (work/'index/shard-000000.i8').read_bytes()
+    if (len(blob) != LOCATIONS*BYTES_PER_LOCATION
+            or hashlib.sha256(blob).hexdigest() != report.get('payloadSha256')
+            or not policy.evaluate(report['runtimeProfile']['sha256'], identity, decoded_difference(blob, reference))[0]):
+        raise ValueError('pc_check_cleanup_index_changed')
+    rgb = work/'synthetic-rgb'
+    manifest, manifest_sha = _cleanup_json(rgb/'manifest.json', 1024**2)
+    verify_synthetic_inputs(rgb, policy.document['dataset']['syntheticInputs']['manifestSha256'])
+    evidence, evidence_sha = _cleanup_json(work/'synthetic-evidence/scene-evidence.json', 1024**2)
+    if (evidence.get('schemaVersion') != 1
+            or evidence.get('status') != 'NATIVE_SCENE_STUDY_COMPLETED_UNQUALIFIED'
+            or evidence.get('selectedImageGraph') != 'vision_model_fp32.onnx'
+            or evidence.get('sourceTsv') != manifest.get('sourceTsv')
+            or evidence.get('modelFiles') != manifest.get('modelFiles')
+            or evidence.get('frames') != manifest.get('frames')):
+        raise ValueError('invalid_pc_check_cleanup_inventory')
+    pending = [(rgb/frame['rgb']['name'], frame['rgb']) for frame in manifest['frames']]
+    shapes = {'pixel-values':[3,224,224], 'normalized':[768], 'pooler-output':[768]}
+    seen, expected = set(), {'scene-evidence.json'}
+    tensors = evidence.get('tensors', [])
+    if not isinstance(tensors, list) or len(tensors) != LOCATIONS*12:
+        raise ValueError('invalid_pc_check_cleanup_inventory')
+    for tensor in tensors:
+        ordinal, view, event = tensor.get('ordinal'), tensor.get('view'), tensor.get('event')
+        if (type(ordinal) is not int or ordinal not in range(LOCATIONS)
+                or type(view) is not int or view not in range(4) or event not in shapes
+                or (ordinal, view, event) in seen or tensor.get('shape') != shapes[event]
+                or tensor.get('dtype') != 'float32-little-endian'):
+            raise ValueError('invalid_pc_check_cleanup_inventory')
+        name = f'scene-{ordinal:04}-view-{view}-{event}.f32le'
+        pin = tensor.get('file')
+        size = math.prod(shapes[event])*4
+        if not isinstance(pin, dict) or pin.get('name') != name or pin.get('bytes') != size:
+            raise ValueError('invalid_pc_check_cleanup_inventory')
+        path = work/'synthetic-evidence'/name
+        _check_cleanup_file(path, pin)
+        expected.add(name)
+        seen.add((ordinal, view, event))
+        if event == 'pixel-values':
+            pending.append((path, pin))
+    if {path.name for path in (work/'synthetic-evidence').iterdir()} != expected:
+        raise ValueError('invalid_pc_check_cleanup_inventory')
+    # Check ALL deletion targets before the first unlink, including RGB hard links.
+    for path, pin in pending:
+        _check_cleanup_file(path, pin)
+    receipt = {'version':1, 'status':'PREPARED', 'reportSha256':report_sha,
+               'rgbManifestSha256':manifest_sha, 'nativeEvidenceSha256':evidence_sha,
+               'payloadSha256':report['payloadSha256'], 'profileId':qualification['profileId'],
+               'discardedTransport':'SYNTHETIC_RGB_AND_PREPROCESSED_F32LE',
+               'plannedFiles':[{'path':path.relative_to(work).as_posix(), 'bytes':pin['bytes'],
+                                'sha256':pin['sha256']} for path, pin in pending],
+               'deletedFiles':0, 'deletedBytes':0}
+    _save_cleanup_receipt(work, receipt)
+    try:
+        for path, pin in pending:
+            # Detect a changed target/ancestor again immediately before deleting it.
+            _check_cleanup_file(path, pin)
+            path.unlink()
+            receipt['deletedFiles'] += 1
+            receipt['deletedBytes'] += pin['bytes']
+        receipt['status'] = 'COMPLETE'
+        _save_cleanup_receipt(work, receipt)
+    except (Exception, KeyboardInterrupt) as error:
+        receipt.update(status='INTERRUPTED', errorType=type(error).__name__)
+        _save_cleanup_receipt(work, receipt)
+        raise
+    return receipt
 
 
 def main():

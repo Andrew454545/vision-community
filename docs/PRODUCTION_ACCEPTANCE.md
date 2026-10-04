@@ -147,6 +147,12 @@ shipping newer offline helpers requires new runtime and policy pins.
 - [ ] Run an extended qualified workload measuring accepted batches, temperature,
   memory, disk growth and recovery. Bounded pending delivery, free-space checks
   and optional storage allowance are not a cleanup policy or hard quota.
+  The updated starter removes only verified large temporary files from a freshly
+  service-approved fixed PC check; reports and failed attempts remain. Synthetic
+  filesystem and guided-flow guards pass, but live release cleanup and general
+  contribution retention still need validation. See [PC check storage](RELEASE_CANARY_DATASET.md).
+  The cleanup change passes forty targeted tests and the complete 453-test local
+  Windows suite (225.055 seconds, two existing link-permission skips).
 
 ### Packaging, privacy and disaster recovery
 

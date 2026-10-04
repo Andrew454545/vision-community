@@ -185,10 +185,16 @@ another option if the drive has room. An unreadable, linked or excessively large
 file inventory stops for review and preserves a failure report rather than
 reporting misleading usage.
 
-There is no automatic cleanup. Keep the installation folder in place and
-preserve pending or failed work and account recovery. Do not delete recovery
-files merely to clear a warning. The pending-batch limit does not cap historical
-files, and neither setting proves safe disk growth over weeks of processing.
+After the service approves a new fixed-input PC check, the updated starter
+clears about 322 MiB of that check's temporary images and preprocessing files.
+It verifies every target first and keeps reports, logs, indexes, manifests and
+small output tensors. Failed or rejected checks keep their files. An interrupted
+cleanup preserves a receipt and does not remove the PC's service approval.
+
+Other historical files are not cleaned automatically. Keep the installation
+folder in place and preserve pending or failed work and account recovery.
+Do not delete recovery files merely to clear a warning. The pending-batch limit
+does not cap historical files; safe disk growth over weeks remains unvalidated.
 
 ## Remaining validation
 
