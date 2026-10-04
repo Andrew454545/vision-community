@@ -74,6 +74,14 @@ The updated job additionally seeds an interrupted extraction and checks that
 its bytes remain unchanged while a fresh staged interpreter starts. Record that
 job's completion separately; the earlier successful job predates this recovery
 check. This is an extraction-interruption fixture, not an actual Mac restart.
+At `d09be04`, the actual Mac job passes the recovery fixture and all 37 guards
+in 2.165 seconds without skips. Its completed window receipt is unchanged.
+
+The intermediate `7264024` job stopped safely when the shared runner's anonymous
+GitHub API quota returned HTTP 403 during the verified-HTTPS smoke. That failure
+is retained. The smoke now requests Python's public static `robots.txt` over
+verified HTTPS rather than consuming an anonymous GitHub API request. Archive
+pins, interpreter verification and TLS verification remain unchanged.
 
 The first remote Mac bootstrap stopped safely on a checksum mismatch: Windows
 had generated the inventory's final newline as CRLF, while the Git download is
