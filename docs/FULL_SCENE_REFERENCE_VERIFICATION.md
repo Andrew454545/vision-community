@@ -42,4 +42,9 @@ The corrected private run now uses a four-hour overall bound and validated
 temporary preprocessing cleanup. It is running; neither change alone proves
 completion or fixes a cleanup permission failure. A separate short Mac CI job
 now exercises actual process ownership, timeout and abrupt-parent-exit fixtures
-without models or imagery. Retain its evidence before making a Mac cleanup claim.
+without models or imagery. Its first attempt passed actual timeout and parent
+exit but exposed a test-only macOS temporary-path alias (`/var` versus
+`/private/var`). The test now resolves its temporary directory before launch;
+the original failed log is retained. This does not change process ownership or
+explain the supplied executable's recorded permission error. Confirm the rerun
+before making a broader Mac cleanup claim.

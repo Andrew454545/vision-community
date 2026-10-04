@@ -90,7 +90,8 @@ class ProcessOwnerTest(unittest.TestCase):
 
     def test_exact_arguments_environment_workdir_logs_and_exit_status(self):
         with tempfile.TemporaryDirectory() as folder:
-            root = Path(folder)
+            # macOS /var aliases /private/var; getcwd reports the physical path.
+            root = Path(folder).resolve()
             environment = os.environ.copy()
             environment["VISION_ORT_THREADS"] = "1"
             argument = "a folder; $(never execute) ' literal"
