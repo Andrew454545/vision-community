@@ -43,6 +43,8 @@ class FullSceneMatrixTests(unittest.TestCase):
                 tensor['file']['sha256']=hashlib.sha256(raw).hexdigest()
             else: shutil.copyfile(reduced/name,evidence/name)
         (evidence/'scene-evidence.json').write_text(json.dumps(body))
+        initial={**body,'status':'INCOMPLETE','frames':[],'tensors':[],'failure':None}
+        (evidence/'initial-evidence.json').write_text(json.dumps(initial))
         for name in ('shard-000000.i8','shard-000000.mask'): shutil.copyfile(reduced/name,index/name)
         (index/'manifest.json').write_text(json.dumps({'version':4,'viewsPerLocation':4,
             'bytesPerLocation':3080,'embeddingDimension':768,'shardLocations':2,'totalLocations':2,
@@ -234,6 +236,42 @@ class FullSceneMatrixTests(unittest.TestCase):
         (case/'repeat-evidence/scene-0000-view-0-pixel-values.f32le').write_bytes(b'X'*602112)
         with self.assertRaisesRegex(matrix.MatrixError,'tensor_transport'): self.verify_native(case)
         self.assertFalse((case/'verified-reduced').exists())
+
+    def test_initial_receipt_is_required_and_must_match_completed_identity(self):
+        case=self.native_case()
+        path=case/'repeat-evidence/initial-evidence.json'
+        original=json.loads(path.read_text())
+        for key,value in (('status','COMPLETE'),('productionQualified',True),
+                ('selectedImageGraph','vision_model.onnx'),('frames',[{}]),
+                ('tensors',[{}]),('failure','interrupted'),('sourceTsv',{}),
+                ('modelFiles',[]),('unexpected','unreviewed')):
+            path.write_text(json.dumps({**original,key:value}))
+            with self.subTest(key=key),self.assertRaisesRegex(matrix.MatrixError,'initial_evidence'):
+                self.verify_native(case)
+            self.assertFalse((case/'verified-reduced').exists())
+        path.unlink()
+        with self.assertRaises(FileNotFoundError): self.verify_native(case)
+
+    def test_known_initial_receipt_does_not_allow_unknown_files(self):
+        case=self.native_case()
+        (case/'repeat-evidence/unexpected.json').write_text('{}')
+        with self.assertRaisesRegex(matrix.MatrixError,'inventory_incomplete'):
+            self.verify_native(case)
+        self.assertFalse((case/'verified-reduced').exists())
+
+    def test_separate_offline_verification_preserves_original_case(self):
+        case=self.native_case()
+        originals={str(p.relative_to(case)):matrix.pin(p) for p in case.rglob('*') if p.is_file()}
+        destination=self.root/'offline-check'
+        checked,_,_=matrix.verify_native_case(case,self.fixture.manifest,self.fixture.queries,
+            self.fixture.models,count=2,reduced_out=destination)
+        self.assertEqual(checked['initialEvidence'],matrix.pin(case/'repeat-evidence/initial-evidence.json'))
+        self.assertTrue((destination/'scene-evidence.json').exists())
+        self.assertFalse((case/'verified-reduced').exists())
+        self.assertEqual(originals,{str(p.relative_to(case)):matrix.pin(p) for p in case.rglob('*') if p.is_file()})
+        with self.assertRaises(FileExistsError):
+            matrix.verify_native_case(case,self.fixture.manifest,self.fixture.queries,
+                self.fixture.models,count=2,reduced_out=destination)
 
     def test_bad_index_manifest_or_input_identity_cannot_pass(self):
         case=self.native_case()

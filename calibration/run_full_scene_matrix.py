@@ -137,7 +137,7 @@ def finite_command(run,argv,*,case,label,threads,environment,deadline,limit,entr
     finally:
         checkpoint()
 
-def verify_native_case(case,manifest,queries,models,count=1024):
+def verify_native_case(case,manifest,queries,models,count=1024,*,reduced_out=None):
     """Check every PC tensor byte, then reuse the independent reduced validator.
 
     Generated raw preprocessing is retained. Reduced copies contain small
@@ -148,9 +148,14 @@ def verify_native_case(case,manifest,queries,models,count=1024):
     if (evidence.get('frames')!=manifest['frames'] or evidence.get('modelFiles')!=models
         or evidence.get('sourceTsv')!=manifest['sourceTsv']):
         raise MatrixError('matrix_native_inputs_changed')
+    initial=read(case/'repeat-evidence/initial-evidence.json')
+    initial_expected={**evidence,'status':'INCOMPLETE','frames':[],'tensors':[],'failure':None}
+    if (initial!=initial_expected or evidence.get('failure') is not None
+        or initial.get('productionQualified') is not False):
+        raise MatrixError('matrix_initial_evidence_identity_invalid')
     tensors=evidence.get('tensors',[])
     seen=set()
-    expected={'scene-evidence.json'}
+    expected={'scene-evidence.json','initial-evidence.json'}
     for tensor in tensors:
         key=tensor.get('ordinal'),tensor.get('view'),tensor.get('event')
         if (type(key[0]) is not int or type(key[1]) is not int or key[0] not in range(count)
@@ -172,7 +177,8 @@ def verify_native_case(case,manifest,queries,models,count=1024):
         'bytesPerLocation':3080,'embeddingDimension':768,'shardLocations':count,
         'totalLocations':count,'indexedLocations':count,'completed':True}.items()):
         raise MatrixError('matrix_index_manifest_incomplete')
-    reduced=case/'verified-reduced'
+    reduced=case/'verified-reduced' if reduced_out is None else Path(reduced_out)
+    plain(reduced.parent,directory=True)
     reduced.mkdir(exist_ok=False)
     for source,target in ((case/'repeat-evidence/scene-evidence.json','scene-evidence.json'),
         (case/'repeat-index/shard-000000.i8','shard-000000.i8'),
@@ -185,7 +191,8 @@ def verify_native_case(case,manifest,queries,models,count=1024):
             name=tensor['file']['name']
             shutil.copyfile(plain(case/'repeat-evidence'/name),reduced/name)
     checked,hashes,semantic=verify_reduced_case(reduced,'repeat',count,queries,models,manifest=manifest)
-    checked.update(pcTensorByteFilesVerified=len(tensors),pcPreprocessingTransport='BYTES_VERIFIED_AND_RETAINED')
+    checked.update(pcTensorByteFilesVerified=len(tensors),pcPreprocessingTransport='BYTES_VERIFIED_AND_RETAINED',
+        initialEvidence=pin(case/'repeat-evidence/initial-evidence.json'))
     return checked,hashes,semantic
 
 def inversion_count(order):

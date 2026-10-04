@@ -129,3 +129,11 @@ the unchanged runtime/profile were rechecked before launch. A bounded startup
 review records the first native command and 56 saved locations without fetch or
 inference errors. No full case is complete in that review; the task runs
 independently of Codex and does not inspect or modify the installed contributor.
+
+The subsequent native one-thread trial completed all 1,024 locations and twelve
+searches in its four-hour allowance. Final matrix verification exposed an
+omitted startup receipt in the expected file inventory. The original failed
+receipt remains unchanged; the repaired verifier validates that receipt and
+still rejects missing, changed or unexpected files. All 75 calibration guards
+pass. See [the recovery evidence](FULL_PC_MATRIX_RECOVERY_20261004.md) for the
+measured completed trial, separate offline recheck and finite remaining work.
