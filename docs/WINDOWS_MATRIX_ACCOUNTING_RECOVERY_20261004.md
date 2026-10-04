@@ -26,6 +26,9 @@ Twenty resource guards and all 80 calibration tests pass locally. Five added
 Windows fixtures cover actual owned-process exit with a failed name read,
 live failure, failed wait, membership rejection and process-list overflow.
 These demonstrate the repair; they do not establish the old failure's cause.
+The first Windows CI attempt failed the timed exit fixture; that log is retained.
+The fixture now requests exit only after ownership is checked, rather than
+depending on a short sleep. All 80 local guards pass again in 9.651 seconds.
 
 Twenty-four fresh native readers of the retained second two-thread index also
 finish all twelve queries with exact original results, complete resource

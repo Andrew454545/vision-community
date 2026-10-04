@@ -19,7 +19,9 @@ class MeasurementTest(unittest.TestCase):
                 def __init__(self,value):
                     super().__init__(value)
                     configure(self,root)
-            child='import os,time; from pathlib import Path; Path("started").write_text(str(os.getpid())); time.sleep('+str(seconds)+')'
+            child='import os,time; from pathlib import Path; Path("started").write_text(str(os.getpid())); '
+            child+=('time.sleep('+str(seconds)+')' if seconds is not None else
+                '\nwhile not Path("exit-requested").exists(): time.sleep(0.01)')
             source=('import subprocess,sys,time; from pathlib import Path; '
                 'subprocess.Popen([sys.executable,"-I","-c",'+repr(child)+'],creationflags=0x08000000,'
                 'stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL); '
@@ -41,13 +43,17 @@ class MeasurementTest(unittest.TestCase):
             original.restype=wintypes.BOOL
             def read_name(process,*args):
                 if get_pid(process)==int((root/'started').read_text()):
+                    (root/'exit-requested').write_text('exit after membership was checked')
                     self.assertEqual(wait(process,3000),0)  # Actual exit on this held identity.
                     ctypes.set_last_error(31)
                     return False
                 return original(process,*args)
             job.api.QueryFullProcessImageNameW=read_name
         receipt={}
-        result=self.measured_descendant(configure,receipt,seconds=.6)
+        try:
+            result=self.measured_descendant(configure,receipt,seconds=None)
+        except OSError:
+            self.fail('Controlled owned-process exit measurement failed: '+repr(receipt))
         self.assertEqual(result.returncode,0)
         self.assertEqual(receipt['status'],'MEASURED')
         self.assertIn('EXITED_BEFORE_NAME_READ',receipt['activeProcessNamesAtMeasurement'])
