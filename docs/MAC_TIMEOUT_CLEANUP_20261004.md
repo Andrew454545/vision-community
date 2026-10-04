@@ -18,8 +18,17 @@ Repaired helper SHA-256:
 Four new regression guards cover repeated signals and cleanup failures.
 The full local Windows suite passes 465 tests in 225.461 seconds, with two
 existing filesystem-link permission skips. All 28 ownership/resource guards
-and all 51 calibration guards pass. New cross-platform CI and two actual
-supplied-executable timeout checks remain to be confirmed.
+and all 51 calibration guards pass. All six Community CI jobs pass at `b7c7bec`,
+including actual Mac timeout/parent-exit fixtures and the Windows suite.
+
+Two fresh forced timeouts with Andrew's unchanged supplied executable pass
+at the repaired helper pin: 20.111 and 25.074 seconds. Each records the expected
+`TimeoutExpired`, the one-thread shared pool, and absence of own-user processes
+from its private group. No model, imagery, account or credit changes occurred.
+The original sixteen-location sealed pilot and all model/runtime pins remain
+unchanged. The passing private archive is 1,919 bytes; SHA-256:
+`235b77097f015be1c40b92ffd18446716243980bf6ddae2ba78bb198b3e4b2d3`.
+It was downloaded and independently checked against GitHub metadata.
 
 The private native probe checks only whether processes belonging to its own
 effective user remain in its verified private group, using read-only
