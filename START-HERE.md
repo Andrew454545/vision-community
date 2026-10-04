@@ -4,7 +4,7 @@
 
 ## 1. Open VISION
 
-1. [Download for Windows](https://github.com/Andrew454545/vision-community/releases/download/windows-starter-preview-20261004/VISION-Community-Windows.zip).
+1. [Download for Windows](https://github.com/Andrew454545/vision-community/releases/download/windows-starter-preview-20261004-recovery/VISION-Community-Windows.zip).
 2. Right-click the ZIP → **Extract All** → **Extract**.
 3. Open the new folder → **VISION Community** → **Start VISION.cmd** (or **Start VISION**).
 4. Type **Y** and press **Enter** when asked to allow downloads and imagery for your chosen work.
