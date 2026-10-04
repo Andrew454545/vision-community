@@ -41,6 +41,8 @@ grows; it does not cap disk growth or establish months of endurance.
   assertion failure: PowerShell returned a long path for Python's short Windows
   parent name. Resolving both paths corrects the assertion; the original failed
   job and log are retained.
+  The corrected Windows CI passes all 478 tests in 296.718 seconds; all six
+  Community CI jobs pass at `b4e79a3`.
 - Real Windows task registration/readback passes with a temporary diagnostic
   task. It was removed without starting inference or touching the installed
   contributor. Original XML/default-representation failures are preserved.
@@ -51,6 +53,21 @@ grows; it does not cap disk growth or establish months of endurance.
   layout was reviewed; a clean-device beginner walkthrough remains required.
 - Existing sign-in recovery, owned native checkpoint/process cleanup, delayed
   retries, bounded pending delivery and disk-space guards remain in place.
+
+## Published preview
+
+The [4 October source-only Windows preview](https://github.com/Andrew454545/vision-community/releases/tag/windows-starter-preview-20261004)
+contains exactly 272 tracked public files from `b4e79a3`. A fresh public download
+independently matches every file and the ZIP checksum:
+`5ca967c264f9cad82916d3a231c0f42d6ecd980d9be2f1e7f456ce218af4756a`.
+The packaged control window also constructs successfully in a disposable setup;
+the check creates no account and starts no indexing.
+
+The short guide is deployed to the existing confirmed staging resources.
+All 13 assets and privacy headers match fresh readback; expected bindings match,
+preview URLs remain disabled, and contributions and paid search remain closed.
+Production and the installed contributor are unchanged. The preview is not a
+signed or production-qualified runtime release.
 
 The source-only preview does not open production contributions or search, grant
 qualification, change the installed worker or claim uninterrupted computation.

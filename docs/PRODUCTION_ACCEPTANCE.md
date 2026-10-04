@@ -186,6 +186,13 @@ beginner schedule/pause/resume/status window and verify Windows' saved recovery
 settings before starting. Installation keeps a stop marker throughout; the
 delivery journal indexes actionable rows instead of scanning accepted history.
 Local regression, isolation and real temporary task-readback checks pass.
+All six Community CI jobs pass at `b4e79a3`; the final Windows job passes
+478 tests in 296.718 seconds. The independently downloaded
+[4 October source preview](https://github.com/Andrew454545/vision-community/releases/tag/windows-starter-preview-20261004)
+matches all 272 tracked public files and its published checksum. The short guide
+is deployed to confirmed staging version `bed0cf46-7bfa-437d-83a1-f1e3bdba1bff`
+(4 October, 10:54 UTC); all 13 assets, privacy headers and expected bindings
+pass readback. Admission remains closed and production is unchanged.
 The installed contributor is unchanged. These improve the recovery design;
 they do not satisfy the actual restart, accepted-work or endurance gates below.
 
