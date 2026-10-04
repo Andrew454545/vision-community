@@ -104,6 +104,32 @@ class MeasurementTest(unittest.TestCase):
             self.assertTrue(receipt['completeAfterOwnedCleanup'])
             self.assertTrue(any(name.lower().startswith('python') for name in receipt['activeProcessNamesAtMeasurement']))
 
+    @unittest.skipUnless(os.name == 'nt', 'Windows job accounting')
+    def test_repeated_close_cannot_erase_unverified_descendant_wait(self):
+        jobs = []
+        class UnverifiedWait(MeasuredJob):
+            def __init__(self, receipt):
+                super().__init__(receipt)
+                jobs.append(self)
+                self.api.WaitForSingleObject = lambda *_args: 258  # Inject WAIT_TIMEOUT.
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            child = 'from pathlib import Path; import time; Path("started").write_text("yes"); time.sleep(60)'
+            source = ('import subprocess,sys,time; from pathlib import Path; '
+                'subprocess.Popen([sys.executable,"-I","-c",' + repr(child) + '],'
+                'stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL); '
+                '\nwhile not Path("started").exists(): time.sleep(0.01)')
+            receipt = {}
+            with patch('calibration.windows_resource_measurement.MeasuredJob', UnverifiedWait), \
+                 (root / 'out.log').open('wb') as output:
+                with self.assertRaisesRegex(OSError, 'cleanup_unverified'):
+                    measure_owned([sys.executable, '-I', '-c', source], receipt=receipt,
+                        env=dict(os.environ), cwd=root, stdout=output, stderr=output, timeout=10)
+            self.assertFalse(receipt['remainingDescendantsStopped'])
+            self.assertFalse(receipt['completeAfterOwnedCleanup'])
+            jobs[0].close()
+            self.assertFalse(receipt['completeAfterOwnedCleanup'])
+
 
 if __name__ == '__main__':
     unittest.main()

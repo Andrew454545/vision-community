@@ -49,9 +49,11 @@ CPU counters end at the recorded before-cleanup cutoff.
 
 The first measurement guard exposed cleanup interruption during an injected
 accounting error and an incorrect user-only CPU assertion. Both were repaired;
-total user-plus-kernel CPU is required. Six real Windows guards cover CPU/memory,
-exited descendants, a living descendant, nonzero exit, timeout and unavailable
-accounting. Measurement errors are reported after ownership cleanup.
+total user-plus-kernel CPU is required. Regression checks exercise actual owned
+subprocess CPU/memory, exited and living descendants, nonzero exit, timeout and
+unavailable accounting. An isolation guard refuses concurrent callers. A later
+guard injects a failed descendant wait and requires repeated close to retain
+that failure. Measurement errors are reported after ownership cleanup.
 
 Two private matrix failures remain: a relative diagnostic path prevented the
 first native start; the next completed inference but incorrectly required the
