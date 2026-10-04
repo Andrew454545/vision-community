@@ -20,7 +20,7 @@ if str(REPO) not in sys.path:
 from community.bootstrap import BootstrapError, install_runtime, load_manifest, runtime_platform
 from community.contribute import CommunityClient, ContributeError, DEFAULT_URL
 from community.vision_index import default_runner, index_from_queue, parse_json_stdout, require_layout, VisionIndexError
-from community.pc_canary import run_canary, canary_profile_matches
+from community.pc_canary import run_canary, canary_profile_matches, released_canary_policy
 from community.submission_outbox import SubmissionOutbox, MAX_PENDING_SUBMISSIONS
 
 WEB = Path(__file__).with_name("desktop_web")
@@ -43,6 +43,7 @@ ERRORS = {
     "pc_check_required": "Run the short PC check before indexing. Approval must be current and match these processing files.",
     "scene_qualification_required": "Your PC approval is missing or has expired. Run the short PC check again.",
     "canary_failed": "The PC check could not finish. Its report and logs have been kept. You can retry.",
+    "pc_check_files_invalid": "The PC check files could not be verified. Choose Set up this PC again. Your saved work and account code are kept.",
     "scene_qualification_rejected": "The service could not approve this PC's check. Its report has been kept for review.",
     "scene_device_not_qualified": "The service could not approve this PC's check. Its report has been kept for review.",
     "scene_device_qualification_required": "Run the short PC check before indexing.",
@@ -230,14 +231,23 @@ class DesktopApp:
         self.update(phase="download", message="Checking processing files. Downloads may take a few minutes.", ready=False)
         if runtime_platform() != "windows-x86_64":
             raise BootstrapError("unsupported_platform")
-        install_runtime(load_manifest(), self.root / "runtime", lane="scene",
+        manifest = load_manifest()
+        install_runtime(manifest, self.root / "runtime", lane="scene",
                         progress=lambda n, total: self.update(message=f"Checking and downloading file {n} of {total}. Please keep this window open."))
+        self.release_pc_check(manifest)
         binary = self.root / "runtime/bin/mma-vision.exe"
         code, stdout, _ = default_runner([str(binary), "index-layout"], os.environ.copy(), self.root)
         if code:
             raise VisionIndexError("vision_binary_failed")
         require_layout(parse_json_stdout(stdout))
         self.update(ready=True, phase="ready", message="Setup complete. Go to step 2 to create an account or use your saved code.")
+
+    def release_pc_check(self, manifest=None):
+        try:
+            return released_canary_policy(load_manifest() if manifest is None else manifest,
+                                          self.root / 'runtime')
+        except (OSError, ValueError, BootstrapError):
+            raise DesktopError('pc_check_files_invalid') from None
 
     def capabilities(self, client):
         try:
@@ -316,7 +326,8 @@ class DesktopApp:
                     batchCompleted=0, batchTotal=112,
                     message="Checking 112 locations on this PC. Please keep this window open.")
         folder = self.root / "checks" / (time.strftime("%Y%m%d-%H%M%S") + "-" + secrets.token_hex(4))
-        self.canary_report = self.canary(folder, **self.assets, progress_callback=self.progress)
+        policy = self.release_pc_check()
+        self.canary_report = self.canary(folder, **self.assets, policy=policy, progress_callback=self.progress)
         if self.canary_report.get("status") != "COMPLETE" or not self.profile_matches(self.canary_report, **self.assets):
             raise DesktopError("canary_failed")
         # This contains public fixture results and processing-file hashes, never account codes.
