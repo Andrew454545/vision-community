@@ -73,8 +73,11 @@ The tool rechecks the entire pinned archive before inference. It uses exactly
 the reference's study/search settings and saved RGB, then runs three fresh
 1/2/4-thread repeats in rotated order. Each native command records private Job
 CPU/committed-memory accounting, optional working-set samples, observed shared
-threads and verified owned cleanup. Six hours bounds the whole matrix; every
-command has its own shorter bound. A failure preserves its receipt, logs and
+threads and verified owned cleanup. The default allowance is 36 hours for the
+whole matrix and four hours for each fresh index; search has a ten-minute bound.
+Maintainers can set `--overall-hours` (1–48) and `--index-minutes` (1–360, within
+the overall allowance). These finite limits are recorded in the receipt. A
+failure preserves its receipt, logs and
 partial tensors; it is not silently retried or resumed.
 
 Allow at least 32 GiB free. All PC preprocessing, normalized and pooler bytes
@@ -102,3 +105,18 @@ credit or approval policy, retrieves no live imagery and does not inspect or
 change the installed background worker. It cannot settle trusted live-image
 identity, protected service lifetime, provider node assignment, thermal limits
 or long-running endurance.
+
+The first Windows attempt stopped at its original 90-minute per-index limit.
+Its saved checkpoint contains 688 of 1,024 locations with no fetch, inference or
+incomplete-location errors; progress continued through the last saved chunk.
+Owned descendant cleanup passed. No full case or query comparison completed.
+The original receipt, logs and partial tensors remain unchanged. This is a
+measured timeout, not evidence of a stalled indexer or approved runtime.
+
+At that measured rate, one full one-thread index would take roughly 134 minutes;
+this is an estimate, not a completed measurement. The longer finite allowances
+support a fresh separate attempt without changing models, reference inputs,
+thread settings or comparison requirements. Report replacement is atomic and
+keeps the previous readable receipt on failure. Sleep-request restoration is
+reported on failures as well as success; a failed release is never recorded as
+restored. Actual sleep/wake, OS restart and months of endurance remain unproven.
