@@ -89,6 +89,11 @@ shipping newer offline helpers requires new runtime and policy pins.
   diagnostic cannot approve a PC by itself. Live contribution audits still need
   independently trusted imagery identity so photograph changes cannot be
   confused with runtime error or used to excuse forged vectors.
+  The full identical-input Mac trial is running privately. Its
+  [offline transport verifier](FULL_SCENE_REFERENCE_VERIFICATION.md) is ready:
+  43 calibration tests pass, and the existing three reduced Mac 112-location
+  repeats validate with it. These checks do not complete the full reference or
+  its subsequent PC comparison.
 - [ ] Approve and distribute an exact production runtime/model/helper profile,
   deploy its independent verifier/policy and complete fresh PC qualification.
 - [ ] Run useful accepted production batches through the background worker;
