@@ -6,7 +6,7 @@ Your PC finds Street View locations. Accepted results earn credits for searches.
 
 ## Get started — Windows
 
-1. [Download VISION](https://github.com/Andrew454545/vision-community/releases/download/windows-starter-preview-20261004/VISION-Community-Windows.zip).
+1. [Download VISION](https://github.com/Andrew454545/vision-community/releases/download/windows-starter-preview-20261004-recovery/VISION-Community-Windows.zip).
 2. Right-click the ZIP → **Extract All**. Open the new folder → **VISION Community** → **Start VISION.cmd**.
 3. Type **Y** and press **Enter** when asked. Follow the four buttons in VISION.
 
