@@ -83,6 +83,15 @@ is retained. The smoke now requests Python's public static `robots.txt` over
 verified HTTPS rather than consuming an anonymous GitHub API request. Archive
 pins, interpreter verification and TLS verification remain unchanged.
 
+Final source `f200767` passes all **seven Community CI jobs**, including both
+80-test calibration jobs, **501 Windows application tests in 366.879 seconds**
+without skips, Linux application tests, Mac ownership, Mac private setup/recovery
+and the complete Cloudflare regressions. The
+[final actual Mac job](https://github.com/Andrew454545/vision-community/actions/runs/37237006954/job/111538046443)
+passes **37 guards in 1.908 seconds**, without skips, plus staged-extraction
+recovery, the static verified-HTTPS smoke and the unchanged loopback window
+receipt. These are verified setup checks, not production processing approval.
+
 The first remote Mac bootstrap stopped safely on a checksum mismatch: Windows
 had generated the inventory's final newline as CRLF, while the Git download is
 LF. The archive/interpreter contents were unchanged. The generator now emits LF
@@ -123,6 +132,7 @@ unavailable (`Fcntl::AUTOLOAD`). Windows fixtures now explicitly use Git's POSIX
 Perl. The actual Mac job continues to use its system Perl and passes without
 skips; production Mac verification is unchanged. Both original failing logs are
 preserved, and final Windows CI must pass after this test-environment repair.
+The final `f200767` Windows job above passes that repaired environment.
 
 ## Next native Mac checks
 
