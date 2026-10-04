@@ -55,9 +55,17 @@ process exit. It never downloads native models, creates an account, retrieves
 imagery, publishes a contribution or qualifies the computer.
 
 Only aggregate logs and a redacted window receipt are uploaded. Private roots,
-loopback credentials and snapshots are excluded. Record the completed job and
-test results here after CI finishes; a workflow definition alone is not passing
-evidence. The initial local test assertion failure is retained separately.
+loopback credentials and snapshots are excluded. The initial local test assertion
+failure is retained separately.
+
+The [actual Mac job](https://github.com/Andrew454545/vision-community/actions/runs/37235560511/job/111533829443)
+passes at `0a1ad40` on `macos-26-arm64`: pinned download/tree verification,
+verified HTTPS, source snapshot, **37 guards** in **2.353 seconds** with **no
+skips**, and `MAC_PRIVATE_STARTER_WINDOW_VERIFIED`. All three local assets and
+privacy headers pass, unauthenticated status access is denied, authenticated
+status works, a second setup-only entry is refused and the owned window exits.
+Its receipt records zero accounts, native commands and uploads, no imagery,
+and `productionQualified: false`. The private interpreter is Python **3.14.8**.
 
 The first remote Mac bootstrap stopped safely on a checksum mismatch: Windows
 had generated the inventory's final newline as CRLF, while the Git download is
@@ -83,6 +91,15 @@ waits on that identity before removing its folder. The original failure is
 retained; native reporting, qualification and the isolated running comparison
 are unchanged. See Microsoft's
 [termination semantics](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-terminateprocess).
+
+A later remote calibration fixture caught an unrelated transient wrapper
+name-read failure while exercising the deliberately failed name read of one
+controlled child. That guard now mocks success for the other fixture wrappers;
+the selected child still exits on its actual held, verified process identity.
+Separate real-name and live-failure guards remain unchanged. Publishing the
+child's ready marker is now atomic. All 80 local calibration guards pass in
+9.894 seconds after that fixture-only repair; the failed remote log is retained.
+This does not repair or approve an incidental native measurement failure.
 
 The starter currently targets **Apple silicon only**. Intel Mac and Windows ARM
 need their own interpreter/native builds and checks. The present distributed

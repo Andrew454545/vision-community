@@ -49,7 +49,8 @@ class MeasurementTest(unittest.TestCase):
                                 raise OSError('fixture_child_handle_unavailable')
                     finally:
                         super(ConfiguredJob,job).close()
-            child='import os,time; from pathlib import Path; Path("started").write_text(str(os.getpid())); '
+            child=('import os,time; from pathlib import Path; '
+                'Path("started.part").write_text(str(os.getpid())); Path("started.part").replace("started"); ')
             child+=('time.sleep('+str(seconds)+')' if seconds is not None else
                 '\nwhile not Path("exit-requested").exists(): time.sleep(0.01)')
             source=('import subprocess,sys,time; from pathlib import Path; '
@@ -73,16 +74,19 @@ class MeasurementTest(unittest.TestCase):
             wait.argtypes=[wintypes.HANDLE,wintypes.DWORD];wait.restype=wintypes.DWORD
             get_pid=job.api.GetProcessId
             get_pid.argtypes=[wintypes.HANDLE];get_pid.restype=wintypes.DWORD
-            original=job.api.QueryFullProcessImageNameW
-            original.argtypes=[wintypes.HANDLE,wintypes.DWORD,wintypes.LPWSTR,ctypes.POINTER(wintypes.DWORD)]
-            original.restype=wintypes.BOOL
-            def read_name(process,*args):
+            def read_name(process,_flags,buffer,length):
                 if get_pid(process)==int((root/'started').read_text()):
                     (root/'exit-requested').write_text('exit after membership was checked')
                     self.assertEqual(wait(process,3000),0)  # Actual exit on this held identity.
                     ctypes.set_last_error(31)
                     return False
-                return original(process,*args)
+                # This guard injects one controlled leaf's name-read failure.
+                # Mock success for the other owned fixture wrappers so their
+                # real transient exit/name failures cannot obscure that case.
+                # Separate real-name and live-failure guards retain coverage.
+                buffer.value='CONTROLLED_FIXTURE_PROCESS'
+                ctypes.cast(length,ctypes.POINTER(wintypes.DWORD))[0]=len(buffer.value)
+                return True
             job.api.QueryFullProcessImageNameW=read_name
         receipt={}
         try:
