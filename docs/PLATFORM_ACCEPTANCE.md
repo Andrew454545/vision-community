@@ -7,12 +7,14 @@ project scope, not a claim that these combinations are available today.
 | Computer and work | Evidence available | Still required |
 | --- | --- | --- |
 | Windows Scenes | Guided maintainer preview; actual native calibration and limited staging contribution/search tests. | Qualified distributed release, trusted live input identity, accepted background work and extended recovery/endurance. |
-| Mac Scenes | Original command-based path; completed controlled Mac reference runs and native ownership checks. | Guided download/setup, exact qualified runtime, accepted contributions, native background scheduling and clean-device/endurance checks. |
+| Mac Scenes | Original command-based path; completed controlled Mac reference runs and native ownership checks. New private guided starter implementation has interpreter/snapshot/platform guards; actual Mac bootstrap CI is recorded separately. | Verified guided native download/setup, exact qualified runtime, accepted contributions, native background scheduling and clean-device/endurance checks. |
 | Windows Objects | Portable native pilot with all three models; small frozen thread study and native structural verification. | Guided setup/qualification, published validated runtime, broader reference comparison, trusted Gen4 audit/publication and background recovery. |
 | Mac Objects | Original command-based integration and Mac runtime manifest. | Guided setup/qualification, current distributed runtime, broader native comparison, trusted Gen4 audit/publication and background recovery. |
 
 None of these rows is a completed production release. Linux inference evidence
 supports backend portability; it does not replace Mac or Windows user testing.
+The [private Mac starter](MAC_PRIVATE_STARTER_20261004.md) is a maintainer preview;
+its bootstrap/window evidence does not establish native processing or admission.
 
 ## What every row must pass
 

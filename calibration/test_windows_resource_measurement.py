@@ -15,10 +15,40 @@ class MeasurementTest(unittest.TestCase):
     def measured_descendant(self,configure,receipt,seconds=60):
         with tempfile.TemporaryDirectory() as temp:
             root=Path(temp)
+            # Independently hold the fixture child's identity before the
+            # measurement hooks can deliberately break enumeration/membership.
+            # Closing a kill-on-close job initiates asynchronous termination;
+            # wait before TemporaryDirectory removes the child's working folder.
+            from ctypes import wintypes
+            cleanup_api=ctypes.WinDLL('kernel32',use_last_error=True)
+            cleanup_api.OpenProcess.argtypes=[wintypes.DWORD,wintypes.BOOL,wintypes.DWORD]
+            cleanup_api.OpenProcess.restype=wintypes.HANDLE
+            cleanup_api.IsProcessInJob.argtypes=[wintypes.HANDLE,wintypes.HANDLE,ctypes.POINTER(wintypes.BOOL)]
+            cleanup_api.IsProcessInJob.restype=wintypes.BOOL
+            cleanup_api.WaitForSingleObject.argtypes=[wintypes.HANDLE,wintypes.DWORD]
+            cleanup_api.WaitForSingleObject.restype=wintypes.DWORD
+            cleanup_api.CloseHandle.argtypes=[wintypes.HANDLE]
+            cleanup_api.CloseHandle.restype=wintypes.BOOL
+            held=[]
             class ConfiguredJob(MeasuredJob):
                 def __init__(self,value):
                     super().__init__(value)
                     configure(self,root)
+                def close(job):
+                    try:
+                        if job.handle and (root/'started').is_file():
+                            process=cleanup_api.OpenProcess(0x101000,False,int((root/'started').read_text()))
+                            if process:
+                                member=wintypes.BOOL()
+                                if cleanup_api.IsProcessInJob(process,job.handle,ctypes.byref(member)) and member.value:
+                                    held.append(process)
+                                else:
+                                    cleanup_api.CloseHandle(process)
+                                    raise OSError('fixture_child_not_owned')
+                            elif ctypes.get_last_error()!=87:
+                                raise OSError('fixture_child_handle_unavailable')
+                    finally:
+                        super(ConfiguredJob,job).close()
             child='import os,time; from pathlib import Path; Path("started").write_text(str(os.getpid())); '
             child+=('time.sleep('+str(seconds)+')' if seconds is not None else
                 '\nwhile not Path("exit-requested").exists(): time.sleep(0.01)')
@@ -27,8 +57,13 @@ class MeasurementTest(unittest.TestCase):
                 'stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL); '
                 '\nwhile not Path("started").exists(): time.sleep(0.01)')
             with patch('calibration.windows_resource_measurement.MeasuredJob',ConfiguredJob), (root/'out.log').open('wb') as output:
-                return measure_owned([sys.executable,'-I','-c',source],receipt=receipt,
-                    env=dict(os.environ),cwd=root,stdout=output,stderr=output,timeout=10,creationflags=0x08000000)
+                try:
+                    return measure_owned([sys.executable,'-I','-c',source],receipt=receipt,
+                        env=dict(os.environ),cwd=root,stdout=output,stderr=output,timeout=10,creationflags=0x08000000)
+                finally:
+                    for process in held:
+                        try:self.assertEqual(cleanup_api.WaitForSingleObject(process,3000),0,'Fixture child did not finish owned shutdown')
+                        finally:cleanup_api.CloseHandle(process)
 
     @unittest.skipUnless(os.name=='nt','Windows job accounting')
     def test_name_read_failure_after_pinned_owned_process_exit_keeps_accounting(self):

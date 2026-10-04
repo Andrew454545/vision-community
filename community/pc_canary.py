@@ -202,16 +202,25 @@ class CanaryPolicy:
         return passed, "LOCAL_CANARY_PASSED" if passed else "OUTSIDE_OWNER_CANARY_BOUNDS"
 
 
-def released_canary_policy(manifest, runtime_root):
+def released_canary_policy(manifest, runtime_root, *, platform_name='windows-x86_64'):
     """Use only a policy/dataset pinned in the starter's trusted release manifest.
 
     No service-provided URL or locally supplied approval is used. An absent
     release entry keeps the legacy diagnostic; an invalid entry must fail.
-    This optional manifest field is for the Windows guided starter.
+    Legacy single-policy manifests apply to Windows only. New platform maps
+    keep the independently pinned policies separate; missing entries are
+    diagnostics without approval. Callers must pass their actual platform.
     """
-    if 'pcCanaryPolicy' not in manifest:
-        return None
-    entry = manifest['pcCanaryPolicy']
+    if 'pcCanaryPolicies' in manifest:
+        policies=manifest['pcCanaryPolicies']
+        if ('pcCanaryPolicy' in manifest or not isinstance(policies,dict)
+                or not policies or not set(policies)<= {'windows-x86_64','darwin-arm64','darwin-x86_64'}):
+            raise ValueError('invalid_platform_canary_policies')
+        if platform_name not in policies:return None
+        entry=policies[platform_name]
+    else:
+        if 'pcCanaryPolicy' not in manifest or platform_name!='windows-x86_64':return None
+        entry = manifest['pcCanaryPolicy']
     if (not isinstance(entry, dict) or set(entry) != {'path', 'sha256'}
             or not isinstance(entry['path'], str) or not entry['path']
             or any(part in ('', '.', '..') or ':' in part or '\\' in part
@@ -219,7 +228,7 @@ def released_canary_policy(manifest, runtime_root):
             or not isinstance(entry['sha256'], str)
             or not re.fullmatch(r'[a-f0-9]{64}', entry['sha256'])):
         raise ValueError('invalid_release_canary_policy')
-    files = files_for_platform(manifest, 'windows-x86_64', lane='scene')
+    files = files_for_platform(manifest, platform_name, lane='scene')
     def asset(path, checksum, size=None):
         matching = [v for v in files if v.get('path') == path]
         if (len(matching) != 1 or matching[0].get('sha256') != checksum

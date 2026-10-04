@@ -228,10 +228,42 @@ class ReleasedCanaryTests(unittest.TestCase):
         with patch.object(app,'capabilities'), patch('community.desktop.load_manifest',return_value=manifest), \
              patch('community.desktop.released_canary_policy',return_value=policy) as selector:
             app.qualify()
-        selector.assert_called_once_with(manifest,app.root/'runtime')
+        from community.bootstrap import runtime_platform
+        selector.assert_called_once_with(manifest,app.root/'runtime',platform_name=runtime_platform())
         self.assertIs(calls[0]['policy'],policy)
         self.assertEqual(calls[1],('POST','/api/scene-qualifications',{'pinnedFixture':True}))
         self.assertTrue(app.snapshot()['qualified'])
+
+    def test_legacy_windows_policy_never_selects_mac_assets_or_approval(self):
+        _,manifest=self.release_manifest()
+        with patch.object(canary,'files_for_platform') as select:
+            self.assertIsNone(canary.released_canary_policy(manifest,self.root,platform_name='darwin-arm64'))
+            select.assert_not_called()
+
+    def test_platform_map_uses_mac_files_and_retains_independent_policy_pins(self):
+        _,manifest=self.release_manifest()
+        entry=manifest.pop('pcCanaryPolicy')
+        manifest['pcCanaryPolicies']={'darwin-arm64':entry,'windows-x86_64':{'path':'unread-windows.json','sha256':'0'*64}}
+        manifest['files'][0].update(asset='mma-vision-mac-test',path='bin/mma-vision',platforms=['darwin-arm64'])
+        loaded=canary.released_canary_policy(manifest,self.root,platform_name='darwin-arm64')
+        self.assertEqual(loaded.document,self.document)
+        manifest['pcCanaryPolicies']['darwin-arm64']['sha256']='0'*64
+        with self.assertRaises(ValueError):canary.released_canary_policy(manifest,self.root,platform_name='darwin-arm64')
+
+    def test_ambiguous_empty_or_unknown_platform_policy_maps_are_rejected(self):
+        _,manifest=self.release_manifest();entry=manifest.pop('pcCanaryPolicy')
+        for value in ({},[],{'unknown':entry},{'darwin-arm64':None}):
+            with self.subTest(value=value),self.assertRaises(ValueError):
+                canary.released_canary_policy({**manifest,'pcCanaryPolicies':value},self.root,platform_name='darwin-arm64')
+        with self.assertRaises(ValueError):
+            canary.released_canary_policy({**manifest,'pcCanaryPolicies':{'darwin-arm64':entry},'pcCanaryPolicy':entry},self.root)
+
+    def test_absent_platform_policy_is_diagnostic_without_fallback(self):
+        _,manifest=self.release_manifest();entry=manifest.pop('pcCanaryPolicy')
+        with patch.object(canary,'files_for_platform') as select:
+            self.assertIsNone(canary.released_canary_policy({**manifest,'pcCanaryPolicies':{'windows-x86_64':entry}},
+                self.root,platform_name='darwin-arm64'))
+            select.assert_not_called()
 
     def test_broken_release_policy_stops_before_native_execution_and_submission(self):
         from community.desktop import DesktopApp, DesktopError
