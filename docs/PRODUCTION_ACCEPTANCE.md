@@ -43,7 +43,7 @@ The previous chronological development log remains in
 | Beginner flow | Short README/website guide, guided Windows starter, qualification/service checks, saved-code recovery, pause/resume and private diagnostics. Website assets/privacy headers verified in staging. | [Service readiness](WEBSITE_SERVICE_READINESS.md) |
 | Background worker | Native scheduled startup, idle handover and idle forced-exit/pause/resume verified. Installed schedule: medium 06:00–00:00, max 00:00–06:00 local; saved account, 30-minute service retry, sign-in/recovery triggers and one worker. | [Background processing](BACKGROUND_PROCESSING.md) |
 
-Community CI passes all six jobs at `5340f74`, including the repaired Mac
+Community CI passes all six jobs at `656f3f3`, including the repaired Mac
 ownership job. The cleanup repair passes 465 local Windows
 tests in 225.461 seconds (two existing filesystem-link permission skips), 28
 ownership/resource guards and all 51 calibration guards. Two fresh actual
@@ -81,6 +81,11 @@ is source-only, with 237 files independently checked after public download.
 ZIP SHA-256: `26e55b7d1b85b36a29742dff084741802e1d480f18f8966839be9db9f5307f1e`.
 Staging's 13 assets and short guide match that source revision; privacy headers
 remain enabled. Contribution and paid-search availability remain closed.
+The gateway update from `656f3f3` is deployed to confirmed staging version
+`06ef6c1d-d261-4aca-bde8-77d908d52fb4` (4 October, 09:21 UTC). All 13 assets
+and privacy headers pass fresh readback; all expected bindings match, preview
+URLs remain disabled and contribution readiness remains false. These read-only
+checks create no accounts, credits or native work. Production is unchanged.
 
 The admission/search experiment ended with eight published staging locations,
 eight spendable earned units, the disposable account deleted and compute stopped.
@@ -105,27 +110,30 @@ shipping newer offline helpers requires new runtime and policy pins.
   diagnostic cannot approve a PC by itself. Live contribution audits still need
   independently trusted imagery identity so photograph changes cannot be
   confused with runtime error or used to excuse forged vectors.
-  The full identical-input Mac trial is running privately. Its
-  [offline transport verifier](FULL_SCENE_REFERENCE_VERIFICATION.md) is ready:
-  43 calibration tests pass, and the existing three reduced Mac 112-location
-  repeats validate with it. These checks do not complete the full reference or
-  its subsequent PC comparison.
-  The [finite full PC matrix](FULL_SCENE_REFERENCE_VERIFICATION.md) is ready,
-  with 66 local calibration guards passing. It requires completed pinned Mac
+  The [full identical-input Mac trial](FULL_MAC_REFERENCE_20261004.md) is
+  complete: capture plus all three full repeats have identical packed indexes,
+  tensor hashes and twelve-query results. The pinned private artifact passes
+  [offline verification](FULL_SCENE_REFERENCE_VERIFICATION.md): 4,096 full RGB
+  and 32,896 normalized/pooler transports, masks/checkpoints/source/model/query
+  pins and repeat identities. Preprocessing bytes remain omitted, hashes only.
+  This completes controlled Mac reference transport, not PC qualification.
+  The [finite full PC matrix](FULL_SCENE_REFERENCE_VERIFICATION.md) has started,
+  with 66 local calibration guards passing. It uses completed pinned Mac
   gold, rotates three fresh trials each at 1/2/4 threads, retains all PC tensor
   bytes, records resource/cleanup receipts and reports full query differences.
-  It has not run the full native comparison yet and grants no qualification.
+  Its first index is running; no case is recorded complete at 09:26 UTC and
+  it grants no qualification.
   All six Community CI jobs pass with the matrix at `5d1bb33`. A private
   format-compatibility check verifies a copy of earlier actual 128-location PC
   output, retains its raw tensors and confirms the original files unchanged;
   this runs no new native command. A separate finite Windows scheduled task
-  waits for the exact completed Mac run and then starts the matrix with pinned
-  source/runtime files. It is independent of Codex and the installed contributor
+  downloaded/verified the exact completed Mac run and started the matrix with
+  pinned source/runtime files. It is independent of Codex and the installed contributor
   worker. Its registration does not establish actual restart or endurance.
   The first full attempt failed near its original two-hour bound during repeat
   two; its original receipt reports `PermissionError`. Its pinned archive and
   logs are preserved, and the offline verifier rejects it as incomplete.
-  The corrected four-hour run is active. Finite Mac Python fixtures pass timeout
+  The corrected four-hour run completed. Finite Mac Python fixtures pass timeout
   and parent-exit checks. A separate actual supplied-executable timeout exposed
   a redundant final group stop; its failure is preserved and the repaired
   helper passes two fresh native timeouts. The original full-run receipt has no causal
