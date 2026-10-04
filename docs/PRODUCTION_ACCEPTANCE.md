@@ -127,6 +127,12 @@ shipping newer offline helpers requires new runtime and policy pins.
   preserved. A separate fresh attempt uses longer, explicitly finite allowances
   without changing reference inputs, model/runtime or comparison requirements;
   see [the matrix evidence](FULL_SCENE_REFERENCE_VERIFICATION.md).
+  That attempt completed its first full native index and twelve searches,
+  then stopped on a verifier inventory defect: the application's retained
+  startup receipt was omitted from the expected file list. The corrected
+  verifier validates the receipt's identity and retains all byte/inventory
+  requirements. All 75 calibration guards pass; original failure and output
+  remain unchanged. See [the recovery evidence](FULL_PC_MATRIX_RECOVERY_20261004.md).
   All six Community CI jobs pass with the matrix at `5d1bb33`. A private
   format-compatibility check verifies a copy of earlier actual 128-location PC
   output, retains its raw tensors and confirms the original files unchanged;
