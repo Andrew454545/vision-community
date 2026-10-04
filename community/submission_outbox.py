@@ -35,6 +35,13 @@ class SubmissionOutbox:
             columns = {row[1] for row in connection.execute("PRAGMA table_info(deliveries)")}
             if "updated_at" not in columns:
                 connection.execute("ALTER TABLE deliveries ADD COLUMN updated_at REAL NOT NULL DEFAULT 0")
+            # Months of accepted receipts must not slow each delivery recovery.
+            # Keep the journal and failure evidence; index only actionable rows.
+            connection.execute("""CREATE INDEX IF NOT EXISTS deliveries_pending
+                ON deliveries(origin, account_id, updated_at)
+                WHERE state IN ('ready','pending')""")
+            connection.execute("""CREATE INDEX IF NOT EXISTS deliveries_lost
+                ON deliveries(origin, account_id) WHERE state='lease_lost'""")
 
     @contextmanager
     def connection(self):

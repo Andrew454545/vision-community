@@ -19,15 +19,31 @@ POWERSHELL = Path(os.environ.get("VISION_TEST_POWERSHELL") or
                       "System32/WindowsPowerShell/v1.0/powershell.exe"))
 INSTALLER = REPO / "windows/Install-Background.ps1"
 SCHEDULER_MOCKS = """
-function Get-ScheduledTask { $null }
+function Get-ScheduledTask {
+    if (Get-Variable Registered -Scope Global -ErrorAction SilentlyContinue) {
+        [pscustomobject]@{ Settings=[pscustomobject]@{Enabled=$true;RunOnlyIfIdle=$false;RunOnlyIfNetworkAvailable=$false}; Principal=[pscustomobject]@{RunLevel=0} }
+    } else { $null }
+}
 function New-ScheduledTaskAction { [CmdletBinding()] param($Execute,$Argument)
     $global:CapturedAction = @{execute=$Execute;arguments=$Argument}; return $global:CapturedAction }
 function New-ScheduledTaskTrigger { [CmdletBinding()] param([switch]$AtLogOn,$User,[switch]$Once,$At,$RepetitionInterval)
-    if ($Once) { $global:RetryInterval = $RepetitionInterval.TotalMinutes }; @{} }
+    if ($Once) { $global:RetryInterval = $RepetitionInterval.TotalMinutes }; [pscustomobject]@{Repetition=[pscustomobject]@{StopAtDurationEnd=$true}} }
 function New-ScheduledTaskSettingsSet { @{} }
 function New-ScheduledTaskPrincipal { @{} }
 function New-ScheduledTask { @{} }
 function Register-ScheduledTask { $global:Registered = $true }
+function Export-ScheduledTask {
+    [xml]$document = '<Task xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task"><Actions><Exec><Command>x</Command><Arguments>x</Arguments></Exec></Actions><Principals><Principal><UserId>x</UserId><LogonType>InteractiveToken</LogonType><RunLevel>LeastPrivilege</RunLevel></Principal></Principals><Triggers><LogonTrigger><UserId>x</UserId><Enabled>true</Enabled></LogonTrigger><TimeTrigger><Enabled>true</Enabled><Repetition><Interval>PT15M</Interval><StopAtDurationEnd>false</StopAtDurationEnd></Repetition></TimeTrigger></Triggers><Settings><MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy><ExecutionTimeLimit>PT0S</ExecutionTimeLimit><StartWhenAvailable>true</StartWhenAvailable><DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries><StopIfGoingOnBatteries>false</StopIfGoingOnBatteries><Enabled>true</Enabled><RestartOnFailure><Interval>PT5M</Interval><Count>3</Count></RestartOnFailure></Settings></Task>'
+    $document.Task.Actions.Exec.Command = $global:CapturedAction.execute
+    $document.Task.Actions.Exec.Arguments = $global:CapturedAction.arguments
+    $identity = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+    $document.Task.Principals.Principal.UserId = $identity
+    $document.Task.Triggers.LogonTrigger.UserId = $identity
+    if (Get-Variable TaskExportMutation -Scope Global -ErrorAction SilentlyContinue) {
+        & $global:TaskExportMutation $document
+    }
+    $document.OuterXml
+}
 function Start-ScheduledTask { $global:Started = $true }
 function Stop-ScheduledTask { throw 'An active task must never be force-stopped' }
 function Unregister-ScheduledTask { $global:Removed = $true }
@@ -308,6 +324,52 @@ class WindowsLauncherTest(unittest.TestCase):
                 self.assertEqual(report["status"], "INCOMPLETE")
                 self.assertEqual(report["registrationSucceeded"], failing_call == "Start-ScheduledTask")
                 self.assertTrue(report["stopRequestPreserved"])
+
+    def test_readback_rejects_expiry_changed_owner_and_lifetime_before_start(self):
+        mutations = (
+            "$d.Task.Settings.ExecutionTimeLimit = 'PT72H'",
+            "$d.Task.Settings.MultipleInstancesPolicy = 'Parallel'",
+            "$d.Task.Settings.StopIfGoingOnBatteries = 'true'",
+            "$d.Task.Settings.StartWhenAvailable = 'false'",
+            "$d.Task.Triggers.TimeTrigger.Repetition.Interval = 'PT24H'",
+            "$d.Task.Principals.Principal.UserId = 'S-1-5-18'",
+            "$d.Task.Principals.Principal.RunLevel = 'HighestAvailable'",
+            "$d.Task.Settings.Enabled = 'false'",
+            "$node=$d.CreateElement('RunOnlyIfIdle',$d.DocumentElement.NamespaceURI); $node.InnerText='true'; $null=$d.Task.Settings.AppendChild($node)",
+            "$node=$d.CreateElement('RunOnlyIfNetworkAvailable',$d.DocumentElement.NamespaceURI); $node.InnerText='true'; $null=$d.Task.Settings.AppendChild($node)",
+            "$d.Task.Triggers.LogonTrigger.Enabled = 'false'",
+            "$d.Task.Actions.Exec.Arguments += ' --root \"C:\\other\"'",
+            "$node=$d.CreateElement('EndBoundary',$d.DocumentElement.NamespaceURI); $node.InnerText='2026-12-31T00:00:00'; $null=$d.Task.Triggers.TimeTrigger.AppendChild($node)",
+            "$node=$d.CreateElement('Duration',$d.DocumentElement.NamespaceURI); $node.InnerText='P1D'; $null=$d.Task.Triggers.TimeTrigger.Repetition.AppendChild($node)",
+        )
+        for mutation in mutations:
+            with self.subTest(mutation=mutation), tempfile.TemporaryDirectory() as folder:
+                root, _runtime, invocation = self.installer_fixture(folder)
+                (root / "account.json").write_text("preserved account")
+                marker = Path(folder) / "started"
+                command = (SCHEDULER_MOCKS + "$global:TaskExportMutation = { param($d) " + mutation + " }; " +
+                           "function Start-ScheduledTask { [IO.File]::WriteAllText(" + ps_string(marker) + ", 'started') }; " + invocation)
+                self.command(command, expected=1)
+                self.assertFalse(marker.exists())
+                self.assertTrue((root / "STOP-AFTER-BATCH").exists())
+                self.assertFalse((root / "background-registration.json").exists())
+                self.assertFalse((root / "background-settings.json").exists())
+                self.assertEqual((root / "account.json").read_text(), "preserved account")
+                report = json.loads(next(root.glob("background-install-failure-*.json")).read_text())
+                self.assertTrue(report["registrationSucceeded"])
+                self.assertTrue(report["stopRequestPreserved"])
+
+    def test_verified_registration_receipt_does_not_claim_start_or_endurance(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root, _runtime, invocation = self.installer_fixture(folder)
+            self.command(SCHEDULER_MOCKS + "$messages = @(" + invocation + ")")
+            receipt = json.loads((root / "background-registration.json").read_text())
+            self.assertEqual(receipt["status"], "SAVED_RECOVERY_SETTINGS_VERIFIED")
+            self.assertTrue(receipt["unlimitedTaskLifetime"])
+            self.assertEqual(receipt["recoveryEveryMinutes"], 15)
+            self.assertTrue(receipt["resumesAfterSignIn"])
+            self.assertFalse(receipt["actualStartVerified"])
+            self.assertFalse(receipt["enduranceVerified"])
 
 
 if __name__ == "__main__":

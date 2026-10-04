@@ -4,7 +4,7 @@
 
 ## 1. Open VISION
 
-1. [Download for Windows](https://github.com/Andrew454545/vision-community/releases/download/windows-starter-preview-20261003/VISION-Community-Windows.zip).
+1. [Download for Windows](https://github.com/Andrew454545/vision-community/releases/download/windows-starter-preview-20261004/VISION-Community-Windows.zip).
 2. Right-click the ZIP → **Extract All** → **Extract**.
 3. Open the new folder → **VISION Community** → **Start VISION.cmd** (or **Start VISION**).
 4. Type **Y** and press **Enter** when asked to allow downloads and imagery for your chosen work.
@@ -19,6 +19,15 @@ For Intel or AMD Windows PCs. No Python, Git or administrator password needed.
 4. **Start helping.** Keep VISION open, your PC awake and the internet connected.
 
 To stop, choose **Pause after this batch**. To return, open VISION and use your saved code.
+
+## Automatic processing
+
+After setup, close VISION and open **Background VISION.cmd** (or **Background VISION**).
+Paste your saved account code once, choose your schedule, tick the permission box and choose **Save and enable**.
+
+The default is **Medium during the day** and **Maximum from midnight to 6 am**. You can change both times and speeds. Close the controls when done; the worker continues. Reopen them to **Pause after batch**, **Resume** or **Check status**. Keep the extracted VISION folder so you can reopen the controls.
+
+Plug the PC into power and keep the internet connected. After a restart, **sign into Windows** to resume. Sleep, power-off or a closed laptop lid stops processing until the PC is awake again. Network problems retry automatically; a lasting failure or storage limit pauses work and keeps its files. This preview still needs an extended endurance test.
 
 ## Search with your credits
 

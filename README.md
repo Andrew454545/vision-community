@@ -6,7 +6,7 @@ Your PC finds Street View locations. Accepted results earn credits for searches.
 
 ## Get started — Windows
 
-1. [Download VISION](https://github.com/Andrew454545/vision-community/releases/download/windows-starter-preview-20261003/VISION-Community-Windows.zip).
+1. [Download VISION](https://github.com/Andrew454545/vision-community/releases/download/windows-starter-preview-20261004/VISION-Community-Windows.zip).
 2. Right-click the ZIP → **Extract All**. Open the new folder → **VISION Community** → **Start VISION.cmd**.
 3. Type **Y** and press **Enter** when asked. Follow the four buttons in VISION.
 
@@ -15,6 +15,8 @@ For Intel or AMD Windows PCs. No Python, Git or administrator password needed.
 [Step-by-step help](START-HERE.md) · The download includes **START HERE.html**.
 
 Keep VISION open, your PC awake and the internet connected. Choose **Pause after this batch** to stop.
+
+For automatic processing, close VISION and open **Background VISION.cmd**. Paste your saved code once, choose the schedule and select **Save and enable**. [Automatic processing help](START-HERE.md#automatic-processing).
 
 ## Search
 

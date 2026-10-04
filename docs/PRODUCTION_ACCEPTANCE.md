@@ -181,6 +181,14 @@ shipping newer offline helpers requires new runtime and policy pins.
 
 ### Days or weeks of unattended processing
 
+The [4 October background controls](BACKGROUND_CONTROLS_20261004.md) add a
+beginner schedule/pause/resume/status window and verify Windows' saved recovery
+settings before starting. Installation keeps a stop marker throughout; the
+delivery journal indexes actionable rows instead of scanning accepted history.
+Local regression, isolation and real temporary task-readback checks pass.
+The installed contributor is unchanged. These improve the recovery design;
+they do not satisfy the actual restart, accepted-work or endurance gates below.
+
 - [x] Bound native descendants to their caller and preserve unfinished receipts.
   Real Windows child/grandchild fixtures and an actual half-finished native
   index recover without overlapping writers. The installed windowless Python
