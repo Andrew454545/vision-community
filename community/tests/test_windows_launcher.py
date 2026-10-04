@@ -149,11 +149,12 @@ class WindowsLauncherTest(unittest.TestCase):
             # -I removes the checkout/caller from Python's import search path;
             # every Community dependency must come from the packaged snapshot.
             code = ("import sys; from pathlib import Path; "
-                    "root = Path(" + repr(str(snapshot)) + "); sys.path.insert(0, str(root)); "
+                    "root = Path(" + repr(str(snapshot)) + ").resolve(); sys.path.insert(0, str(root)); "
                     "import community.desktop, community.background, calibration.synthetic_canary; "
-                    "assert Path(calibration.synthetic_canary.__file__).is_relative_to(root); "
+                    "generator = Path(calibration.synthetic_canary.__file__).resolve(); "
+                    "assert generator.is_relative_to(root), (str(generator), str(root)); "
                     "assert len(calibration.synthetic_canary.image_bytes(0, 0)) == 224 * 224 * 3; "
-                    "assert all(Path(module.__file__).is_relative_to(root) for name, module in sys.modules.items() "
+                    "assert all(Path(module.__file__).resolve().is_relative_to(root) for name, module in sys.modules.items() "
                     "if name == 'community' or name.startswith('community.'))")
             result = subprocess.run([sys.executable, "-I", "-B", "-c", code], capture_output=True, text=True, timeout=30)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
