@@ -68,7 +68,10 @@ These corrections change no models, inference, packing or numerical bounds.
 
 All 51 calibration tests pass in 6.012 seconds, including actual touched-memory
 children, timeouts, rejected process membership, unavailable counters, invalid
-wait state, stopped-job isolation, owner cleanup and factory restoration. The process-owner source
-remains unchanged at
+wait state, stopped-job isolation, owner cleanup and factory restoration. The
+measured process-owner source was
 `019fc3c055eb680dab4bfafd4851d3a082580f1a3a115b7ca6016a6433726f7f`.
+A subsequent [Mac timeout cleanup repair](MAC_TIMEOUT_CLEANUP_20261004.md)
+changes that helper; these measurements remain evidence for their original
+bytes. New exact-runtime qualification is required before shipping the repair.
 Raw inputs, tensors, receipts, source snapshot and logs remain private.

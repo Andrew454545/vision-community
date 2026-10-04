@@ -43,10 +43,13 @@ The previous chronological development log remains in
 | Beginner flow | Short README/website guide, guided Windows starter, qualification/service checks, saved-code recovery, pause/resume and private diagnostics. Website assets/privacy headers verified in staging. | [Service readiness](WEBSITE_SERVICE_READINESS.md) |
 | Background worker | Native scheduled startup, idle handover and idle forced-exit/pause/resume verified. Installed schedule: medium 06:00–00:00, max 00:00–06:00 local; saved account, 30-minute service retry, sign-in/recovery triggers and one worker. | [Background processing](BACKGROUND_PROCESSING.md) |
 
-Community CI passes all five jobs at `596024f`: actual Windows CI runs all 461
-Python tests without skips in 263.072 seconds, and all 43 calibration/resource/
-generator/transport guards pass. The newer memory observer passes all 51 local
-calibration guards in 6.012 seconds; its fresh CI remains to be confirmed.
+Community CI passes all six jobs at `2fda4ef`, including the new finite Mac
+ownership job. The Mac job passes seven applicable fixtures with two
+Windows-only GUI skips. The subsequent cleanup repair passes 465 local Windows
+tests in 225.461 seconds (two existing filesystem-link permission skips), 28
+ownership/resource guards and all 51 calibration guards. Its fresh CI and
+actual supplied-Mac timeout recheck remain to be confirmed; see
+[the cleanup report](MAC_TIMEOUT_CLEANUP_20261004.md).
 The unchanged Worker coverage includes 195 JavaScript, 37 actual workerd
 private-host and 15 private HTTP/preparation checks. The source-only Windows
 preview retains its tested `4e53420` revision, with actual progress, pending-work
@@ -100,8 +103,11 @@ shipping newer offline helpers requires new runtime and policy pins.
   The first full attempt failed near its original two-hour bound during repeat
   two; its original receipt reports `PermissionError`. Its pinned archive and
   logs are preserved, and the offline verifier rejects it as incomplete.
-  The corrected four-hour run is active. A separate finite Mac ownership CI job
-  checks timeout and parent-exit cleanup; its outcome remains to be confirmed.
+  The corrected four-hour run is active. Finite Mac Python fixtures pass timeout
+  and parent-exit checks. A separate actual supplied-executable timeout exposed
+  a redundant final group stop; its failure is preserved and the repair is
+  being checked independently. The original full-run receipt has no causal
+  stack, so this does not retrospectively establish its exact failure cause.
 - [ ] Approve and distribute an exact production runtime/model/helper profile,
   deploy its independent verifier/policy and complete fresh PC qualification.
 - [ ] Run useful accepted production batches through the background worker;
