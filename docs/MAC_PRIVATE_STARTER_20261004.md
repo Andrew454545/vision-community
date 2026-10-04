@@ -35,7 +35,7 @@ The interpreter is the upstream
 
 - Download size: **26,798,928 bytes**.
 - Archive SHA-256: `d15291f940cfecd2e54010d5e37d2e03aa192f076a65d26ab741372fff2dabfe`.
-- Public inventory SHA-256: `878935ae4a1cb2a33cf7fee17e0ea020b754a4c9a25d8422961c2aeb44e4824b`.
+- Public inventory SHA-256: `a0f5d70672a69e5f34433bc7f2de43a2c85443af610007711d20f00334fc0c0d`.
 - Inventory: **1,689 regular files and 9 links**. Only relative names, sizes,
   hashes, executable flags and allowed directory/link identities are published.
 
@@ -59,11 +59,22 @@ loopback credentials and snapshots are excluded. Record the completed job and
 test results here after CI finishes; a workflow definition alone is not passing
 evidence. The initial local test assertion failure is retained separately.
 
+The first remote Mac bootstrap stopped safely on a checksum mismatch: Windows
+had generated the inventory's final newline as CRLF, while the Git download is
+LF. The archive/interpreter contents were unchanged. The generator now emits LF
+explicitly, the launcher pins those exact Git bytes and a regression guard checks
+the packaged inventory against both launcher pins. The original failed Mac log
+is retained. The website progress test's old “PC check” expectation was updated
+to “Computer check”; a platform-capability regression also verifies that Mac
+does not display Windows background instructions.
+
 Local Windows verification passes **500 application tests** in 368.645 seconds
 (five filesystem-link permission skips), **36 final targeted guards** in
 4.265 seconds (three link-permission skips), and **80 calibration guards** in
 10.285 seconds. Shell/Perl/Python/JavaScript syntax checks and whitespace checks
 pass. These Windows checks do not establish Mac execution.
+After the packaged-pin guard, all **37 targeted guards** pass in 4.173 seconds
+(three link-permission skips). CI verifies the final complete source separately.
 
 The first calibration guard run failed when fixture-folder removal overtook
 Windows' asynchronous child termination and hid the intended accounting error.

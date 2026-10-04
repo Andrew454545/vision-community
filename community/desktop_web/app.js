@@ -49,7 +49,7 @@ function render(state) {
   if (hasProgress) {
     byId("progress").max = state.batchTotal;
     byId("progress").value = state.batchCompleted;
-    byId("progress-label").textContent = `${state.phase === "checking" ? "computer check" : "Current batch"}: ${state.batchCompleted.toLocaleString()} of ${state.batchTotal.toLocaleString()} locations processed.`;
+    byId("progress-label").textContent = `${state.phase === "checking" ? "Computer check" : "Current batch"}: ${state.batchCompleted.toLocaleString()} of ${state.batchTotal.toLocaleString()} locations processed.`;
   }
   byId("pending").hidden = !(state.pending > 0);
   byId("pending").textContent = state.pending > 0 ? `${state.pending.toLocaleString()} saved ${state.pending === 1 ? "batch is" : "batches are"} waiting for delivery or a service check. Credits appear after acceptance.${state.busy ? "" : " Choose Start helping to resume."}` : "";

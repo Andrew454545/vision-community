@@ -52,7 +52,7 @@ if __name__ == '__main__':
     parser.add_argument('archive', type=Path); parser.add_argument('out', type=Path)
     args = parser.parse_args()
     result = inventory(args.archive)
-    with args.out.open('x', encoding='utf-8') as destination:
+    with args.out.open('x', encoding='utf-8', newline='\n') as destination:
         json.dump(result, destination, sort_keys=True, separators=(',', ':')); destination.write('\n')
     print(json.dumps({'files': len(result['files']), 'links': len(result['links']),
         'manifestSha256': hashlib.sha256(args.out.read_bytes()).hexdigest()}))
