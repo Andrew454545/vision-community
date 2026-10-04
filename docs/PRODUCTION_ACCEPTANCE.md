@@ -139,6 +139,11 @@ shipping newer offline helpers requires new runtime and policy pins.
 - [ ] Observe idle-sleep requests/release and actual sleep/wake plus Windows
   sign-in recovery. A sleeping or powered-off computer cannot compute; work
   resumes after it is awake and signed in. Never advertise otherwise.
+  A finite check on this laptop verifies Windows accepted the system-only sleep
+  request and restored the previous thread flags. The updated worker checks
+  both calls and stops with a preserved report on failure, including during
+  pacing rests. Thirty-one sleep/background guards pass. This is not an actual
+  sleep/wake, restart or overnight processing exercise.
 - [ ] Exercise network loss, active-process exit and persistent delayed retries
   without rapid loops. Permanent trust/account failures must retain evidence
   and stop, not retry indefinitely or silently weaken qualification.

@@ -24,7 +24,9 @@ wait releases that request. Manual sleep, closing the lid according to Windows
 settings, restart and shutdown still suspend work. A sleeping or powered-off
 computer cannot process locations; the day/night schedule does not wake it.
 No power plan, execution policy, antivirus, or system-wide installation changes
-are needed. After a restart, sign into Windows. Resume before sign-in is not
+are needed. The updated worker checks Windows accepted the sleep request and
+restores its previous thread state afterward. If either action fails, it saves
+a report and stops for review. After a restart, sign into Windows. Resume before sign-in is not
 implemented. Rejected qualification is never treated as permission to upload.
 
 ## Enable after explicit consent

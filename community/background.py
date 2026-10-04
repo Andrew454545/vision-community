@@ -19,7 +19,7 @@ import threading
 import time
 
 from .contribute import DEFAULT_URL, RETRY_STATUSES, ContributeError, load_session, save_session
-from .desktop import DesktopApp, DesktopClient, DesktopError
+from .desktop import DesktopApp, DesktopClient, DesktopError, public_error
 from .vision_index import RETRYABLE_NATIVE_CODES, VisionIndexError
 
 WAIT_SECONDS = 1800
@@ -38,6 +38,7 @@ TRANSIENT_HTTP_CODES = frozenset({
     "rate_limited", "control_plane_unprovisioned", "scene_verifier_unavailable",
     "scene_verification_unavailable",
 })
+SLEEP_REQUEST_ERRORS = frozenset({'keep_awake_failed', 'keep_awake_release_failed'})
 
 
 def clock_minutes(value):
@@ -157,14 +158,31 @@ def single_instance(root):
 @contextmanager
 def keep_awake(enabled=True):
     """Inhibit idle sleep during work or pacing rests; never change the power plan."""
+    previous = None
     if enabled and os.name == "nt":
-        import ctypes
-        ctypes.windll.kernel32.SetThreadExecutionState(0x80000001)
+        try:
+            previous = _sleep_state(0x80000001)
+        except (OSError, AttributeError):
+            raise DesktopError('keep_awake_failed') from None
+        if not previous:
+            raise DesktopError('keep_awake_failed')
     try:
         yield
     finally:
-        if enabled and os.name == "nt":
-            ctypes.windll.kernel32.SetThreadExecutionState(0x80000000)
+        if previous is not None:
+            try:
+                released = _sleep_state(previous | 0x80000000)
+            except (OSError, AttributeError):
+                raise DesktopError('keep_awake_release_failed') from None
+            if not released:
+                raise DesktopError('keep_awake_release_failed')
+
+
+def _sleep_state(flags):
+    import ctypes
+    setter = ctypes.windll.kernel32.SetThreadExecutionState
+    setter.argtypes, setter.restype = [ctypes.c_uint32], ctypes.c_uint32
+    return setter(flags)
 
 
 class BackgroundContributor:
@@ -242,7 +260,7 @@ class BackgroundContributor:
             "usesCodex": False,
             "pace": self.pace(), "schedule": self.schedule.public_settings(),
             "retryMinutes": self.retry_seconds // 60,
-            "preventsIdleSleepWhileWorking": self.prevent_sleep,
+            "idleSleepPreventionRequested": self.prevent_sleep,
             "localStorage": self.storage,
         })
 
@@ -398,11 +416,24 @@ class BackgroundContributor:
                 else:
                     # Do not repeatedly run expensive rejected checks or create accounts.
                     (self.root / "NEEDS-ATTENTION").touch()
-                    self.status("needs_attention", "Processing stopped safely. The failure report and work are saved for review.")
+                    message = (public_error(error) if code in SLEEP_REQUEST_ERRORS else
+                               "Processing stopped safely. The failure report and work are saved for review.")
+                    self.status("needs_attention", message)
+                    if code in SLEEP_REQUEST_ERRORS:
+                        # Exit the calling thread as well; it owns the Windows sleep request.
+                        return
                     delay = self.retry_seconds
             if once:
                 return
-            self.wait(delay, stop)
+            try:
+                self.wait(delay, stop)
+            except DesktopError as error:
+                if str(error) not in SLEEP_REQUEST_ERRORS:
+                    raise
+                self.app.record_failure(error)
+                (self.root / 'NEEDS-ATTENTION').touch()
+                self.status('needs_attention', public_error(error))
+                return
 
 
 def main():

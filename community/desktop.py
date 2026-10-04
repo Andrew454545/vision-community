@@ -56,6 +56,8 @@ ERRORS = {
     "indexer_no_progress": "The indexer stopped making progress. Its logs were kept for review.",
     "indexer_cancelled": "Indexing stopped. Your completed batches are safe.",
     "storage_check_failed": "Saved files could not be checked safely. Processing stopped and your files were kept. Ask the maintainer to review the local storage report.",
+    "keep_awake_failed": "Windows could not keep this PC awake. Processing stopped and your work was kept. Ask the maintainer to review the saved report.",
+    "keep_awake_release_failed": "Windows could not release VISION's sleep request. The worker has stopped and your work was kept. Ask the maintainer to review the saved report.",
 }
 
 
