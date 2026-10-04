@@ -28,3 +28,18 @@ files and 2,688 retained normalized/pooler transports with this verifier.
 Its 1,344 preprocessing entries remain hashes only. These checks establish
 format compatibility; the running full 1,024-location reference and subsequent
 PC comparison remain open. See [the acceptance checklist](PRODUCTION_ACCEPTANCE.md).
+
+The first full attempt preserved a failed receipt during the second repeat,
+near its two-hour allowance. Its private archive is 475,604,211 bytes with
+SHA-256 `16eb0d9f1989fb51cdc424946f58ac1eb8cb96bbb085d82a7f93c40cb6be810d`.
+The original control, full capture and one full repeat are recorded complete;
+three repeats are not. The receipt records `PermissionError`, without enough
+detail to attribute its cause. The archive was downloaded, hash-checked and
+retained; this verifier correctly rejects it as
+`full_reference_not_complete_or_pinned`. It cannot approve a runtime.
+
+The corrected private run now uses a four-hour overall bound and validated
+temporary preprocessing cleanup. It is running; neither change alone proves
+completion or fixes a cleanup permission failure. A separate short Mac CI job
+now exercises actual process ownership, timeout and abrupt-parent-exit fixtures
+without models or imagery. Retain its evidence before making a Mac cleanup claim.

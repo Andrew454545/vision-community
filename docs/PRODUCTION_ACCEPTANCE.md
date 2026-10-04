@@ -97,6 +97,11 @@ shipping newer offline helpers requires new runtime and policy pins.
   43 calibration tests pass, and the existing three reduced Mac 112-location
   repeats validate with it. These checks do not complete the full reference or
   its subsequent PC comparison.
+  The first full attempt failed near its original two-hour bound during repeat
+  two; its original receipt reports `PermissionError`. Its pinned archive and
+  logs are preserved, and the offline verifier rejects it as incomplete.
+  The corrected four-hour run is active. A separate finite Mac ownership CI job
+  checks timeout and parent-exit cleanup; its outcome remains to be confirmed.
 - [ ] Approve and distribute an exact production runtime/model/helper profile,
   deploy its independent verifier/policy and complete fresh PC qualification.
 - [ ] Run useful accepted production batches through the background worker;

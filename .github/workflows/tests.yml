@@ -33,6 +33,34 @@ jobs:
           $env:VISION_TEST_POWERSHELL = Join-Path $PSHOME "pwsh.exe"
           python -B -m unittest discover -s community/tests -q
 
+  mac-process-ownership:
+    # Exercise actual Mac timeout/parent-exit cleanup with finite fixtures.
+    # No models, private reference packet, imagery, account or service access.
+    runs-on: macos-26
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install test dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Verify Mac native process ownership and preserved failures
+        shell: bash
+        run: python -B -m unittest community.tests.test_process_owner -v 2>&1 | tee "$RUNNER_TEMP/process-ownership.log"
+      - name: Preserve finite ownership diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mac-process-ownership-evidence
+          path: ${{ runner.temp }}/process-ownership.log
+          retention-days: 7
+          if-no-files-found: warn
+
   cloudflare-javascript:
     runs-on: ubuntu-latest
     steps:
