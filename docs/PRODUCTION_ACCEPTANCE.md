@@ -1,6 +1,6 @@
 # Production acceptance
 
-Updated 2026-10-03 UTC. **The project is not yet approved for production.**
+Updated 2026-10-04 UTC. **The project is not yet approved for production.**
 This checklist describes the current state; check off a release gate only with
 recorded evidence. Earlier failures and exploratory results remain separate.
 The previous chronological development log remains in
@@ -30,6 +30,7 @@ The previous chronological development log remains in
 | Area | What the evidence establishes | Details |
 | --- | --- | --- |
 | Scenes on Windows | Final pinned package completed three fresh 1,024-location trials at each of 1/2/4 threads, zero errors and complete masks. Nine frozen 16-location replays agree with Mac on all 81 query orders/selected views. Bytes differ across platforms. | [Calibration](PC_CALIBRATION_20261002.md) |
+| Larger controlled Scenes | Andrew's unchanged supplied Mac binary captures/replays 128 new locations; nine identical-input PC repeats match all top-ten/top-100 sets. Two near-score rank pairs and one selected view differ in every repeat. All PC packed indexes/search results agree across threads; cumulative CPU and committed-memory receipts verify descendant cleanup. | [Held-out evidence](HELD_OUT_SCENE_REFERENCE_20261004.md) |
 | Actual staging contribution | Corrected binary64 pose serialization; fresh 112-location qualification; new eight-location batch independently audited, published and credited once. Two earlier strict-policy submissions remain rejected. | [Admission](STAGING_SCENE_ADMISSION_20261003.md) |
 | Actual staging search | Independently sealed snapshot of only those eight contributions passed native search, filters and exact response recovery after restart. Hosted API charged once; exact/account-recovery retry did not charge again; conflicting/unfunded requests were rejected. | [Admission](STAGING_SCENE_ADMISSION_20261003.md) |
 | Hosted native operation | Real private Linux FP32 inference and restart, bounded eight-location audits, frozen capture/replay, lifecycle failure recovery and stopped compute with seal retained. Public/preview URLs, SSH and Container logs disabled. | [Startup](HOSTED_SCENE_CHECK_20261003.md), [budgets](HOSTED_SCENE_BUDGET_20261003.md) |
@@ -40,15 +41,18 @@ The previous chronological development log remains in
 | Beginner flow | Short README/website guide, guided Windows starter, qualification/service checks, saved-code recovery, pause/resume and private diagnostics. Website assets/privacy headers verified in staging. | [Service readiness](WEBSITE_SERVICE_READINESS.md) |
 | Background worker | Native scheduled startup, idle handover and idle forced-exit/pause/resume verified. Installed schedule: medium 06:00–00:00, max 00:00–06:00 local; saved account, 30-minute service retry, sign-in/recovery triggers and one worker. | [Background processing](BACKGROUND_PROCESSING.md) |
 
-Latest completed Community code checks: 415 Python, 195 JavaScript, 37 actual
+Latest completed Community CI checks: 415 Python, 195 JavaScript, 37 actual
 workerd private-host cases and 15 private HTTP/preparation checks. Community
-CI passes all five jobs at `644bd18`, including native ownership and the offline
-financial restore guard. Actual Windows CI ran all 415 Python tests without
+CI passes all five jobs at `565c2f4`, including native ownership, the offline
+financial restore guard and all 23 calibration/resource checks. Actual Windows CI ran all 415 Python tests without
 skips; Linux passed with 18
 platform-specific skips. The source-only Windows preview retains its tested
 `4e53420` revision, with actual progress, pending-work and reconnect notices.
-Private Linux inference
-and all three private CI jobs pass at `3214c92`; see the separate inference receipt.
+The refreshed starter dataset change passes 431 local Windows Python checks
+with two filesystem-link permission skips, including sixteen new dataset and
+guided-flow guards. Its CI is reported separately after the commit is pushed.
+Private native hosting, both portable object jobs and both held-out reference
+jobs pass at `60ce443`; see the separate inference and reference receipts.
 
 The [3 October Windows preview](https://github.com/Andrew454545/vision-community/releases/tag/windows-starter-preview-20261003)
 is source-only, with 237 files independently checked after public download.
@@ -70,6 +74,12 @@ shipping newer offline helpers requires new runtime and policy pins.
   from held-out data. The historical full trial used separately fetched images;
   it cannot isolate runtime error. The staging `.9999` cosine / `.02` relative-L2
   policy is a finite measured experiment, not a production tolerance.
+  The new 128-location controlled study is complete and discloses its ranking
+  differences. A separately refreshed 112-location live-source diagnostic
+  finished but exceeded the cosine limit. Its sixteen-image fixed replay passes;
+  retrieving again changes 41 views and fails both limits. Immutable starter
+  inputs remain necessary. [Release-pinned dataset support](RELEASE_CANARY_DATASET.md)
+  preserves the historical fixture and cannot approve a PC by itself.
 - [ ] Approve and distribute an exact production runtime/model/helper profile,
   deploy its independent verifier/policy and complete fresh PC qualification.
 - [ ] Run useful accepted production batches through the background worker;
