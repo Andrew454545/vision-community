@@ -52,6 +52,7 @@ class SleepRequestTests(unittest.TestCase):
     def test_disabled_or_nonwindows_never_calls_windows_api(self):
         for enabled, platform in ((False,'nt'), (True,'posix')):
             with self.subTest(enabled=enabled,platform=platform), patch.object(background,'os',SimpleNamespace(name=platform)), \
+                 patch.object(background.sys,'platform','linux'), \
                  patch.object(background,'_sleep_state') as setter:
                 with background.keep_awake(enabled): pass
                 setter.assert_not_called()
