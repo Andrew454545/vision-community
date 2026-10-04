@@ -15,7 +15,12 @@ from community import mac_starter as starter
 from community.desktop import DesktopApp
 
 REPO=Path(__file__).resolve().parents[2]
-PERL=shutil.which('perl') or ('C:/Program Files/Git/usr/bin/perl.exe' if sys.platform=='win32' else None)
+# macOS executes its POSIX system Perl. Native Windows Perl distributions do
+# not necessarily implement the POSIX Fcntl stat predicates this verifier uses.
+# Exercise the Windows fixtures with Git's POSIX Perl, never an arbitrary PATH
+# interpreter. Actual Mac CI independently exercises /usr/bin/perl without skips.
+GIT_PERL=Path(os.environ.get('ProgramFiles','C:/Program Files'))/'Git/usr/bin/perl.exe'
+PERL=(str(GIT_PERL) if GIT_PERL.is_file() else None) if sys.platform=='win32' else shutil.which('perl')
 
 class MacStarterTests(unittest.TestCase):
     def setUp(self):
@@ -107,7 +112,7 @@ class MacStarterTests(unittest.TestCase):
             self.assertTrue(app.snapshot()['ready']);self.assertFalse(app.snapshot()['qualified'])
             self.assertIsNone(app.client);self.assertFalse((self.app/'account.json').exists())
 
-@unittest.skipUnless(PERL,'System Perl verifier requires Perl')
+@unittest.skipUnless(PERL,'Mac POSIX verifier fixture requires system Perl or Windows Git Perl')
 class PrivatePythonGuards(unittest.TestCase):
     def setUp(self):
         temp=tempfile.TemporaryDirectory();self.addCleanup(temp.cleanup)

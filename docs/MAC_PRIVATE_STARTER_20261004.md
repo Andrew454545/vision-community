@@ -101,6 +101,30 @@ child's ready marker is now atomic. All 80 local calibration guards pass in
 9.894 seconds after that fixture-only repair; the failed remote log is retained.
 This does not repair or approve an incidental native measurement failure.
 
+The first complete 501-test Windows CI attempt failed two Mac-verifier fixtures
+because `PATH` selected a native Windows Perl whose POSIX stat predicates were
+unavailable (`Fcntl::AUTOLOAD`). Windows fixtures now explicitly use Git's POSIX
+Perl. The actual Mac job continues to use its system Perl and passes without
+skips; production Mac verification is unchanged. Both original failing logs are
+preserved, and final Windows CI must pass after this test-environment repair.
+
+## Next native Mac checks
+
+The private VISION branch adds finite Apple-silicon builds of current Scenes
+and Objects CPU programs, with locked dependencies, native tests, actual layout
+startup and private build/dependency receipts. Both jobs were refused before any
+step started because a GitHub Actions budget prevents further use. The failure
+annotations are retained; build registration is not native startup evidence.
+
+The GitHub account owner must increase the applicable Actions budget under
+**Settings → Billing → Budgets and alerts**, retaining an appropriate spending
+cap. Then retry the two finite Mac jobs once. No API key, contribution account,
+engineering sign-off or security exception is needed. See GitHub's
+[budget guide](https://docs.github.com/en/billing/how-tos/set-up-budgets).
+Do not repeatedly retry unchanged budget-blocked jobs or describe these builds
+as completed. Native inference, signed distribution and clean-device checks
+remain separate gates.
+
 The starter currently targets **Apple silicon only**. Intel Mac and Windows ARM
 need their own interpreter/native builds and checks. The present distributed
 Mac processing binary also needs a current dependency/layout and inference
