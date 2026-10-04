@@ -84,6 +84,26 @@ class MeasurementTest(unittest.TestCase):
             self.assertIsNone(jobs[0].handle)
             self.assertIs(owner._make_job, original)
 
+    @unittest.skipUnless(os.name == 'nt', 'Windows job accounting')
+    def test_living_owned_descendant_is_identified_and_waited_after_cleanup(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            child = 'from pathlib import Path; import time; Path("started").write_text("yes"); time.sleep(60)'
+            source = ('import subprocess,sys,time; from pathlib import Path; '
+                      'subprocess.Popen([sys.executable,"-I","-c",' + repr(child) + '],'
+                      'stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL); '
+                      '\nwhile not Path("started").exists(): time.sleep(0.01)')
+            receipt = {}
+            with (root / 'out.log').open('wb') as output:
+                result = measure_owned([sys.executable, '-I', '-c', source], receipt=receipt,
+                    env=dict(os.environ), cwd=root, stdout=output, stderr=output, timeout=10)
+            self.assertEqual(result.returncode, 0)
+            self.assertGreater(receipt['activeProcessesAtMeasurement'], 0)
+            self.assertFalse(receipt['completeAfterExit'])
+            self.assertTrue(receipt['remainingDescendantsStopped'])
+            self.assertTrue(receipt['completeAfterOwnedCleanup'])
+            self.assertTrue(any(name.lower().startswith('python') for name in receipt['activeProcessNamesAtMeasurement']))
+
 
 if __name__ == '__main__':
     unittest.main()

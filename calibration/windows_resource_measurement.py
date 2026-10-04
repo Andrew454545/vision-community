@@ -9,6 +9,7 @@ https://learn.microsoft.com/en-us/windows/win32/api/jobapi2/nf-jobapi2-queryinfo
 import ctypes
 from ctypes import wintypes
 import os
+from pathlib import Path
 import threading
 import time
 
@@ -43,6 +44,10 @@ class Extended(ctypes.Structure):
                 ('processMemory', 'jobMemory', 'peakProcessMemory', 'peakJobMemory')]
 
 
+class ProcessList(ctypes.Structure):
+    _fields_ = [('assigned', wintypes.DWORD), ('listed', wintypes.DWORD), ('ids', ctypes.c_size_t * 64)]
+
+
 class MeasuredJob(owner._WindowsJob):
     def __init__(self, receipt):
         self.receipt, self.assigned, self.measured = receipt, False, False
@@ -56,6 +61,7 @@ class MeasuredJob(owner._WindowsJob):
         self.assigned = True
 
     def close(self):
+        process_handles = []
         try:
             if self.handle and self.assigned and not self.measured:
                 self.measured = True
@@ -74,13 +80,46 @@ class MeasuredJob(owner._WindowsJob):
                     readOperationBytes=basic.io.readBytes, writeOperationBytes=basic.io.writeBytes,
                     otherOperationBytes=basic.io.otherBytes, pageFaults=basic.basic.pageFaults,
                     completeAfterExit=basic.basic.activeProcesses == 0)
+                if basic.basic.activeProcesses:
+                    ids = ProcessList()
+                    if not self.api.QueryInformationJobObject(self.handle, 3, ctypes.byref(ids), ctypes.sizeof(ids), None):
+                        raise OSError('windows_job_process_accounting_unavailable')
+                    self.api.QueryFullProcessImageNameW.argtypes = [wintypes.HANDLE, wintypes.DWORD, wintypes.LPWSTR,
+                                                                  ctypes.POINTER(wintypes.DWORD)]
+                    self.api.QueryFullProcessImageNameW.restype = wintypes.BOOL
+                    names = []
+                    for pid in ids.ids[:ids.listed]:
+                        process = self.api.OpenProcess(0x101000, False, pid)  # QUERY_LIMITED_INFORMATION | SYNCHRONIZE.
+                        if not process:
+                            if ctypes.get_last_error() != 87:  # An exited PID is invalid.
+                                raise OSError('windows_job_process_handle_unavailable')
+                            names.append('EXITED_BEFORE_NAME_READ')
+                            continue
+                        process_handles.append(process)
+                        buffer, length = ctypes.create_unicode_buffer(32768), wintypes.DWORD(32768)
+                        if not self.api.QueryFullProcessImageNameW(process, 0, buffer, ctypes.byref(length)):
+                            raise OSError('windows_job_process_name_unavailable')
+                        names.append(Path(buffer.value).name)
+                    self.receipt['activeProcessNamesAtMeasurement'] = names
         except Exception:
             # Report this only after run_owned has closed stdin and waited.
             # Raising inside its cleanup would interrupt that cleanup sequence.
             self.receipt.update(status='MEASUREMENT_FAILED')
         finally:
             # A measurement failure must never disable descendant cleanup.
-            super().close()
+            try:
+                super().close()
+            finally:
+                self.api.WaitForSingleObject.argtypes = [wintypes.HANDLE, wintypes.DWORD]
+                self.api.WaitForSingleObject.restype = wintypes.DWORD
+                deadline, stopped = time.monotonic() + 3, True
+                for process in process_handles:
+                    try:
+                        stopped &= self.api.WaitForSingleObject(process, max(0, int((deadline-time.monotonic()) * 1000))) == 0
+                    finally:
+                        self.api.CloseHandle(process)
+                self.receipt['remainingDescendantsStopped'] = stopped
+                self.receipt['completeAfterOwnedCleanup'] = stopped and self.receipt.get('status') == 'MEASURED'
 
 
 def measure_owned(argv, *, receipt, **kwargs):
@@ -94,7 +133,7 @@ def measure_owned(argv, *, receipt, **kwargs):
         raise RuntimeError('windows_resource_measurement_requires_isolated_main_thread')
     receipt.update(version=1, status='NOT_MEASURED', productionQualified=False,
                    scope='owned_wrapper_and_native_descendants', measurement='WINDOWS_JOB_CUMULATIVE_ACCOUNTING',
-                   memoryMetric='PEAK_COMMITTED_BYTES_NOT_WORKING_SET', nativeExitCode=None)
+                   memoryMetric='PEAK_COMMITTED_BYTES_NOT_WORKING_SET', accountingCutoff='BEFORE_OWNED_CLEANUP', nativeExitCode=None)
     original_factory = owner._make_job
     start = time.perf_counter()
     owner._make_job = lambda: MeasuredJob(receipt)

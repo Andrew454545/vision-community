@@ -85,6 +85,10 @@ shipping newer offline helpers requires new runtime and policy pins.
 - [ ] Establish parallel scene/object CPU and memory budgets with durable queues.
   Enable only measured configurations. `max` currently removes deliberate rests;
   it does not promise all-core processing or an approved parallel profile.
+  Nine additional frozen scene trials measure actual Windows cumulative CPU and
+  peak committed memory, with verified descendant shutdown. Two threads provide
+  most of the short-sample gain; working-set/thermal pressure and sustained
+  shared scene/object capacity remain open. See [resource evidence](WINDOWS_SCENE_RESOURCES_20261004.md).
 
 ### Portable Objects and coverage
 
