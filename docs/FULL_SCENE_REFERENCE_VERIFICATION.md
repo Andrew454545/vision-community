@@ -1,5 +1,8 @@
 # Full reference verification — maintainer only
 
+The [completed full Mac reference](FULL_MAC_REFERENCE_20261004.md) now passes
+independent transport verification. The finite laptop matrix has started.
+
 Before new PC repeats, obtain the completed private Mac artifact and its exact
 byte count and SHA-256 from authenticated GitHub metadata. Keep its original
 archive. Use a new output folder outside the public checkout:
@@ -26,8 +29,9 @@ The 43 calibration tests pass in 3.683 seconds. A separate read-only check on
 the existing three Mac 112-location repeats verifies all 448 regenerated RGB
 files and 2,688 retained normalized/pooler transports with this verifier.
 Its 1,344 preprocessing entries remain hashes only. These checks establish
-format compatibility; the running full 1,024-location reference and subsequent
-PC comparison remain open. See [the acceptance checklist](PRODUCTION_ACCEPTANCE.md).
+format compatibility. The completed full 1,024-location reference is now
+independently verified; its subsequent PC comparison is running and remains
+unqualified. See [the acceptance checklist](PRODUCTION_ACCEPTANCE.md).
 
 The first full attempt preserved a failed receipt during the second repeat,
 near its two-hour allowance. Its private archive is 475,604,211 bytes with
@@ -39,8 +43,9 @@ retained; this verifier correctly rejects it as
 `full_reference_not_complete_or_pinned`. It cannot approve a runtime.
 
 The corrected private run now uses a four-hour overall bound and validated
-temporary preprocessing cleanup. It is running; neither change alone proves
-completion or fixes a cleanup permission failure. A separate short Mac CI job
+temporary preprocessing cleanup. It has now completed all three repeats and
+passed independent offline verification; neither change alone establishes
+the cause of the earlier failure. A separate short Mac CI job
 now exercises actual process ownership, timeout and abrupt-parent-exit fixtures
 without models or imagery. Its first attempt passed actual timeout and parent
 exit but exposed a test-only macOS temporary-path alias (`/var` versus
@@ -79,14 +84,15 @@ views, rank inversions and top-ten/top-100 sets. Runtime profiles identify the
 starter's files/thread settings; the separate matrix settings record the
 actual 1,024-location study configuration. Helpers and input pins are checked
 again after processing. Fifteen new failure/transport guards and all 66 local
-calibration tests pass; the full native matrix has not yet run.
+calibration tests pass; the full native matrix is now running, with no case
+recorded complete at 09:26 UTC on 4 October.
 
 All six Community CI jobs pass at `5d1bb33`. A separate private compatibility
 check verifies a copy of the earlier actual 128-location PC results, all 512
 views, 1,536 tensor files and twelve queries. Original hashes stay unchanged;
-no new native command runs. A finite local Windows task is registered to wait
-for the exact completed Mac artifact, verify its independent GitHub byte/hash
-pins and start the matrix. It checks immutable helper/runtime pins and preserves
+no new native command runs. The finite local Windows task has downloaded the
+exact completed Mac artifact, verified its independent GitHub byte/hash pins,
+completed offline verification and started the matrix. It checks immutable helper/runtime pins and preserves
 failure instead of silently retrying inference. It neither supervises nor
 changes the contributor worker. Registration alone is not restart/endurance
 evidence or completed native comparison.
