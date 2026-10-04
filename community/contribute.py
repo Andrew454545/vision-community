@@ -12,6 +12,7 @@ so the rest of the queue can continue.
 from __future__ import annotations
 
 import argparse
+from http.client import HTTPException
 import json
 import os
 import sys
@@ -126,10 +127,15 @@ class CommunityClient:
                     data = json.loads(raw.decode("utf-8")) if raw else {}
                     return response.status, data, cookie
             except urllib.error.HTTPError as error:
-                raw = error.read()
+                try:
+                    raw = error.read()
+                except (HTTPException, OSError, TimeoutError):
+                    # A broken error body must not hide a definitive HTTP
+                    # status (such as a revoked account's 401 or rejection).
+                    raw = b""
                 try:
                     data = json.loads(raw.decode("utf-8")) if raw else {}
-                except json.JSONDecodeError:
+                except (json.JSONDecodeError, UnicodeDecodeError):
                     data = {}
                 if error.code in RETRY_STATUSES and attempt < 2:
                     last_error = error
@@ -137,7 +143,8 @@ class CommunityClient:
                     continue
                 code = data.get("error") if isinstance(data, dict) else None
                 raise ContributeError(str(code or "http_error"), error.code) from error
-            except (urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError) as error:
+            except (urllib.error.URLError, TimeoutError, OSError, HTTPException,
+                    json.JSONDecodeError, UnicodeDecodeError) as error:
                 last_error = error
                 if attempt < 2:
                     time.sleep(0.4 * (attempt + 1))
