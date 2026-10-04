@@ -42,7 +42,7 @@ The previous chronological development log remains in
 | Beginner flow | Short README/website guide, guided Windows starter, qualification/service checks, saved-code recovery, pause/resume and private diagnostics. Website assets/privacy headers verified in staging. | [Service readiness](WEBSITE_SERVICE_READINESS.md) |
 | Background worker | Native scheduled startup, idle handover and idle forced-exit/pause/resume verified. Installed schedule: medium 06:00–00:00, max 00:00–06:00 local; saved account, 30-minute service retry, sign-in/recovery triggers and one worker. | [Background processing](BACKGROUND_PROCESSING.md) |
 
-Community CI passes all five jobs at `81ea787`: actual Windows CI runs all 431
+Community CI passes all five jobs at `1da831f`: actual Windows CI runs all 441
 Python tests without skips, and all 31 calibration/resource/generator guards
 pass. The unchanged Worker coverage includes 195 JavaScript, 37 actual workerd
 private-host and 15 private HTTP/preparation checks. The source-only Windows
@@ -52,7 +52,9 @@ immutable preview.
 The fixed starter implementation passes all 441 local Windows Python tests
 in 205.074 seconds, with two existing filesystem-link permission skips. Its
 ten new fixed-input guards and installed-copy generator check are included.
-Post-push CI for this change is tracked separately from the previous commit.
+The initial installed-copy path guard failed in CI on a shortened Windows path;
+resolving both paths repaired the guard. The complete Windows CI rerun passes
+all 441 tests without skips in 227.215 seconds; the original failure is retained.
 Private native hosting, both portable object jobs, both held-out reference jobs
 and both new fixed-input Mac jobs pass at `977c20a`. The unchanged supplied Mac
 executable completed three fixed 112-location repeats; the reduced private
