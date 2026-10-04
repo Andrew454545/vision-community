@@ -90,7 +90,7 @@ jobs:
         run: |
           private="$RUNNER_TEMP/mac-starter-private/python-3.14.8-20261003-arm64/python"
           export SSL_CERT_FILE="$private/lib/python3.14/site-packages/pip/_vendor/certifi/cacert.pem"
-          "$private/bin/python3.14" -I -B -c 'import sys,unittest;sys.path.insert(0,"."); suite=unittest.defaultTestLoader.loadTestsFromNames(["community.tests.test_mac_starter","community.tests.test_canary_released_dataset","community.tests.test_desktop_progress"]); result=unittest.TextTestRunner(verbosity=2).run(suite);sys.exit(not result.wasSuccessful())' 2>&1 | tee "$RUNNER_TEMP/mac-private-guards.log"
+          "$private/bin/python3.14" -I -B -c 'import sys,unittest;sys.path.insert(0,"."); suite=unittest.defaultTestLoader.loadTestsFromNames(["community.tests.test_mac_starter","community.tests.test_canary_released_dataset","community.tests.test_desktop_progress","community.tests.test_mac_launch_agent"]); result=unittest.TextTestRunner(verbosity=2).run(suite);sys.exit(not result.wasSuccessful())' 2>&1 | tee "$RUNNER_TEMP/mac-private-guards.log"
       - name: Open and close the actual private local window
         shell: bash
         run: |
@@ -102,6 +102,11 @@ jobs:
         run: |
           private="$RUNNER_TEMP/mac-starter-private/python-3.14.8-20261003-arm64/python"
           "$private/bin/python3.14" -I -B -c 'import sys,unittest;sys.path.insert(0,"."); suite=unittest.defaultTestLoader.loadTestsFromNames(["community.tests.test_mac_sleep_request","community.tests.test_sleep_request","community.tests.test_background"]); result=unittest.TextTestRunner(verbosity=2).run(suite);sys.exit(not result.wasSuccessful())' 2>&1 | tee "$RUNNER_TEMP/mac-private-sleep.log"
+      - name: Exercise finite Mac scheduled worker recovery
+        shell: bash
+        run: |
+          private="$RUNNER_TEMP/mac-starter-private/python-3.14.8-20261003-arm64/python"
+          "$private/bin/python3.14" -I -B macos/check-background.py --root "$RUNNER_TEMP/mac-starter-private" --report "$RUNNER_TEMP/mac-scheduled-recovery.json"
       - name: Preserve aggregate Mac starter evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -113,6 +118,7 @@ jobs:
             ${{ runner.temp }}/mac-private-guards.log
             ${{ runner.temp }}/mac-private-window.json
             ${{ runner.temp }}/mac-private-sleep.log
+            ${{ runner.temp }}/mac-scheduled-recovery.json
           retention-days: 7
           if-no-files-found: warn
 

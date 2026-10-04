@@ -15,7 +15,7 @@ import sys
 
 MODULES = ('__init__ admin all_locations_full all_locations_tail background bootstrap catalog '
     'contribute desktop features four_view indexed_local local_search measure mma mma_cloud '
-    'object_index pano parts pc_canary prompt rank scene_pipeline scene_quality search '
+    'object_index pano parts pc_canary prompt rank scene_pipeline scene_quality search mac_launch_agent mac_starter '
     'seal_index segments send_mma server service source store submission_outbox verify '
     'vision_handoff vision_index process_owner worker').split()
 FILES = tuple('community/'+name+'.py' for name in MODULES) + (
