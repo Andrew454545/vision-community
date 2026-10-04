@@ -219,6 +219,12 @@ they do not satisfy the actual restart, accepted-work or endurance gates below.
 - [ ] Exercise network loss, active-process exit and persistent delayed retries
   without rapid loops. Permanent trust/account failures must retain evidence
   and stop, not retry indefinitely or silently weaken qualification.
+  Real loopback HTTP/SQLite checks across fresh Python processes now cover
+  interrupted submission/audit replies, verifier outages, persisted cooldown,
+  same-account recovery and a single disposable award. Partial replies use
+  bounded transport retries; terminal HTTP statuses remain terminal even with
+  an unreadable error body. This is synthetic delivery evidence, not an actual
+  qualified batch or OS restart; see [interrupted replies](INTERRUPTED_REPLY_RECOVERY_20261004.md).
 - [ ] Exercise installer handover/removal during active work, preserving account,
   checkpoint, delivery and failure files; do not force-kill inference.
 - [ ] Run an extended qualified workload measuring accepted batches, temperature,

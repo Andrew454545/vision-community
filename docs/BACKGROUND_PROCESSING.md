@@ -247,6 +247,11 @@ isolation, bounded backlog, fairness and preserved rejected results. A local
 HTTP exercise also verifies that an expired assignment does not block another
 saved delivery or claim new work during recovery. This is a disposable test
 service, not an accepted live contribution.
+Additional real HTTP/SQLite checks across fresh Python processes verify partial
+submission/audit replies, outages, persisted cooldown and same-account recovery.
+Partial replies now use bounded retries; an unreadable error body cannot turn
+a terminal HTTP status into a transient one. See
+[interrupted-reply evidence](INTERRUPTED_REPLY_RECOVERY_20261004.md).
 Storage tests cover restart recovery at the allowance, download/PC-check growth,
 saved output after a batch, invalid inventories and the disabled setting. A
 disposable HTTP service and a real SQLite delivery journal verify that a saved
