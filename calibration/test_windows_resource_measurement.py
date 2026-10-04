@@ -7,11 +7,124 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from calibration.windows_resource_measurement import MemoryCounters, MeasuredJob, WorkingSetObserver, measure_owned
+from calibration.windows_resource_measurement import MemoryCounters, MeasuredJob, ProcessList, WorkingSetObserver, measure_owned
 from community import process_owner as owner
 
 
 class MeasurementTest(unittest.TestCase):
+    def measured_descendant(self,configure,receipt,seconds=60):
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp)
+            class ConfiguredJob(MeasuredJob):
+                def __init__(self,value):
+                    super().__init__(value)
+                    configure(self,root)
+            child='import os,time; from pathlib import Path; Path("started").write_text(str(os.getpid())); time.sleep('+str(seconds)+')'
+            source=('import subprocess,sys,time; from pathlib import Path; '
+                'subprocess.Popen([sys.executable,"-I","-c",'+repr(child)+'],creationflags=0x08000000,'
+                'stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL); '
+                '\nwhile not Path("started").exists(): time.sleep(0.01)')
+            with patch('calibration.windows_resource_measurement.MeasuredJob',ConfiguredJob), (root/'out.log').open('wb') as output:
+                return measure_owned([sys.executable,'-I','-c',source],receipt=receipt,
+                    env=dict(os.environ),cwd=root,stdout=output,stderr=output,timeout=10,creationflags=0x08000000)
+
+    @unittest.skipUnless(os.name=='nt','Windows job accounting')
+    def test_name_read_failure_after_pinned_owned_process_exit_keeps_accounting(self):
+        def configure(job,root):
+            from ctypes import wintypes
+            wait=job.api.WaitForSingleObject
+            wait.argtypes=[wintypes.HANDLE,wintypes.DWORD];wait.restype=wintypes.DWORD
+            get_pid=job.api.GetProcessId
+            get_pid.argtypes=[wintypes.HANDLE];get_pid.restype=wintypes.DWORD
+            original=job.api.QueryFullProcessImageNameW
+            original.argtypes=[wintypes.HANDLE,wintypes.DWORD,wintypes.LPWSTR,ctypes.POINTER(wintypes.DWORD)]
+            original.restype=wintypes.BOOL
+            def read_name(process,*args):
+                if get_pid(process)==int((root/'started').read_text()):
+                    self.assertEqual(wait(process,3000),0)  # Actual exit on this held identity.
+                    ctypes.set_last_error(31)
+                    return False
+                return original(process,*args)
+            job.api.QueryFullProcessImageNameW=read_name
+        receipt={}
+        result=self.measured_descendant(configure,receipt,seconds=.6)
+        self.assertEqual(result.returncode,0)
+        self.assertEqual(receipt['status'],'MEASURED')
+        self.assertIn('EXITED_BEFORE_NAME_READ',receipt['activeProcessNamesAtMeasurement'])
+        self.assertIn({'win32Error':31,'processState':'EXITED'},receipt['exitedProcessNameObservations'])
+        self.assertTrue(receipt['completeAfterOwnedCleanup'])
+
+    @unittest.skipUnless(os.name=='nt','Windows job accounting')
+    def test_live_name_read_failure_retains_stage_and_error_without_approving_measurement(self):
+        jobs=[]
+        def configure(job,_root):
+            jobs.append(job)
+            def unavailable(*_args):
+                ctypes.set_last_error(5)
+                return False
+            job.api.QueryFullProcessImageNameW=unavailable
+        receipt={}
+        with self.assertRaisesRegex(OSError,'accounting_unavailable'):
+            self.measured_descendant(configure,receipt)
+        self.assertEqual(receipt['measurementFailure'],{'stage':'process_name','errorType':'OSError','win32Error':5})
+        self.assertFalse(receipt['completeAfterOwnedCleanup'])
+        self.assertTrue(receipt['remainingDescendantsStopped'])
+        self.assertIsNone(jobs[0].handle)
+
+    @unittest.skipUnless(os.name=='nt','Windows job accounting')
+    def test_failed_process_wait_is_never_an_exit_attestation(self):
+        def configure(job,_root):
+            wait=job.api.WaitForSingleObject
+            def state(process,timeout):
+                if timeout==0:
+                    ctypes.set_last_error(6)
+                    return 0xffffffff
+                return wait(process,timeout)
+            job.api.WaitForSingleObject=state
+            job.api.QueryFullProcessImageNameW=lambda *_args:False
+        receipt={}
+        with self.assertRaisesRegex(OSError,'accounting_unavailable'):
+            self.measured_descendant(configure,receipt)
+        self.assertEqual(receipt['measurementFailure']['stage'],'process_state')
+        self.assertEqual(receipt['measurementFailure']['win32Error'],6)
+        self.assertFalse(receipt['completeAfterOwnedCleanup'])
+        self.assertNotIn('exitedProcessNameObservations',receipt)
+
+    @unittest.skipUnless(os.name=='nt','Windows job accounting')
+    def test_named_process_membership_is_checked_before_reading_it(self):
+        calls=[]
+        def configure(job,_root):
+            from ctypes import wintypes
+            def member(_process,_job,result):
+                ctypes.cast(result,ctypes.POINTER(wintypes.BOOL))[0]=False
+                return True
+            job.api.IsProcessInJob=member
+            def name(*_args):calls.append(True);return True
+            job.api.QueryFullProcessImageNameW=name
+        receipt={}
+        with self.assertRaisesRegex(OSError,'accounting_unavailable'):
+            self.measured_descendant(configure,receipt)
+        self.assertEqual(calls,[])
+        self.assertEqual(receipt['measurementFailure']['stage'],'process_membership')
+        self.assertFalse(receipt['completeAfterOwnedCleanup'])
+
+    @unittest.skipUnless(os.name=='nt','Windows job accounting')
+    def test_process_list_overflow_is_not_silently_truncated(self):
+        def configure(job,_root):
+            query=job.api.QueryInformationJobObject
+            def list_query(handle,kind,data,*args):
+                if kind==3:
+                    ids=ctypes.cast(data,ctypes.POINTER(ProcessList)).contents
+                    ids.assigned=65;ids.listed=64
+                    return True
+                return query(handle,kind,data,*args)
+            job.api.QueryInformationJobObject=list_query
+        receipt={}
+        with self.assertRaisesRegex(OSError,'accounting_unavailable'):
+            self.measured_descendant(configure,receipt)
+        self.assertEqual(receipt['measurementFailure']['stage'],'job_process_list')
+        self.assertFalse(receipt['completeAfterOwnedCleanup'])
+
     def test_working_set_counter_layout_uses_fixed_dwords_and_native_size_t(self):
         self.assertEqual(ctypes.sizeof(MemoryCounters),8+8*ctypes.sizeof(ctypes.c_size_t))
 

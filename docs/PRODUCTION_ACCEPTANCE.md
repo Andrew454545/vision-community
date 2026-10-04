@@ -133,6 +133,14 @@ shipping newer offline helpers requires new runtime and policy pins.
   verifier validates the receipt's identity and retains all byte/inventory
   requirements. All 75 calibration guards pass; original failure and output
   remain unchanged. See [the recovery evidence](FULL_PC_MATRIX_RECOVERY_20261004.md).
+  The subsequent continuation verified its first one/two/four-thread cohort,
+  then stopped after the second two-thread index/search on a Windows resource
+  reporting failure. The exact original API failure was not recorded. A repair
+  passes 80 calibration guards; 24 fresh native searches pass actual accounting
+  and cleanup. Independent offline recovery verifies four retained full indexes
+  and preserves the original failed receipt. All packed indexes agree; four-thread
+  raw tensors have 712 hash differences from one thread, with identical PC query
+  results. Five fresh trials still remain. See [accounting recovery](WINDOWS_MATRIX_ACCOUNTING_RECOVERY_20261004.md).
   All six Community CI jobs pass with the matrix at `5d1bb33`. A private
   format-compatibility check verifies a copy of earlier actual 128-location PC
   output, retains its raw tensors and confirms the original files unchanged;

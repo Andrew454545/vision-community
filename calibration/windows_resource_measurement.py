@@ -179,6 +179,8 @@ class MeasuredJob(owner._WindowsJob):
             return  # Repeated cleanup must not overwrite an earlier wait failure.
         process_handles = []
         sampler_stopped = True
+        measurement_stage = 'sampler_stop'
+        failure_error = None
         try:
             if self.working_set:
                 sampler_stopped = self.working_set.stop()
@@ -186,10 +188,12 @@ class MeasuredJob(owner._WindowsJob):
                 self.measured = True
                 basic, limits = BasicAndIO(), Extended()
                 for info_class, data in ((8, basic), (9, limits)):
+                    measurement_stage = 'job_accounting'
                     returned = wintypes.DWORD()
                     if (not self.api.QueryInformationJobObject(self.handle, info_class, ctypes.byref(data),
                             ctypes.sizeof(data), ctypes.byref(returned)) or returned.value != ctypes.sizeof(data)):
                         self.receipt.update(status='MEASUREMENT_FAILED')
+                        failure_error = ctypes.get_last_error()
                         raise OSError('windows_job_accounting_unavailable')
                 self.receipt.update(status='MEASURED',
                     cpuUserSeconds=basic.basic.userTime / 10_000_000,
@@ -202,30 +206,58 @@ class MeasuredJob(owner._WindowsJob):
                 if self.working_set:
                     self.receipt['workingSetObservation'] = self.working_set.receipt(basic.basic.totalProcesses,sampler_stopped)
                 if basic.basic.activeProcesses:
+                    measurement_stage = 'job_process_list'
                     ids = ProcessList()
-                    if not self.api.QueryInformationJobObject(self.handle, 3, ctypes.byref(ids), ctypes.sizeof(ids), None):
+                    if (not self.api.QueryInformationJobObject(self.handle, 3, ctypes.byref(ids), ctypes.sizeof(ids), None)
+                            or ids.assigned>64 or ids.listed>64 or ids.listed>ids.assigned):
+                        failure_error = ctypes.get_last_error()
                         raise OSError('windows_job_process_accounting_unavailable')
+                    self.api.IsProcessInJob.argtypes = [wintypes.HANDLE, wintypes.HANDLE, ctypes.POINTER(wintypes.BOOL)]
+                    self.api.IsProcessInJob.restype = wintypes.BOOL
+                    self.api.WaitForSingleObject.argtypes = [wintypes.HANDLE, wintypes.DWORD]
+                    self.api.WaitForSingleObject.restype = wintypes.DWORD
                     self.api.QueryFullProcessImageNameW.argtypes = [wintypes.HANDLE, wintypes.DWORD, wintypes.LPWSTR,
                                                                   ctypes.POINTER(wintypes.DWORD)]
                     self.api.QueryFullProcessImageNameW.restype = wintypes.BOOL
                     names = []
                     for pid in ids.ids[:ids.listed]:
+                        measurement_stage = 'process_handle'
                         process = self.api.OpenProcess(0x101000, False, pid)  # QUERY_LIMITED_INFORMATION | SYNCHRONIZE.
                         if not process:
-                            if ctypes.get_last_error() != 87:  # An exited PID is invalid.
+                            failure_error = ctypes.get_last_error()
+                            if failure_error != 87:  # An exited PID is invalid.
                                 raise OSError('windows_job_process_handle_unavailable')
                             names.append('EXITED_BEFORE_NAME_READ')
                             continue
                         process_handles.append(process)
+                        measurement_stage = 'process_membership'
+                        member = wintypes.BOOL()
+                        if not self.api.IsProcessInJob(process,self.handle,ctypes.byref(member)) or not member.value:
+                            failure_error = ctypes.get_last_error()
+                            raise OSError('windows_job_process_not_owned')
                         buffer, length = ctypes.create_unicode_buffer(32768), wintypes.DWORD(32768)
+                        measurement_stage = 'process_name'
                         if not self.api.QueryFullProcessImageNameW(process, 0, buffer, ctypes.byref(length)):
+                            failure_error = ctypes.get_last_error()
+                            state = self.api.WaitForSingleObject(process,0)
+                            if state == 0:  # This same pinned, owned process has exited.
+                                names.append('EXITED_BEFORE_NAME_READ')
+                                self.receipt.setdefault('exitedProcessNameObservations',[]).append(
+                                    {'win32Error':failure_error,'processState':'EXITED'})
+                                continue
+                            if state != 258:  # WAIT_FAILED is not proof of exit or liveness.
+                                measurement_stage = 'process_state'
+                                failure_error = ctypes.get_last_error()
+                                raise OSError('windows_job_process_state_unavailable')
                             raise OSError('windows_job_process_name_unavailable')
                         names.append(Path(buffer.value).name)
                     self.receipt['activeProcessNamesAtMeasurement'] = names
-        except Exception:
+        except Exception as error:
             # Report this only after run_owned has closed stdin and waited.
             # Raising inside its cleanup would interrupt that cleanup sequence.
-            self.receipt.update(status='MEASUREMENT_FAILED')
+            self.receipt.update(status='MEASUREMENT_FAILED',measurementFailure={
+                'stage':measurement_stage,'errorType':type(error).__name__,
+                'win32Error':failure_error})
         finally:
             # A measurement failure must never disable descendant cleanup.
             try:
