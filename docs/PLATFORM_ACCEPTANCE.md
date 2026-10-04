@@ -15,6 +15,9 @@ None of these rows is a completed production release. Linux inference evidence
 supports backend portability; it does not replace Mac or Windows user testing.
 The [private Mac starter](MAC_PRIVATE_STARTER_20261004.md) is a maintainer preview;
 its bootstrap/window evidence does not establish native processing or admission.
+The [Mac background foundations](MAC_BACKGROUND_FOUNDATIONS_20261004.md) add
+actual process-owned sleep-request evidence and a startup/recovery contract.
+Mac automatic-processing controls and accepted native work remain unqualified.
 
 ## What every row must pass
 

@@ -228,6 +228,17 @@ processing approval. Staging and the existing public preview remain unchanged.
 
 ### Days or weeks of unattended processing
 
+The [Mac background foundations](MAC_BACKGROUND_FOUNDATIONS_20261004.md) now
+provide process-owned idle-sleep requests with actual Mac assertion/abrupt-exit
+evidence, a per-user startup contract and a finite scheduled-recovery fixture.
+Guided processing uses the platform-selected runtime path. These foundations
+do not replace Mac installer/controls, immutable startup verification, trusted
+native work, real sign-in/reboot or long-running acceptance below.
+All seven Community CI jobs pass at `f0df8b9`, including 515 Windows tests
+(two Mac-only skips), 41 actual Mac setup/platform guards and 41 Mac sleep/
+background guards without skips, plus the finite scheduled-recovery receipt.
+These passing foundations leave the release gates below open.
+
 - [ ] Implement and exercise macOS background startup/sign-in recovery,
   scheduled pacing, pause/resume and preserved account/batch/delivery state.
   The current Windows task does not establish Mac support. Exercise both lanes
