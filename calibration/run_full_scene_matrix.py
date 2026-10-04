@@ -5,6 +5,7 @@ no downloads, accounts, contributions, credits, installed-worker access or
 production qualification. Keep original failures and all generated tensors.
 """
 import argparse
+from contextlib import contextmanager
 import json
 import math
 import os
@@ -17,18 +18,57 @@ from calibration.quality import decoded_difference
 from calibration.run_windows import child_environment
 from calibration.verify_full_scene_reference import (ROOT, ReferenceError, model_pins,
     pin, plain, read, sha, verify_archive, verify_reduced_case, verify_rgb, MAX_JSON, HEX, SHAPES)
-from community.background import keep_awake
+from community.background import atomic_json, keep_awake
+from community.desktop import DesktopError
 from community.pc_canary import DLLS, runtime_profile
 
 WINDOWS_BINARY={'bytes':30888448,'sha256':'6ce8f5c9dbfeb8404da13daa71afecfd07a56f118fc61819d07c1d2330f191ba'}
 MODEL_MANIFEST_SHA='b086083e00e527164b0433579a34d7a8141b05ed492081a4c1aa2f14a9164e87'
-OVERALL_SECONDS=6*60*60
-INDEX_SECONDS=5400
+OVERALL_SECONDS=36*60*60
+INDEX_SECONDS=4*60*60
 SEARCH_SECONDS=600
 DISK_FLOOR=32*1024**3
 
 class MatrixError(ValueError):
     pass
+
+def save_report(path,report):
+    # Validate before replacing the last readable receipt. Atomic file updates
+    # retain the previous report if writing or replacing the new one fails.
+    json.dumps(report,allow_nan=False)
+    atomic_json(path,report)
+
+def time_budgets(args):
+    hours=getattr(args,'overall_hours',OVERALL_SECONDS//3600)
+    minutes=getattr(args,'index_minutes',INDEX_SECONDS//60)
+    if type(hours) is not int or not 1 <= hours <= 48:
+        raise MatrixError('matrix_overall_hours_must_be_1_to_48')
+    if type(minutes) is not int or not 1 <= minutes <= 360 or minutes > hours*60:
+        raise MatrixError('matrix_index_minutes_must_be_1_to_360_within_overall_budget')
+    return {'overallSeconds':hours*3600,'indexSeconds':minutes*60,
+            'searchSeconds':SEARCH_SECONDS,'automaticNativeRetry':False}
+
+@contextmanager
+def observed_awake(report,checkpoint):
+    entered=False
+    try:
+        with keep_awake():
+            entered=True
+            report['wakeRequest']='SYSTEM_ONLY_REQUEST_ACCEPTED_RESTORE_NOT_YET_CONFIRMED'
+            checkpoint()
+            yield
+    except BaseException as error:
+        if isinstance(error,DesktopError) and str(error)=='keep_awake_release_failed':
+            report['wakeRequest']='DIAGNOSTIC_THREAD_PREVIOUS_STATE_RESTORE_FAILED'
+        elif entered:
+            report['wakeRequest']='DIAGNOSTIC_THREAD_PREVIOUS_STATE_RESTORED'
+        else:
+            report['wakeRequest']='SYSTEM_ONLY_REQUEST_NOT_ESTABLISHED'
+        raise
+    else:
+        report['wakeRequest']='DIAGNOSTIC_THREAD_PREVIOUS_STATE_RESTORED'
+    finally:
+        checkpoint()
 
 def windows_platform():
     return os.name=='nt'
@@ -61,8 +101,8 @@ def checked_runtime(binary,models,expected_profile):
         raise MatrixError('matrix_runtime_profile_pin_mismatch')
     return profiles
 
-def native_commands(binary,models,case,frozen,manifest_sha):
-    return (('index',INDEX_SECONDS,[binary,'study-four-views','--input',case/'study.json',
+def native_commands(binary,models,case,frozen,manifest_sha,*,index_seconds=INDEX_SECONDS):
+    return (('index',index_seconds,[binary,'study-four-views','--input',case/'study.json',
         '--model-dir',models,'--locations-tsv',case/'locations.tsv','--index-dir',case/'repeat-index',
         '--checkpoint',case/'repeat-checkpoint.json','--output',case/'repeat-results.json',
         '--evidence-dir',case/'repeat-evidence','--evidence-budget-mib','4096','--scene-fp32',
@@ -215,6 +255,7 @@ def tensor_comparison(case,gold,count=1024):
     return groups
 
 def run_matrix(args):
+    budgets=time_budgets(args)
     out=args.out.absolute()
     plain(out.parent,directory=True)
     if out.is_relative_to(ROOT): raise MatrixError('private_matrix_output_must_be_outside_checkout')
@@ -222,14 +263,14 @@ def run_matrix(args):
     report={'version':1,'status':'INCOMPLETE','scope':'finite-private-full-windows-matrix-1024',
         'productionQualified':False,'accountsCreated':0,'creditsChanged':0,'submissions':0,
         'liveImageryRetrieved':False,'installedWorkerInspected':False,'installedWorkerModified':False,
-        'serialCases':True,'runs':[],'commands':[],'wakeRequest':'NOT_STARTED',
+        'serialCases':True,'timeBudgets':budgets,'runs':[],'commands':[],'wakeRequest':'NOT_STARTED',
         'limitations':['CONTROLLED_REPLAY_NOT_TRUSTED_LIVE_CONTRIBUTION_AUDIT',
             'NO_PROVIDER_NODE_OR_INTERNAL_PRECISION_ATTESTATION','NO_THERMAL_OR_OVERNIGHT_ENDURANCE_APPROVAL',
             'WORKING_SETS_ARE_NON_ATOMIC_SAMPLED_SUMS_NOT_UNIQUE_PHYSICAL_RAM']}
     def checkpoint():
-        (out/'full-windows-matrix-evidence.json').write_text(json.dumps(report,indent=2,allow_nan=False)+'\n',encoding='utf-8')
+        save_report(out/'full-windows-matrix-evidence.json',report)
     checkpoint()
-    deadline=time.monotonic()+OVERALL_SECONDS
+    deadline=time.monotonic()+budgets['overallSeconds']
     try:
         if not windows_platform(): raise MatrixError('full_matrix_requires_windows')
         if shutil.disk_usage(out).free<DISK_FLOOR: raise MatrixError('full_matrix_requires_32_gib_free')
@@ -255,9 +296,7 @@ def run_matrix(args):
         gold_semantic=[(q['name'],q['query'],q['mode'],[(h['locationIndex'],h['viewOffset'],h['similarity']) for h in q['hits']])
                        for q in reference_search['queries']]
         baselines={}
-        with keep_awake():
-            report['wakeRequest']='SYSTEM_ONLY_REQUEST_ACCEPTED_RESTORE_NOT_YET_CONFIRMED'
-            checkpoint()
+        with observed_awake(report,checkpoint):
             for replica,threads in rotated_cases():
                 if shutil.disk_usage(out).free<4*1024**3: raise MatrixError('full_matrix_per_case_storage_floor')
                 if checked_runtime(binary,models,args.runtime_profile_sha256)!=profiles:
@@ -266,7 +305,7 @@ def run_matrix(args):
                 case.mkdir(exist_ok=False)
                 for name in ('locations.tsv','study.json','search.json'): shutil.copyfile(plain(root/name),case/name)
                 env=thread_environment(case/'isolated-environment',threads)
-                for label,limit,argv in native_commands(binary,models,case,frozen,verified['frozenManifest']['sha256']):
+                for label,limit,argv in native_commands(binary,models,case,frozen,verified['frozenManifest']['sha256'],index_seconds=budgets['indexSeconds']):
                     entry={'case':case.name,'label':label,'requestedInferenceThreads':threads}
                     report['commands'].append(entry)
                     from calibration.windows_resource_measurement import measure_owned
@@ -314,6 +353,10 @@ def main():
     parser.add_argument('--sha256',required=True)
     parser.add_argument('--runtime-profile-sha256',required=True)
     parser.add_argument('--sample-working-set',action='store_true')
+    parser.add_argument('--overall-hours',type=int,default=OVERALL_SECONDS//3600,
+                        help='Finite total allowance, 1–48 hours (default: 36).')
+    parser.add_argument('--index-minutes',type=int,default=INDEX_SECONDS//60,
+                        help='Finite allowance for each fresh index, 1–360 minutes (default: 240).')
     args=parser.parse_args()
     report=run_matrix(args)
     print(json.dumps({k:report.get(k) for k in ('status','code','productionQualified')}),flush=True)

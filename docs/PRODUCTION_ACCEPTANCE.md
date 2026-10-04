@@ -121,8 +121,12 @@ shipping newer offline helpers requires new runtime and policy pins.
   with 66 local calibration guards passing. It uses completed pinned Mac
   gold, rotates three fresh trials each at 1/2/4 threads, retains all PC tensor
   bytes, records resource/cleanup receipts and reports full query differences.
-  Its first index is running; no case is recorded complete at 09:26 UTC and
-  it grants no qualification.
+  Its first index reached the original 90-minute bound at 688 locations, with
+  no saved fetch/inference/incomplete-location errors. Owned cleanup passed;
+  no case completed and it grants no qualification. The failed attempt is
+  preserved. A separate fresh attempt uses longer, explicitly finite allowances
+  without changing reference inputs, model/runtime or comparison requirements;
+  see [the matrix evidence](FULL_SCENE_REFERENCE_VERIFICATION.md).
   All six Community CI jobs pass with the matrix at `5d1bb33`. A private
   format-compatibility check verifies a copy of earlier actual 128-location PC
   output, retains its raw tensors and confirms the original files unchanged;

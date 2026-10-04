@@ -1,5 +1,6 @@
 """Finite matrix failure and transport guards; no inference or model downloads."""
 import hashlib
+from contextlib import contextmanager
 import json
 import os
 from pathlib import Path
@@ -10,6 +11,7 @@ from unittest.mock import patch
 
 from calibration import run_full_scene_matrix as matrix
 from calibration import test_full_scene_reference_transport as fixtures
+from community.desktop import DesktopError
 
 class FullSceneMatrixTests(unittest.TestCase):
     def setUp(self):
@@ -54,6 +56,73 @@ class FullSceneMatrixTests(unittest.TestCase):
 
     def test_rotated_order_has_three_fresh_cases_per_thread_count(self):
         self.assertEqual(list(matrix.rotated_cases()),[(1,1),(1,2),(1,4),(2,2),(2,4),(2,1),(3,4),(3,1),(3,2)])
+
+    def test_finite_time_budgets_are_recordable_and_not_unlimited(self):
+        self.assertEqual(matrix.time_budgets(self.args()),{'overallSeconds':129600,
+            'indexSeconds':14400,'searchSeconds':600,'automaticNativeRetry':False})
+        args=self.args()
+        args.overall_hours=2
+        args.index_minutes=100
+        self.assertEqual(matrix.time_budgets(args)['indexSeconds'],6000)
+        commands=matrix.native_commands(Path('binary'),self.root,self.root,self.root,'pin',index_seconds=6000)
+        self.assertEqual(commands[0][1],6000)
+        self.assertEqual(commands[1][1],600)
+        for hours,minutes in ((True,1),(0,1),(49,1),(1,True),(1,0),(48,361),(1,61),(2.5,1)):
+            args.overall_hours,args.index_minutes=hours,minutes
+            with self.subTest(hours=hours,minutes=minutes),self.assertRaises(matrix.MatrixError):
+                matrix.run_matrix(args)
+            self.assertFalse(args.out.exists())
+
+    def test_sleep_request_restoration_is_reported_when_native_work_fails(self):
+        restored=[]
+        @contextmanager
+        def awake():
+            try: yield
+            finally: restored.append(True)
+        report={}
+        saved=[]
+        with patch.object(matrix,'keep_awake',awake),self.assertRaisesRegex(RuntimeError,'native timeout'):
+            with matrix.observed_awake(report,lambda:saved.append(dict(report))):
+                self.assertIn('NOT_YET_CONFIRMED',report['wakeRequest'])
+                raise RuntimeError('native timeout')
+        self.assertEqual(restored,[True])
+        self.assertEqual(saved[-1]['wakeRequest'],'DIAGNOSTIC_THREAD_PREVIOUS_STATE_RESTORED')
+
+    def test_failed_sleep_release_never_reports_restoration_success(self):
+        @contextmanager
+        def awake():
+            try: yield
+            finally: raise DesktopError('keep_awake_release_failed')
+        report={}
+        with patch.object(matrix,'keep_awake',awake),self.assertRaises(DesktopError):
+            with matrix.observed_awake(report,lambda:None): pass
+        self.assertEqual(report['wakeRequest'],'DIAGNOSTIC_THREAD_PREVIOUS_STATE_RESTORE_FAILED')
+
+    def test_failed_sleep_request_never_reports_accepted_or_restored(self):
+        @contextmanager
+        def awake():
+            raise DesktopError('keep_awake_failed')
+            yield
+        report={}
+        with patch.object(matrix,'keep_awake',awake),self.assertRaises(DesktopError):
+            with matrix.observed_awake(report,lambda:None): self.fail('must not enter')
+        self.assertEqual(report['wakeRequest'],'SYSTEM_ONLY_REQUEST_NOT_ESTABLISHED')
+
+    def test_report_keeps_last_readable_receipt_on_interrupted_replace(self):
+        path=self.root/'last-report.json'
+        matrix.save_report(path,{'status':'INCOMPLETE','commands':[{'status':'STARTED'}]})
+        original=path.read_bytes()
+        with patch.object(Path,'replace',side_effect=PermissionError('interrupted replacement')):
+            with self.assertRaises(PermissionError): matrix.save_report(path,{'status':'FAILED'})
+        self.assertEqual(path.read_bytes(),original)
+        self.assertEqual(json.loads(path.with_suffix('.json.tmp').read_text())['status'],'FAILED')
+
+    def test_nonfinite_report_never_replaces_previous_receipt(self):
+        path=self.root/'last-report.json'
+        matrix.save_report(path,{'status':'INCOMPLETE'})
+        original=path.read_bytes()
+        with self.assertRaises(ValueError): matrix.save_report(path,{'cpuSeconds':float('nan')})
+        self.assertEqual(path.read_bytes(),original)
 
     def test_child_environment_keeps_no_saved_tokens_or_ambient_provider_tuning(self):
         with patch.dict(os.environ,{'GH_TOKEN':'do-not-forward','AWS_SECRET_ACCESS_KEY':'do-not-forward',
