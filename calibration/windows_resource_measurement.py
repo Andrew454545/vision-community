@@ -61,6 +61,8 @@ class MeasuredJob(owner._WindowsJob):
         self.assigned = True
 
     def close(self):
+        if not self.handle:
+            return  # Repeated cleanup must not overwrite an earlier wait failure.
         process_handles = []
         try:
             if self.handle and self.assigned and not self.measured:
@@ -142,6 +144,8 @@ def measure_owned(argv, *, receipt, **kwargs):
         receipt['nativeExitCode'] = result.returncode
         if receipt['status'] != 'MEASURED':
             raise OSError('windows_job_accounting_unavailable')
+        if not receipt['completeAfterOwnedCleanup']:
+            raise OSError('windows_job_cleanup_unverified')
         return result
     finally:
         owner._make_job = original_factory
