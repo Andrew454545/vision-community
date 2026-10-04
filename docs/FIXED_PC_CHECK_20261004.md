@@ -69,6 +69,11 @@ source snapshot; its installed-copy guard imports and runs that generator.
 The complete local Windows suite passes 441 tests in 205.074 seconds, with two
 existing filesystem-link permission skips. Fifty-three targeted canary,
 release, verifier and guided-flow tests also pass.
+The first post-push Windows CI ran 441 tests and failed only the installed-copy
+path guard on a shortened Windows temporary path. Its log remains private.
+The guard now resolves the snapshot and module paths before checking containment;
+all fifteen local launcher/recovery tests pass after that test-only repair.
+Full CI validation of the repaired commit is tracked separately.
 
 No production policy or updated runtime package was published. Fixed input
 success cannot verify later live contributions or remove live imagery drift;
