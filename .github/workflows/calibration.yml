@@ -22,3 +22,11 @@ jobs:
       - name: Actual Windows scene executable and DLL layout check
         if: runner.os == 'Windows'
         run: python -B calibration/smoke_windows_runtime.py
+      - name: Preserve native startup evidence, including failed attempts
+        uses: actions/upload-artifact@v4
+        if: always() && runner.os == 'Windows'
+        with:
+          name: windows-scene-layout-smoke-evidence
+          path: ${{ runner.temp }}/vision-windows-layout-*/
+          retention-days: 7
+          if-no-files-found: warn
