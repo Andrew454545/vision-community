@@ -73,7 +73,8 @@ The first post-push Windows CI ran 441 tests and failed only the installed-copy
 path guard on a shortened Windows temporary path. Its log remains private.
 The guard now resolves the snapshot and module paths before checking containment;
 all fifteen local launcher/recovery tests pass after that test-only repair.
-Full CI validation of the repaired commit is tracked separately.
+All five Community CI jobs pass at `1da831f`. The complete Windows CI rerun
+passes all 441 tests without skips in 227.215 seconds.
 
 No production policy or updated runtime package was published. Fixed input
 success cannot verify later live contributions or remove live imagery drift;
