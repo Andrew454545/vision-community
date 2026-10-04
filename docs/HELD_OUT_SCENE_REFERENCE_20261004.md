@@ -76,8 +76,10 @@ maximum relative L2 `0.020433435522`. Both cases complete their masks/checkpoint
 and all 1,344 tensor transports. No failed comparison is counted as approval.
 
 Thus a recent source/reference pair alone cannot make a reliable identical-input
-starter check. An immutable-input check must be developed separately, without
-publishing private calibration imagery or weakening contribution verification.
+starter check. The separate [fixed synthetic starter check](FIXED_PC_CHECK_20261004.md)
+now passes fresh PC diagnostics without publishing private calibration imagery
+or weakening contribution verification. Its production policy and distribution
+remain separate release requirements.
 The isolation receipt SHA-256 is
 `1e3557e98e2ba4b573858b7c631dfab62a44a695431dbc758b208e5147e42f71`.
 

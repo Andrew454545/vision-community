@@ -58,7 +58,7 @@ class WindowsLauncherTest(unittest.TestCase):
         (source / "windows/Start-Vision.ps1").write_bytes(LAUNCHER.read_bytes())
         for name in ("community/desktop.py", "community/bootstrap.py", "community/vision_index.py", "community/process_owner.py", "community/submission_outbox.py",
                      "community/runtime_manifest.json", "community/desktop_web/index.html",
-                     "calibration/run_windows.py", "calibration/quality.py",
+                     "calibration/run_windows.py", "calibration/quality.py", "calibration/synthetic_canary.py",
                      "calibration/gen4-v1/checksums.json"):
             target = source / name
             target.parent.mkdir(parents=True, exist_ok=True)
@@ -120,7 +120,7 @@ class WindowsLauncherTest(unittest.TestCase):
             private.mkdir()
             public = ["community/desktop.py", "community/bootstrap.py", "community/vision_index.py", "community/process_owner.py", "community/submission_outbox.py",
                       "community/runtime_manifest.json", "community/desktop_web/index.html",
-                      "calibration/run_windows.py", "calibration/quality.py", "calibration/gen4-v1/checksums.json"]
+                      "calibration/run_windows.py", "calibration/quality.py", "calibration/synthetic_canary.py", "calibration/gen4-v1/checksums.json"]
             secrets = [".git/config", ".env", "community/.data/account.json", "community/tests/test_private.py",
                        "community/credentials.json", "node_modules/private.txt"]
             for name in public + secrets:
@@ -150,7 +150,9 @@ class WindowsLauncherTest(unittest.TestCase):
             # every Community dependency must come from the packaged snapshot.
             code = ("import sys; from pathlib import Path; "
                     "root = Path(" + repr(str(snapshot)) + "); sys.path.insert(0, str(root)); "
-                    "import community.desktop, community.background; "
+                    "import community.desktop, community.background, calibration.synthetic_canary; "
+                    "assert Path(calibration.synthetic_canary.__file__).is_relative_to(root); "
+                    "assert len(calibration.synthetic_canary.image_bytes(0, 0)) == 224 * 224 * 3; "
                     "assert all(Path(module.__file__).is_relative_to(root) for name, module in sys.modules.items() "
                     "if name == 'community' or name.startswith('community.'))")
             result = subprocess.run([sys.executable, "-I", "-B", "-c", code], capture_output=True, text=True, timeout=30)

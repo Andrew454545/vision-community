@@ -59,7 +59,7 @@ class ReleasedCanaryTests(unittest.TestCase):
                 changed['dataset'][name][key] = bad
                 with self.subTest(name=name, key=key, bad=bad), self.assertRaisesRegex(ValueError, 'invalid_canary_dataset'):
                     canary.CanaryPolicy(changed)
-        for version in (True, '2', 3):
+        for version in (True, '2', 4):
             with self.assertRaisesRegex(ValueError, 'invalid_canary_policy'):
                 canary.CanaryPolicy({**self.document, 'version': version})
 

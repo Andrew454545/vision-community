@@ -45,14 +45,14 @@ function Get-VisionSourceFiles([string]$Source) {
     $relative = @($modules | ForEach-Object { 'community/{0}.py' -f $_ })
     $relative += @('community/runtime_manifest.json', 'community/country-names.txt',
         'community/desktop_web/index.html', 'community/desktop_web/style.css', 'community/desktop_web/app.js',
-        'calibration/run_windows.py', 'calibration/quality.py')
+        'calibration/run_windows.py', 'calibration/quality.py', 'calibration/synthetic_canary.py')
     $relative += @('checksums.json', 'canary-112.tsv', 'fixture-1024.tsv', 'fixture-manifest.json',
         'generation-evidence.json', 'historical-reference.i8', 'local-vision-observation.json',
         'record-hashes.json') | ForEach-Object { "calibration/gen4-v1/$_" }
     Assert-VisionRegularPath $Source
     $required = @('community/desktop.py', 'community/bootstrap.py', 'community/vision_index.py', 'community/process_owner.py',
         'community/runtime_manifest.json', 'community/desktop_web/index.html', 'community/submission_outbox.py',
-        'calibration/run_windows.py', 'calibration/quality.py', 'calibration/gen4-v1/checksums.json')
+        'calibration/run_windows.py', 'calibration/quality.py', 'calibration/synthetic_canary.py', 'calibration/gen4-v1/checksums.json')
     foreach ($name in $relative | Sort-Object -Unique) {
         $path = Join-Path $Source $name
         if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {

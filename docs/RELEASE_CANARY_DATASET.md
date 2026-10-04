@@ -3,10 +3,10 @@
 Operator guide. Users keep the same **Set up this PC → Run PC check** flow.
 Do not rewrite the historical calibration fixture to make a new check pass.
 
-Policy version 2 can select a separately pinned 112-location source and matching
-reference. It retains the exact-runtime, completed full-calibration and explicit
-quality-limit requirements of version 1. A policy's hash must come from the
-trusted release; making a local policy does not grant server approval.
+Policy versions 2 and 3 select a separately pinned 112-location source and
+matching reference. Both retain the exact-runtime, completed full-calibration
+and explicit quality-limit requirements of version 1. A policy's hash must come
+from the trusted release; making a local policy does not grant server approval.
 
 Add these fields to that policy:
 
@@ -48,7 +48,42 @@ Each check indexes a private copy of the verified source. Changed runtime,
 source or reference bytes during the run invalidate the result and remove the
 submission packet. The independent service still decides qualification.
 
-**This version retrieves live imagery. It does not freeze pixels.** Refreshing
+## Fixed inputs for version 3
+
+Version 3 sets `version` to `3` and adds this object inside `dataset`:
+
+```json
+"syntheticInputs": {
+  "generatorVersion": 1,
+  "generatorSha256": "<trusted generator code SHA-256>",
+  "manifestSha256": "<verified generated input manifest SHA-256>"
+}
+```
+
+The pinned generator creates 448 nonphotographic RGB inputs locally from the
+pinned source and model inventory. The reference must come from an independently
+verified run on these exact inputs. The native check uses the FP32 scene graph,
+the ordinary sixteen-image batch size and the requested shared thread pool.
+It checks graph/model/source evidence, complete views and tensors, errors and
+saved-index masks. Generator, manifest and RGB bytes are checked before and
+after processing. Incomplete or changed inputs retain a failed report without
+a submission packet or local approval.
+
+This check retrieves no live imagery; the CLI needs no live-imagery consent for
+version 3. It retains the same guided setup and independent service approval
+flow. The existing three release assets are still required. A successful fixed
+check neither approves a runtime without its full 1,024-location qualification
+nor verifies the provenance of later live contributions.
+
+Each attempt requires at least 1 GiB free space and caps native study evidence
+at 384 MiB. Reports and failures remain private. Long-term attempt cleanup and
+release distribution remain open requirements; these checks do not establish
+a hard storage quota. No version-3 production policy or runtime release is
+published by this code change.
+
+## Why live inputs remain separate
+
+**Version 2 retrieves live imagery. It does not freeze pixels.** Refreshing
 the reference cannot guarantee repeatable images or establish runtime parity.
 Keep source drift and numerical differences separate; do not weaken limits
 automatically. The new 112-location diagnostic finished but fell outside the
@@ -56,5 +91,7 @@ predeclared cosine limit, with minimum `0.999840435671` and maximum relative L2
 `0.017863811758`. It remains unqualified. Subsequent isolation passes with the
 fixed images at the ordinary sixteen-image batch size; fetching again changes
 41 image views and fails both limits. See [the comparison](HELD_OUT_SCENE_REFERENCE_20261004.md).
-Immutable starter inputs remain a separate release requirement. No version-2
-production policy or refreshed release assets have been published by this change.
+Version 3 provides the fixed starter path. No version-2 production policy or
+refreshed release assets have been published. Trusted imagery identity for live
+contribution audits remains a separate requirement; a fixed starter check cannot
+remove changes in subsequently retrieved photographs.
