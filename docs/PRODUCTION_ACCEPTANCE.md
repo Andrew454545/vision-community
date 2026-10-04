@@ -200,6 +200,13 @@ Scenes setup. Mac qualification cannot borrow the Windows released policy.
 Actual Mac bootstrap/window CI is separate from native model, inference,
 admission and unattended-processing acceptance; none of those gates is closed
 by introducing the launcher.
+All seven Community CI jobs pass at `f200767`, including 501 Windows application
+tests without skips and the actual Mac setup/recovery/window check with 37
+guards without skips. The next private Mac Scenes/Objects CPU build jobs are
+prepared but were refused before startup by GitHub's Actions budget; the account
+owner must increase the applicable budget before retrying those finite jobs.
+Their preserved startup failure does not constitute a native build failure or
+processing approval. Staging and the existing public preview remain unchanged.
 
 - [ ] Finish the guided Scenes / Objects / Both choice on both Windows and Mac,
   with separate trusted qualification, delivery recovery and earned-credit
