@@ -43,7 +43,7 @@ The previous chronological development log remains in
 | Beginner flow | Short README/website guide, guided Windows starter, qualification/service checks, saved-code recovery, pause/resume and private diagnostics. Website assets/privacy headers verified in staging. | [Service readiness](WEBSITE_SERVICE_READINESS.md) |
 | Background worker | Native scheduled startup, idle handover and idle forced-exit/pause/resume verified. Installed schedule: medium 06:00–00:00, max 00:00–06:00 local; saved account, 30-minute service retry, sign-in/recovery triggers and one worker. | [Background processing](BACKGROUND_PROCESSING.md) |
 
-Community CI passes all six jobs at `5d1bb33`, including the repaired Mac
+Community CI passes all six jobs at `5340f74`, including the repaired Mac
 ownership job. The cleanup repair passes 465 local Windows
 tests in 225.461 seconds (two existing filesystem-link permission skips), 28
 ownership/resource guards and all 51 calibration guards. Two fresh actual
@@ -57,6 +57,10 @@ retry still awards once. Gateway accounting/privacy, deletion archive,
 maintenance, restore SQL and independent verifier regressions also pass.
 See [reply-boundary evidence](VERIFIER_REPLY_BOUNDARIES_20261004.md). The existing
 private-host coverage remains 37 workerd and 15 private HTTP/preparation checks.
+The checked-in staging config now uses the independently read-back, confirmed
+account/database/bucket pair; the retired release-staging mapping was removed.
+An offline resource/admission preflight and matching staging dry-run build pass.
+Three resource-mix/override guards bring local JavaScript coverage to 209 tests.
 The source-only Windows
 preview retains its tested `4e53420` revision, with actual progress, pending-work
 and reconnect notices. New fixed-check code is recorded separately from that
