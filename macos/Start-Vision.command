@@ -68,7 +68,7 @@ phase=storage
 [[ $(df -Pk "$root" | awk 'NR==2 {print $4}') -ge 3145728 ]] || { printf 'Free at least 3 GB, then try again.\n'; exit 1; }
 phase=private_python
 archive_sha=d15291f940cfecd2e54010d5e37d2e03aa192f076a65d26ab741372fff2dabfe
-inventory_sha=878935ae4a1cb2a33cf7fee17e0ea020b754a4c9a25d8422961c2aeb44e4824b
+inventory_sha=a0f5d70672a69e5f34433bc7f2de43a2c85443af610007711d20f00334fc0c0d
 downloads="$root/downloads"
 private="$root/python-3.14.8-20261003-arm64"
 regular_path "$downloads" && regular_path "$private"

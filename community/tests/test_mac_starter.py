@@ -2,6 +2,7 @@
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import shutil
 import subprocess
@@ -21,6 +22,16 @@ class MacStarterTests(unittest.TestCase):
         temp=tempfile.TemporaryDirectory();self.addCleanup(temp.cleanup)
         self.root=Path(temp.name).resolve()
         self.app=self.root/'private';self.app.mkdir()
+
+    def test_checked_in_interpreter_inventory_matches_launcher_and_archive_pins(self):
+        body=(REPO/'macos/python-arm64-inventory.json').read_bytes()
+        script=(REPO/'macos/Start-Vision.command').read_text(encoding='utf-8')
+        self.assertNotIn(b'\r',body)
+        self.assertEqual(re.search(r'^inventory_sha=([a-f0-9]{64})$',script,re.M).group(1),hashlib.sha256(body).hexdigest())
+        pins=json.loads(body)
+        self.assertEqual(pins['archiveSha256'],re.search(r'^archive_sha=([a-f0-9]{64})$',script,re.M).group(1))
+        self.assertEqual((pins['platform'],pins['archiveBytes'],len(pins['files']),len(pins['links'])),
+            ('darwin-arm64',26798928,1689,9))
 
     def test_public_source_only_snapshot_is_verified_and_reused(self):
         target,digest=starter.copy_source(REPO,self.app)

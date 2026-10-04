@@ -28,13 +28,13 @@ async function screen() {
   return { scope, element, setUnavailable(value) { unavailable = value; } };
 }
 
-test("PC check and current-batch progress use actual totals and never imply accepted credit", async () => {
+test("computer check and current-batch progress use actual totals and never imply accepted credit", async () => {
   const { scope, element } = await screen();
   scope.render(state({ phase: "checking", busy: true, qualified: false, batchTotal: 112, batchCompleted: 48 }));
   assert.equal(element("batch-progress").hidden, false);
   assert.equal(element("progress").max, 112);
   assert.equal(element("progress").value, 48);
-  assert.match(element("progress-label").textContent, /PC check: 48 of 112/);
+  assert.match(element("progress-label").textContent, /Computer check: 48 of 112/);
   scope.render(state({ phase: "indexing", busy: true, batchTotal: 8, batchCompleted: 8, pending: 1, stopping: true }));
   assert.equal(element("progress").max, 8);
   assert.equal(element("progress").value, 8);
@@ -48,6 +48,18 @@ test("PC check and current-batch progress use actual totals and never imply acce
   assert.equal(element("batch-progress").hidden, true);
   assert.equal(element("pending").hidden, true);
   assert.equal(element("elapsed").textContent, "—");
+});
+
+test("Windows automatic-processing instructions appear only with the local platform capability", async () => {
+  const { scope, element } = await screen();
+  for (const supported of [true, false, undefined]) {
+    scope.render(state({ backgroundAvailable: supported }));
+    assert.equal(element("windows-background").hidden, supported !== true);
+    assert.equal(element("mac-background").hidden, supported === true);
+  }
+  const html = readFileSync(new URL("../../../community/desktop_web/index.html", import.meta.url), "utf8");
+  assert.match(html, /id="windows-background" hidden/);
+  assert.match(html, /id="mac-background" hidden/);
 });
 
 test("unknown, stale or invalid totals do not display misleading progress", async () => {
