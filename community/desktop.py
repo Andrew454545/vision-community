@@ -382,8 +382,7 @@ class DesktopApp:
             self.resume_submissions()
             result = self.indexer(url=self.url, pace="slow", batches=1, count=16, client=self.client,
                                   persist_session=False, work_dir=self.root / "indexes",
-                                  binary=self.root / "runtime/bin/mma-vision.exe",
-                                  model_dir=self.root / "runtime/models/siglip-b16-224-canonical",
+                                  **self.assets,
                                   use_nice=False, progress_callback=self.progress)
             accepted = int(result.get("accepted", 0))
             if not result.get("batches"):
