@@ -1,9 +1,10 @@
-"""Private, loopback-only guided scene contributor. No third-party packages."""
+"""Private, loopback-only guided contributor. No third-party packages."""
 from __future__ import annotations
 
 import argparse
 import hmac
 import json
+import math
 import os
 from pathlib import Path
 import secrets
@@ -24,9 +25,16 @@ from community.vision_index import (default_runner, index_from_queue, parse_json
 from community.pc_canary import (run_canary, canary_profile_matches, released_canary_policy,
                                  compact_approved_canary)
 from community.delivery import DurableCommunityClient
+from community.work_plan import WorkPlan
+from community.object_index import index_from_queue as object_index_from_queue
 
 WEB = Path(__file__).with_name("desktop_web")
 ERRORS = {
+    "invalid_work_selection": "Your saved work choice could not be read safely. Your files are kept for review.",
+    "unfinished_lane_needs_recovery": "An unfinished batch needs to resume first. Keep the current work choice until that batch finishes.",
+    "object_pc_check_unavailable": "The Object computer check is not available yet. Choose Scenes, or wait for the Object release.",
+    "object_pc_check_required": "Run and pass the Object computer check before processing Objects.",
+    "object_qualification_rejected": "The service did not approve the Object check. Its report is saved for review.",
     "schema_update_required": "The service is being updated. Your saved work is kept. Try again later.",
     "rate_limit_unavailable": "The service is temporarily unavailable. Your saved work is kept. Try again later.",
     "service_maintenance": "The service is being updated. Your saved work is kept. Try again later.",
@@ -76,16 +84,21 @@ class DesktopError(RuntimeError):
 
 
 class DesktopClient(DurableCommunityClient):
-    """Bind each Scene lease to the configuration checked on this computer."""
+    """Bind each lease to that lane's configuration checked on this computer."""
     def __init__(self, url):
         super().__init__(url)
         self.profile_id = None
+        self.object_profile_id = None
 
     def request(self, method, path, body=None):
         if method == "POST" and path == "/api/leases" and body and body.get("lane") == "scene":
             if not self.profile_id:
                 raise DesktopError("pc_check_required")
             body = {**body, "profileId": self.profile_id}
+        if method == "POST" and path == "/api/leases" and body and body.get("lane") == "object":
+            if not self.object_profile_id:
+                raise DesktopError("object_pc_check_required")
+            body = {**body, "profileId": self.object_profile_id}
         return super().request(method, path, body)
 
 
@@ -98,13 +111,20 @@ def public_error(error):
 
 class DesktopApp:
     def __init__(self, root: Path, *, url=DEFAULT_URL, client_factory=DesktopClient,
-                 indexer=index_from_queue, canary=run_canary, profile_matches=canary_profile_matches):
+                 indexer=index_from_queue, canary=run_canary, profile_matches=canary_profile_matches,
+                 object_indexer=object_index_from_queue, object_canary=None, object_profile_matches=None):
         self.root = root.resolve()
         self.root.mkdir(parents=True, exist_ok=True)
         self.url, self.client_factory, self.indexer = url, client_factory, indexer
         self.canary, self.profile_matches = canary, profile_matches
+        self.object_indexer = object_indexer
+        self.object_canary, self.object_profile_matches = object_canary, object_profile_matches
+        self.work_plan = WorkPlan(self.root)
+        self.object_canary_report = None
+        self.object_qualification = None
         self.lock = threading.RLock()
         self.operation = threading.Lock()
+        self.batch_operation = threading.Lock()
         self.stop = threading.Event()
         self.client = None
         self.canary_report = None
@@ -113,17 +133,55 @@ class DesktopApp:
             self.canary_report = json.loads((self.root / "pc-check.json").read_text(encoding="utf-8"))
         except (OSError, ValueError):
             pass
+        try:
+            self.object_canary_report = json.loads((self.root / "object-pc-check.json").read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            pass
         self.last_seen = time.monotonic()
         self.state = dict(ready=False, connected=False, savedCode=False, busy=False,
                           phase="setup", message="Prepare this computer to begin.", completed=0,
                           units=0, batchCompleted=0, batchTotal=16, started=None,
                           stopping=False, serviceReady=False, qualified=False, pending=0, undelivered=0,
                           backgroundAvailable=sys.platform == 'win32')
+        self.state.update(workType=self.work_plan.work_type, activeLane=None,
+                          laneApprovals={"scene": False, "object": False},
+                          laneAvailability={"scene": None, "object": False})
 
     @property
     def assets(self):
         return {"binary": self.root / "runtime/bin" / program_name("mma-vision"),
                 "model_dir": self.root / "runtime/models/siglip-b16-224-canonical"}
+
+    @property
+    def object_assets(self):
+        folder = "bin" if sys.platform == "win32" else "object-runtime"
+        return {"binary": self.root / "runtime" / folder / program_name("vision-object"),
+                "model_dir": self.root / "runtime/models/object-hybrid-v1"}
+
+    def select_work(self, work_type):
+        if not self.operation.acquire(blocking=False):
+            raise DesktopError("busy")
+        batch_locked = False
+        try:
+            if not self.batch_operation.acquire(blocking=False):
+                raise DesktopError("busy")
+            batch_locked = True
+            self.work_plan.select(work_type)
+            self.update(workType=work_type, ready=False, qualified=False, phase="setup",
+                        message="Work choice saved. Set up this computer for the selected work.")
+        finally:
+            if batch_locked:
+                self.batch_operation.release()
+            self.operation.release()
+
+    def reload_work_plan(self):
+        # Read under the shared folder lock before owning any native work.
+        self.work_plan = WorkPlan(self.root)
+        self.update(workType=self.work_plan.work_type)
+
+    def update_approvals(self):
+        approvals = {"scene": self.qualification is not None, "object": self.object_qualification is not None}
+        self.update(laneApprovals=approvals, qualified=all(approvals[lane] for lane in self.work_plan.lanes))
 
     def update(self, **values):
         with self.lock:
@@ -162,7 +220,7 @@ class DesktopApp:
                 self.record_failure(error)
                 self.update(phase="error", message=public_error(error))
             finally:
-                self.update(busy=False, stopping=False, started=None)
+                self.update(busy=False, stopping=False, started=None, activeLane=None)
                 self.operation.release()
         thread = threading.Thread(target=work, name="vision-desktop-job", daemon=False)
         thread.start()
@@ -170,19 +228,28 @@ class DesktopApp:
 
     def prepare(self):
         self.qualification = None
+        self.object_qualification = None
+        if self.client:
+            self.client.profile_id = None
+            self.client.object_profile_id = None
+        self.update_approvals()
         self.update(qualified=False)
         self.update(phase="download", message="Checking processing files. Downloads may take a few minutes.", ready=False)
         if runtime_platform() not in {"windows-x86_64", "darwin-arm64"}:
             raise BootstrapError("unsupported_platform")
+        if "object" in self.work_plan.lanes:
+            self.capabilities(self.client or self.client_factory(self.url))
         manifest = load_manifest()
-        install_runtime(manifest, self.root / "runtime", lane="scene",
+        lane = "all" if self.work_plan.work_type == "both" else self.work_plan.work_type
+        install_runtime(manifest, self.root / "runtime", lane=lane,
                         progress=lambda n, total: self.update(message=f"Checking and downloading file {n} of {total}. Please keep this window open."))
-        self.release_pc_check(manifest)
-        binary = self.assets['binary']
-        code, stdout, _ = default_runner([str(binary), "index-layout"], os.environ.copy(), self.root)
-        if code:
-            raise VisionIndexError("vision_binary_failed")
-        require_layout(parse_json_stdout(stdout))
+        if "scene" in self.work_plan.lanes:
+            self.release_pc_check(manifest)
+            binary = self.assets['binary']
+            code, stdout, _ = default_runner([str(binary), "index-layout"], os.environ.copy(), self.root)
+            if code:
+                raise VisionIndexError("vision_binary_failed")
+            require_layout(parse_json_stdout(stdout))
         self.update(ready=True, phase="ready", message="Setup complete. Go to step 2 to create an account or use your saved code.")
 
     def release_pc_check(self, manifest=None):
@@ -200,9 +267,21 @@ class DesktopApp:
                 raise DesktopError("scene_verification_unavailable") from error
             raise
         scene = value.get("sceneContributions", {}) if isinstance(value, dict) else {}
-        if status != 200 or not isinstance(value, dict) or value.get("version") != 1 or scene.get("model") != "vision-four-view-v4" or scene.get("ready") is not True or scene.get("deviceQualificationRequired") is not True or scene.get("canaryLocations") != 112:
+        objects = value.get("objectContributions", {}) if isinstance(value, dict) else {}
+        scene_ready = (isinstance(scene, dict) and scene.get("model") == "vision-four-view-v4"
+                       and scene.get("ready") is True and scene.get("deviceQualificationRequired") is True
+                       and scene.get("canaryLocations") == 112)
+        object_ready = (isinstance(objects, dict) and objects.get("model") == "vision-object-index-v4"
+                        and objects.get("ready") is True and objects.get("deviceQualificationRequired") is True
+                        and objects.get("officialGen4Required") is True
+                        and self.object_canary is not None and self.object_profile_matches is not None)
+        self.update(laneAvailability={"scene": scene_ready, "object": object_ready})
+        if status != 200 or not isinstance(value, dict) or value.get("version") != 1 or "scene" in self.work_plan.lanes and not scene_ready:
             self.update(serviceReady=False)
             raise DesktopError("scene_verification_unavailable")
+        if "object" in self.work_plan.lanes and not object_ready:
+            self.update(serviceReady=False)
+            raise DesktopError("object_verification_unavailable")
         self.update(serviceReady=True)
 
     def connect(self, code=None, *, create=False):
@@ -222,14 +301,21 @@ class DesktopApp:
             client.enable_outbox(self.root / "indexes", me.get("accountId"))
             self.client = client
             self.qualification = None
+            self.object_qualification = None
             self.update(connected=True, savedCode=not create, phase="ready", units=int(me.get("units", 0)),
                         qualified=False, pending=client.pending, undelivered=client.undelivered,
                         message="Account connected. Run the short computer check next.")
-            if self.canary_report and self.profile_matches(self.canary_report, **self.assets):
+            if "scene" in self.work_plan.lanes and self.canary_report and self.profile_matches(self.canary_report, **self.assets):
                 profile = self.canary_report["runtimeProfile"]["sha256"]
                 _, previous, _ = client.request("GET", "/api/scene-qualifications?profileId=" + profile)
-                if self.set_qualification(previous):
-                    self.update(message="This computer's existing approval is current. You can start indexing.")
+                self.set_qualification(previous)
+            if ("object" in self.work_plan.lanes and self.object_canary_report and self.object_profile_matches
+                    and self.object_profile_matches(self.object_canary_report, **self.object_assets)):
+                profile = self.object_canary_report["runtimeProfile"]["sha256"]
+                _, previous, _ = client.request("GET", "/api/object-qualifications?profileId=" + profile)
+                self.set_object_qualification(previous)
+            if self.snapshot()["qualified"]:
+                self.update(message="This computer's existing approvals are current. You can start helping.")
             return {"recoveryCode": account.get("recoveryCode")} if create else {"connected": True}
         finally:
             self.update(busy=False)
@@ -246,16 +332,34 @@ class DesktopApp:
 
     def set_qualification(self, value):
         profile = (self.canary_report or {}).get("runtimeProfile", {}).get("sha256")
-        if (not isinstance(value, dict) or value.get("qualified") is not True
+        if (not isinstance(value, dict) or value.get("qualified") is not True or not profile
                 or value.get("profileId") != profile
                 or type(value.get("expiresAt")) not in (int, float)
-                or not time.time() < value["expiresAt"]):
+                or not math.isfinite(value["expiresAt"]) or not time.time() < value["expiresAt"]):
             self.qualification = None
-            self.update(qualified=False)
+            if self.client:
+                self.client.profile_id = None
+            self.update_approvals()
             return False
         self.qualification = value
         self.client.profile_id = profile
-        self.update(qualified=True)
+        self.update_approvals()
+        return True
+
+    def set_object_qualification(self, value):
+        profile = (self.object_canary_report or {}).get("runtimeProfile", {}).get("sha256")
+        if (not isinstance(value, dict) or value.get("qualified") is not True or not profile
+                or value.get("lane") != "object" or value.get("profileId") != profile
+                or type(value.get("expiresAt")) not in (int, float)
+                or not math.isfinite(value["expiresAt"]) or not time.time() < value["expiresAt"]):
+            self.object_qualification = None
+            if self.client:
+                self.client.object_profile_id = None
+            self.update_approvals()
+            return False
+        self.object_qualification = value
+        self.client.object_profile_id = profile
+        self.update_approvals()
         return True
 
     def check_pc(self):
@@ -264,7 +368,21 @@ class DesktopApp:
 
     def qualify(self):
         self.capabilities(self.client)
+        notices = []
+        for lane in self.work_plan.lanes:
+            if lane == "scene":
+                notice = self.qualify_scene()
+                if notice:
+                    notices.append(notice)
+            else:
+                self.qualify_object()
+        self.update(activeLane=None, phase="ready", message="Computer approved for your selected work. Go to step 4 and choose Start helping." +
+                    (" " + " ".join(notices) if notices else ""))
+
+    def qualify_scene(self):
+        self.capabilities(self.client)
         self.qualification = None
+        self.update_approvals()
         self.update(qualified=False, phase="checking", started=time.monotonic(),
                     batchCompleted=0, batchTotal=112,
                     message="Checking 112 locations on this computer. Please keep this window open.")
@@ -279,26 +397,76 @@ class DesktopApp:
         _, decision, _ = self.client.request("POST", "/api/scene-qualifications", self.canary_report["submission"])
         if not self.set_qualification(decision):
             raise DesktopError("scene_qualification_rejected")
-        message = "Computer approved. Go to step 4 and choose Start helping."
+        message = "Scene computer check approved. Your selected work can start after every required check passes."
+        cleanup_notice = None
         try:
             compact_approved_canary(folder, self.canary_report, decision, policy)
         except Exception as error:
             # Approval stands; cleanup failure must not erase evidence or rerun inference.
-            message = "Computer approved. Temporary check files could not be fully cleared; the cleanup report was kept. You can start helping."
+            message = "Scene check approved. Temporary check files could not be fully cleared; the cleanup report was kept."
+            cleanup_notice = message
             try:
                 (self.root/'pc-check-cleanup-failure.json').write_text(json.dumps({
                     'status':'INCOMPLETE', 'errorType':type(error).__name__,
                     'code':'pc_check_temporary_cleanup_incomplete'}, indent=2), encoding='utf-8')
             except OSError:
-                message = "Computer approved. Temporary file cleanup was interrupted. Check your free space before continuing."
+                message = "Scene check approved. Temporary file cleanup was interrupted. Check your free space before continuing."
+                cleanup_notice = message
         self.update(phase="ready", message=message, batchCompleted=0, batchTotal=16)
+        return cleanup_notice
+
+    def qualify_object(self):
+        if self.object_canary is None or self.object_profile_matches is None:
+            raise DesktopError("object_pc_check_unavailable")
+        self.object_qualification = None
+        self.update_approvals()
+        self.update(phase="checking", activeLane="object", started=time.monotonic(),
+                    batchCompleted=0, batchTotal=0, message="Checking the Object processing files and fixed reference inputs.")
+        folder = self.root / "object-checks" / (time.strftime("%Y%m%d-%H%M%S") + "-" + secrets.token_hex(4))
+        report = self.object_canary(folder, **self.object_assets, progress_callback=self.progress)
+        if (not isinstance(report, dict) or report.get("status") != "COMPLETE"
+                or not self.object_profile_matches(report, **self.object_assets)):
+            raise DesktopError("canary_failed")
+        self.object_canary_report = report
+        (self.root / "object-pc-check.json").write_text(json.dumps(report), encoding="utf-8")
+        _, decision, _ = self.client.request("POST", "/api/object-qualifications", report["submission"])
+        if not self.set_object_qualification(decision):
+            raise DesktopError("object_qualification_rejected")
+        self.update(phase="ready", activeLane=None, message="Object computer check approved. Your selected work can start after every required check passes.")
 
     def require_qualification(self):
         self.require_account()
-        if (not self.profile_matches(self.canary_report, **self.assets)
+        if "scene" in self.work_plan.lanes and (not self.profile_matches(self.canary_report, **self.assets)
                 or not self.set_qualification(self.qualification)):
             self.update(qualified=False)
             raise DesktopError("pc_check_required")
+        if "object" in self.work_plan.lanes and (not self.object_profile_matches
+                or not self.object_profile_matches(self.object_canary_report, **self.object_assets)
+                or not self.set_object_qualification(self.object_qualification)):
+            raise DesktopError("object_pc_check_required")
+
+    def run_batch(self, *, progress_callback=None):
+        if not self.batch_operation.acquire(blocking=False):
+            raise DesktopError("busy")
+        try:
+            self.require_qualification()
+            lane = self.work_plan.begin()
+            self.update(activeLane=lane, batchCompleted=0, batchTotal=0,
+                        message=("Processing a Scene batch." if lane == "scene" else
+                                 "Processing an Object location. This can take several minutes; please keep VISION open."))
+            indexer = self.indexer if lane == "scene" else self.object_indexer
+            arguments = dict(url=self.url, pace="slow", batches=1, count=16 if lane == "scene" else 1,
+                             client=self.client, persist_session=False, use_nice=False,
+                             work_dir=self.root / ("indexes" if lane == "scene" else "object-indexes"),
+                             **(self.assets if lane == "scene" else self.object_assets))
+            if lane == "scene" and progress_callback:
+                arguments["progress_callback"] = progress_callback
+            result = indexer(**arguments)
+            self.work_plan.finish(lane)
+            return result
+        finally:
+            self.update(activeLane=None)
+            self.batch_operation.release()
 
     def start(self):
         self.require_account()
@@ -314,19 +482,21 @@ class DesktopApp:
         self.capabilities(self.client)
         self.update(phase="indexing", message="Processing locations on this computer. Results wait for a service check before joining the search pool.",
                     batchCompleted=0, batchTotal=0, started=time.monotonic())
+        empty_lanes = set()
         while not self.stop.is_set():
             if time.monotonic() - self.last_seen > 60:
                 break
-            self.require_qualification()
             self.resume_submissions()
-            result = self.indexer(url=self.url, pace="slow", batches=1, count=16, client=self.client,
-                                  persist_session=False, work_dir=self.root / "indexes",
-                                  **self.assets,
-                                  use_nice=False, progress_callback=self.progress)
+            lane = self.work_plan.next_lane
+            result = self.run_batch(progress_callback=self.progress)
             accepted = int(result.get("accepted", 0))
             if not result.get("batches"):
-                self.update(phase="ready", message="There are no available locations right now. You can check again later.")
-                return
+                empty_lanes.add(lane)
+                if all(selected in empty_lanes for selected in self.work_plan.lanes):
+                    self.update(phase="ready", message="There are no available locations right now. You can check again later.")
+                    return
+                continue
+            empty_lanes.discard(lane)
             with self.lock:
                 self.state["completed"] += accepted
                 self.state["pending"] = int(getattr(self.client, "pending", 0))
@@ -396,6 +566,8 @@ def handler_for(app: DesktopApp, token: str):
                 result = {"ok": True}
                 if self.path == "/api/prepare":
                     app.launch(app.prepare)
+                elif self.path == "/api/work-type":
+                    app.select_work(body.get("workType"))
                 elif self.path == "/api/connect":
                     result = app.connect(body.get("code"), create=body.get("create") is True)
                 elif self.path == "/api/saved-code":
@@ -444,6 +616,7 @@ def main():
         guard.close()
         print("VISION is already open. Use the existing VISION window.")
         return
+    app.reload_work_plan()
     if args.prepare_only:
         try:
             app.prepare()

@@ -134,11 +134,15 @@ class BackgroundControlTests(unittest.TestCase):
                     "function Read-Controls($c) { foreach($child in $c.Controls) { $child; Read-Controls $child } }; "
                     "$controls=@(Read-Controls $form); @{visible=$form.Visible;buttons=@($controls | Where-Object { $_ -is [Windows.Forms.Button] } | ForEach-Object Text); "
                     "times=@($controls | Where-Object { $_ -is [Windows.Forms.DateTimePicker] } | ForEach-Object { $_.Value.ToString('HH:mm') }); "
-                    "paces=@($controls | Where-Object { $_ -is [Windows.Forms.ComboBox] } | ForEach-Object Text)} | ConvertTo-Json -Compress; $form.Dispose()")
+                    "choices=@($controls | Where-Object { $_ -is [Windows.Forms.ComboBox] } | ForEach-Object { @{name=$_.AccessibleName;value=$_.Text;items=@($_.Items)} })} | ConvertTo-Json -Depth 6 -Compress; $form.Dispose()")
             ui = json.loads(self.command(code))
             self.assertFalse(ui['visible'])
             self.assertEqual(ui['times'], ['06:00', '00:00'])
-            self.assertEqual(ui['paces'], ['Medium', 'Maximum'])
+            choices = {choice['name']: choice for choice in ui['choices']}
+            self.assertEqual(choices['Work to process']['value'], 'Scenes')
+            self.assertEqual(choices['Work to process']['items'], ['Scenes', 'Objects', 'Both - one batch at a time'])
+            self.assertEqual(choices['Day processing speed']['value'], 'Medium')
+            self.assertEqual(choices['Night processing speed']['value'], 'Maximum')
             for label in ('Save and enable', 'Pause after batch', 'Resume', 'Check status', 'Open saved files'):
                 self.assertIn(label, ui['buttons'])
             self.assertFalse((root / 'account.json').exists())

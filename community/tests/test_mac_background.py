@@ -14,7 +14,7 @@ from http.server import ThreadingHTTPServer
 
 from community.background import DesktopError, measure_storage, single_instance
 from community.contribute import DEFAULT_URL
-from community.mac_background import DEFAULT_SETTINGS, MacBackground
+from community.mac_background import DEFAULT_SETTINGS, MacBackground, settings_config
 from community.mac_background_control import Controls, handler_for
 from community.mac_launch_guard import GUARD
 from community.mac_runtime import PYTHON_FOLDER, PYTHON_RELATIVE, runtime_links
@@ -153,6 +153,21 @@ class MacBackgroundTests(unittest.TestCase):
             with self.assertRaises(ValueError):self.manager.enable(invalid,accept=True)
         with self.assertRaisesRegex(ValueError,'consent'):self.manager.enable(DEFAULT_SETTINGS)
         self.assertFalse(self.manager.plist.exists())
+
+    def test_work_choice_is_registered_and_legacy_settings_keep_the_original_arguments(self):
+        legacy = {key:value for key,value in DEFAULT_SETTINGS.items() if key != 'workType'}
+        self.assertNotIn('work_type', settings_config(legacy))
+        self.manager.enable(legacy,accept=True,code='private synthetic recovery code')
+        self.assertNotIn('--work-type', self.scheduler.config['ProgramArguments'])
+        self.assertEqual(self.manager.status()['settings'],legacy)
+        for choice in ('object', 'both', 'scene'):
+            settings = dict(DEFAULT_SETTINGS,workType=choice)
+            self.manager.enable(settings,accept=True)
+            args = self.scheduler.config['ProgramArguments']
+            self.assertEqual(args[args.index('--work-type')+1],choice)
+            self.assertEqual(self.manager.status()['settings'],settings)
+        for choice in ('unknown', [], True):
+            with self.assertRaises(ValueError):settings_config(dict(DEFAULT_SETTINGS,workType=choice))
 
     def test_other_service_account_is_preserved_without_registration(self):
         body=json.dumps({'url':'https://staging.example','recoveryCode':'private'}).encode()

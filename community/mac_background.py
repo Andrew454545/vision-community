@@ -21,7 +21,7 @@ from community.mac_launch_guard import guarded_config
 from community.mac_starter import regular
 
 DEFAULT_SETTINGS = {'dayPace':'medium', 'nightPace':'max', 'dayStart':'06:00', 'nightStart':'00:00',
-    'retryMinutes':30, 'storageLimitGb':0, 'preventSleep':True}
+    'retryMinutes':30, 'storageLimitGb':0, 'preventSleep':True, 'workType':'scene'}
 STATES = {'running':'Waiting for the next batch.', 'processing':'Processing a batch.',
     'preparing':'Preparing private processing files.', 'checking_pc':'Checking this computer.',
     'paused':'Paused between batches.', 'waiting_for_schedule':'Waiting for the scheduled time.',
@@ -58,15 +58,20 @@ def publish(path, body):
 
 
 def settings_config(value):
-    if not isinstance(value, dict) or set(value) != set(DEFAULT_SETTINGS):
+    if not isinstance(value, dict) or set(value) not in (set(DEFAULT_SETTINGS), set(DEFAULT_SETTINGS) - {'workType'}):
         raise ValueError('invalid_mac_background_settings')
     schedule = ProcessingSchedule(value['dayPace'], value['nightPace'], value['dayStart'], value['nightStart'])
     if (type(value['retryMinutes']) is not int or not 1 <= value['retryMinutes'] <= 1440
             or type(value['storageLimitGb']) is not int or not 0 <= value['storageLimitGb'] <= 4096
             or type(value['preventSleep']) is not bool):
         raise ValueError('invalid_mac_background_settings')
-    return {'schedule':schedule, 'retry_minutes':value['retryMinutes'],
+    options = {'schedule':schedule, 'retry_minutes':value['retryMinutes'],
         'storage_limit_gb':value['storageLimitGb'], 'prevent_sleep':value['preventSleep']}
+    if 'workType' in value:
+        if not isinstance(value['workType'], str) or value['workType'] not in {'scene', 'object', 'both'}:
+            raise ValueError('invalid_mac_background_settings')
+        options['work_type'] = value['workType']
+    return options
 
 
 class MacBackground:

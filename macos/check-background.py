@@ -77,8 +77,10 @@ from pathlib import Path
 from unittest.mock import Mock
 sys.path.insert(0, SOURCE)
 from community.background import BackgroundContributor, ProcessingSchedule, atomic_json, single_instance
+from community.work_plan import WorkPlan
 root = Path(WORKER)
 app = Mock()
+app.work_plan = WorkPlan(root)
 app.client = None
 app.assets = {}
 app.resume_submissions.return_value = {'accepted': 0, 'unitsEarned': 0}
@@ -103,6 +105,9 @@ def index(**kwargs):
     atomic_json(checkpoint, {'batchId':'finite-batch-1', 'complete':True})
     return {'accepted':16 if before == 0 else 0, 'batches':1}
 app.indexer.side_effect = index
+app.run_batch.side_effect = lambda: app.indexer(url=worker.url, pace="slow", batches=1,
+    count=16, client=app.client, persist_session=False, work_dir=worker.root / "indexes",
+    **app.assets, use_nice=False)
 worker = BackgroundContributor(root, app_factory=lambda *args, **kwargs:app,
     schedule=ProcessingSchedule(day_pace='max',night_pace='max'))
 with single_instance(root):
