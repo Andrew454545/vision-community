@@ -45,17 +45,21 @@ def build(output, revision, signer=None, publisher=None):
     # shortcuts, registers startup, retrieves inputs or starts a native indexer.
     check=output/'check-package.ps1'
     check.write_text("param($Program,$Report)\n$p=Start-Process -FilePath $Program -ArgumentList '--self-check' -Wait -PassThru -RedirectStandardOutput $Report\nif ($p.ExitCode) {exit 1}\n")
+    if signer:powershell(signer,'-File',str(check))
     report=output/'package-self-check.json';powershell(check,str(executable),str(report))
     if json.loads(report.read_text(encoding='utf-8-sig')).get('status')!='PACKAGE_VERIFIED':raise ValueError('package_check_failed')
-    with tempfile.TemporaryDirectory(prefix='vision-detached-check-') as folder:
-        fixture=Path(folder)/'child'
-        started=subprocess.Popen([str(executable),'--detached-check',str(fixture)])
-        if started.wait(timeout=20):raise ValueError('detached_fixture_start_failed')
-        result=fixture/'result.json';deadline=time.monotonic()+30
-        while not result.exists() and time.monotonic()<deadline:time.sleep(.1)
-        if not result.exists() or json.loads(result.read_text()).get('status')!='DETACHED_HELPER_PASS':
-            raise ValueError('detached_helper_did_not_finish')
-        (output/'detached-helper-check.json').write_bytes(result.read_bytes())
+    # The finite fixture creates a local unsigned helper. Run it in unsigned CI,
+    # not on signing nodes which may require every development script signed.
+    if not signer:
+        with tempfile.TemporaryDirectory(prefix='vision-detached-check-') as folder:
+            fixture=Path(folder)/'child'
+            started=subprocess.Popen([str(executable),'--detached-check',str(fixture)])
+            if started.wait(timeout=20):raise ValueError('detached_fixture_start_failed')
+            result=fixture/'result.json';deadline=time.monotonic()+30
+            while not result.exists() and time.monotonic()<deadline:time.sleep(.1)
+            if not result.exists() or json.loads(result.read_text()).get('status')!='DETACHED_HELPER_PASS':
+                raise ValueError('detached_helper_did_not_finish')
+            (output/'detached-helper-check.json').write_bytes(result.read_bytes())
     public=False
     if signer:
         verify=output/'check-signatures.ps1'
@@ -63,6 +67,7 @@ def build(output, revision, signer=None, publisher=None):
             "$files=@(Get-ChildItem -LiteralPath $Project -Filter '*.ps1' -Recurse -File)+@(Get-Item -LiteralPath $Program)\n"+
             "foreach($file in $files) { $signature=Get-AuthenticodeSignature -LiteralPath $file.FullName; "+
             "if($signature.Status -ne 'Valid' -or -not $signature.TimeStamperCertificate -or $signature.SignerCertificate.Subject -ne $Publisher) {throw 'invalid_release_signature'} }\n")
+        powershell(signer,'-File',str(verify))
         powershell(verify,str(project),str(executable),publisher)
         public=True
     metadata={'version':1,'sourceRevision':revision,'sourceWorktreeDirty':dirty,'platform':'windows-x86_64','publicDistributionReady':public,
