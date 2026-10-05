@@ -292,6 +292,7 @@ class BackgroundContributor:
         self.clock, self.elapsed_clock, self.wall_clock = clock, elapsed_clock, wall_clock
         self.paced_wait = False
         self.last_state = None
+        self.empty_lanes = set()
         self.storage_limit_bytes = storage_limit_gb * 1024**3
         self.storage = {"limitBytes": self.storage_limit_bytes, "usedBytes": None,
                         "minimumFreeBytes": MIN_FREE_BYTES, "freeBytes": None,
@@ -356,6 +357,8 @@ class BackgroundContributor:
             "retryMinutes": self.retry_seconds // 60,
             "idleSleepPreventionRequested": self.prevent_sleep,
             "localStorage": self.storage,
+            "workType": self.app.work_plan.work_type,
+            "nextLane": self.app.work_plan.next_lane,
         })
 
     def retry_record(self):
@@ -434,25 +437,28 @@ class BackgroundContributor:
             try:
                 self.app.require_qualification()
             except DesktopError as error:
-                if str(error) != "pc_check_required":
+                if str(error) not in {"pc_check_required", "object_pc_check_required"}:
                     raise
                 self.status("checking_pc", "Running the short computer check and requesting trusted approval.")
                 self.app.qualify()
             if not self.space_available():
                 return self.wait_for_space()
             self.status("processing", "Processing a batch. Completed work and checkpoints are saved.")
+            lane = self.app.work_plan.next_lane
             started = self.elapsed_clock()
-            result = self.app.indexer(
-                url=self.url, pace="slow", batches=1, count=16, client=self.app.client,
-                persist_session=False, work_dir=self.root / "indexes",
-                **self.app.assets, use_nice=False,
-            )
+            result = self.app.run_batch()
             processing_seconds = max(0, self.elapsed_clock() - started)
         self.completed += int(result.get("accepted", 0))
         (self.root / "background-retry.json").unlink(missing_ok=True)
         if not result.get("batches"):
+            self.empty_lanes.add(lane)
+            if not all(selected in self.empty_lanes for selected in self.app.work_plan.lanes):
+                self.status("running", "No locations in this work queue. Checking the other selected work next.")
+                return 1
+            self.empty_lanes.clear()
             self.status("waiting_for_work", "No locations are available. The worker will check again after the retry interval.")
             return self.retry_seconds
+        self.empty_lanes.discard(lane)
         pace = self.pace()
         if pace == "pause":
             self.status("waiting_for_schedule", "Batch saved. Paused by your day/night schedule until the next active period.")
@@ -499,7 +505,7 @@ class BackgroundContributor:
                 if code == "scene_audit_backlog":
                     delay = self.retry_later("verification")
                     self.status("waiting_for_verification", "Completed batches are saved and waiting for verification. Retrying automatically.")
-                elif (code in {"scene_verification_unavailable", "network_error", "runtime_download_failed"}
+                elif (code in {"scene_verification_unavailable", "object_verification_unavailable", "network_error", "runtime_download_failed"}
                       or transient_response
                       or isinstance(error, VisionIndexError) and code in RECOVERABLE_QUEUE_ERRORS):
                     delay = self.retry_later("service")
@@ -535,6 +541,7 @@ def main(*, stop=None):
     parser.add_argument("--root", type=Path, required=True)
     parser.add_argument("--url", default=DEFAULT_URL)
     parser.add_argument("--once", action="store_true")
+    parser.add_argument("--work-type", choices=("scene", "object", "both"), default=None)
     parser.add_argument("--accept-contributions", action="store_true")
     parser.add_argument("--day-pace", choices=PACES, default="medium")
     parser.add_argument("--night-pace", choices=PACES, default="max")
@@ -556,6 +563,9 @@ def main(*, stop=None):
         parser.error(str(error))
     try:
         with single_instance(worker.root):
+            worker.app.reload_work_plan()
+            if args.work_type is not None and worker.app.work_plan.work_type != args.work_type:
+                worker.app.select_work(args.work_type)
             worker.run(once=args.once, stop=stop)
     except WorkerAlreadyRunning:
         # Another guided or background instance owns this folder.

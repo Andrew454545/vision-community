@@ -20,6 +20,8 @@ label,summary,a{font-size:17px}
 .card details{margin-top:18px;padding-top:18px}
 .card details button{margin-top:12px}
 input{min-height:48px;font-size:18px}
+select{width:100%;min-height:48px;padding:10px;border:1px solid #b9cbc0;border-radius:8px;font:inherit;background:white;color:#172f32}
+select:focus-visible{outline:3px solid #cb8818;outline-offset:3px}
 output{font-size:18px;line-height:1.6}
 code{font-size:15px}
 #batch-progress label{color:#fff;font-size:17px;margin-top:18px}
