@@ -130,6 +130,14 @@ Temporary public contribution/search bindings are closed. Production was unchang
 The deployed immutable runtime uses its independently pinned older helpers;
 shipping newer offline helpers requires new runtime and policy pins.
 
+The [saved Object delivery update](OBJECT_DELIVERY_RECOVERY_20261005.md) gives
+the default Object command and guided Scene client a shared restart-safe
+journal. Fresh-process loopback/SQLite fixtures verify exact Object resubmission,
+a single synthetic award, retained interrupted checkpoints and account/service
+isolation. Both starters require the new module. This is source and delivery
+evidence; guided Objects/Both, native qualification, hosted admission and
+accepted long-running work remain open.
+
 ## Release gates still open
 
 ### Production scene contributions and search

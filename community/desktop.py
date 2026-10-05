@@ -18,13 +18,12 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 from community.bootstrap import BootstrapError, install_runtime, load_manifest, runtime_platform
-from community.contribute import (CommunityClient, ContributeError, DEFAULT_URL,
-                                  SERVICE_ERROR_CODES, service_error_code)
+from community.contribute import ContributeError, DEFAULT_URL, SERVICE_ERROR_CODES
 from community.vision_index import (default_runner, index_from_queue, parse_json_stdout, require_layout,
                                     program_name, VisionIndexError, RETRYABLE_NATIVE_CODES)
 from community.pc_canary import (run_canary, canary_profile_matches, released_canary_policy,
                                  compact_approved_canary)
-from community.submission_outbox import SubmissionOutbox, MAX_PENDING_SUBMISSIONS, submission_result_state
+from community.delivery import DurableCommunityClient
 
 WEB = Path(__file__).with_name("desktop_web")
 ERRORS = {
@@ -39,6 +38,9 @@ ERRORS = {
     "runtime_mismatch": "A downloaded file failed its safety check. It was not used. Try downloading again.",
     "unsupported_platform": "This preview supports Intel or AMD Windows PCs and Apple silicon Macs. A compatible download for this computer is not ready yet.",
     "recovery_failed": "That account code was not accepted. Check it and try again.",
+    "invalid_recovery": "That account code was not accepted. Check it and try again.",
+    "object_submission_rejected": "The service rejected this Object batch. Processing has stopped and your results are saved for review.",
+    "object_verification_unavailable": "Object contributions are not available yet. Your saved work is kept.",
     "unauthorized": "Please reconnect your account using your saved code.",
     "scene_verification_unavailable": "VISION is not open for contributions yet. You have done nothing wrong. Close VISION and come back when the project maintainer announces it is ready.",
     "vision_scene_runtime_update_required": "Your VISION processing program needs an update. Get the latest VISION download and choose Set up this computer again. Your saved work and account code are kept.",
@@ -73,103 +75,18 @@ class DesktopError(RuntimeError):
     pass
 
 
-class DesktopClient(CommunityClient):
-    """Bind each scene lease to the configuration checked on this computer."""
+class DesktopClient(DurableCommunityClient):
+    """Bind each Scene lease to the configuration checked on this computer."""
     def __init__(self, url):
         super().__init__(url)
         self.profile_id = None
-        self.outbox = None
-        self._pending = 0
-
-    @property
-    def pending(self):
-        return self.outbox.count() if self.outbox else self._pending
-
-    @property
-    def undelivered(self):
-        return self.outbox.undelivered() if self.outbox else 0
-
-    def enable_outbox(self, root, account_id):
-        self.outbox = SubmissionOutbox(Path(root) / "submissions.sqlite", self.origin, account_id)
-
-    def submission_is_saved(self, lease_id):
-        return self.outbox is not None and self.outbox.saved(lease_id)
-
-    def lease(self, *args, **kwargs):
-        if self.pending >= MAX_PENDING_SUBMISSIONS:
-            raise ContributeError("scene_audit_backlog", 503)
-        return super().lease(*args, **kwargs)
-
-    def submit(self, lease_id, outputs):
-        if self.outbox:
-            self.outbox.remember(lease_id, outputs)
-        result = super().submit(lease_id, outputs)
-        self.save_submission_result(lease_id, result)
-        if result.get("rejected"):
-            raise ContributeError("scene_submission_rejected", 422)
-        return result
-
-    def save_submission_result(self, lease_id, result):
-        try:
-            submission_result_state(lease_id, result)
-            if self.outbox:
-                self.outbox.result(lease_id, result)
-        except ValueError as error:
-            if str(error) != "invalid_submission_result":
-                raise
-            # This is a malformed acknowledgement, not an explicit rejection.
-            # Preserve the exact delivery and let the background retry later.
-            raise ContributeError("invalid_submission_result", 503) from None
 
     def request(self, method, path, body=None):
         if method == "POST" and path == "/api/leases" and body and body.get("lane") == "scene":
             if not self.profile_id:
                 raise DesktopError("pc_check_required")
             body = {**body, "profileId": self.profile_id}
-        response = super().request(method, path, body)
-        if not self.outbox and method == "POST" and path == "/api/submissions":
-            self._pending += int(response[1].get("pending", 0))
-        return response
-
-    def audit_submission(self, submission_id):
-        status, data, _ = super().request("POST", "/api/scene-audits", {"submissionId": submission_id})
-        if status != 200:
-            raise ContributeError(service_error_code(data, "verification_failed"), status)
-        self.save_submission_result(submission_id, data)
-        if data.get("rejected"):
-            raise ContributeError("scene_submission_rejected", 422)
-        return data
-
-    def resume_submissions(self):
-        accepted = earned = lost = 0
-        if not self.outbox:
-            return {"accepted": 0, "unitsEarned": 0}
-        for delivery in self.outbox.pending():
-            lease_id = delivery["lease_id"]
-            if delivery["state"] == "ready":
-                try:
-                    result = self.submit(lease_id, json.loads(delivery["payload_json"]))
-                except ContributeError as error:
-                    # Do not keep an expired delivery at the front of the
-                    # journal forever. Preserve its output and fixed reason,
-                    # never reassign it or interpret a generic outage as loss.
-                    definitive = (error.code, error.status) in {
-                        ("expired_lease", 409), ("lease_lost", 409), ("unknown_lease", 404),
-                    }
-                    if not definitive or not self.outbox.lose_lease(lease_id, error.code):
-                        raise
-                    lost += 1
-                    continue
-            else:
-                result = self.audit_submission(lease_id)
-            if result.get("pendingAudit") and delivery["state"] == "ready":
-                result = self.audit_submission(lease_id)
-            accepted += int(result.get("accepted", 0))
-            earned += int(result.get("unitsEarned", 0))
-        result = {"accepted": accepted, "unitsEarned": earned}
-        if lost:
-            result["leaseLost"] = lost
-        return result
+        return super().request(method, path, body)
 
 
 def public_error(error):

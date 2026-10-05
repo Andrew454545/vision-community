@@ -38,7 +38,7 @@ function Get-VisionSourceFiles([string]$Source) {
     # Only named public source and fixture files enter the private app snapshot.
     # Never copy a whole checkout, .git, accounts, databases, logs or local data.
     $modules = @('__init__', 'admin', 'all_locations_full', 'all_locations_tail',
-        'background', 'bootstrap', 'catalog', 'contribute', 'desktop', 'features', 'four_view',
+        'background', 'bootstrap', 'catalog', 'contribute', 'delivery', 'desktop', 'features', 'four_view',
         'indexed_local', 'local_search', 'measure', 'mma', 'mma_cloud', 'object_index',
         'pano', 'parts', 'pc_canary', 'prompt', 'rank', 'scene_pipeline', 'scene_quality', 'search',
         'seal_index', 'segments', 'send_mma', 'server', 'service', 'source', 'store', 'submission_outbox',
@@ -52,7 +52,7 @@ function Get-VisionSourceFiles([string]$Source) {
         'record-hashes.json') | ForEach-Object { "calibration/gen4-v1/$_" }
     Assert-VisionRegularPath $Source
     $required = @('community/desktop.py', 'community/bootstrap.py', 'community/vision_index.py', 'community/process_owner.py',
-        'community/runtime_manifest.json', 'community/desktop_web/index.html', 'community/submission_outbox.py',
+        'community/runtime_manifest.json', 'community/desktop_web/index.html', 'community/submission_outbox.py', 'community/delivery.py',
         'calibration/run_windows.py', 'calibration/quality.py', 'calibration/synthetic_canary.py', 'calibration/gen4-v1/checksums.json')
     foreach ($name in $relative | Sort-Object -Unique) {
         $path = Join-Path $Source $name
