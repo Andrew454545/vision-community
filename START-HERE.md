@@ -15,9 +15,9 @@ For Intel or AMD Windows PCs. No Python, Git or administrator password needed.
 
 ## 2. Follow the four buttons
 
-1. **Set up this computer.** Click the setup button. The message tells you whether processing is open. Scene setup downloads about 1 GB.
+1. **Set up this PC.** Click the setup button. The message tells you whether processing is open. Scene setup downloads about 1 GB.
 2. **Create account.** Save your private code, then choose **I have saved my code**. Returning? Use **I already have an account**.
-3. **Run the computer check.** Wait for **Computer approved**.
+3. **Run the PC check.** Wait for **PC approved**.
 4. **Start helping.** Keep VISION open, your PC awake and the internet connected.
 
 To stop, choose **Pause after this batch**. To return, open VISION and use your saved code.
