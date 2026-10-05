@@ -1,66 +1,32 @@
 # VISION Community
 
-Help your computer find Street View locations. Earn credits, then use them to
-find places for your maps.
+Process Street View locations on your computer. Accepted contributions earn
+credits for visual searches.
 
-**Preview — contributions and online search are not open yet.** You can explore
-the starter, but regular processing must wait until the service is ready.
-If VISION says “not ready yet,” you have done nothing wrong.
+Processing and online search are currently closed.
 
-## Start here — Windows
+## Get started on Windows
 
-### [⬇ Download the Windows preview](https://github.com/Andrew454545/vision-community/releases/download/windows-starter-preview-20261001/VISION-Community-Windows.zip)
+1. [Download VISION](https://github.com/Andrew454545/vision-community/releases/download/windows-starter-preview-20261004-recovery/VISION-Community-Windows.zip).
+2. Right-click the ZIP → **Extract All**. Open **VISION Community** → **Start VISION.cmd**.
+3. Type **Y** and press **Enter** when asked. Follow the four steps in VISION.
 
-**No Python, Git, terminal commands or administrator password needed.**
+For Intel or AMD Windows PCs. No Python, Git or administrator password needed.
 
-1. **Download** using the link above.
-2. **Open Downloads.** Right-click the ZIP file, choose **Extract All**, then
-   **Extract**. Open the new folder, then the **VISION Community** folder inside it.
-3. **Double-click Start VISION.cmd.** Windows may show it as **Start VISION**.
-4. In the small starter window, **type Y and press Enter** when asked. Then
-   **follow the four numbered steps** on the VISION page. It shows what to do next.
+[Setup guide](START-HERE.md) · The download includes **START HERE.html**.
 
-Keep the VISION window open, the computer awake and the internet connected.
-To stop, choose **Pause after this batch**.
+## Automatic processing
 
-### [Show me the steps and help](START-HERE.md)
+Open **Background VISION.cmd**, enter your saved account code and choose your
+daytime and nighttime speeds. Select **Save and enable**.
 
-The download also includes **START HERE.html**. Double-click it to open the same
-instructions in a large, readable page. If a security message blocks the starter,
-stop and ask the project maintainer for help; do not change security settings.
+[Automatic processing guide](https://github.com/Andrew454545/vision-community/blob/codex/windows-production-readiness/START-HERE.md#automatic-processing)
 
-## Search for places
+## Search credits
 
-[Open the VISION website](https://vision-community.visioncommunity.workers.dev).
-Choose **My account** and enter the private account code you saved in the PC app.
-When search is available and you have enough credits, describe a place, choose
-**Run Search**, then **Download map**.
+Each accepted scene location earns **1 unit**. A search costs **100,000 units**.
+Unused credits stay saved. Keep your account code private; lost codes cannot be recovered.
 
-Each accepted scene location earns **1 credit unit**. One search costs
-**100,000 units**. New accounts start at zero. Keep your private account code:
-it is the only way to return to your account on another device.
-
-## Helping with Andrew’s PC test?
-
-Only if Andrew asked you to run the larger test, use the
-[Windows calibration guide](calibration/START-HERE.md). Regular users use the
-starter above and its short PC check.
-
-## For developers
-
-[Development guide](https://github.com/Andrew454545/vision-community/blob/codex/windows-production-readiness/docs/DEVELOPER_GUIDE.md) ·
-[Release checklist](https://github.com/Andrew454545/vision-community/blob/codex/windows-production-readiness/docs/PRODUCTION_ACCEPTANCE.md) ·
-[Contributing](https://github.com/Andrew454545/vision-community/blob/codex/windows-production-readiness/CONTRIBUTING.md)
-
-<details>
-<summary>Advanced: developer command</summary>
-
-Developers can use the setup command documented in the development guide:
-
-```sh
-python3 -m community.bootstrap
-```
-
-Windows beginners use the download and four steps above.
-
-</details>
+[Open the website](https://vision-community.visioncommunity.workers.dev) ·
+[Developer guide](https://github.com/Andrew454545/vision-community/blob/codex/windows-production-readiness/docs/DEVELOPER_GUIDE.md) ·
+[Contributing](CONTRIBUTING.md)
