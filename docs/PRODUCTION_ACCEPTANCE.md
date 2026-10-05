@@ -56,6 +56,8 @@ The previous chronological development log remains in
 | Beginner flow | Short README/website guide, guided Windows starter, qualification/service checks, saved-code recovery, pause/resume and private diagnostics. Website assets/privacy headers verified in staging. | [Service readiness](WEBSITE_SERVICE_READINESS.md) |
 | Mac private setup | Actual Apple-silicon private interpreter download/tree and HTTPS verification, public-source snapshot, local guided window and 37 guards pass. No native inference, account, imagery or contribution; Mac runtime/background and clean-device acceptance remain open. | [Mac starter](MAC_PRIVATE_STARTER_20261004.md) |
 | Mac background controls | Actual Apple-silicon guarded registration, immutable source/interpreter startup verification, safe idle replacement, private schedule/pause/resume window and nine exact runtime-link accounting pass. No native work, real account or imagery; actual restart/sign-in and endurance remain open. | [Mac controls](MAC_BACKGROUND_CONTROLS_20261004.md) |
+| Current Mac CPU builds | Both locked Scenes and Objects native tests, release builds and layout startup pass on Apple silicon after the private Actions budget increase. Exact source/binary/artifact pins and observed system dependencies are recorded. Actual candidate inference is a separate queued check. | [Mac native check](MAC_CPU_NATIVE_CHECK_20261004.md) |
+| Setup download recovery | Interrupted model/runtime files are retained and resume with validated byte ranges and complete checksum verification. All 543 local Windows tests, 24 targeted guards and one actual pinned HTTPS recovery pass; hosted CI is queued. Native setup no longer automatically installs global Python packages. | [Download recovery](RUNTIME_DOWNLOAD_RECOVERY_20261004.md) |
 | Background worker | Native scheduled startup, idle handover and idle forced-exit/pause/resume verified. Installed schedule: medium 06:00–00:00, max 00:00–06:00 local; saved account, 30-minute service retry, sign-in/recovery triggers and one worker. | [Background processing](BACKGROUND_PROCESSING.md) |
 | API protection | Supported routes are limited before body/database access, account budgets span read/write routes, previews have a smaller budget, and HTTP/scheduled requests never perform schema upgrades. Actual workerd checks and an explicit confirmed staging checkpoint/readback pass; this is not global load/cost approval. | [API protection](API_PROTECTION_20261004.md) |
 
@@ -224,11 +226,13 @@ admission and unattended-processing acceptance; none of those gates is closed
 by introducing the launcher.
 All seven Community CI jobs pass at `f200767`, including 501 Windows application
 tests without skips and the actual Mac setup/recovery/window check with 37
-guards without skips. The next private Mac Scenes/Objects CPU build jobs are
-prepared but were refused before startup by GitHub's Actions budget; the account
-owner must increase the applicable budget before retrying those finite jobs.
-Their preserved startup failure does not constitute a native build failure or
-processing approval. Staging and the existing public preview remain unchanged.
+guards without skips. The private Actions budget increase now allows both Mac
+Scenes/Objects CPU builds to pass in run 37236127846, attempt 2. The preserved
+first attempt was refused before startup, rather than failing native code.
+Exact current binaries now have separate finite inference checks queued in
+run 37255958802; build success is not processing approval. See
+[current Mac native evidence](MAC_CPU_NATIVE_CHECK_20261004.md).
+Staging and the existing public download remain unchanged.
 
 - [ ] Finish the guided Scenes / Objects / Both choice on both Windows and Mac,
   with separate trusted qualification, delivery recovery and earned-credit

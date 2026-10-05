@@ -7,9 +7,9 @@ project scope, not a claim that these combinations are available today.
 | Computer and work | Evidence available | Still required |
 | --- | --- | --- |
 | Windows Scenes | Guided maintainer preview; actual native calibration and limited staging contribution/search tests. | Qualified distributed release, trusted live input identity, accepted background work and extended recovery/endurance. |
-| Mac Scenes | Controlled Mac reference and native ownership; actual private Python/source/window; guarded per-user background controls and finite scheduled recovery pass on Apple silicon. | Guided native download/dependencies/inference, exact qualified runtime, accepted contributions, active-work handover, actual sign-in/restart and clean-device/endurance checks. |
+| Mac Scenes | Controlled Mac reference and native ownership; actual private Python/source/window; guarded per-user background controls and finite scheduled recovery pass; current CPU native build/tests/layout startup pass on Apple silicon. | Actual exact candidate inference, guided native download, exact qualified runtime, accepted contributions, active-work handover, actual sign-in/restart and clean-device/endurance checks. |
 | Windows Objects | Portable native pilot with all three models; small frozen thread study and native structural verification. | Guided setup/qualification, published validated runtime, broader reference comparison, trusted Gen4 audit/publication and background recovery. |
-| Mac Objects | Original command-based integration and Mac runtime manifest. | Guided setup/qualification, current distributed runtime, broader native comparison, trusted Gen4 audit/publication and background recovery. |
+| Mac Objects | Original command-based integration and Mac runtime manifest; current locked CPU native build/tests/layout startup pass on Apple silicon. | Actual exact candidate model/index inference, guided setup/qualification, current distributed runtime, broader native comparison, trusted Gen4 audit/publication and background recovery. |
 
 None of these rows is a completed production release. Linux inference evidence
 supports backend portability; it does not replace Mac or Windows user testing.
