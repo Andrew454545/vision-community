@@ -97,6 +97,11 @@ jobs:
           private="$RUNNER_TEMP/mac-starter-private/python-3.14.8-20261003-arm64/python"
           export SSL_CERT_FILE="$private/lib/python3.14/site-packages/pip/_vendor/certifi/cacert.pem"
           "$private/bin/python3.14" -I -B macos/check-starter.py --root "$RUNNER_TEMP/mac-starter-private" --report "$RUNNER_TEMP/mac-private-window.json"
+      - name: Verify private service errors, Object payloads and saved-work recovery
+        shell: bash
+        run: |
+          private="$RUNNER_TEMP/mac-starter-private/python-3.14.8-20261003-arm64/python"
+          "$private/bin/python3.14" -I -B -c 'import sys,unittest;sys.path.insert(0,"."); suite=unittest.defaultTestLoader.loadTestsFromNames(["community.tests.test_client_error_privacy","community.tests.test_service_transport","community.tests.test_background_http_recovery","community.tests.test_object_index.ObjectIndexTest.test_object_transport_preserves_contract_without_private_native_paths","community.tests.test_object_index.ObjectIndexTest.test_optional_object_evidence_paths_are_private_but_policy_and_digests_survive","community.tests.test_object_index.ObjectIndexTest.test_transport_redaction_cannot_hide_invalid_or_live_source_paths"]); result=unittest.TextTestRunner(verbosity=2).run(suite);sys.exit(not result.wasSuccessful())' 2>&1 | tee "$RUNNER_TEMP/mac-private-client-recovery.log"
       - name: Verify real Mac idle-sleep ownership and abrupt exit
         shell: bash
         run: |
@@ -123,6 +128,7 @@ jobs:
             ${{ runner.temp }}/mac-private-source.log
             ${{ runner.temp }}/mac-private-guards.log
             ${{ runner.temp }}/mac-private-window.json
+            ${{ runner.temp }}/mac-private-client-recovery.log
             ${{ runner.temp }}/mac-private-sleep.log
             ${{ runner.temp }}/mac-scheduled-recovery.json
             ${{ runner.temp }}/mac-background-control-guards.log

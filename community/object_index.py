@@ -594,8 +594,24 @@ def validate_object_index(
 
 
 def encode_object_submission(manifest: dict, files: dict[str, bytes], source_tsv: bytes) -> dict:
+    # Absolute native paths belong to the contributor's private checkpoint, not
+    # the shared bundle. Source bytes and digests remain the transport identity.
+    # Copy the metadata so local native verification/resume keeps its real paths.
+    source_path = manifest.get("sourceTsv")
+    if not isinstance(source_path, str) or not source_path:
+        raise VisionIndexError("verification_failed")
+    assert_not_live_vision_path(Path(source_path))
+    shared_manifest = {**manifest, "sourceTsv": "locations.tsv"}
+    quality = manifest.get("viewQuality")
+    if isinstance(quality, dict):
+        shared_quality = dict(quality)
+        for key, label in (("tunnelEvidenceManifest", "tunnel-evidence.json"),
+                           ("protectedAuthorityManifest", "protected-authority.json")):
+            if shared_quality.get(key) is not None:
+                shared_quality[key] = label
+        shared_manifest["viewQuality"] = shared_quality
     return {
-        "manifest": manifest,
+        "manifest": shared_manifest,
         "sourceTsv": base64.b64encode(source_tsv).decode("ascii"),
         "files": {name: base64.b64encode(payload).decode("ascii") for name, payload in files.items()},
     }

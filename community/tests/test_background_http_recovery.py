@@ -102,6 +102,8 @@ class BackgroundHTTPRestartTests(unittest.TestCase):
                         return self.send(200,{'accepted':-1,'unitsEarned':0,'pendingAudit':False})
                     if owner.phase=='audit-outage':
                         return self.send(503,{'error':'scene_verifier_unavailable'})
+                    if owner.phase=='private-audit-error':
+                        return self.send(503,{'error':CODE})
                     if owner.phase=='reject':
                         return self.send(200,{'rejected':True,'accepted':0,'unitsEarned':0})
                     if owner.phase=='unauthorized-partial':
@@ -151,6 +153,28 @@ class BackgroundHTTPRestartTests(unittest.TestCase):
         self.server.shutdown()
         self.server.server_close()
         self.thread.join(timeout=3)
+
+    def test_unexpected_private_error_is_redacted_and_recovers_across_fresh_workers(self):
+        self.phase='pending'
+        self.child('seed')
+        saved=self.row()
+        self.phase='private-audit-error'
+        self.assertEqual(self.child(),{'state':'waiting_for_service','accepted':0})
+        self.assertEqual(self.row(),saved)
+        report=json.loads((self.root/'desktop-failure.json').read_text())
+        self.assertEqual((report['code'],report['http_status']),('http_error',503))
+        self.assertFalse((self.root/'NEEDS-ATTENTION').exists())
+        self.assertEqual(self.awards,set())
+        self.assert_private_and_no_new_work()
+        calls=len(self.calls)
+        self.phase='ack'
+        self.assertEqual(self.child(now=11000),{'state':'waiting_for_service','accepted':0})
+        self.assertEqual(len(self.calls),calls)
+        self.assertEqual(self.child(now=11800),{'state':'waiting_for_space','accepted':1})
+        self.assertEqual(self.row()[0],'accepted')
+        self.assertIsNone(self.row()[1])
+        self.assertEqual(self.awards,{LEASE})
+        self.assert_private_and_no_new_work()
 
     def child(self,mode='recover',now=10000):
         completed=subprocess.run([sys.executable,'-B','-c',CHILD,str(self.root),self.url,mode,str(now)],
