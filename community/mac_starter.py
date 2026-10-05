@@ -15,20 +15,25 @@ import sys
 
 MODULES = ('__init__ admin all_locations_full all_locations_tail background bootstrap catalog '
     'contribute desktop features four_view indexed_local local_search measure mma mma_cloud '
-    'object_index pano parts pc_canary prompt rank scene_pipeline scene_quality search mac_launch_agent mac_starter '
+    'object_index pano parts pc_canary prompt rank scene_pipeline scene_quality search mac_launch_agent mac_launch_guard mac_starter mac_runtime mac_worker mac_background mac_background_control '
     'seal_index segments send_mma server service source store submission_outbox verify '
     'vision_handoff vision_index process_owner worker').split()
 FILES = tuple('community/'+name+'.py' for name in MODULES) + (
     'community/runtime_manifest.json', 'community/country-names.txt',
     'community/desktop_web/index.html', 'community/desktop_web/style.css', 'community/desktop_web/app.js',
-    'calibration/run_windows.py', 'calibration/quality.py', 'calibration/synthetic_canary.py') + tuple(
+    'calibration/run_windows.py', 'calibration/quality.py', 'calibration/synthetic_canary.py',
+    'community/background_web/index.html', 'community/background_web/style.css', 'community/background_web/app.js',
+    'macos/python-arm64-inventory.json', 'macos/verify-python.pl', 'macos/verify-source.pl') + tuple(
     'calibration/gen4-v1/'+name for name in ('checksums.json', 'canary-112.tsv', 'fixture-1024.tsv',
         'fixture-manifest.json', 'generation-evidence.json', 'historical-reference.i8',
         'local-vision-observation.json', 'record-hashes.json'))
 REQUIRED = {'community/desktop.py', 'community/bootstrap.py', 'community/vision_index.py',
     'community/process_owner.py', 'community/runtime_manifest.json', 'community/submission_outbox.py',
     'community/desktop_web/index.html', 'calibration/run_windows.py', 'calibration/quality.py',
-    'calibration/synthetic_canary.py', 'calibration/gen4-v1/checksums.json'}
+    'calibration/synthetic_canary.py', 'calibration/gen4-v1/checksums.json', 'community/mac_worker.py',
+    'community/mac_background.py', 'community/mac_background_control.py', 'community/background_web/index.html',
+    'community/background_web/app.js', 'community/background_web/style.css',
+    'macos/python-arm64-inventory.json', 'macos/verify-python.pl', 'macos/verify-source.pl'}
 
 class SnapshotError(ValueError):
     pass
@@ -69,9 +74,13 @@ def source_inventory(source):
 def verify_snapshot(target,files,metadata):
     regular(target,directory=True)
     expected={*files,'source-inventory.json'}
+    expected_dirs={p.as_posix() for name in files for p in Path(name).parents if p!=Path('.')}
     seen=set()
     for folder,dirs,names in os.walk(target,followlinks=False):
-        for name in dirs:regular(Path(folder)/name,directory=True)
+        for name in dirs:
+            path=regular(Path(folder)/name,directory=True)
+            if path.relative_to(target).as_posix() not in expected_dirs:
+                raise SnapshotError('unexpected_snapshot_directory')
         for name in names:
             path=regular(Path(folder)/name);relative=path.relative_to(target).as_posix()
             if relative not in expected:raise SnapshotError('unexpected_snapshot_file')
@@ -105,6 +114,7 @@ def main():
     parser.add_argument('--root',required=True,type=Path)
     parser.add_argument('--snapshot-only',action='store_true')
     parser.add_argument('--prepare-only',action='store_true')
+    parser.add_argument('--background-controls',action='store_true')
     args=parser.parse_args()
     root=regular(args.root,directory=True,missing=True);root.mkdir(parents=True,exist_ok=True)
     try:
@@ -116,8 +126,10 @@ def main():
                     'accountsCreated':0,'imageryRetrieved':False,'productionQualified':False},output)
             print('Private VISION source verified. No account or imagery used.')
             return 0
-        arguments=[sys.executable,'-I','-B',str(app/'community/desktop.py'),'--root',str(root)]
-        arguments+=['--prepare-only'] if args.prepare_only else ['--prepare']
+        entry='mac_background_control.py' if args.background_controls else 'desktop.py'
+        arguments=[sys.executable,'-I','-B',str(app/'community'/entry),'--root',str(root)]
+        if not args.background_controls:
+            arguments+=['--prepare-only'] if args.prepare_only else ['--prepare']
         return subprocess.run(arguments,check=False).returncode
     except Exception as error:
         report={'status':'INCOMPLETE','code':str(error) if isinstance(error,SnapshotError) else type(error).__name__,

@@ -13,6 +13,7 @@ import json
 import math
 import os
 from pathlib import Path
+import re
 import shutil
 import stat
 import sys
@@ -86,15 +87,17 @@ class WorkerAlreadyRunning(BlockingIOError):
     """Only a conflicting lock, not an unrelated filesystem failure."""
 
 
-def measure_storage(root):
+def measure_storage(root, *, approved_links=None):
     """Count logical file sizes without opening private files or following links.
 
     This is a batch-boundary estimate, not a filesystem quota. Incomplete or
     oversized inventories stop work rather than assuming unknown bytes are zero.
     """
+    root = Path(root)
+    approved_links = approved_links or {}
     deadline = time.monotonic() + STORAGE_SCAN_SECONDS
     pending = [Path(root)]
-    used, files, entries = 0, 0, 0
+    used, files, entries, links = 0, 0, 0, 0
     try:
         while pending:
             folder = pending.pop()
@@ -107,7 +110,24 @@ def measure_storage(root):
                     if entries > MAX_STORAGE_ENTRIES or time.monotonic() > deadline:
                         raise DesktopError("storage_check_failed")
                     info = child.stat(follow_symlinks=False)
-                    if stat.S_ISLNK(info.st_mode) or getattr(info, "st_file_attributes", 0) & 0x400:
+                    if stat.S_ISLNK(info.st_mode):
+                        relative = Path(child.path).relative_to(root).as_posix()
+                        target = approved_links.get(relative)
+                        # The only exception is an exact pinned direct link to a
+                        # regular sibling. Never resolve/follow it or count its
+                        # target twice. Unknown, chained and escaping links stop.
+                        if (not isinstance(target, str) or not re.fullmatch(r'[A-Za-z0-9_.+-]+', target)
+                                or target in {'.', '..'} or os.readlink(child.path) != target):
+                            raise DesktopError("storage_check_failed")
+                        sibling = Path(child.path).parent / target
+                        sibling_info = sibling.lstat()
+                        if (not stat.S_ISREG(sibling_info.st_mode)
+                                or getattr(sibling_info, "st_file_attributes", 0) & 0x400):
+                            raise DesktopError("storage_check_failed")
+                        used += info.st_size
+                        links += 1
+                        continue
+                    if getattr(info, "st_file_attributes", 0) & 0x400:
                         raise DesktopError("storage_check_failed")
                     if stat.S_ISDIR(info.st_mode):
                         pending.append(Path(child.path))
@@ -118,9 +138,10 @@ def measure_storage(root):
                         raise DesktopError("storage_check_failed")
     except OSError:
         raise DesktopError("storage_check_failed") from None
-    return {"usedBytes": used, "files": files, "entries": entries,
+    return {"usedBytes": used, "files": files, "entries": entries, "links": links,
             "measuredAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-            "measurement": "logical-file-bytes-at-batch-boundary"}
+            "measurement": ("logical-file-and-link-bytes-at-batch-boundary" if links else
+                            "logical-file-bytes-at-batch-boundary")}
 
 
 def atomic_json(path: Path, value):
@@ -277,8 +298,16 @@ class BackgroundContributor:
         self.storage["freeBytes"] = shutil.disk_usage(self.root).free
         if self.storage_limit_bytes:
             # Do not leave a stale success estimate visible after a failed scan.
-            self.storage.update(usedBytes=None, files=None, entries=None, measuredAt=None)
-            self.storage.update(measure_storage(self.root))
+            self.storage.update(usedBytes=None, files=None, entries=None, links=None, measuredAt=None)
+            if sys.platform == 'darwin':
+                try:
+                    from community.mac_runtime import runtime_links
+                    approved = runtime_links(self.root)
+                except (OSError, ValueError):
+                    raise DesktopError('storage_check_failed') from None
+                self.storage.update(measure_storage(self.root, approved_links=approved))
+            else:
+                self.storage.update(measure_storage(self.root))
         return (self.storage["freeBytes"] >= MIN_FREE_BYTES and
                 (not self.storage_limit_bytes or self.storage["usedBytes"] < self.storage_limit_bytes))
 
@@ -498,7 +527,7 @@ class BackgroundContributor:
                 return
 
 
-def main():
+def main(*, stop=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, required=True)
     parser.add_argument("--url", default=DEFAULT_URL)
@@ -524,7 +553,7 @@ def main():
         parser.error(str(error))
     try:
         with single_instance(worker.root):
-            worker.run(once=args.once)
+            worker.run(once=args.once, stop=stop)
     except WorkerAlreadyRunning:
         # Another guided or background instance owns this folder.
         return
