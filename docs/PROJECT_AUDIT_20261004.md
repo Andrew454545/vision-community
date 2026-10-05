@@ -16,6 +16,12 @@ at `1a8e2d1`, and the tested code and all 13 assets are read back in confirmed
 staging with admission closed. Production, the installed contributor and older
 release ZIPs are unchanged. The remaining release and capacity gates stay open.
 
+The later [client privacy correction](CLIENT_PRIVACY_20261005.md) removes
+unexpected service reply text from diagnostics and private native paths from
+Object submission metadata. All seven CI jobs pass at `fbb203f`, including the
+full 574-test Windows suite and 27 new actual Mac privacy/restart checks.
+The local temporary-folder failure and unchanged passing recheck are preserved.
+
 ## Confirmed problems corrected in source
 
 | Priority | Finding and consequence | Correction and evidence |
@@ -25,6 +31,7 @@ release ZIPs are unchanged. The remaining release and capacity gates stay open.
 | P2 | Async account-creation/recovery writes returned outside the API's error handler. A rejected database write could escape the fixed JSON failure contract. | Await both operations inside the handler. Real SQLite-backed regression fixtures inject failures and confirm redacted `internal_error`, no partial account and unchanged recovery token/balance. |
 | P2 | The website's main download button still selected the 2 October Windows preview while the short guide and README selected the recovery preview. | Align the button with `windows-starter-preview-20261004-recovery`. This is a source correction; the deployed button has not been read back in this phase. |
 | P1 | A malformed service acknowledgement could retire saved local delivery data using negative counts or contradictory pending/rejected flags. This is a source defect, not evidence of actual lost work. | Validate counts, state and delivery identity before updating the journal. Invalid replies keep the exact payload and retry after persisted cooldown; explicit rejection and corrupt local data still require review. All 62 focused checks, including actual HTTP/SQLite recovery across fresh workers, pass. See [saved-delivery recovery](SAVED_DELIVERY_RECOVERY_20261005.md). |
+| P2 | Unexpected service error text could be copied into local reports; native Object submissions included private absolute paths. Actual disclosure is not established. | Fixed protocol reasons/statuses replace unexpected reply text. Shared Object metadata uses anonymous labels while preserving bytes, digests and private resume paths. Real HTTP/fresh-worker recovery and contract/integrity guards pass. See [client privacy](CLIENT_PRIVACY_20261005.md). |
 
 The first CI run at `1572434` failed because the new full-Worker regression
 imported `jpeg-js` before the workflow installed its local dependencies. The
@@ -59,8 +66,9 @@ operation. These priorities are engineering judgments, not CVSS ratings.
    All top-ten/top-100 reference sets match, while close-score ordering and one
    selected view differ. See [the full comparison](FULL_WINDOWS_SCENE_COMPARISON_20261005.md).
    The [gap assessment](SCENE_RANKING_GAP_ASSESSMENT_20261005.md) measures all
-   ranking inversions and proposes an explicit score bound; selected-view
-   margins and independent release validation remain required.
+   ranking inversions and proposes a winning-score bound. Reference view
+   margins are measured, but the larger individual-view PC differences need
+   separate bounds; independent release validation remains required.
    Explain these and held-out differences, derive production bounds and pin
    exact distributed runtime/helpers. All nine current Mac full CPU trials now
    pass independent transport/reference/repeat checks;
@@ -128,7 +136,7 @@ owner declaration of production approval is needed for the finite checks.
 - Both 80-test calibration CI jobs pass at `a698313`. Calibration guards do
   not replace completion of the independent full reference matrix.
 
-All seven final application-source CI jobs pass at `a698313`: [application,
+All seven initial-audit application-source CI jobs pass at `a698313`: [application,
 Mac and Cloudflare checks](https://github.com/Andrew454545/vision-community/actions/runs/37249752134)
 and [Windows/Linux calibration guards](https://github.com/Andrew454545/vision-community/actions/runs/37249752141).
 Logs, including the
