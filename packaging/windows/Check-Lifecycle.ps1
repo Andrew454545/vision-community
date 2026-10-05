@@ -212,7 +212,7 @@ try {
     Check 'interrupted_setup_leftovers_removed' (((Get-ProgramFolders) -join ',') -eq $RevisionA.Substring(0,16))
     Check 'install_private_files_unchanged' ((Get-PrivateHashes) -eq $privateBefore)
     $null = Install-With $copyA -Keyboard
-    Check 'repeat_install_by_keyboard_is_idempotent' ((Test-Program $programA $copyA) -and (Test-Links $programA) -and (Get-ProgramFolders).Count -eq 1)
+    Check 'repeat_install_by_keyboard_is_idempotent' ((Test-Program $programA $copyA) -and (Test-Links $programA) -and @(Get-ProgramFolders).Count -eq 1)
 
     # 3. A changed program file is refused before any download consent, then repaired.
     $changed = Join-Path $programA 'project\community\desktop.py'
