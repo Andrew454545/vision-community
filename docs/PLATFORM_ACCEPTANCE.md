@@ -7,7 +7,7 @@ project scope, not a claim that these combinations are available today.
 | Computer and work | Evidence available | Still required |
 | --- | --- | --- |
 | Windows Scenes | Guided maintainer preview; actual native calibration and limited staging contribution/search tests. | Qualified distributed release, trusted live input identity, accepted background work and extended recovery/endurance. |
-| Mac Scenes | Controlled Mac reference and native ownership checks; actual Apple-silicon private Python download, source snapshot, local guided window and 37 guards pass. | Guided native download/dependencies/inference, exact qualified runtime, accepted contributions, native background scheduling and clean-device/endurance checks. |
+| Mac Scenes | Controlled Mac reference and native ownership; actual private Python/source/window; guarded per-user background controls and finite scheduled recovery pass on Apple silicon. | Guided native download/dependencies/inference, exact qualified runtime, accepted contributions, active-work handover, actual sign-in/restart and clean-device/endurance checks. |
 | Windows Objects | Portable native pilot with all three models; small frozen thread study and native structural verification. | Guided setup/qualification, published validated runtime, broader reference comparison, trusted Gen4 audit/publication and background recovery. |
 | Mac Objects | Original command-based integration and Mac runtime manifest. | Guided setup/qualification, current distributed runtime, broader native comparison, trusted Gen4 audit/publication and background recovery. |
 
@@ -17,7 +17,10 @@ The [private Mac starter](MAC_PRIVATE_STARTER_20261004.md) is a maintainer previ
 its bootstrap/window evidence does not establish native processing or admission.
 The [Mac background foundations](MAC_BACKGROUND_FOUNDATIONS_20261004.md) add
 actual process-owned sleep-request evidence and a startup/recovery contract.
-Mac automatic-processing controls and accepted native work remain unqualified.
+The [Mac background controls](MAC_BACKGROUND_CONTROLS_20261004.md) now verify
+registration, schedule changes, pause/resume, immutable startup checks and
+private-window ownership in an actual Mac fixture. Accepted native work and
+the complete unattended release remain unqualified.
 
 ## What every row must pass
 
