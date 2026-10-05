@@ -16,6 +16,7 @@ import os
 import platform
 import re
 import sys
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -25,6 +26,7 @@ from .vision_index import LIVE_PATH_MARKERS, vision_support_root
 
 RELEASE = "https://github.com/Andrew454545/vision-community/releases/download/mac-runtime-1"
 MANIFEST_NAME = "runtime_manifest.json"
+DOWNLOAD_BODY_SECONDS = 30 * 60
 
 
 class BootstrapError(RuntimeError):
@@ -163,10 +165,18 @@ def download_file(url: str, partial: Path, entry: dict) -> None:
                 size, response_limit, mode = 0, expected_size, "wb"
             else:
                 raise BootstrapError("runtime_download_failed")
+            # A socket timeout alone resets whenever bytes arrive. Read one
+            # available fragment at a time so a trickling response cannot keep
+            # setup busy forever while filling a large read buffer. A retry
+            # retains the prefix and starts a fresh body budget.
+            deadline = time.monotonic() + DOWNLOAD_BODY_SECONDS
+            read_fragment = getattr(response, "read1", response.read)
             received = 0
             with partial.open(mode) as handle:
                 while True:
-                    chunk = response.read(min(1024 * 1024, response_limit - received + 1))
+                    if time.monotonic() >= deadline:
+                        raise BootstrapError("runtime_download_failed")
+                    chunk = read_fragment(min(1024 * 1024, response_limit - received + 1))
                     if not chunk:
                         break
                     received += len(chunk)

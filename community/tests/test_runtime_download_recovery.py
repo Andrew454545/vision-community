@@ -17,6 +17,9 @@ class Response(io.BytesIO):
         self.status = status
         self.headers = headers or {}
 
+    def read1(self, size):
+        return self.read(size)
+
 
 class InterruptedResponse(Response):
     def read(self, size):
@@ -54,6 +57,83 @@ class RuntimeDownloadRecoveryTests(unittest.TestCase):
         request = self.download(Response(self.payload))
         self.assertEqual(request.call_args.args[0].get_header('Range'), 'bytes=4-')
         self.assertEqual(self.partial.read_bytes(), self.payload)
+
+    def test_trickling_body_keeps_prefix_then_new_attempt_resumes_with_fresh_budget(self):
+        elapsed = [0]
+        class Trickle(Response):
+            def read1(self, size):
+                elapsed[0] += 1
+                return io.BytesIO.read(self, min(4, size))
+            def read(self, _size):
+                raise AssertionError('Large buffered read could hide trickling progress')
+        with mock.patch.object(bootstrap, 'DOWNLOAD_BODY_SECONDS', 2), \
+                mock.patch.object(bootstrap.time, 'monotonic', side_effect=lambda: elapsed[0]):
+            with self.assertRaisesRegex(bootstrap.BootstrapError, 'runtime_download_failed'):
+                self.download(Trickle(self.payload))
+            self.assertEqual(self.partial.read_bytes(), self.payload[:8])
+            elapsed[0] = 10_000
+            request = self.download(Response(self.payload[8:], 206,
+                {'Content-Range': f'bytes 8-{len(self.payload)-1}/{len(self.payload)}'}))
+        self.assertEqual(request.call_args.args[0].get_header('Range'), 'bytes=8-')
+        self.assertEqual(self.partial.read_bytes(), self.payload)
+
+    def test_body_deadline_after_complete_bytes_requires_checksum_before_reuse(self):
+        elapsed = [0]
+        class SlowLastFragment(Response):
+            def read1(self, size):
+                elapsed[0] += 2
+                return io.BytesIO.read(self, size)
+        with mock.patch.object(bootstrap, 'DOWNLOAD_BODY_SECONDS', 2), \
+                mock.patch.object(bootstrap.time, 'monotonic', side_effect=lambda: elapsed[0]):
+            with self.assertRaisesRegex(bootstrap.BootstrapError, 'runtime_download_failed'):
+                self.download(SlowLastFragment(self.payload))
+        self.assertEqual(self.partial.read_bytes(), self.payload)
+        with mock.patch.object(bootstrap.urllib.request, 'urlopen') as network:
+            bootstrap.download_file('https://example.test/model', self.partial, self.entry)
+        network.assert_not_called()
+        self.assertEqual(bootstrap.file_sha256(self.partial), self.entry['sha256'])
+
+    def test_wall_clock_changes_do_not_affect_download_body_budget(self):
+        with mock.patch.object(bootstrap.time, 'time', side_effect=AssertionError('Use elapsed time')):
+            self.download(Response(self.payload))
+        self.assertEqual(self.partial.read_bytes(), self.payload)
+
+    def test_actual_http_fragments_hit_budget_and_resume_without_reinstalling_prefix(self):
+        from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+        import threading
+        calls=[]; payload=self.payload
+        class Handler(BaseHTTPRequestHandler):
+            def log_message(self, *_args):pass
+            def do_GET(self):
+                saved=self.headers.get('Range'); calls.append(saved)
+                offset=int(saved.removeprefix('bytes=').removesuffix('-')) if saved else 0
+                self.send_response(206 if saved else 200)
+                if saved:self.send_header('Content-Range', f'bytes {offset}-{len(payload)-1}/{len(payload)}')
+                self.send_header('Content-Length',str(len(payload)-offset));self.end_headers()
+                self.wfile.write(payload[offset:])
+        server=ThreadingHTTPServer(('127.0.0.1',0),Handler)
+        thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
+        self.addCleanup(thread.join,3);self.addCleanup(server.server_close);self.addCleanup(server.shutdown)
+        url=f'http://127.0.0.1:{server.server_port}/model';real_open=bootstrap.urllib.request.urlopen
+        elapsed=[0]
+        class FragmentedHttpResponse:
+            def __init__(self,response):self.response=response;self.status=response.status;self.headers=response.headers
+            def __enter__(self):return self
+            def __exit__(self,*_args):self.response.close()
+            def read(self,_size):raise AssertionError('Do not fill a large buffer before checking elapsed time')
+            def read1(self,size):
+                elapsed[0]+=1
+                return self.response.read1(min(4,size))
+        def fragmented(request,**kwargs):return FragmentedHttpResponse(real_open(request,**kwargs))
+        with mock.patch.object(bootstrap.urllib.request,'urlopen',side_effect=fragmented), \
+                mock.patch.object(bootstrap,'DOWNLOAD_BODY_SECONDS',2), \
+                mock.patch.object(bootstrap.time,'monotonic',side_effect=lambda:elapsed[0]):
+            with self.assertRaisesRegex(bootstrap.BootstrapError,'runtime_download_failed'):
+                bootstrap.download_file(url,self.partial,self.entry)
+        self.assertEqual(self.partial.read_bytes(),payload[:8])
+        bootstrap.download_file(url,self.partial,self.entry)
+        self.assertEqual(calls,[None,'bytes=8-'])
+        self.assertEqual(self.partial.read_bytes(),payload)
 
     def test_incomplete_chunked_transfer_keeps_prefix_for_a_retry(self):
         class ChunkedDisconnect(InterruptedResponse):
