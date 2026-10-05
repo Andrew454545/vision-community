@@ -1,0 +1,56 @@
+name: native launcher packages
+on:
+  pull_request:
+  push:
+    branches: [main, codex/windows-production-readiness]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  mac-package:
+    runs-on: macos-26
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build and verify the native app without processing or signing
+        shell: bash
+        run: |
+          python -B packaging/build_mac.py --output "$RUNNER_TEMP/mac-native-package" --revision "$GITHUB_SHA"
+          python -B packaging/check_mac.py --app "$RUNNER_TEMP/mac-native-package/VISION Community.app"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: MAINTAINER-UNSIGNED-Mac-launcher
+          path: |
+            ${{ runner.temp }}/mac-native-package/MAINTAINER-UNSIGNED-VISION-Mac.zip
+            ${{ runner.temp }}/mac-native-package/package-receipt.json
+          retention-days: 7
+  windows-package:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build and verify the native setup without installing or signing
+        shell: pwsh
+        run: |
+          python -B packaging/build_windows.py --output "$env:RUNNER_TEMP/windows-native-package" --revision "$env:GITHUB_SHA"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: MAINTAINER-UNSIGNED-Windows-setup
+          path: |
+            ${{ runner.temp }}/windows-native-package/MAINTAINER-UNSIGNED-VISION-Setup.exe
+            ${{ runner.temp }}/windows-native-package/package-receipt.json
+            ${{ runner.temp }}/windows-native-package/package-self-check.json
+          retention-days: 7
