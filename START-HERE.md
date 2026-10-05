@@ -1,6 +1,8 @@
 # Start here
 
 **Preview: processing and online search are not open yet.** “Not ready yet” means try later; your PC is not the problem.
+The download below is the **Windows Scenes preview**. Mac, Objects and Both
+will be available with the public release.
 
 ## 1. Open VISION
 
@@ -13,17 +15,21 @@ For Intel or AMD Windows PCs. No Python, Git or administrator password needed.
 
 ## 2. Follow the four buttons
 
-1. **Set up this computer.** Choose **Scenes**, **Objects** or **Both** in step 1, then click the setup button. The message tells you whether your chosen work is open. Scenes and Objects each download about 1 GB; Both downloads about 2 GB and takes turns.
+1. **Set up this computer.** Click the setup button. The message tells you whether processing is open. Scene setup downloads about 1 GB.
 2. **Create account.** Save your private code, then choose **I have saved my code**. Returning? Use **I already have an account**.
-3. **Run the computer check.** Wait for **Computer approved**. Both needs separate Scene and Object approvals.
+3. **Run the computer check.** Wait for **Computer approved**.
 4. **Start helping.** Keep VISION open, your PC awake and the internet connected.
 
 To stop, choose **Pause after this batch**. To return, open VISION and use your saved code.
 
+When the new release arrives, step 1 will let you choose **Scenes**, **Objects**
+or **Both**. Objects downloads about 1 GB; Both downloads about 2 GB and takes
+turns. Both needs separate Scene and Object approvals.
+
 ## Automatic processing
 
 After setup, close VISION and open **Background VISION.cmd** (or **Background VISION**).
-Paste your saved account code once, choose your work and schedule, tick the permission box and choose **Save and enable**.
+Paste your saved account code once, choose your schedule, tick the permission box and choose **Save and enable**.
 
 The default is **Medium during the day** and **Maximum from midnight to 6 am**. You can change both times and speeds. Close the controls when done; the worker continues. Reopen them to **Pause after batch**, **Resume** or **Check status**. Keep the extracted VISION folder so you can reopen the controls.
 
