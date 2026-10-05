@@ -10,6 +10,12 @@ The source fixes are in `1572434`; the test dependency-order repair is in
 `codex/windows-production-readiness`. No website deployment or release ZIP was
 updated during this audit. Existing staging evidence remains historical.
 
+Follow-up: [API protection and explicit database maintenance](API_PROTECTION_20261004.md)
+correct the schema/GET/production-binding findings below. All seven CI jobs pass
+at `1a8e2d1`, and the tested code and all 13 assets are read back in confirmed
+staging with admission closed. Production, the installed contributor and older
+release ZIPs are unchanged. The remaining release and capacity gates stay open.
+
 ## Confirmed problems corrected in source
 
 | Priority | Finding and consequence | Correction and evidence |
@@ -69,13 +75,14 @@ operation. These priorities are engineering judgments, not CVSS ratings.
    clear platform/lane support, repeat setup on clean devices with a beginner,
    and deploy/read back the tested source in confirmed staging before any
    production rollout. Source tests do not update an immutable older ZIP.
-5. **P2 — API cost and abuse protection:** `ready()` still runs schema/migration
-   checks on each API request, before route rate limiting. GET status/account/
-   view routes have no corresponding limiter call, and the checked-in
-   production config lacks staging's `API_RATE_LIMITER`. Before public load,
-   move migrations to a controlled versioned process, add measured read/write
-   budgets and prove quotas with outage and concurrency tests. Do not use an
-   unverified in-memory flag as durable migration authority.
+5. **P2 — API cost and abuse protection:** the follow-up removes HTTP/scheduled
+   schema upgrades, adds shared read/write and separate preview limits before
+   body/database work, and requires all three bindings in both hosted configs.
+   Explicit schema checkpoint, outage/refusal and actual workerd quota checks
+   pass; the staging rollout preserves credit/queue/publication aggregates.
+   Before public load, measure representative traffic and hosting cost. Local
+   permissive Cloudflare counters do not establish an exact global quota or
+   spending cap; see [the follow-up evidence](API_PROTECTION_20261004.md).
 6. **P2 — Hosting scale and recovery:** measure larger contributor-only search
    snapshots, updates during searches, eviction, overload, latency and cost.
    Rehearse complete R2/native-bundle/secret restore plus credit events after
