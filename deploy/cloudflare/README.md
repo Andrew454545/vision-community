@@ -18,11 +18,15 @@ node node_modules/wrangler/bin/wrangler.js deploy --config wrangler.staging.json
 node node_modules/wrangler/bin/wrangler.js deploy --config wrangler.staging.jsonc
 ```
 
-Run the repository checks before publishing. Afterward, verify the short guide,
-privacy headers, resource bindings and closed `/api/capabilities`. No schema
-import is needed for a website/code update. Preserve existing records and credits.
+Run the repository checks before publishing. The first deployment of schema
+revision `1` needs the explicit, reviewed checkpoint in
+`migrations/0004_schema_revision.sql` while API writers are paused and drained.
+See [database maintenance and API limits](../../docs/API_PROTECTION_20261004.md).
+Later website-only updates using the same schema contract need no schema import.
+Afterward, verify the short guide, privacy headers, all three rate-limit bindings,
+the schema version and closed `/api/capabilities`. Preserve records and credits.
 
-The preflight rejects a mixed resource pair, new bindings or an admission
+The preflight rejects a mixed resource pair, unexpected bindings or an admission
 override. Opening processing/search requires a separately measured runtime,
 policy and native host rollout. The prototype `wrangler.toml` and placeholder
 template are not the current staging deployment instructions.

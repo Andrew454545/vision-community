@@ -7,6 +7,10 @@ The [project audit](PROJECT_AUDIT_20261004.md) records corrected API admission,
 request-size and error-handling defects, download consistency, tested Mac
 controls and remaining release/capacity/privacy findings. Source fixes do not
 update an older release ZIP or deploy the website.
+The later [API protection update](API_PROTECTION_20261004.md) is tested and
+deployed to confirmed staging with admission closed; its schema checkpoint
+preserves the existing credit, queue and publication aggregates. Production
+and the installed contributor remain unchanged.
 The previous chronological development log remains in
 [Git history](https://github.com/Andrew454545/vision-community/blob/a4b2630b1e8a049bbe79f904aad75376b6432c8d/docs/PRODUCTION_ACCEPTANCE.md).
 
@@ -53,17 +57,18 @@ The previous chronological development log remains in
 | Mac private setup | Actual Apple-silicon private interpreter download/tree and HTTPS verification, public-source snapshot, local guided window and 37 guards pass. No native inference, account, imagery or contribution; Mac runtime/background and clean-device acceptance remain open. | [Mac starter](MAC_PRIVATE_STARTER_20261004.md) |
 | Mac background controls | Actual Apple-silicon guarded registration, immutable source/interpreter startup verification, safe idle replacement, private schedule/pause/resume window and nine exact runtime-link accounting pass. No native work, real account or imagery; actual restart/sign-in and endurance remain open. | [Mac controls](MAC_BACKGROUND_CONTROLS_20261004.md) |
 | Background worker | Native scheduled startup, idle handover and idle forced-exit/pause/resume verified. Installed schedule: medium 06:00–00:00, max 00:00–06:00 local; saved account, 30-minute service retry, sign-in/recovery triggers and one worker. | [Background processing](BACKGROUND_PROCESSING.md) |
+| API protection | Supported routes are limited before body/database access, account budgets span read/write routes, previews have a smaller budget, and HTTP/scheduled requests never perform schema upgrades. Actual workerd checks and an explicit confirmed staging checkpoint/readback pass; this is not global load/cost approval. | [API protection](API_PROTECTION_20261004.md) |
 
-Current audited application source `a698313` passes all seven Community CI jobs:
-[tests](https://github.com/Andrew454545/vision-community/actions/runs/37249752134)
-and [calibration](https://github.com/Andrew454545/vision-community/actions/runs/37249752141).
-Actual Windows passes 527 tests in 291.030 seconds with two Mac-only skips;
-the hosted-service suite passes all 220 tests plus the complete workerd checks.
-Actual Apple-silicon Mac passes 41 setup/platform, 41 sleep/background and 12
+Current tested application source `1a8e2d1` passes all seven Community CI jobs:
+[tests](https://github.com/Andrew454545/vision-community/actions/runs/37252853663)
+and [calibration](https://github.com/Andrew454545/vision-community/actions/runs/37252853600).
+Actual Windows passes 528 tests in 281.783 seconds with two Mac-only skips;
+the hosted-service suite passes all 232 tests plus the complete workerd checks.
+Actual Apple-silicon Mac passes 41 setup/platform, 42 sleep/background and 12
 control guards without skips, including guarded per-user registration, private
 window ownership, preserved idle replacement and changed-source rejection.
-Both calibration jobs pass 80 guards. The earlier dependency-order CI failure
-is retained; it is repaired by installing the existing local tools before tests.
+Both calibration jobs pass 80 guards. Earlier dependency-order and lightweight
+status source-format CI failures are retained with their corrected passing runs.
 These close the recorded source defects, not the production release gates.
 
 Community CI passes all six jobs at `656f3f3`, including the repaired Mac
@@ -340,9 +345,12 @@ they do not satisfy the actual restart, accepted-work or endurance gates below.
   credit recovery; see [the restore guide](PRIVATE_RESTORE.md).
 - [ ] Validate complete live publication/storage atomicity and failure recovery,
   load/cost budgets and published retention rules before reopening production.
-  The audit additionally identifies per-request schema work before throttling,
-  unthrottled GET paths and the absent production limiter binding. Correct and
-  measure these before public load; see [the audit](PROJECT_AUDIT_20261004.md).
+  The audited per-request schema work, unthrottled GET paths and absent
+  production limiter binding are corrected in source; the confirmed staging
+  rollout and five actual workerd protection fixtures pass. Measure larger
+  workloads, global overload and costs before public load; Cloudflare's local
+  permissive counters are not a global spending cap. See
+  [API evidence](API_PROTECTION_20261004.md) and [the audit](PROJECT_AUDIT_20261004.md).
 
 Credits have no added expiry or cap. A finite queue cannot supply infinite useful
 work; an empty queue waits without re-crediting old locations. Preserve legacy
