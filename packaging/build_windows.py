@@ -6,6 +6,8 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+import tempfile
+import time
 
 sys.path.insert(0, str(Path(__file__).parent))
 from stage import REPO, archive, inventory, regular, source_state, stage
@@ -45,6 +47,15 @@ def build(output, revision, signer=None, publisher=None):
     check.write_text("param($Program,$Report)\n$p=Start-Process -FilePath $Program -ArgumentList '--self-check' -Wait -PassThru -RedirectStandardOutput $Report\nif ($p.ExitCode) {exit 1}\n")
     report=output/'package-self-check.json';powershell(check,str(executable),str(report))
     if json.loads(report.read_text(encoding='utf-8-sig')).get('status')!='PACKAGE_VERIFIED':raise ValueError('package_check_failed')
+    with tempfile.TemporaryDirectory(prefix='vision-detached-check-') as folder:
+        fixture=Path(folder)/'child'
+        started=subprocess.Popen([str(executable),'--detached-check',str(fixture)])
+        if started.wait(timeout=20):raise ValueError('detached_fixture_start_failed')
+        result=fixture/'result.json';deadline=time.monotonic()+30
+        while not result.exists() and time.monotonic()<deadline:time.sleep(.1)
+        if not result.exists() or json.loads(result.read_text()).get('status')!='DETACHED_HELPER_PASS':
+            raise ValueError('detached_helper_did_not_finish')
+        (output/'detached-helper-check.json').write_bytes(result.read_bytes())
     public=False
     if signer:
         verify=output/'check-signatures.ps1'

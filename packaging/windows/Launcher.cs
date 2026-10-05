@@ -127,6 +127,16 @@ static class Package {
         } catch { Console.WriteLine("{\"status\":\"INCOMPLETE\",\"code\":\"package_check_failed\"}"); return 1; }
         finally { if(Directory.Exists(root)) Directory.Delete(root,true); }
     }
+    public static int DetachedCheck(string root) {
+        // Finite process fixture: no install, registry, startup, account or work.
+        root=Path.GetFullPath(root); Plain(root);
+        if(Directory.Exists(root)||File.Exists(root)||!root.StartsWith(Path.GetFullPath(Path.GetTempPath()),StringComparison.OrdinalIgnoreCase)) return 1;
+        Directory.CreateDirectory(root);
+        var script=Path.Combine(root,"fixture.ps1");
+        File.WriteAllText(script,"param([int]$Parent,[string]$Report)\n$ErrorActionPreference='Stop'\n$p=Get-Process -Id $Parent -ErrorAction SilentlyContinue\nif($p -and -not $p.WaitForExit(20000)) {exit 1}\n[IO.File]::WriteAllText($Report,'{\"status\":\"DETACHED_HELPER_PASS\",\"accountsCreated\":0,\"nativeInference\":false}')\n");
+        Script(script,"-Parent "+Process.GetCurrentProcess().Id+" -Report "+Quote(Path.Combine(root,"result.json")),true);
+        return 0;
+    }
 }
 
 sealed class Launcher: Form {
@@ -166,6 +176,7 @@ sealed class Launcher: Form {
 static class Program {
     [STAThread] static int Main(string[] args) {
         if(args.Contains("--self-check")) return Package.SelfCheck();
+        if(args.Length==2 && args[0]=="--detached-check") return Package.DetachedCheck(args[1]);
         Application.EnableVisualStyles(); Application.SetCompatibleTextRenderingDefault(false);
         if(args.Contains("--uninstall")) {
             if(MessageBox.Show("Remove the VISION application and automatic startup? Your private account code and saved results will be kept.","Remove VISION Community",MessageBoxButtons.OKCancel)!=DialogResult.OK) return 0;

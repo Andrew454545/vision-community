@@ -53,4 +53,5 @@ jobs:
             ${{ runner.temp }}/windows-native-package/MAINTAINER-UNSIGNED-VISION-Setup.exe
             ${{ runner.temp }}/windows-native-package/package-receipt.json
             ${{ runner.temp }}/windows-native-package/package-self-check.json
+            ${{ runner.temp }}/windows-native-package/detached-helper-check.json
           retention-days: 7
