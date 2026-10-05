@@ -3,6 +3,10 @@
 Updated 2026-10-04 UTC. **The project is not yet approved for production.**
 This checklist describes the current state; check off a release gate only with
 recorded evidence. Earlier failures and exploratory results remain separate.
+The [project audit](PROJECT_AUDIT_20261004.md) records corrected API admission,
+request-size and error-handling defects, download consistency, tested Mac
+controls and remaining release/capacity/privacy findings. Source fixes do not
+update an older release ZIP or deploy the website.
 The previous chronological development log remains in
 [Git history](https://github.com/Andrew454545/vision-community/blob/a4b2630b1e8a049bbe79f904aad75376b6432c8d/docs/PRODUCTION_ACCEPTANCE.md).
 
@@ -47,7 +51,20 @@ The previous chronological development log remains in
 | Privacy and recovery | Anonymous recovery/deletion, revoked credentials, late scene-write fences, immutable R2 deletion receipts, real staging deletion-aware D1 restore. Offline published-index/catalog integrity checker rejects missing, corrupt or linked files. | [Privacy](ACCOUNT_PRIVACY.md), [restore](PRIVATE_RESTORE.md) |
 | Beginner flow | Short README/website guide, guided Windows starter, qualification/service checks, saved-code recovery, pause/resume and private diagnostics. Website assets/privacy headers verified in staging. | [Service readiness](WEBSITE_SERVICE_READINESS.md) |
 | Mac private setup | Actual Apple-silicon private interpreter download/tree and HTTPS verification, public-source snapshot, local guided window and 37 guards pass. No native inference, account, imagery or contribution; Mac runtime/background and clean-device acceptance remain open. | [Mac starter](MAC_PRIVATE_STARTER_20261004.md) |
+| Mac background controls | Actual Apple-silicon guarded registration, immutable source/interpreter startup verification, safe idle replacement, private schedule/pause/resume window and nine exact runtime-link accounting pass. No native work, real account or imagery; actual restart/sign-in and endurance remain open. | [Mac controls](MAC_BACKGROUND_CONTROLS_20261004.md) |
 | Background worker | Native scheduled startup, idle handover and idle forced-exit/pause/resume verified. Installed schedule: medium 06:00–00:00, max 00:00–06:00 local; saved account, 30-minute service retry, sign-in/recovery triggers and one worker. | [Background processing](BACKGROUND_PROCESSING.md) |
+
+Current audited application source `a698313` passes all seven Community CI jobs:
+[tests](https://github.com/Andrew454545/vision-community/actions/runs/37249752134)
+and [calibration](https://github.com/Andrew454545/vision-community/actions/runs/37249752141).
+Actual Windows passes 527 tests in 291.030 seconds with two Mac-only skips;
+the hosted-service suite passes all 220 tests plus the complete workerd checks.
+Actual Apple-silicon Mac passes 41 setup/platform, 41 sleep/background and 12
+control guards without skips, including guarded per-user registration, private
+window ownership, preserved idle replacement and changed-source rejection.
+Both calibration jobs pass 80 guards. The earlier dependency-order CI failure
+is retained; it is repaired by installing the existing local tools before tests.
+These close the recorded source defects, not the production release gates.
 
 Community CI passes all six jobs at `656f3f3`, including the repaired Mac
 ownership job. The cleanup repair passes 465 local Windows
@@ -232,8 +249,9 @@ The [Mac background foundations](MAC_BACKGROUND_FOUNDATIONS_20261004.md) now
 provide process-owned idle-sleep requests with actual Mac assertion/abrupt-exit
 evidence, a per-user startup contract and a finite scheduled-recovery fixture.
 Guided processing uses the platform-selected runtime path. These foundations
-do not replace Mac installer/controls, immutable startup verification, trusted
-native work, real sign-in/reboot or long-running acceptance below.
+now have [guarded Mac controls](MAC_BACKGROUND_CONTROLS_20261004.md), immutable
+startup verification and actual idle handover evidence. Trusted native work,
+active-work handover, real sign-in/reboot and long-running acceptance below remain open.
 All seven Community CI jobs pass at `f0df8b9`, including 515 Windows tests
 (two Mac-only skips), 41 actual Mac setup/platform guards and 41 Mac sleep/
 background guards without skips, plus the finite scheduled-recovery receipt.
@@ -241,7 +259,8 @@ These passing foundations leave the release gates below open.
 
 - [ ] Implement and exercise macOS background startup/sign-in recovery,
   scheduled pacing, pause/resume and preserved account/batch/delivery state.
-  The current Windows task does not establish Mac support. Exercise both lanes
+  Mac source controls and finite actual registration/recovery now pass; real
+  sign-in/restart and accepted native work remain open. Exercise both lanes
   and Both on each OS without overlapping native writers or granting duplicate
   credits; verify shared CPU/memory limits and failures separately.
 
@@ -321,6 +340,9 @@ they do not satisfy the actual restart, accepted-work or endurance gates below.
   credit recovery; see [the restore guide](PRIVATE_RESTORE.md).
 - [ ] Validate complete live publication/storage atomicity and failure recovery,
   load/cost budgets and published retention rules before reopening production.
+  The audit additionally identifies per-request schema work before throttling,
+  unthrottled GET paths and the absent production limiter binding. Correct and
+  measure these before public load; see [the audit](PROJECT_AUDIT_20261004.md).
 
 Credits have no added expiry or cap. A finite queue cannot supply infinite useful
 work; an empty queue waits without re-crediting old locations. Preserve legacy
