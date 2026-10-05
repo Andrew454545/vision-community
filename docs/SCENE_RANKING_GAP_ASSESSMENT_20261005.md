@@ -35,6 +35,25 @@ road view change has a margin of **0.000015803**. These are close reference
 choices; this check does not establish every candidate losing-view score or a
 universal per-view numerical bound. The earlier
 [held-out comparison](HELD_OUT_SCENE_REFERENCE_20261004.md) remains preserved.
+
+A further offline PC assessment recalculates **49,152 individual view scores**
+(twelve queries × 1,024 locations × four views) using each program's retained
+query vectors and packed index. All **24,576 native winning scores** on the two
+sides are reproduced within 0.00000000615. The reference vectors come from the
+earlier pinned reference cache: its metadata identity differs from the full
+search report's model-identity field, so their applicability is checked by reproducing every
+winning score rather than claiming identical metadata.
+
+The largest individual-view difference is **0.000333680**, exceeding the
+0.00025 proposal for winning location scores. That proposal therefore cannot
+be applied to every view. The observed changed PC selection still has its
+previously measured narrow reference margin, and no view changes occur beyond
+twice that query's measured view-score difference plus the declared score
+recalculation tolerance. This is a controlled observation, not a universal
+view allowance. Mac per-view scores remain unassessed because its reduced
+artifact does not retain its native query-vector cache. No reference tie rule,
+acceptance bound or contribution policy was changed to make this check pass.
+
 Trusted live input identity, full runtime qualification and distribution remain
 separate release requirements. No acceptance policy, quantizer, service
 admission or Maximum setting is changed by this assessment.
@@ -43,6 +62,8 @@ Private assessment receipt SHA-256:
 `f2bea46569cbd829b774e39b208fef3517e2ec1531483b08502742187876caf8`.
 Private full-reference view-margin receipt SHA-256:
 `00b8eeb6abc4eaa9577f17a80a3d18df121003a6a38df1c5a3035cb440d5505b`.
+Private PC all-view assessment receipt SHA-256:
+`00d3e4da48d97fa27c33bc7ff7ad70a69ba7111b3b31ecf42c19231cc612ec4b`.
 See [full Windows evidence](FULL_WINDOWS_SCENE_COMPARISON_20261005.md),
 [Mac evidence](MAC_CPU_NATIVE_CHECK_20261004.md) and the
 [release checklist](PRODUCTION_ACCEPTANCE.md).
