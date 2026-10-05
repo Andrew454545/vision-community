@@ -11,7 +11,7 @@ const [miniflarePath, bundlePath, compatibilityDate = "2026-09-19"] = process.ar
 if (!miniflarePath || !bundlePath) throw Error("Specify the local Miniflare entry and dry-run Worker bundle.");
 const { Miniflare, convertV4MiniflareOptions } = await import(pathToFileURL(resolve(miniflarePath)).href);
 const pins = { SEARCH_POLICY_ID: "synthetic-local-test-only", SEARCH_RUNTIME_SHA256: "b".repeat(64),
-  SCENE_POLICY_ID: "synthetic-local-test-only",
+  SCENE_POLICY_ID: "synthetic-local-test-only", OBJECT_PROTOTYPE_TEST_ONLY: "1",
   SEARCH_SNAPSHOT_SHA256: "c".repeat(64), DEPLOYMENT_ENVIRONMENT: "staging", INDEX_BUCKET_NAME: "vision-community-staging" };
 const options = { modules: true, scriptPath: resolve(bundlePath), compatibilityDate,
   modulesRoot: dirname(resolve(bundlePath)),
@@ -34,6 +34,17 @@ try {
   assert.equal(empty.r2.bucket, "vision-community-staging");
   assert.equal((await db.prepare("SELECT COUNT(*) AS n FROM locations").first()).n, 0,
     "fresh hosted deployments must not invent a prototype work queue");
+  // A streamed request with no declared length must stop at the byte budget
+  // before account creation, rather than buffering the complete upload.
+  const oversizedStream = new ReadableStream({start(controller) {
+    controller.enqueue(new Uint8Array(8*1024*1024));controller.enqueue(Uint8Array.of(32));controller.close();
+  }});
+  const oversized = await mf.dispatchFetch("https://community.test/api/accounts", {
+    method:"POST", headers:{"content-type":"application/json",origin:"https://community.test"},
+    body:oversizedStream, duplex:"half" });
+  assert.equal(oversized.status,413);
+  assert.equal((await oversized.json()).error,"request_too_large");
+  assert.equal((await db.prepare("SELECT COUNT(*) AS n FROM accounts").first()).n,0);
   await db.prepare(`INSERT INTO locations (id,asset_id,capture,lane,model,state,contributor_id,lat,lon,heading,country,camera_generation)
     VALUES (1,'abcdefghijklmnopqrstuv','2026-01','scene','scene-model','published','local-contributor',10,20,90,'Italy','gen4')`).run();
   await db.prepare("INSERT INTO published_index (location_id,index_text,output_sha256,published_at,four_view_key) VALUES (1,'',?,0,'four-view-v4/local.i8')")
@@ -201,11 +212,25 @@ try {
     assert.equal((await rejected.json()).error, "no_available_work");
   }
   await db.prepare("UPDATE object_coverage SET evidence_sha256=? WHERE location_id=90001").bind("d".repeat(64)).run();
+  // Valid Gen4 metadata cannot bypass missing native approval on a hosted URL,
+  // even when the private local-test binding is accidentally supplied.
+  const hostedObject = (route, body) => mf.dispatchFetch("https://vision-community-staging.visioncommunity.workers.dev/api/"+route, {
+    method:"POST", headers:{"content-type":"application/json",cookie:objectCookie,
+      origin:"https://vision-community-staging.visioncommunity.workers.dev"}, body:JSON.stringify(body) });
+  for (const [route,body] of [["leases",objectLeaseRequest],["searches",{
+    accountId:objectAccount,lane:"object",prompt:"car",idempotencyKey:"unqualified-object-test"}]]) {
+    const rejected=await hostedObject(route,body);
+    assert.equal(rejected.status,503);assert.equal((await rejected.json()).error,"object_verification_unavailable");
+  }
   const objectLeased = await objectPost("leases", objectLeaseRequest);
   assert.equal(objectLeased.status, 200);
   const objectLease = await objectLeased.json();
   assert.equal(objectLease.items.length, 1);
   assert.equal(objectLease.items[0].locationId, 90001);
+  const hostedSubmission=await hostedObject("submissions",{
+    leaseId:objectLease.leaseId,objectIndex:{},outputs:[{locationId:90001,outputSha256:"a".repeat(64)}]});
+  assert.equal(hostedSubmission.status,503);
+  assert.equal((await hostedSubmission.json()).error,"object_verification_unavailable");
   const r2Before = (await (await mf.getR2Bucket("INDEX")).list()).objects.length;
   for (const [evidence, generation] of [["", "gen4"], ["g".repeat(64), "gen4"], ["d".repeat(64), "gen3"]]) {
     await db.prepare("UPDATE object_coverage SET evidence_sha256=? WHERE location_id=90001").bind(evidence).run();
