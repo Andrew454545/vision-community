@@ -31,6 +31,8 @@ ERRORS = {
     "service_maintenance": "The service is being updated. Your saved work is kept. Try again later.",
     "network_error": "The service could not be reached. Check your connection and try again.",
     "invalid_submission_result": "The service reply could not be confirmed. Your saved work is kept. Try again later.",
+    "service_redirect_refused": "The service sent an unexpected reply. Your account code and saved work are kept. Try again later.",
+    "service_response_limit": "The service reply could not finish safely. Your saved work is kept. Try again later.",
     "runtime_download_failed": "A download was interrupted. Check your connection and choose Download again; verified files will be reused.",
     "runtime_mismatch": "A downloaded file failed its safety check. It was not used. Try downloading again.",
     "unsupported_platform": "This preview supports Intel or AMD Windows PCs and Apple silicon Macs. A compatible download for this computer is not ready yet.",

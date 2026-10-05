@@ -92,6 +92,12 @@ class BackgroundHTTPRestartTests(unittest.TestCase):
                     return self.send(200,{'pendingAudit':True,'submissionId':lease,
                         'accepted':0,'unitsEarned':0},partial=owner.phase=='drop-submit')
                 if self.path=='/api/scene-audits':
+                    if owner.phase=='redirect-audit':
+                        self.send_response(307)
+                        self.send_header('Location','/redirected-private-audit')
+                        self.send_header('Content-Length','0')
+                        self.end_headers()
+                        return
                     if owner.phase=='malformed-audit':
                         return self.send(200,{'accepted':-1,'unitsEarned':0,'pendingAudit':False})
                     if owner.phase=='audit-outage':
@@ -116,6 +122,30 @@ class BackgroundHTTPRestartTests(unittest.TestCase):
         self.url='http://127.0.0.1:'+str(self.server.server_port)
         save_session(self.root/'account.json',url=self.url,account_id=ACCOUNT,recovery_code=CODE)
         self.account_bytes=(self.root/'account.json').read_bytes()
+
+    def test_redirected_saved_audit_preserves_work_across_fresh_workers_and_cooldown(self):
+        self.phase='pending'
+        self.assertEqual(self.child('seed'),{'pendingAudit':True,'submissionId':LEASE,'accepted':0,'unitsEarned':0})
+        saved=self.row()
+        self.phase='redirect-audit'
+        self.assertEqual(self.child(),{'state':'waiting_for_service','accepted':0})
+        self.assertEqual(self.row(),saved)
+        self.assertEqual(self.awards,set())
+        self.assertFalse((self.root/'NEEDS-ATTENTION').exists())
+        self.assertEqual(json.loads((self.root/'desktop-failure.json').read_text())['code'],'service_redirect_refused')
+        calls=len(self.calls)
+        self.phase='pending'
+        self.assertEqual(self.child(now=10001),{'state':'waiting_for_service','accepted':0})
+        self.assertEqual(len(self.calls),calls)
+        self.assertEqual(self.child(now=11800),{'state':'waiting_for_space','accepted':1})
+        self.assertEqual(self.awards,{LEASE})
+        self.assertEqual(self.row()[0],'accepted')
+        self.assertIsNone(self.row()[1])
+        self.assertFalse(any(path=='/redirected-private-audit' for _,path,_ in self.calls))
+        calls=len(self.calls)
+        self.assertEqual(self.child(now=11860),{'state':'waiting_for_space','accepted':0})
+        self.assertFalse(any(path=='/api/scene-audits' for _,path,_ in self.calls[calls:]))
+        self.assert_private_and_no_new_work()
 
     def close(self):
         self.server.shutdown()

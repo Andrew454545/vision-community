@@ -41,6 +41,7 @@ TRANSIENT_HTTP_CODES = frozenset({
     "scene_verification_unavailable",
     "schema_update_required", "rate_limit_unavailable", "service_maintenance",
     "invalid_submission_result",
+    "service_redirect_refused", "service_response_limit",
 })
 SLEEP_REQUEST_ERRORS = frozenset({'keep_awake_failed', 'keep_awake_release_failed'})
 
