@@ -62,6 +62,20 @@ test("Windows automatic-processing instructions appear only with the local platf
   assert.match(html, /id="mac-background" hidden/);
 });
 
+test("Automatic-processing steps name the native app's button only inside the native app", async () => {
+  const { scope, element } = await screen();
+  for (const nativeApp of [true, false, undefined]) {
+    scope.render(state({ backgroundAvailable: true, nativeApp }));
+    for (const platform of ["windows", "mac"]) {
+      assert.equal(element(`${platform}-background-native`).hidden, nativeApp !== true);
+      assert.equal(element(`${platform}-background-folder`).hidden, nativeApp === true);
+    }
+  }
+  const html = readFileSync(new URL("../../../community/desktop_web/index.html", import.meta.url), "utf8");
+  assert.match(html, /id="windows-background-native" hidden>In the <strong>VISION Community<\/strong> window, choose <strong>Automatic processing<\/strong>/);
+  assert.match(html, /id="mac-background-native" hidden>choose <strong>Automatic processing<\/strong>/);
+});
+
 test("unknown, stale or invalid totals do not display misleading progress", async () => {
   const { scope, element } = await screen();
   for (const extra of [{ batchTotal: 0, batchCompleted: 0 }, { batchTotal: 8, batchCompleted: 9 },

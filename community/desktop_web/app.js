@@ -30,8 +30,10 @@ function render(state) {
   byId("lane-availability").textContent = state.laneAvailability?.object === true ? "Objects is available with its own approved processing files and computer check." : "Objects is not open yet. Choose Scenes, or wait for the Object release.";
   byId("windows-background").hidden = state.backgroundAvailable !== true;
   byId("mac-background").hidden = state.backgroundAvailable === true;
-  for (const node of document.querySelectorAll(".native-app")) node.hidden = state.nativeApp !== true;
-  for (const node of document.querySelectorAll(".folder-download")) node.hidden = state.nativeApp === true;
+  for (const platform of ["windows", "mac"]) {
+    byId(`${platform}-background-native`).hidden = state.nativeApp !== true;
+    byId(`${platform}-background-folder`).hidden = state.nativeApp === true;
+  }
   byId("phase").textContent = ({setup:"GETTING READY",download:"PREPARING THIS COMPUTER",checking:"RUNNING THE SHORT COMPUTER CHECK",ready:"READY",indexing:"INDEXING ON THIS COMPUTER",error:"NEEDS ATTENTION"})[state.phase] || "VISION";
   byId("message").textContent = state.message;
   byId("detail").textContent = state.phase === "indexing" ? (state.stopping ? "Pausing after the current batch. Please wait." : "Keep your computer awake and connected. Your credits update when results are accepted.") : state.phase === "checking" ? "Please wait. Regular work starts after the computer check is approved." : "Keep this page and the small VISION starter window open.";
