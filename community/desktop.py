@@ -18,8 +18,10 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 from community.bootstrap import BootstrapError, install_runtime, load_manifest, runtime_platform
-from community.contribute import CommunityClient, ContributeError, DEFAULT_URL
-from community.vision_index import default_runner, index_from_queue, parse_json_stdout, require_layout, program_name, VisionIndexError
+from community.contribute import (CommunityClient, ContributeError, DEFAULT_URL,
+                                  SERVICE_ERROR_CODES, service_error_code)
+from community.vision_index import (default_runner, index_from_queue, parse_json_stdout, require_layout,
+                                    program_name, VisionIndexError, RETRYABLE_NATIVE_CODES)
 from community.pc_canary import (run_canary, canary_profile_matches, released_canary_policy,
                                  compact_approved_canary)
 from community.submission_outbox import SubmissionOutbox, MAX_PENDING_SUBMISSIONS, submission_result_state
@@ -132,7 +134,7 @@ class DesktopClient(CommunityClient):
     def audit_submission(self, submission_id):
         status, data, _ = super().request("POST", "/api/scene-audits", {"submissionId": submission_id})
         if status != 200:
-            raise ContributeError(str(data.get("error") if isinstance(data, dict) else "verification_failed"), status)
+            raise ContributeError(service_error_code(data, "verification_failed"), status)
         self.save_submission_result(submission_id, data)
         if data.get("rejected"):
             raise ContributeError("scene_submission_rejected", 422)
@@ -172,7 +174,9 @@ class DesktopClient(CommunityClient):
 
 def public_error(error):
     code = getattr(error, "code", None) or str(error)
-    return ERRORS.get(code, "This action could not finish. Local diagnostic information was saved; you can retry or share it with the maintainer.")
+    if isinstance(code, str) and code in ERRORS:
+        return ERRORS[code]
+    return "This action could not finish. Local diagnostic information was saved; you can retry or share it with the maintainer."
 
 
 class DesktopApp:
@@ -219,13 +223,15 @@ class DesktopApp:
 
     def record_failure(self, error):
         # No request contents, account identifiers, credentials, or raw process output.
-        code = getattr(error, "code", None) or type(error).__name__
-        if isinstance(error, DesktopError) and str(error) in ERRORS:
-            code = str(error)
-        if not isinstance(code, str) or len(code) > 100:
+        code = str(error) if isinstance(error, DesktopError) else getattr(error, "code", None)
+        if (not isinstance(code, str)
+                or code not in ERRORS and code not in SERVICE_ERROR_CODES and code not in RETRYABLE_NATIVE_CODES):
             code = type(error).__name__
         report = {"status": "INCOMPLETE", "error_type": type(error).__name__, "code": code,
                   "time_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
+        status = getattr(error, "status", None)
+        if type(status) is int and 100 <= status <= 599:
+            report["http_status"] = status
         (self.root / "desktop-failure.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
 
     def launch(self, action):

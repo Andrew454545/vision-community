@@ -167,6 +167,27 @@ class ServiceTransportTests(unittest.TestCase):
         self.assertNotIn('private-unsafe-message',str(caught.exception))
         self.assertEqual(len(self.calls),1)
 
+    def test_unexpected_http_error_values_never_become_private_exception_text(self):
+        private = 'fixture-private-token account-code-and-local-name'
+        for status in (401, 409, 503):
+            for value in (private, {'token': private}, [private], 7, None):
+                with self.subTest(status=status, value_type=type(value).__name__):
+                    self.response = (status, json.dumps({'error': value}).encode(), 'length')
+                    with patch.object(transport.time, 'sleep'), self.assertRaises(ContributeError) as caught:
+                        self.client.request('POST', '/api/recovery', {'recoveryCode': private})
+                    self.assertEqual((caught.exception.code, caught.exception.status), ('http_error', status))
+                    self.assertNotIn(private, str(caught.exception))
+
+    def test_recognized_error_codes_keep_queue_terminal_and_retry_decisions(self):
+        for status, code in ((401, 'unauthorized'), (409, 'expired_lease'),
+                             (404, 'unknown_lease'), (422, 'scene_submission_rejected'),
+                             (503, 'scene_verifier_unavailable'), (429, 'rate_limited')):
+            with self.subTest(code=code):
+                self.response = (status, json.dumps({'error': code}).encode(), 'length')
+                with patch.object(transport.time, 'sleep'), self.assertRaises(ContributeError) as caught:
+                    self.client.request('POST', '/api/submissions', {})
+                self.assertEqual((caught.exception.code, caught.exception.status), (code, status))
+
     def test_truncated_actual_success_reply_is_retried_without_false_acknowledgement(self):
         self.response = (200,b'{"accepted":1,"unitsEarned":1}','short')
         with patch.object(transport.time,'sleep'):

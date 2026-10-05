@@ -21,6 +21,7 @@ from community.object_index import (
     RUNTIME_IDENTITY,
     VisionIndexError,
     class_file_name,
+    decode_object_submission,
     encode_object_submission,
     global_id_record,
     hot_file_name,
@@ -157,6 +158,50 @@ def contract_bundle(items, lease_id, source_path):
 
 
 class ObjectIndexTest(unittest.TestCase):
+    def test_object_transport_preserves_contract_without_private_native_paths(self):
+        lease = 'a' * 32
+        items = [{'locationId': 7, 'lat': 1.25, 'lng': -2.5, 'panoId': 'fixture-pano', 'country': 'Greece'}]
+        for path in ('C:/Users/Private Person/VISION Community/locations.tsv',
+                     '/Users/Private Person/VISION Community/locations.tsv'):
+            with self.subTest(path=path):
+                manifest, files, tsv = contract_bundle(items, lease, path)
+                before = json.loads(json.dumps(manifest))
+                expected = validate_object_index(manifest, files, tsv, items, lease_id=lease)
+                encoded = encode_object_submission(manifest, files, tsv)
+                self.assertNotIn('Private Person', json.dumps(encoded))
+                received, received_files, received_tsv = decode_object_submission(encoded)
+                self.assertEqual(received['sourceTsv'], 'locations.tsv')
+                self.assertEqual(received_files, files)
+                self.assertEqual(received_tsv, tsv)
+                self.assertEqual({k:v for k,v in received.items() if k != 'sourceTsv'},
+                                 {k:v for k,v in manifest.items() if k != 'sourceTsv'})
+                self.assertEqual(validate_object_index(received, received_files, received_tsv, items,
+                                                      lease_id=lease), expected)
+                self.assertEqual(manifest, before)
+                received['sourceSha256'] = '0' * 64
+                with self.assertRaisesRegex(VisionIndexError, 'verification_failed'):
+                    validate_object_index(received, received_files, received_tsv, items, lease_id=lease)
+
+    def test_optional_object_evidence_paths_are_private_but_policy_and_digests_survive(self):
+        private = '/Users/Private Person/protected-evidence.json'
+        quality = {'tunnelEvidenceManifest': private, 'tunnelEvidenceManifestSha256': 'a' * 64,
+                   'protectedAuthorityManifest': private, 'protectedAuthorityManifestSha256': 'b' * 64,
+                   'policy': 'fixture-unchanged-policy', 'keptViews': 6}
+        manifest = {'sourceTsv': private, 'viewQuality': quality}
+        before = json.loads(json.dumps(manifest))
+        shared = encode_object_submission(manifest, {}, b'fixture')['manifest']
+        self.assertNotIn('Private Person', json.dumps(shared))
+        self.assertEqual(shared['viewQuality']['tunnelEvidenceManifest'], 'tunnel-evidence.json')
+        self.assertEqual(shared['viewQuality']['protectedAuthorityManifest'], 'protected-authority.json')
+        for key in ('policy', 'keptViews', 'tunnelEvidenceManifestSha256', 'protectedAuthorityManifestSha256'):
+            self.assertEqual(shared['viewQuality'][key], quality[key])
+        self.assertEqual(manifest, before)
+
+    def test_transport_redaction_cannot_hide_invalid_or_live_source_paths(self):
+        for path in (None, '', ['private'], '/tmp/object-indexes/locations.tsv'):
+            with self.subTest(path=path), self.assertRaises(VisionIndexError):
+                encode_object_submission({'sourceTsv': path}, {}, b'fixture')
+
     def test_tsv_uses_the_vision_twelve_column_object_row(self):
         items = [{
             "locationId": 7,
