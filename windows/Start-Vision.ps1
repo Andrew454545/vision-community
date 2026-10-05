@@ -231,8 +231,6 @@ function Start-Vision {
         $python = Get-VisionPython $root
         $arguments = @('-B', (Join-Path $app 'community\desktop.py'), '--root', $root)
         if ($PrepareOnly) { $arguments += '--prepare-only' }
-        # Only the installed native package carries a sealed release inventory.
-        if (Test-Path -LiteralPath (Join-Path $source 'release-inventory.json') -PathType Leaf) { $arguments += '--native-app' }
         $guard.Dispose(); $guard = $null
         Write-Host 'Opening VISION. The first setup download can take a few minutes.'
         & $python @arguments
