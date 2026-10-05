@@ -137,11 +137,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - name: Run worker scene gate tests
-        run: node --test deploy/cloudflare/src/*.test.mjs deploy/cloudflare/scene-verifier/*.test.mjs deploy/cloudflare/native-scene-bridge/*.test.mjs deploy/cloudflare/native-scene-verifier-bridge/*.test.mjs deploy/cloudflare/native-container-host/*.test.mjs
       - name: Install private Worker test tools
         working-directory: deploy/cloudflare
         run: npm install --no-save --package-lock=false --ignore-scripts wrangler@4.144.0 miniflare@5.20260926.1-alpha
+      - name: Run worker scene gate tests
+        run: node --test deploy/cloudflare/src/*.test.mjs deploy/cloudflare/scene-verifier/*.test.mjs deploy/cloudflare/native-scene-bridge/*.test.mjs deploy/cloudflare/native-scene-verifier-bridge/*.test.mjs deploy/cloudflare/native-container-host/*.test.mjs
       - name: Check the complete Worker in the Cloudflare runtime
         working-directory: deploy/cloudflare
         run: |
