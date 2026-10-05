@@ -27,6 +27,12 @@ jobs:
           python-version: "3.12"
       - name: Install test dependencies
         run: python -m pip install -r requirements.txt
+      - name: Check native Windows work controls first
+        shell: pwsh
+        run: |
+          $env:VISION_TEST_POWERSHELL = Join-Path $PSHOME "pwsh.exe"
+          python -B -m unittest community.tests.test_background_control.BackgroundControlTests.test_native_form_constructs_without_showing_or_starting_work -v
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Run Windows unit tests
         shell: pwsh
         run: |

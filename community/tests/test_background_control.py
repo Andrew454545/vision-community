@@ -134,7 +134,7 @@ class BackgroundControlTests(unittest.TestCase):
                     "function Read-Controls($c) { foreach($child in $c.Controls) { $child; Read-Controls $child } }; "
                     "$controls=@(Read-Controls $form); @{visible=$form.Visible;buttons=@($controls | Where-Object { $_ -is [Windows.Forms.Button] } | ForEach-Object Text); "
                     "times=@($controls | Where-Object { $_ -is [Windows.Forms.DateTimePicker] } | ForEach-Object { $_.Value.ToString('HH:mm') }); "
-                    "choices=@($controls | Where-Object { $_ -is [Windows.Forms.ComboBox] } | ForEach-Object { @{name=$_.AccessibleName;value=$_.Text;items=@($_.Items)} })} | ConvertTo-Json -Compress; $form.Dispose()")
+                    "choices=@($controls | Where-Object { $_ -is [Windows.Forms.ComboBox] } | ForEach-Object { @{name=$_.AccessibleName;value=$_.Text;items=@($_.Items)} })} | ConvertTo-Json -Depth 6 -Compress; $form.Dispose()")
             ui = json.loads(self.command(code))
             self.assertFalse(ui['visible'])
             self.assertEqual(ui['times'], ['06:00', '00:00'])
