@@ -103,12 +103,16 @@ static class Package {
     }
     // Rename first: Windows refuses while VISION runs from (or inside) that copy,
     // so an open application is never partially deleted.
-    static bool Retire(string path) {
+    static bool Running(string path) {
         var prefix=Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar)+Path.DirectorySeparatorChar;
         foreach(var process in Process.GetProcessesByName("VISION")) {
-            try { if(process.MainModule.FileName.StartsWith(prefix,StringComparison.OrdinalIgnoreCase)) return false; }
+            try { if(process.MainModule.FileName.StartsWith(prefix,StringComparison.OrdinalIgnoreCase)) return true; }
             catch(Exception) {} finally { process.Dispose(); }
         }
+        return false;
+    }
+    static bool Retire(string path) {
+        if(Running(path)) return false;
         var retired=Path.Combine(Base,"retired-"+Guid.NewGuid().ToString("N"));
         // Scanners and indexers briefly hold new files; an open VISION keeps failing.
         for(var attempt=0;;attempt++) {
@@ -122,6 +126,34 @@ static class Package {
         var names=Directory.GetFileSystemEntries(path).Select(Path.GetFileName).OrderBy(n=>n,StringComparer.OrdinalIgnoreCase).ToArray();
         return names.Length==2 && String.Equals(names[0],"project",StringComparison.OrdinalIgnoreCase) && String.Equals(names[1],"VISION.exe",StringComparison.OrdinalIgnoreCase);
     }
+    // Rewrite a changed installation in place from the verified payload. Links
+    // are removed, never followed; only changed, missing or extra files change.
+    static void Repair() {
+        if(Running(Installed)) throw new IOException("installation_in_use");
+        var pending=Path.Combine(Base,"staging-"+Guid.NewGuid().ToString("N")); var staged=Path.Combine(pending,"project");
+        Directory.CreateDirectory(pending); Extract(staged);
+        try {
+            var links=new Stack<string>(); links.Push(Installed);
+            while(links.Count>0) foreach(var entry in Directory.GetFileSystemEntries(links.Pop())) {
+                if((File.GetAttributes(entry)&FileAttributes.ReparsePoint)!=0) Remove(entry);
+                else if(Directory.Exists(entry)) links.Push(entry);
+            }
+            var wanted=new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach(var file in Directory.GetFiles(staged,"*",SearchOption.AllDirectories)) {
+                var name=file.Substring(staged.Length+1); wanted.Add(name); var target=Path.Combine(Project,name);
+                Directory.CreateDirectory(Path.GetDirectoryName(target));
+                if(!File.Exists(target) || Hash(File.ReadAllBytes(target))!=Hash(File.ReadAllBytes(file))) {
+                    if(File.Exists(target)) File.SetAttributes(target,FileAttributes.Normal);
+                    File.Copy(file,target,true);
+                }
+            }
+            if(Directory.Exists(Project)) foreach(var file in Directory.GetFiles(Project,"*",SearchOption.AllDirectories))
+                if(!wanted.Contains(file.Substring(Project.Length+1))) { File.SetAttributes(file,FileAttributes.Normal); File.Delete(file); }
+            foreach(var entry in Directory.GetFileSystemEntries(Installed))
+                if(!String.Equals(entry,Project,StringComparison.OrdinalIgnoreCase) && !String.Equals(entry,Executable,StringComparison.OrdinalIgnoreCase)) Remove(entry);
+            if(!File.Exists(Executable) || Hash(File.ReadAllBytes(Executable))!=Hash(File.ReadAllBytes(Current))) File.Copy(Current,Executable,true);
+        } finally { try { Remove(pending); } catch(IOException) {} catch(UnauthorizedAccessException) {} }
+    }
     public static void Install() {
         Plain(Base); Directory.CreateDirectory(Base);
         FileStream guard;
@@ -133,7 +165,7 @@ static class Package {
                 if(Regex.IsMatch(Path.GetFileName(leftover),"^(staging|retired)-[a-f0-9]{32}$")) { try { Remove(leftover); } catch(IOException) {} catch(UnauthorizedAccessException) {} }
             Plain(Installed);
             // Repair a changed installation from this verified download.
-            if(Directory.Exists(Installed) && !Intact() && !Retire(Installed)) throw new IOException("installation_in_use");
+            if(Directory.Exists(Installed) && !Intact()) Repair();
             if(!Directory.Exists(Installed)) {
                 var pending=Path.Combine(Base,"staging-"+Guid.NewGuid().ToString("N"));
                 Directory.CreateDirectory(pending); Extract(Path.Combine(pending,"project"));
