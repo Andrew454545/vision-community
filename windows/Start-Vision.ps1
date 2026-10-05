@@ -230,7 +230,7 @@ function Start-Vision {
         $app = Copy-VisionSource $source $root
         $python = Get-VisionPython $root
         $arguments = @('-B', (Join-Path $app 'community\desktop.py'), '--root', $root)
-        if ($PrepareOnly) { $arguments += '--prepare-only' } else { $arguments += '--prepare' }
+        if ($PrepareOnly) { $arguments += '--prepare-only' }
         $guard.Dispose(); $guard = $null
         Write-Host 'Opening VISION. The first setup download can take a few minutes.'
         & $python @arguments
