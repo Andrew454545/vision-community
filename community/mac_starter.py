@@ -129,7 +129,7 @@ def main():
         entry='mac_background_control.py' if args.background_controls else 'desktop.py'
         arguments=[sys.executable,'-I','-B',str(app/'community'/entry),'--root',str(root)]
         if not args.background_controls:
-            arguments+=['--prepare-only'] if args.prepare_only else ['--prepare']
+            if args.prepare_only:arguments+=['--prepare-only']
         return subprocess.run(arguments,check=False).returncode
     except Exception as error:
         report={'status':'INCOMPLETE','code':str(error) if isinstance(error,SnapshotError) else type(error).__name__,

@@ -4,6 +4,8 @@ Process Street View locations on your computer. Accepted contributions earn
 credits for visual searches.
 
 Processing and online search are currently closed.
+The current download is a **Windows Scenes preview**. The public release will
+also offer Mac, Objects and Both when those options are ready.
 
 ## Get started on Windows
 
@@ -20,11 +22,12 @@ For Intel or AMD Windows PCs. No Python, Git or administrator password needed.
 Open **Background VISION.cmd**, enter your saved account code and choose your
 daytime and nighttime speeds. Select **Save and enable**.
 
-[Automatic processing guide](https://github.com/Andrew454545/vision-community/blob/codex/windows-production-readiness/START-HERE.md#automatic-processing)
+[Automatic processing guide](START-HERE.md#automatic-processing)
 
 ## Search credits
 
-Each accepted scene location earns **1 unit**. A search costs **100,000 units**.
+Each accepted Scene location earns **1 unit**; an accepted Object location earns
+**10 units**. A search costs **100,000 units**.
 Unused credits stay saved. Keep your account code private; lost codes cannot be recovered.
 
 [Open the website](https://vision-community.visioncommunity.workers.dev) ·
