@@ -1,6 +1,8 @@
 // Actual isolated workerd/D1 gateway checks. Replies are synthetic; this
 // cannot approve a real PC or contact an account, model, imagery or cloud store.
 import assert from 'node:assert/strict';
+import { prepareDatabase } from './initialize-schema.mjs';
+import { localRateLimits } from './local-api-bindings.mjs';
 import { createHash } from 'node:crypto';
 import { dirname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -45,14 +47,16 @@ const options = { modules: true, scriptPath: resolve(bundle), modulesRoot: dirna
       if (mode === 'stalled') return new Response(new ReadableStream(), { headers: { 'content-type': 'application/json' } });
       return Response.json(decision);
     } } };
+options.ratelimits=localRateLimits();options.bindings.RATE_LIMITS_REQUIRED='1';
 const mf = new Miniflare(convertV4MiniflareOptions ? convertV4MiniflareOptions(options) : options);
 try {
+  const db = await mf.getD1Database('DB');
+  await prepareDatabase(db);
   const created = await mf.dispatchFetch('https://community.test/api/accounts', { method: 'POST',
     headers: { 'content-type': 'application/json', origin: 'https://community.test' }, body: '{}' });
   assert.equal(created.status, 201);
   const account = (await created.json()).accountId;
   const cookie = created.headers.get('set-cookie').split(';')[0];
-  const db = await mf.getD1Database('DB');
   const cases = [['exact-boundary', 200], ['malformed', 503], ['array', 503], ['content-type', 503],
     ['profile', 503], ['missing-decision', 503], ['expiry', 503], ['oversized', 503],
     ['oversized-stream', 503], ['negative-200', 422], ['negative-422', 422], ['stalled', 503], ['retry', 200]];

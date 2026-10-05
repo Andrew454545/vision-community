@@ -1,6 +1,8 @@
 // Private operator check: local workerd/D1 -> loopback native engine -> ledger.
 // Every database row/account/credit is disposable. Never point at live resources.
 import assert from "node:assert/strict";
+import { prepareDatabase } from './initialize-schema.mjs';
+import { localRateLimits } from './local-api-bindings.mjs';
 import { readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -43,11 +45,13 @@ const options = { modules: true, scriptPath: resolve(bundlePath), modulesRoot: d
         body: await request.text(), signal: AbortSignal.timeout(115000) });
     } },
 };
+options.ratelimits=localRateLimits();options.bindings.RATE_LIMITS_REQUIRED='1';
 const mf = new Miniflare(convertV4MiniflareOptions ? convertV4MiniflareOptions(options) : options);
 try {
   const db = await mf.getD1Database("DB");
   for (const statement of readFileSync(new URL("../schema.sql", import.meta.url), "utf8").split(";").filter(p=>p.trim()))
     await db.prepare(statement).run();
+  await prepareDatabase(db);
   for (const row of fixture.rows) {
     await db.prepare(`INSERT INTO locations (id,asset_id,capture,lane,model,state,contributor_id,lat,lon,heading,pitch,zoom,country,camera_generation,output_sha256)
       VALUES (?,?,?,'scene',?,'published','synthetic-local-owner',?,?,?,?,?,?,?,?)`)

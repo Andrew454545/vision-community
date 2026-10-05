@@ -10,69 +10,19 @@ import {
 import {
   QUERY_VIEW_CAP, renderLocationFaces, leaseCap, usesStreetViews,
 } from "./pano.js";
-import { SEED_LOCATIONS } from "./seed.js";
+import { requireSchema } from "./schemaRevision.js";
+import { ingressLimit, accountLimit, viewLimit, ApiLimitError } from './apiRateLimit.js';
 import { OBJECT_INDEX_MODEL, validateObjectIndex } from "./objectIndex.js";
 import { onlineSearch, onlineSearchConfigured, INDEX_DOWNLOAD_ROUTES } from "./onlineSearch.js";
 import { SearchError } from "./searchLedger.js";
-import { migrateAccountPrivacy, deleteAccount, cleanupAccountArtifacts, archiveAccountDeletionReceipts } from "./accountPrivacy.js";
+import { deleteAccount, cleanupAccountArtifacts, archiveAccountDeletionReceipts } from "./accountPrivacy.js";
 import { writeSceneArtifact } from "./artifactWrites.js";
 import { officialGen4Coverage, objectCoverageComplete } from "./objectCoverage.js";
 import { readRequestJson } from "./requestBody.js";
 import { localObjectPrototype } from "./objectAdmission.js";
 import { loadSceneReferences, sceneCapabilities } from "./sceneQuality.js";
-import { SCENE_PIPELINE_SCHEMA, verifierConfigured, auditBatchLimit, pipelineCapabilities, activeQualification, qualificationStatus, qualifyDevice, auditScene, stageScene } from "./scenePipeline.js";
+import { verifierConfigured, auditBatchLimit, pipelineCapabilities, activeQualification, qualificationStatus, qualifyDevice, auditScene, stageScene } from "./scenePipeline.js";
 
-const SCHEMA = `
-CREATE TABLE IF NOT EXISTS accounts (
-  id TEXT PRIMARY KEY, token_hash TEXT NOT NULL UNIQUE,
-  units INTEGER NOT NULL DEFAULT 0 CHECK (units >= 0), recovery_hash TEXT UNIQUE, deleted_at INTEGER
-);
-CREATE TABLE IF NOT EXISTS locations (
-  id INTEGER PRIMARY KEY AUTOINCREMENT, asset_id TEXT NOT NULL, capture TEXT NOT NULL,
-  lane TEXT NOT NULL, model TEXT NOT NULL, label TEXT NOT NULL DEFAULT '',
-  state TEXT NOT NULL DEFAULT 'pending', active_lease TEXT, lease_until INTEGER,
-  output_sha256 TEXT, contributor_id TEXT, source TEXT, rights TEXT, attribution TEXT,
-  lat REAL, lon REAL, heading REAL NOT NULL DEFAULT 0, pitch REAL NOT NULL DEFAULT 0,
-  zoom REAL NOT NULL DEFAULT 0, country TEXT, camera_generation TEXT,
-  generation INTEGER NOT NULL DEFAULT 0, queue_state TEXT NOT NULL DEFAULT 'pending',
-  UNIQUE (asset_id, capture, lane, model)
-);
-CREATE INDEX IF NOT EXISTS locations_queue ON locations (lane, state, lease_until, id);
-CREATE TABLE IF NOT EXISTS leases (
-  id TEXT PRIMARY KEY, account_id TEXT NOT NULL, lane TEXT NOT NULL,
-  expires_at INTEGER NOT NULL, state TEXT NOT NULL, generation INTEGER, pace TEXT,
-  scene_qualification_id TEXT
-);
-CREATE TABLE IF NOT EXISTS lease_items (
-  lease_id TEXT NOT NULL, location_id INTEGER NOT NULL, PRIMARY KEY (lease_id, location_id)
-);
-CREATE TABLE IF NOT EXISTS published_index (
-  location_id INTEGER PRIMARY KEY, index_text TEXT NOT NULL, output_sha256 TEXT NOT NULL,
-  published_at INTEGER NOT NULL, embedding TEXT, segment_id TEXT
-);
-CREATE TABLE IF NOT EXISTS ledger (
-  id INTEGER PRIMARY KEY AUTOINCREMENT, account_id TEXT NOT NULL, units INTEGER NOT NULL,
-  reason TEXT NOT NULL, reference TEXT NOT NULL UNIQUE
-);
-CREATE TABLE IF NOT EXISTS searches (
-  id TEXT PRIMARY KEY, account_id TEXT NOT NULL, idempotency_key TEXT NOT NULL,
-  query TEXT NOT NULL, result_json TEXT NOT NULL, UNIQUE (account_id, idempotency_key)
-);
-CREATE TABLE IF NOT EXISTS pose_catalog (
-  lane TEXT NOT NULL, shard_id INTEGER NOT NULL, r2_key TEXT NOT NULL,
-  row_start INTEGER NOT NULL, row_count INTEGER NOT NULL, bytes INTEGER NOT NULL,
-  sha256 TEXT NOT NULL, next_byte INTEGER NOT NULL DEFAULT 0, next_row INTEGER NOT NULL DEFAULT 0,
-  PRIMARY KEY (lane, shard_id)
-);
-CREATE TABLE IF NOT EXISTS index_shards (
-  r2_key TEXT PRIMARY KEY, lane TEXT NOT NULL, location_count INTEGER NOT NULL,
-  bytes INTEGER NOT NULL, sha256 TEXT NOT NULL, created_at INTEGER NOT NULL
-);
-CREATE TABLE IF NOT EXISTS object_coverage (
-  location_id INTEGER PRIMARY KEY REFERENCES locations(id),
-  validator TEXT NOT NULL, evidence_sha256 TEXT NOT NULL, validated_at INTEGER NOT NULL
-);
-`;
 
 const HEADERS = {
   "content-type": "application/json",
@@ -98,19 +48,6 @@ function json(value, status = 200, extra = {}) {
 
 function error(code, status = 400, extra = {}) {
   return json({ error: code }, status, extra);
-}
-
-async function rateLimit(env, request, account, route) {
-  if (typeof env.API_RATE_LIMITER?.limit !== "function") return true;
-  const actor = account || `anonymous:${request.headers.get("CF-Connecting-IP") || "unknown"}`;
-  try {
-    const result = await env.API_RATE_LIMITER.limit({ key: `${actor}:${route}` });
-    return result?.success === true;
-  } catch {
-    // A configured limiter that cannot be reached must fail closed. The
-    // binding is optional in the prototype config and required in staging.
-    return false;
-  }
 }
 
 function viewFailure(err) {
@@ -144,69 +81,6 @@ function sameOrigin(request) {
   }
 }
 
-async function ready(env) {
-  for (const statement of SCHEMA.split(";").map((item) => item.trim()).filter(Boolean)) {
-    await env.DB.prepare(statement).run();
-  }
-  await migratePoseCatalog(env);
-  await migrateWorkParts(env);
-  await migrateFourView(env);
-  for (const statement of SCENE_PIPELINE_SCHEMA.split(";").map((item) => item.trim()).filter(Boolean)) {
-    await env.DB.prepare(statement).run();
-  }
-  const leaseColumns = await tableColumns(env, "leases");
-  if (!leaseColumns.includes("scene_qualification_id")) {
-    await env.DB.prepare("ALTER TABLE leases ADD COLUMN scene_qualification_id TEXT").run();
-  }
-  await migrateAccountPrivacy(env);
-  // Prototype metadata is an explicit local demonstration, never work to
-  // advertise automatically on a fresh hosted deployment.
-  if (env.SEED_PROTOTYPE_LOCATIONS !== "1") return;
-  const count = await env.DB.prepare("SELECT COUNT(*) AS n FROM locations").first();
-  if (!count || count.n > 0) return;
-  const statements = SEED_LOCATIONS.map((row) =>
-    env.DB.prepare(
-      `INSERT OR IGNORE INTO locations
-        (asset_id, capture, lane, model, label, source, rights, attribution, lat, lon, heading, pitch, zoom, country, camera_generation, queue_state)
-       VALUES (?, ?, ?, ?, '', 'street-metadata', 'metadata-only-no-imagery', 'Panorama metadata only. Imagery is not stored.', ?, ?, ?, ?, ?, ?, ?, 'pending')`
-    ).bind(row.panoId, row.capture, row.lane, MODEL_ID, row.lat, row.lng, row.heading, row.pitch, row.zoom, row.country, row.cameraGeneration)
-  );
-  await env.DB.batch(statements);
-}
-
-async function migratePoseCatalog(env) {
-  const row = await env.DB.prepare("SELECT sql FROM sqlite_master WHERE name='pose_catalog'").first();
-  if (!row?.sql || !row.sql.includes("r2_key TEXT NOT NULL UNIQUE")) return;
-  await env.DB.prepare(`CREATE TABLE pose_catalog_v2 (
-    lane TEXT NOT NULL, shard_id INTEGER NOT NULL, r2_key TEXT NOT NULL,
-    row_start INTEGER NOT NULL, row_count INTEGER NOT NULL, bytes INTEGER NOT NULL,
-    sha256 TEXT NOT NULL, next_byte INTEGER NOT NULL DEFAULT 0, next_row INTEGER NOT NULL DEFAULT 0,
-    PRIMARY KEY (lane, shard_id)
-  )`).run();
-  await env.DB.prepare("INSERT OR IGNORE INTO pose_catalog_v2 SELECT * FROM pose_catalog").run();
-  await env.DB.prepare("DROP TABLE pose_catalog").run();
-  await env.DB.prepare("ALTER TABLE pose_catalog_v2 RENAME TO pose_catalog").run();
-}
-
-async function tableColumns(env, table) {
-  return ((await env.DB.prepare(`PRAGMA table_info(${table})`).all()).results || []).map((row) => row.name);
-}
-
-async function migrateFourView(env) {
-  const cols = await tableColumns(env, "published_index");
-  if (!cols.includes("four_view_sha256")) {
-    await env.DB.prepare("ALTER TABLE published_index ADD COLUMN four_view_sha256 TEXT").run();
-  }
-  if (!cols.includes("four_view_key")) {
-    await env.DB.prepare("ALTER TABLE published_index ADD COLUMN four_view_key TEXT").run();
-  }
-  if (!cols.includes("object_index_sha256")) {
-    await env.DB.prepare("ALTER TABLE published_index ADD COLUMN object_index_sha256 TEXT").run();
-  }
-  if (!cols.includes("object_index_key")) {
-    await env.DB.prepare("ALTER TABLE published_index ADD COLUMN object_index_key TEXT").run();
-  }
-}
 
 const FOUR_VIEW_MODEL = "vision-four-view-v4";
 const FOUR_VIEW_BYTES = 3080;
@@ -229,44 +103,6 @@ function validFourViewRecord(bytes) {
   return true;
 }
 
-async function migrateWorkParts(env) {
-  const locationCols = await tableColumns(env, "locations");
-  const addedShard = !locationCols.includes("catalog_shard");
-  if (addedShard) {
-    await env.DB.prepare("ALTER TABLE locations ADD COLUMN catalog_shard INTEGER").run();
-  }
-  const catalogCols = await tableColumns(env, "pose_catalog");
-  if (!catalogCols.includes("assignee")) {
-    await env.DB.prepare("ALTER TABLE pose_catalog ADD COLUMN assignee TEXT").run();
-  }
-  if (!catalogCols.includes("assigned_at")) {
-    await env.DB.prepare("ALTER TABLE pose_catalog ADD COLUMN assigned_at INTEGER").run();
-  }
-  if (!catalogCols.includes("held")) {
-    await env.DB.prepare("ALTER TABLE pose_catalog ADD COLUMN held INTEGER NOT NULL DEFAULT 0").run();
-  }
-  await env.DB.prepare(
-    "CREATE INDEX IF NOT EXISTS locations_part_queue ON locations (lane, catalog_shard, state, lease_until, id)"
-  ).run();
-  if (addedShard) {
-    await env.DB.prepare(
-      `UPDATE locations SET catalog_shard = (
-          SELECT p.shard_id FROM pose_catalog p
-          WHERE p.lane = locations.lane AND p.r2_key LIKE 'catalog/all-locations-tail-v1/%'
-          ORDER BY p.shard_id LIMIT 1
-       )
-       WHERE catalog_shard IS NULL
-         AND COALESCE(source, '') = 'street-metadata'
-         AND asset_id NOT LIKE 'Prototype%'
-         AND asset_id NOT LIKE 'synthetic:%'
-         AND asset_id NOT LIKE 'CommunityPano%'
-         AND EXISTS (
-           SELECT 1 FROM pose_catalog p
-           WHERE p.lane = locations.lane AND p.r2_key LIKE 'catalog/all-locations-tail-v1/%'
-         )`
-    ).run();
-  }
-}
 
 const STEAL_AFTER_SECONDS = 6 * 60 * 60;
 const FAMILY_LABELS = {
@@ -1311,25 +1147,26 @@ async function search(env, account, body, objectPrototype = false) {
 }
 
 
+const API_METHODS = new Map([
+  ["/api/capabilities","GET"],["/api/status","GET"],["/api/me","GET"],["/api/views","GET"],
+  ["/api/scene-qualifications","GET,POST"],["/api/accounts","POST"],["/api/recovery","POST"],
+  ["/api/account/delete","POST"],["/api/scene-audits","POST"],["/api/leases/release","POST"],
+  ["/api/leases/renew","POST"],["/api/leases","POST"],["/api/submissions","POST"],["/api/searches","POST"]
+]);
 export default {
   async scheduled(_event, env) {
     if (env.RESTORE_MAINTENANCE !== undefined && env.RESTORE_MAINTENANCE !== "0") return;
     if (!env.DB || !env.INDEX) return;
-    await ready(env);
+    // No request or scheduled handler installs/upgrades database structures.
+    await requireSchema(env);
     await cleanupAccountArtifacts(env, null, 64);
     await archiveAccountDeletionReceipts(env);
   },
   async fetch(request, env) {
     const url = new URL(request.url);
-    // Only operator configuration can close the control plane. Stop before
-    // migration, authentication, request-body reads or asynchronous writers.
-    // A malformed configured value stays closed; absent/"0" preserve normal use.
     if (url.pathname.startsWith("/api/") && env.RESTORE_MAINTENANCE !== undefined
         && env.RESTORE_MAINTENANCE !== "0") return error("service_maintenance", 503, { "retry-after": "60" });
     if (INDEX_DOWNLOAD_ROUTES.has(url.pathname)) return error("online_search_required", 410);
-    if (url.pathname === "/api/capabilities" && request.method === "GET") {
-      return json(verifierConfigured(env) ? pipelineCapabilities(env) : sceneCapabilities(await loadSceneReferences(env)));
-    }
     if (!url.pathname.startsWith("/api/")) {
       const response = await env.ASSETS.fetch(request);
       const headers = new Headers(response.headers);
@@ -1341,63 +1178,56 @@ export default {
       headers.set("content-security-policy", HEADERS["content-security-policy"]);
       return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
     }
-    if (!env.DB) return error("control_plane_unprovisioned", 503);
+    // Reject unsupported routes/methods before touching a database or body.
+    if (!API_METHODS.get(url.pathname)?.split(",").includes(request.method)) return error("not_found",404);
+    if (!sameOrigin(request)) return error("cross_origin_request",403);
     try {
-      await ready(env);
-      if (url.pathname === "/api/status" && request.method === "GET") return json(await status(env));
-      if (url.pathname === "/api/me" && request.method === "GET") {
-        const account = await accountId(env, request);
-        if (!account) return error("unauthorized", 401);
-        return json(await status(env, account, { lite: url.searchParams.get("lite") === "1" }));
+      await ingressLimit(env,request);
+      const anonymous=["/api/capabilities","/api/status","/api/accounts","/api/recovery"].includes(url.pathname);
+      if (anonymous) await accountLimit(env,request,null);
+      if (!env.DB) return error("control_plane_unprovisioned",503);
+      await requireSchema(env);
+      if (url.pathname === "/api/capabilities") {
+        return json(verifierConfigured(env) ? pipelineCapabilities(env) : sceneCapabilities(await loadSceneReferences(env)));
       }
-      if (url.pathname === "/api/scene-qualifications" && request.method === "GET") {
-        const account = await accountId(env, request);
-        if (!account) return error("unauthorized", 401);
-        if (!verifierConfigured(env)) return error("scene_verification_unavailable", 503);
-        return json(await qualificationStatus(env, account, url.searchParams.get("profileId")));
+      if (url.pathname === "/api/status") return json(await status(env));
+      const account=anonymous ? null : await accountId(env,request);
+      // Deleted accounts may still replay their own saved deletion receipt.
+      if (!anonymous && !account && url.pathname!=="/api/account/delete") return error("unauthorized",401);
+      if (!anonymous) await accountLimit(env,request,account);
+      if (url.pathname === "/api/me") return json(await status(env,account,{lite:url.searchParams.get("lite")==="1"}));
+      if (url.pathname === "/api/scene-qualifications" && request.method==="GET") {
+        if (!verifierConfigured(env)) return error("scene_verification_unavailable",503);
+        return json(await qualificationStatus(env,account,url.searchParams.get("profileId")));
       }
-      if (url.pathname === "/api/views" && request.method === "GET") {
-        if (!sameOrigin(request)) return error("cross_origin_request", 403);
-        const account = await accountId(env, request);
-        if (!account) return error("unauthorized", 401);
+      if (url.pathname === "/api/views") {
+        await viewLimit(env,account);
         return views(request);
       }
-      if (request.method !== "POST") return error("not_found", 404);
-      if (!sameOrigin(request)) return error("cross_origin_request", 403);
-      const body = await readRequestJson(request);
-      if (url.pathname === "/api/accounts") {
-        if (!(await rateLimit(env, request, null, url.pathname))) return error("rate_limited", 429, { "retry-after": "60" });
-        return await createAccount(env, request);
-      }
-      if (url.pathname === "/api/recovery") {
-        if (!(await rateLimit(env, request, null, url.pathname))) return error("rate_limited", 429, { "retry-after": "60" });
-        return await recover(env, request, body);
-      }
-      const account = await accountId(env, request);
+      const body=await readRequestJson(request);
+      if (url.pathname === "/api/accounts") return await createAccount(env,request);
+      if (url.pathname === "/api/recovery") return await recover(env,request,body);
       if (url.pathname === "/api/account/delete") {
-        if (!(await rateLimit(env, request, account, url.pathname))) return error("rate_limited", 429, { "retry-after": "60" });
-        const result = await deleteAccount(env, account, body);
-        await cleanupAccountArtifacts(env, body.accountId);
-        return json(result, 200, { "set-cookie": cookie("", request) + "; Max-Age=0" });
+        const result=await deleteAccount(env,account,body);
+        await cleanupAccountArtifacts(env,body.accountId);
+        return json(result,200,{"set-cookie":cookie("",request)+"; Max-Age=0"});
       }
-      if (!account) return error("unauthorized", 401);
-      if (!(await rateLimit(env, request, account, url.pathname))) return error("rate_limited", 429, { "retry-after": "60" });
       if (url.pathname === "/api/scene-qualifications") {
-        if (!verifierConfigured(env)) return error("scene_verification_unavailable", 503);
-        return json(await qualifyDevice(env, account, body, validFourViewRecord));
+        if (!verifierConfigured(env)) return error("scene_verification_unavailable",503);
+        return json(await qualifyDevice(env,account,body,validFourViewRecord));
       }
-      if (url.pathname === "/api/scene-audits") {
-        return json(await auditScene(env, account, body.submissionId));
-      }
-      if (url.pathname === "/api/leases/release") return await releaseLease(env, account, body);
-      if (url.pathname === "/api/leases/renew") return await renewLease(env, account, body);
-      const objectPrototype = localObjectPrototype(request, env);
-      if (url.pathname === "/api/leases") return await lease(env, account, body, objectPrototype);
-      if (url.pathname === "/api/submissions") return await submit(env, account, body, objectPrototype);
-      if (url.pathname === "/api/searches") return await search(env, account, body, objectPrototype);
-      return error("not_found", 404);
-    } catch (err) {
-      return viewFailure(err) || error("internal_error", 500);
+      if (url.pathname === "/api/scene-audits") return json(await auditScene(env,account,body.submissionId));
+      if (url.pathname === "/api/leases/release") return await releaseLease(env,account,body);
+      if (url.pathname === "/api/leases/renew") return await renewLease(env,account,body);
+      const objectPrototype=localObjectPrototype(request,env);
+      if (url.pathname === "/api/leases") return await lease(env,account,body,objectPrototype);
+      if (url.pathname === "/api/submissions") return await submit(env,account,body,objectPrototype);
+      if (url.pathname === "/api/searches") return await search(env,account,body,objectPrototype);
+      return error("not_found",404);
+    } catch(err) {
+      if (err instanceof ApiLimitError) return error(err.message,err.status,{"retry-after":"60"});
+      if (err?.message==="schema_update_required") return error("schema_update_required",503,{"retry-after":"60"});
+      return viewFailure(err) || error("internal_error",500);
     }
-  },
+  }
 };

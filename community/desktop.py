@@ -26,6 +26,9 @@ from community.submission_outbox import SubmissionOutbox, MAX_PENDING_SUBMISSION
 
 WEB = Path(__file__).with_name("desktop_web")
 ERRORS = {
+    "schema_update_required": "The service is being updated. Your saved work is kept. Try again later.",
+    "rate_limit_unavailable": "The service is temporarily unavailable. Your saved work is kept. Try again later.",
+    "service_maintenance": "The service is being updated. Your saved work is kept. Try again later.",
     "network_error": "The service could not be reached. Check your connection and try again.",
     "runtime_download_failed": "A download was interrupted. Check your connection and choose Download again; verified files will be reused.",
     "runtime_mismatch": "A downloaded file failed its safety check. It was not used. Try downloading again.",

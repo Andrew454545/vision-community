@@ -1,5 +1,7 @@
 // Real local workerd/D1/R2; synthetic accounts only, no external resources.
 import assert from "node:assert/strict";
+import { prepareDatabase } from './initialize-schema.mjs';
+import { localRateLimits } from './local-api-bindings.mjs';
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -14,6 +16,7 @@ const options = { modules: true, scriptPath, modulesRoot: dirname(scriptPath),
     DELETION_ARCHIVE_REQUIRED: "1", DELETION_ARCHIVE_ENVIRONMENT: "staging",
     DELETION_ARCHIVE_DB_ID: "17043cb7-5dab-4a6f-84ca-19ae1c14cc05",
   }, serviceBindings: { ASSETS: () => new Response(null, { status: 404 }) } };
+options.ratelimits=localRateLimits();options.bindings.RATE_LIMITS_REQUIRED='1';
 const instance = new Miniflare(convertV4MiniflareOptions(options));
 const sha = value => createHash("sha256").update(value).digest("hex");
 async function deleted(accountId, token, key) {
@@ -26,6 +29,7 @@ try {
   const db = await instance.getD1Database("DB"), bucket = await instance.getR2Bucket("INDEX");
   const schema = readFileSync(new URL("../schema.sql", import.meta.url), "utf8");
   for (const statement of schema.split(";").filter(part => part.trim())) await db.prepare(statement).run();
+  await prepareDatabase(db);
   assert.equal((await instance.dispatchFetch("https://community.invalid/api/status")).status, 200);
   const account = "a".repeat(32), token = "synthetic-local-token-one", key = "c".repeat(64);
   await db.prepare("INSERT INTO accounts (id,token_hash,units) VALUES (?,?,200000)").bind(account, sha(token)).run();

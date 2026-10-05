@@ -10,6 +10,10 @@ const PACE_LEASE = {
   object: { slow: 1, medium: 2, max: 4 },
 };
 const ERRORS = {
+  schema_update_required: "The service is being updated. Your saved searches and credits are kept. Try again later.",
+  rate_limit_unavailable: "The service is temporarily unavailable. Try again later.",
+  service_maintenance: "The service is being updated. Your saved searches and credits are kept. Try again later.",
+  rate_limited: "Please wait a minute, then try again. Your saved searches and credits are kept.",
   no_available_work: "No more work is waiting for that choice right now. Try Scene, Objects, or Both.",
   insufficient_credit: "Keep indexing. A search needs 100,000 scenes (or 10,000 objects).",
   verification_failed: "That scene could not be checked, so it was not counted.",
