@@ -73,12 +73,13 @@ static class Package {
     public static string Project { get { return Path.Combine(Installed,"project"); } }
     public static string Executable { get { return Path.Combine(Installed,"VISION.exe"); } }
     public static string Current { get { return Assembly.GetExecutingAssembly().Location; } }
-    public static Process Script(string script,string arguments) {
+    public static Process Script(string script,string arguments,bool detached=false) {
         var shell=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows),"System32","WindowsPowerShell","v1.0","powershell.exe");
         var task=new Process(); task.StartInfo=new ProcessStartInfo(shell,"-NoProfile -File "+Quote(script)+" "+arguments) {
-            UseShellExecute=false,CreateNoWindow=true,RedirectStandardOutput=true,RedirectStandardError=true };
-        task.OutputDataReceived+=(s,e)=>{}; task.ErrorDataReceived+=(s,e)=>{};
-        task.Start(); task.BeginOutputReadLine(); task.BeginErrorReadLine(); return task;
+            UseShellExecute=detached,CreateNoWindow=!detached,WindowStyle=ProcessWindowStyle.Hidden,
+            RedirectStandardOutput=!detached,RedirectStandardError=!detached };
+        if(!detached) { task.OutputDataReceived+=(s,e)=>{}; task.ErrorDataReceived+=(s,e)=>{}; }
+        task.Start(); if(!detached) { task.BeginOutputReadLine(); task.BeginErrorReadLine(); } return task;
     }
     static void Shortcut(string path,string args) {
         Plain(path); Directory.CreateDirectory(Path.GetDirectoryName(path));
@@ -113,7 +114,7 @@ static class Package {
         Verify(Project); var temporary=Path.Combine(Path.GetTempPath(),"vision-remove-"+Guid.NewGuid().ToString("N"));
         Plain(temporary); Directory.CreateDirectory(temporary);
         var helper=Path.Combine(temporary,"Remove-Vision.ps1"); File.Copy(Path.Combine(Project,"packaging","windows","Remove-Vision.ps1"),helper);
-        Script(helper,"-Revision "+Build.Revision+" -InventoryHash "+Build.InventorySHA+" -WaitPid "+Process.GetCurrentProcess().Id);
+        Script(helper,"-Revision "+Build.Revision+" -InventoryHash "+Build.InventorySHA+" -WaitPid "+Process.GetCurrentProcess().Id,true);
     }
     public static int SelfCheck() {
         var root=Path.Combine(Path.GetTempPath(),"vision-package-check-"+Guid.NewGuid().ToString("N")); Plain(root);
