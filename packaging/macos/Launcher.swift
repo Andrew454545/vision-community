@@ -59,6 +59,8 @@ final class Launcher: NSObject, NSApplicationDelegate, NSWindowDelegate {
         start = NSButton(title:"Start VISION", target:self, action:#selector(openGuided))
         background = NSButton(title:"Automatic processing", target:self, action:#selector(openBackground))
         for button in [start!,background!] { button.bezelStyle = .rounded; button.font = .systemFont(ofSize:17); button.heightAnchor.constraint(greaterThanOrEqualToConstant:44).isActive = true }
+        // Return starts the guided page without a pointer, as in Windows.
+        start.keyEquivalent = "\r"
         let foot = NSTextField(wrappingLabelWithString:"Keep this window open. To finish a running batch safely, close VISION from its guided page first.")
         foot.font = .systemFont(ofSize:13)
         let stack = NSStackView(views:[heading,intro,status,start,background,foot])
