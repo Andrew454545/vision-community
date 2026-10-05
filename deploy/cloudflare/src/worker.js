@@ -1195,7 +1195,7 @@ export default {
       // Deleted accounts may still replay their own saved deletion receipt.
       if (!anonymous && !account && url.pathname!=="/api/account/delete") return error("unauthorized",401);
       if (!anonymous) await accountLimit(env,request,account);
-      if (url.pathname === "/api/me") return json(await status(env,account,{lite:url.searchParams.get("lite")==="1"}));
+      if (url.pathname === "/api/me") return json(await status(env, account, { lite: url.searchParams.get("lite") === "1" }));
       if (url.pathname === "/api/scene-qualifications" && request.method==="GET") {
         if (!verifierConfigured(env)) return error("scene_verification_unavailable",503);
         return json(await qualificationStatus(env,account,url.searchParams.get("profileId")));
