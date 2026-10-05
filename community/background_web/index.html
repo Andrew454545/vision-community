@@ -4,6 +4,7 @@
 <p>Set your schedule once. VISION resumes after you sign in and keeps your saved work.</p>
 <p id="status" role="status" aria-live="polite">Checking saved settings…</p>
 <form id="settings"><label id="code-label">Your saved recovery code<input id="code" type="password" autocomplete="off" maxlength="256"><small>Use the code from your Community account. It stays on this computer.</small></label>
+<label>Work to process<select id="workType"><option value="scene">Scenes</option><option value="object">Objects</option><option value="both">Both · one batch at a time</option></select></label><small>Each type needs its own approved release and computer check. Unavailable work waits safely.</small>
 <div class="period"><h2>Day</h2><label>Starts at<input id="dayStart" type="time" value="06:00" required></label><label>Processing<select id="dayPace"><option value="slow">Slow</option><option value="medium" selected>Medium</option><option value="max">Maximum</option><option value="pause">Pause</option></select></label></div>
 <div class="period"><h2>Night</h2><label>Starts at<input id="nightStart" type="time" value="00:00" required></label><label>Processing<select id="nightPace"><option value="slow">Slow</option><option value="medium">Medium</option><option value="max" selected>Maximum</option><option value="pause">Pause</option></select></label></div>
 <small>Times follow this computer’s clock. Maximum uses the fastest currently approved setting.</small>

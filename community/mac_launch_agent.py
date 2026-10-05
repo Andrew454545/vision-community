@@ -13,7 +13,7 @@ LABEL = 'org.visioncommunity.background'
 
 
 def agent_config(root, python, entrypoint, *, home, label=LABEL, schedule=None,
-                 retry_minutes=30, storage_limit_gb=0, prevent_sleep=True):
+                 retry_minutes=30, storage_limit_gb=0, prevent_sleep=True, work_type=None):
     root = regular(root, directory=True)
     python, entrypoint = regular(python), regular(entrypoint)
     home = regular(home, directory=True)
@@ -29,12 +29,16 @@ def agent_config(root, python, entrypoint, *, home, label=LABEL, schedule=None,
         schedule = ProcessingSchedule(day_start='06:00', night_start='00:00')
     if not isinstance(schedule, ProcessingSchedule):
         raise ValueError('invalid_mac_background_settings')
+    if work_type is not None and (not isinstance(work_type, str) or work_type not in {'scene', 'object', 'both'}):
+        raise ValueError('invalid_mac_background_settings')
     arguments = [str(python), '-I', '-B', str(entrypoint), '--root', str(root), '--accept-contributions',
         '--day-pace', schedule.day_pace, '--night-pace', schedule.night_pace,
         '--day-start', schedule.day_start, '--night-start', schedule.night_start,
         '--retry-minutes', str(retry_minutes), '--storage-limit-gb', str(storage_limit_gb)]
     if not prevent_sleep:
         arguments.append('--no-keep-awake')
+    if work_type is not None:
+        arguments.extend(['--work-type', work_type])
     return {'Label': label, 'ProgramArguments': arguments, 'WorkingDirectory': str(root),
         'EnvironmentVariables': {'PATH': '/usr/bin:/bin:/usr/sbin:/sbin', 'HOME': str(home), 'LC_ALL': 'C'},
         'RunAtLoad': True, 'KeepAlive': False, 'StartInterval': 900, 'ThrottleInterval': 300,
@@ -59,4 +63,3 @@ def verify_loaded(text, expected):
             or program.group(1).strip() != expected['ProgramArguments'][0]
             or not interval or int(interval.group(1)) != expected['StartInterval']):
         raise ValueError('mac_background_readback_failed')
-

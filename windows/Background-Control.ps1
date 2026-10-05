@@ -209,6 +209,13 @@ function Show-VisionBackgroundControl([string]$Folder) {
     $null = Add-ControlLabel 'Let VISION help automatically. You can close these controls while it works.'
     $statusLabel = Add-ControlLabel ''
     $statusLabel.ForeColor = [Drawing.Color]::DarkSlateGray
+    $null = Add-ControlLabel 'Work to process. Each type needs its own approval; Both takes turns.'
+    $workChoice = New-Object Windows.Forms.ComboBox
+    $workChoice.DropDownStyle = [Windows.Forms.ComboBoxStyle]::DropDownList
+    $workChoice.Width = 350; $workChoice.AccessibleName = 'Work to process'
+    $workCodes = @('scene', 'object', 'both')
+    $workChoice.Items.AddRange(@('Scenes', 'Objects', 'Both - one batch at a time'))
+    $workChoice.SelectedIndex = 0; $layout.Controls.Add($workChoice)
     $null = Add-ControlLabel 'Times follow this PC clock. Medium rests between batches; Maximum skips extra rests. Both use approved processing settings.'
     $scheduleRow = New-Object Windows.Forms.FlowLayoutPanel
     $scheduleRow.AutoSize = $true; $scheduleRow.WrapContents = $false
@@ -236,6 +243,11 @@ function Show-VisionBackgroundControl([string]$Folder) {
     $settings = Read-VisionControlJson (Join-Path $Folder 'background-settings.json')
     $dayStart = '06:00'; $nightStart = '00:00'; $dayChoice = 1; $nightChoice = 2; $limit = 20; $keepAwake = $true; $retryMinutes = 30
     if ($settings) {
+        if ($settings.PSObject.Properties['workType']) {
+            $chosenWork = [Array]::IndexOf($workCodes, [string]$settings.workType)
+            if ($chosenWork -lt 0) { throw 'The saved work choice needs review.' }
+            $workChoice.SelectedIndex = $chosenWork
+        }
         $dayStart = [string]$settings.dayStart; $nightStart = [string]$settings.nightStart
         $dayChoice = [Array]::IndexOf($paceCodes, [string]$settings.dayPace)
         $nightChoice = [Array]::IndexOf($paceCodes, [string]$settings.nightPace)
@@ -312,6 +324,7 @@ function Show-VisionBackgroundControl([string]$Folder) {
             $form.Refresh()
             $options = @{ Source = $script:VisionControlSource; Root = $Folder; AcceptContributions = $true
                 DayPace = $paceCodes[$day.Pace.SelectedIndex]; NightPace = $paceCodes[$night.Pace.SelectedIndex]
+                WorkType = $workCodes[$workChoice.SelectedIndex]
                 DayStart = $day.Clock.Value.ToString('HH:mm'); NightStart = $night.Clock.Value.ToString('HH:mm')
                 StorageLimitGB = [int]$storage.Value; RetryMinutes = $retryMinutes; AllowSleep = -not $awake.Checked }
             $null = & (Join-Path $PSScriptRoot 'Install-Background.ps1') @options

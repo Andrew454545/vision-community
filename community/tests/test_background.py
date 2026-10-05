@@ -9,6 +9,7 @@ from community.background import BackgroundContributor, ProcessingSchedule, WAIT
 from community.contribute import ContributeError
 from community.desktop import DesktopApp, DesktopError
 from community.vision_index import VisionIndexError
+from community.work_plan import WorkPlan
 
 
 class BackgroundTest(unittest.TestCase):
@@ -74,6 +75,7 @@ class BackgroundTest(unittest.TestCase):
 
     def worker(self, root, **settings):
         app = Mock()
+        app.work_plan = WorkPlan(Path(root))
         app.client = None
         app.assets = {"binary": Path(root) / "runtime/bin/mma-vision.exe",
                       "model_dir": Path(root) / "runtime/models"}
@@ -83,6 +85,9 @@ class BackgroundTest(unittest.TestCase):
             return {"recoveryCode": "private-test-code"}
         app.connect.side_effect = connect
         app.indexer.return_value = {"batches": 1, "accepted": 16}
+        app.run_batch.side_effect = lambda: app.indexer(url=worker.url, pace="slow", batches=1,
+            count=16, client=app.client, persist_session=False, work_dir=worker.root / "indexes",
+            **app.assets, use_nice=False)
         app.resume_submissions.return_value = {"accepted": 0, "unitsEarned": 0}
         app.require_qualification.side_effect = None
         settings.setdefault("schedule", ProcessingSchedule(day_pace="max", night_pace="max"))

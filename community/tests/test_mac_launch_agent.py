@@ -54,6 +54,16 @@ class MacLaunchAgentTests(unittest.TestCase):
         self.assertNotIn('recoveryCode', str(self.config()))
         self.assertNotIn('--url', self.config()['ProgramArguments'])
 
+    def test_explicit_work_choice_round_trips_and_legacy_arguments_are_preserved(self):
+        self.assertNotIn('--work-type', self.config()['ProgramArguments'])
+        for choice in ('scene', 'object', 'both'):
+            plan = self.config(work_type=choice)
+            args = plan['ProgramArguments']
+            self.assertEqual(args[args.index('--work-type') + 1], choice)
+            verify_loaded(self.readback(plan), plan)
+        for invalid in ('unknown', [], True):
+            with self.assertRaises(ValueError): self.config(work_type=invalid)
+
     def test_allow_sleep_is_explicit_and_loaded_program_interval_and_arguments_must_match(self):
         plan = self.config(prevent_sleep=False)
         self.assertEqual(plan['ProgramArguments'][-1], '--no-keep-awake')

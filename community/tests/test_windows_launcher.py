@@ -72,7 +72,7 @@ class WindowsLauncherTest(unittest.TestCase):
         (source / "community").mkdir(parents=True)
         (source / "windows").mkdir()
         (source / "windows/Start-Vision.ps1").write_bytes(LAUNCHER.read_bytes())
-        for name in ("community/desktop.py", "community/delivery.py", "community/bootstrap.py", "community/vision_index.py", "community/process_owner.py", "community/submission_outbox.py",
+        for name in ("community/desktop.py", "community/delivery.py", "community/bootstrap.py", "community/vision_index.py", "community/object_index.py", "community/work_plan.py", "community/process_owner.py", "community/submission_outbox.py",
                      "community/runtime_manifest.json", "community/desktop_web/index.html",
                      "calibration/run_windows.py", "calibration/quality.py", "calibration/synthetic_canary.py",
                      "calibration/gen4-v1/checksums.json"):
@@ -134,7 +134,7 @@ class WindowsLauncherTest(unittest.TestCase):
             private = root / "private"
             source.mkdir()
             private.mkdir()
-            public = ["community/desktop.py", "community/delivery.py", "community/bootstrap.py", "community/vision_index.py", "community/process_owner.py", "community/submission_outbox.py",
+            public = ["community/desktop.py", "community/delivery.py", "community/bootstrap.py", "community/vision_index.py", "community/object_index.py", "community/work_plan.py", "community/process_owner.py", "community/submission_outbox.py",
                       "community/runtime_manifest.json", "community/desktop_web/index.html",
                       "calibration/run_windows.py", "calibration/quality.py", "calibration/synthetic_canary.py", "calibration/gen4-v1/checksums.json"]
             secrets = [".git/config", ".env", "community/.data/account.json", "community/tests/test_private.py",
@@ -191,6 +191,7 @@ class WindowsLauncherTest(unittest.TestCase):
             self.assertIn('--root "' + str(root) + '"', action["arguments"])
             self.assertIn('--day-pace medium --night-pace max --day-start 08:00 --night-start 22:00 --retry-minutes 30', action["arguments"])
             self.assertNotIn('--no-keep-awake', action["arguments"])
+            self.assertIn('--work-type scene', action["arguments"])
             entry = Path(re.match(r'^-B "([^"]+)"', action["arguments"])[1])
             self.assertTrue(entry.is_relative_to(root / "launchers"))
             result = subprocess.run([sys.executable, "-B", str(entry)],
@@ -210,7 +211,7 @@ class WindowsLauncherTest(unittest.TestCase):
                 target = root / name
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_bytes(body)
-            invocation += " -DayPace pause -NightPace slow -DayStart 07:30 -NightStart 19:45 -RetryMinutes 17 -StorageLimitGB 20 -AllowSleep"
+            invocation += " -DayPace pause -NightPace slow -DayStart 07:30 -NightStart 19:45 -RetryMinutes 17 -StorageLimitGB 20 -WorkType both -AllowSleep"
             command = (SCHEDULER_MOCKS + "$messages = @(" + invocation + "); " +
                        "@{action=$global:CapturedAction;retry=$global:RetryInterval} | ConvertTo-Json -Compress")
             result = json.loads(self.command(command))
@@ -218,10 +219,11 @@ class WindowsLauncherTest(unittest.TestCase):
             self.assertIn('--day-pace pause --night-pace slow --day-start 07:30 --night-start 19:45 --retry-minutes 17', args)
             self.assertTrue(args.endswith(' --no-keep-awake'))
             self.assertIn('--storage-limit-gb 20', args)
+            self.assertIn('--work-type both', args)
             self.assertEqual(result["retry"], 15)  # Windows recovery remains independent of service cooldown.
             self.assertEqual(json.loads((root / "background-settings.json").read_text()), {
                 "dayPace": "pause", "nightPace": "slow", "dayStart": "07:30", "nightStart": "19:45",
-                "retryMinutes": 17, "keepAwake": False, "clock": "Windows local time", "storageLimitGB": 20})
+                "retryMinutes": 17, "keepAwake": False, "clock": "Windows local time", "storageLimitGB": 20, "workType": "both"})
             for name, body in preserved.items():
                 self.assertEqual((root / name).read_bytes(), body)
 
