@@ -72,7 +72,7 @@ class WindowsLauncherTest(unittest.TestCase):
         (source / "community").mkdir(parents=True)
         (source / "windows").mkdir()
         (source / "windows/Start-Vision.ps1").write_bytes(LAUNCHER.read_bytes())
-        for name in ("community/desktop.py", "community/bootstrap.py", "community/vision_index.py", "community/process_owner.py", "community/submission_outbox.py",
+        for name in ("community/desktop.py", "community/delivery.py", "community/bootstrap.py", "community/vision_index.py", "community/process_owner.py", "community/submission_outbox.py",
                      "community/runtime_manifest.json", "community/desktop_web/index.html",
                      "calibration/run_windows.py", "calibration/quality.py", "calibration/synthetic_canary.py",
                      "calibration/gen4-v1/checksums.json"):
@@ -134,7 +134,7 @@ class WindowsLauncherTest(unittest.TestCase):
             private = root / "private"
             source.mkdir()
             private.mkdir()
-            public = ["community/desktop.py", "community/bootstrap.py", "community/vision_index.py", "community/process_owner.py", "community/submission_outbox.py",
+            public = ["community/desktop.py", "community/delivery.py", "community/bootstrap.py", "community/vision_index.py", "community/process_owner.py", "community/submission_outbox.py",
                       "community/runtime_manifest.json", "community/desktop_web/index.html",
                       "calibration/run_windows.py", "calibration/quality.py", "calibration/synthetic_canary.py", "calibration/gen4-v1/checksums.json"]
             secrets = [".git/config", ".env", "community/.data/account.json", "community/tests/test_private.py",

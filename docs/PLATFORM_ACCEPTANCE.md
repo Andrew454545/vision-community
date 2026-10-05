@@ -13,6 +13,11 @@ project scope, not a claim that these combinations are available today.
 
 None of these rows is a completed production release. Linux inference evidence
 supports backend portability; it does not replace Mac or Windows user testing.
+The [saved Object delivery update](OBJECT_DELIVERY_RECOVERY_20261005.md) adds
+restart-safe delivery to the default Object command, with exact payload replay
+and a single synthetic award across fresh processes. It is a tested foundation
+for Both; guided selection, independent qualification, trusted Object admission
+and accepted background work remain required.
 The [private Mac starter](MAC_PRIVATE_STARTER_20261004.md) is a maintainer preview;
 its bootstrap/window evidence does not establish native processing or admission.
 The [Mac background foundations](MAC_BACKGROUND_FOUNDATIONS_20261004.md) add

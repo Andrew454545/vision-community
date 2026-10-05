@@ -31,6 +31,7 @@ from pathlib import Path
 from .contribute import (
     DEFAULT_URL,
     RETRYABLE_CODES,
+    RETRY_STATUSES,
     CommunityClient,
     ContributeError,
     default_session_path,
@@ -38,9 +39,12 @@ from .contribute import (
     save_session,
 )
 from .pano import CLI_LEASE_CAP
+from .delivery import DurableCommunityClient
 from .vision_index import (
     MAX_INDEX_FAILURES,
     MAX_NO_PROGRESS,
+    MAX_QUEUE_FAILURES,
+    RETRYABLE_NATIVE_CODES,
     VisionIndexError,
     assert_not_live_vision_path,
     community_support_root,
@@ -839,7 +843,7 @@ def index_from_queue(
     work_dir = Path(work_dir)
     assert_not_live_vision_path(work_dir)
     size = count if count is not None else CLI_LEASE_CAP["object"][pace]
-    session = client or CommunityClient(url)
+    session = client or DurableCommunityClient(url)
     stored = load_session(session_path, url) if session_path is not None else None
     if not recovery_code:
         recovery_code = os.environ.get("VISION_COMMUNITY_RECOVERY") or None
@@ -860,6 +864,9 @@ def index_from_queue(
         elif recovered:
             account_id = recovered.get("accountId")
         save_session(session_path, url=url, account_id=account_id, recovery_code=recovery_code)
+    if isinstance(session, DurableCommunityClient) and session.outbox is None:
+        account = created or recovered or session.me()
+        session.enable_outbox(work_dir, account.get("accountId"))
     accepted = 0
     units = 0
     processed = 0
@@ -867,6 +874,12 @@ def index_from_queue(
     batch_failures = 0
     while batches is None or processed < batches:
         try:
+            # Deliver exact completed files before claiming more work. A lost
+            # response must never release or recompute an already saved batch.
+            if hasattr(session, "resume_submissions"):
+                recovered_delivery = session.resume_submissions()
+                accepted += int(recovered_delivery.get("accepted", 0))
+                units += int(recovered_delivery.get("unitsEarned", 0))
             lease = session.lease("object", size, pace, part=part)
         except ContributeError as error:
             if error.code == "no_available_work":
@@ -909,27 +922,38 @@ def index_from_queue(
             )
             try:
                 session.renew(lease_id)
-            except ContributeError:
-                pass
+            except ContributeError as error:
+                if error.code in {"expired_lease", "lease_lost", "unknown_lease"}:
+                    raise VisionIndexError(error.code, error.status) from error
+                transient = error.code == "network_error" or (
+                    error.status in RETRY_STATUSES
+                    and error.code in {"http_error", "renew_failed", "internal_error", "rate_limited"}
+                )
+                if not transient:
+                    raise
             result = session.submit_object(lease_id, outputs, encode_object_submission(manifest, files, source_tsv))
-        except VisionIndexError:
+        except (VisionIndexError, KeyboardInterrupt) as error:
             stop.set()
-            try:
-                session.release(lease_id)
-            except ContributeError:
-                pass
+            retain_lease = isinstance(error, KeyboardInterrupt) or error.code in RETRYABLE_NATIVE_CODES
+            if not retain_lease:
+                try:
+                    if not getattr(session, "submission_is_saved", lambda _lease: False)(lease_id):
+                        session.release(lease_id)
+                except ContributeError:
+                    pass
             raise
         except Exception as error:
             stop.set()
             code = error.code if isinstance(error, ContributeError) else ""
             skip = batches is None and batch_failures >= 2 and code in {"", "verification_failed"}
             try:
-                session.release(lease_id, skip=skip)
+                if not getattr(session, "submission_is_saved", lambda _lease: False)(lease_id):
+                    session.release(lease_id, skip=skip)
             except ContributeError:
                 pass
-            if batches is not None:
-                raise
             batch_failures += 1
+            if batches is not None or batch_failures >= MAX_QUEUE_FAILURES or code not in RETRYABLE_CODES:
+                raise
             stalls += 1
             print("still indexing; the last batch will be tried again", file=sys.stderr, flush=True)
             time.sleep(min(60, stalls * 2))
