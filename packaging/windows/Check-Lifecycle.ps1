@@ -48,22 +48,26 @@ function Find-Window([int]$ProcessId, [string]$Title) {
     return $UIA::RootElement.FindFirst([Windows.Automation.TreeScope]::Children, $condition)
 }
 function Find-Control($Window, [string]$Name) {
-    return $Window.FindFirst([Windows.Automation.TreeScope]::Descendants, (New-Object Windows.Automation.AndCondition(
-        (New-Object Windows.Automation.PropertyCondition($UIA::NameProperty, $Name)),
-        (New-Object Windows.Automation.PropertyCondition($UIA::ControlTypeProperty, [Windows.Automation.ControlType]::Button)))))
+    # Windows PowerShell's managed client shows WinForms buttons as panes, so
+    # match the name and use the real button window underneath.
+    return $Window.FindFirst([Windows.Automation.TreeScope]::Descendants,
+        (New-Object Windows.Automation.PropertyCondition($UIA::NameProperty, $Name)))
 }
 function Invoke-Control($Window, [string]$Name) {
     $control = Wait-For { Find-Control $Window $Name } "button $Name" 20
     $pattern = $null
     if ($control.TryGetCurrentPattern([Windows.Automation.InvokePattern]::Pattern, [ref]$pattern)) { $pattern.Invoke(); return }
-    # Some hosted sessions expose WinForms buttons without Invoke; click the real control instead.
+    # Click the real Win32 button.
     $handle = [IntPtr]$control.Current.NativeWindowHandle
     if ($handle -eq [IntPtr]::Zero) { throw "button $Name has no invoke pattern or window handle" }
     [LifecycleNative]::PostMessage($handle, 0x00F5, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
 }
 function Get-Texts($Window) {
-    $condition = New-Object Windows.Automation.PropertyCondition($UIA::ControlTypeProperty, [Windows.Automation.ControlType]::Text)
-    return @($Window.FindAll([Windows.Automation.TreeScope]::Descendants, $condition) | ForEach-Object { $_.Current.Name }) -join "`n"
+    return @($Window.FindAll([Windows.Automation.TreeScope]::Descendants, [Windows.Automation.Condition]::TrueCondition) | ForEach-Object { $_.Current.Name }) -join "`n"
+}
+function Confirm-Dialog($Window) {
+    # WM_COMMAND IDOK: the standard OK of a Windows message box.
+    [LifecycleNative]::PostMessage([IntPtr]$Window.Current.NativeWindowHandle, 0x0111, [IntPtr]1, [IntPtr]::Zero) | Out-Null
 }
 function Show-Tree([int]$ProcessId) {
     # Diagnostics only: control types, names and classes, never file contents.
@@ -140,7 +144,7 @@ function Uninstall-Confirm {
     if ($command -notmatch '^"([^"]+)" --uninstall$') { throw 'unexpected_uninstall_command' }
     $process = Open-Launcher $Matches[1] '--uninstall'
     $confirm = Wait-For { Find-Window $process.Id 'Remove VISION Community' } 'removal confirmation'
-    Invoke-Control $confirm 'OK'
+    Confirm-Dialog $confirm
     return $process
 }
 function Find-RemovalMessage {
@@ -224,7 +228,7 @@ try {
     $process = Uninstall-Confirm
     $message = Wait-For { Find-Window $process.Id 'VISION Community' } 'changed removal message' 30
     Check 'changed_program_removal_refused' ((Get-Texts $message).Contains('repair') -and (Test-Path -LiteralPath $programA))
-    Invoke-Control $message 'OK'; $process.WaitForExit(20000) | Out-Null
+    Confirm-Dialog $message; $process.WaitForExit(20000) | Out-Null
     $null = Install-With $copyA
     Check 'repair_restores_verified_program' ((Test-Program $programA $copyA) -and (Get-FileHash -LiteralPath $changed).Hash -eq $original)
 
@@ -259,7 +263,7 @@ $lock.Dispose()
     $null = Uninstall-Confirm
     $message = Wait-For { Find-RemovalMessage } 'active work refusal' 90
     $refusal = Get-Texts $message
-    Invoke-Control $message 'OK'
+    Confirm-Dialog $message
     Check 'active_work_refuses_removal_with_next_step' ($refusal.Contains('Pause after this batch'))
     Check 'active_work_program_kept' ((Test-Program $programB $copyB) -and (Test-Links $programB) -and (Test-Registry $programB))
     Check 'active_work_not_interrupted' ((-not $worker.HasExited) -and -not (Test-Path -LiteralPath (Join-Path $privateRoot 'STOP-AFTER-BATCH')))
