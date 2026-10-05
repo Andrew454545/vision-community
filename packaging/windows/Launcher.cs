@@ -110,7 +110,11 @@ static class Package {
             catch(Exception) {} finally { process.Dispose(); }
         }
         var retired=Path.Combine(Base,"retired-"+Guid.NewGuid().ToString("N"));
-        try { Directory.Move(path,retired); } catch(IOException) { return false; } catch(UnauthorizedAccessException) { return false; }
+        // Scanners and indexers briefly hold new files; an open VISION keeps failing.
+        for(var attempt=0;;attempt++) {
+            try { Directory.Move(path,retired); break; }
+            catch(Exception error) { if(!(error is IOException || error is UnauthorizedAccessException) || attempt==9) return false; System.Threading.Thread.Sleep(500); }
+        }
         try { Remove(retired); } catch(IOException) {} catch(UnauthorizedAccessException) {}
         return true;
     }

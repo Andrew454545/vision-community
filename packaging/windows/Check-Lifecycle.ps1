@@ -80,7 +80,8 @@ function Show-Tree([int]$ProcessId) {
     }
 }
 function Wait-Text($Window, [string]$Fragment, [int]$Seconds = 60) {
-    return Wait-For { $text = Get-Texts $Window; if ($text.Contains($Fragment)) { $text } } "text $Fragment" $Seconds
+    try { return Wait-For { $text = Get-Texts $Window; if ($text.Contains($Fragment)) { $text } } "text $Fragment" $Seconds }
+    catch { Write-Output ('Window text at timeout: ' + ((Get-Texts $Window) -replace "`n", ' | ')); throw }
 }
 function Open-Launcher([string]$Program, [string]$Arguments = '', [string]$Folder = $work) {
     $process = if ($Arguments) { Start-Process -FilePath $Program -ArgumentList $Arguments -WorkingDirectory $Folder -PassThru }
