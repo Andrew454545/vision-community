@@ -10,9 +10,11 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+from http.client import HTTPException
 import json
 import os
 import platform
+import re
 import sys
 import urllib.error
 import urllib.request
@@ -119,23 +121,70 @@ def _already_installed(path: Path, entry: dict) -> bool:
 
 
 def download_file(url: str, partial: Path, entry: dict) -> None:
-    request = urllib.request.Request(url, headers={"User-Agent": "VISION-Community"})
-    digest = hashlib.sha256()
-    size = 0
+    expected_size = entry.get("bytes")
+    expected_sha = entry.get("sha256")
+    if (type(expected_size) is not int or not 0 < expected_size <= 512 * 1024**2
+            or not isinstance(expected_sha, str) or not re.fullmatch(r"[a-f0-9]{64}", expected_sha)):
+        raise BootstrapError("invalid_runtime_manifest")
+    if partial.is_symlink() or (partial.exists() and not partial.is_file()):
+        raise BootstrapError("unsafe_runtime_path")
     partial.parent.mkdir(parents=True, exist_ok=True)
+    size = partial.stat().st_size if partial.exists() else 0
+    if size > expected_size:
+        partial.unlink()
+        raise BootstrapError("runtime_mismatch")
+    if size == expected_size:
+        if file_sha256(partial) != expected_sha:
+            partial.unlink()
+            raise BootstrapError("runtime_mismatch")
+        return
+    headers = {"User-Agent": "VISION-Community", "Accept-Encoding": "identity"}
+    if size:
+        headers["Range"] = f"bytes={size}-"
+    request = urllib.request.Request(url, headers=headers)
     try:
-        with urllib.request.urlopen(request, timeout=120) as response, partial.open("wb") as handle:
-            while True:
-                chunk = response.read(1024 * 1024)
-                if not chunk:
-                    break
-                handle.write(chunk)
-                digest.update(chunk)
-                size += len(chunk)
-    except (OSError, urllib.error.URLError) as error:
-        partial.unlink(missing_ok=True)
+        with urllib.request.urlopen(request, timeout=120) as response:
+            status = getattr(response, "status", 200)
+            response_headers = getattr(response, "headers", {})
+            if response_headers.get("Content-Encoding", "identity").lower() != "identity":
+                raise BootstrapError("runtime_download_failed")
+            if status == 206:
+                received_range = response_headers.get("Content-Range", "")
+                match = re.fullmatch(r"bytes ([0-9]+)-([0-9]+)/([0-9]+)", received_range)
+                if (not match or int(match[1]) != size or int(match[3]) != expected_size
+                        or not size <= int(match[2]) < expected_size):
+                    # Retain the original prefix; never append an unverified offset.
+                    raise BootstrapError("runtime_download_failed")
+                response_limit = int(match[2]) - size + 1
+                mode = "ab" if size else "wb"
+            elif status == 200:
+                # Some servers ignore Range. A complete response safely replaces
+                # the partial download, rather than appending duplicate bytes.
+                size, response_limit, mode = 0, expected_size, "wb"
+            else:
+                raise BootstrapError("runtime_download_failed")
+            received = 0
+            with partial.open(mode) as handle:
+                while True:
+                    chunk = response.read(min(1024 * 1024, response_limit - received + 1))
+                    if not chunk:
+                        break
+                    received += len(chunk)
+                    if received > response_limit or size + len(chunk) > expected_size:
+                        raise BootstrapError("runtime_mismatch")
+                    handle.write(chunk)
+                    size += len(chunk)
+            if size < expected_size:
+                raise BootstrapError("runtime_download_failed")
+    except (OSError, urllib.error.URLError, HTTPException) as error:
+        # The next retry/restart can use this bounded prefix. It is not installed
+        # or executed until the complete immutable file passes its checksum.
         raise BootstrapError("runtime_download_failed") from error
-    if size != int(entry["bytes"]) or digest.hexdigest() != entry["sha256"]:
+    except BootstrapError as error:
+        if error.code == "runtime_mismatch":
+            partial.unlink(missing_ok=True)
+        raise
+    if file_sha256(partial) != expected_sha:
         partial.unlink(missing_ok=True)
         raise BootstrapError("runtime_mismatch")
 
@@ -170,28 +219,11 @@ def install_runtime(
     return actions
 
 
-def ensure_requirements() -> None:
-    try:
-        import PIL  # noqa: F401
-    except ImportError:
-        import subprocess
-
-        requirements = Path(__file__).resolve().parents[1] / "requirements.txt"
-        completed = subprocess.run(
-            [sys.executable, "-m", "pip", "install", "-r", str(requirements)],
-            check=False,
-        )
-        if completed.returncode != 0:
-            raise BootstrapError("install_pillow")
-
-
 def main() -> int:
     parser = argparse.ArgumentParser(description="Download and verify the private VISION runtime.")
     parser.add_argument("--lane", choices=("scene", "object", "all"), default="all")
     args = parser.parse_args()
     try:
-        if args.lane != "scene":
-            ensure_requirements()
         actions = install_runtime(load_manifest(), vision_root(), lane=args.lane)
     except BootstrapError as error:
         print(error.code, file=sys.stderr)
@@ -201,7 +233,7 @@ def main() -> int:
         print(f"Ready. Installed {len(installed)} files.")
     else:
         print("Ready. The indexer programs are already on this computer.")
-    print("Next: open the site, get an account, then paste the scene or object command in this folder.")
+    print("Open VISION to check whether contributions are available.")
     return 0
 
 
