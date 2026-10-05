@@ -17,6 +17,7 @@ while [[ $# -gt 0 ]]; do
         --python-only) mode=python; shift ;;
         --snapshot-only) mode=snapshot; shift ;;
         --prepare-only) mode=prepare; shift ;;
+        --background-controls) mode=background; shift ;;
         *) printf 'That startup option is not supported.\n'; exit 2 ;;
     esac
 done
@@ -113,6 +114,7 @@ else
     arguments=(--root "$root")
     [[ "$mode" != snapshot ]] || arguments+=(--snapshot-only)
     [[ "$mode" != prepare ]] || arguments+=(--prepare-only)
+    [[ "$mode" != background ]] || arguments+=(--background-controls)
     /usr/bin/env -i HOME="$HOME" PATH="$PATH" SSL_CERT_FILE="$SSL_CERT_FILE" "$python" -I -B \
         "$source_root/community/mac_starter.py" "${arguments[@]}"
 fi

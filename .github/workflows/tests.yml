@@ -107,6 +107,12 @@ jobs:
         run: |
           private="$RUNNER_TEMP/mac-starter-private/python-3.14.8-20261003-arm64/python"
           "$private/bin/python3.14" -I -B macos/check-background.py --root "$RUNNER_TEMP/mac-starter-private" --report "$RUNNER_TEMP/mac-scheduled-recovery.json"
+      - name: Verify guarded Mac registration, controls and safe handover
+        shell: bash
+        run: |
+          private="$RUNNER_TEMP/mac-starter-private/python-3.14.8-20261003-arm64/python"
+          "$private/bin/python3.14" -I -B -c 'import sys,unittest;sys.path.insert(0,"."); result=unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.loadTestsFromName("community.tests.test_mac_background"));sys.exit(not result.wasSuccessful())' 2>&1 | tee "$RUNNER_TEMP/mac-background-control-guards.log"
+          "$private/bin/python3.14" -I -B macos/check-background-controls.py --root "$RUNNER_TEMP/mac-starter-private" --report "$RUNNER_TEMP/mac-background-controls.json"
       - name: Preserve aggregate Mac starter evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -119,6 +125,8 @@ jobs:
             ${{ runner.temp }}/mac-private-window.json
             ${{ runner.temp }}/mac-private-sleep.log
             ${{ runner.temp }}/mac-scheduled-recovery.json
+            ${{ runner.temp }}/mac-background-control-guards.log
+            ${{ runner.temp }}/mac-background-controls.json
           retention-days: 7
           if-no-files-found: warn
 

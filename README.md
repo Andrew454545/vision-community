@@ -21,6 +21,8 @@ Keep VISION open, your PC awake and the internet connected. Choose **Pause after
 
 For automatic processing, close VISION and open **Background VISION.cmd**. Paste your saved code once, choose the schedule and select **Save and enable**. [Automatic processing help](START-HERE.md#automatic-processing).
 
+Apple silicon Mac maintainer preview: open **Background VISION.command** for day/night controls. [Mac preview help](macos/BACKGROUND.md).
+
 ## Search
 
 [Open the website](https://vision-community.visioncommunity.workers.dev) → **My account** → enter your saved code.
