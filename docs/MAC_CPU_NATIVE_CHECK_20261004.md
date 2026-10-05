@@ -106,24 +106,30 @@ uses private source `552c292` and the exact current Scene binary above. Three
 separate Apple-silicon CPU jobs each run three complete 1,024-location indexes
 and twelve-query searches, at one, two or four shared threads. They reuse the
 unchanged, independently verified full reference archive; they do not capture
-new reference imagery. Both the two- and four-thread jobs complete all three
-full trials; only the one-thread job remains in progress as of 5 October 2026 UTC.
+new reference imagery. All three jobs complete all nine full trials and pass
+independent checking on 5 October 2026 UTC.
 
-Independent checking validates all 49,152 normalized/pooler transports,
-24,576 preprocessing hashes, exact source/model/profile pins and all 72
-query comparisons across both completed jobs. Packed indexes, raw tensor
-hashes and native query results agree across all six repeats. Every
+Independent checking validates all 73,728 normalized/pooler transports,
+36,864 preprocessing hashes, exact source/model/profile pins and all 108
+query comparisons. Packed indexes, raw tensor hashes and native query results
+agree across all nine repeats at one, two and four threads. Every
 top-ten/top-100 location set matches the reference. Eleven of twelve queries
 reorder close scores, and one selected view differs in each repeat. Minimum
 decoded cosine is 0.9999800294 and maximum relative L2 is 0.0063844681; maximum
 reference score difference is 0.00022419. Mac and Windows packed/query bytes
 remain different; agreement on these summary metrics is not byte identity.
 
-Two-thread index durations are 1,324.191 / 1,267.693 / 1,335.248 seconds;
-four-thread durations are 955.038 / 883.973 / 940.193 seconds. These hosted Mac
-observations do not select a Maximum setting while the full one-thread study
-remains incomplete. Memory, thermals and internal precision remain outside
-this check.
+| Shared CPU threads | Three full index durations (seconds) | Median seconds | Median locations/hour |
+| --- | --- | --- | --- |
+| 1 | 2,400.166 / 2,169.706 / 2,156.399 | 2,169.706 | 1,699 |
+| 2 | 1,324.191 / 1,267.693 / 1,335.248 | 1,324.191 | 2,784 |
+| 4 | 955.038 / 883.973 / 940.193 | 940.193 | 3,921 |
+
+Four threads are about 2.31 times faster than one in this complete frozen
+evidence workload. These hosted Mac observations do not select a production
+Maximum setting. The smaller study above has a different fastest setting;
+live-image retrieval, memory, thermals, sustained scheduling and internal
+precision remain outside this check.
 
 Private artifact `11330176750` is 91,465,911 bytes, ZIP SHA-256
 `c3aa9d0da83697e2464560dadd5e5b32ce9818421437725e85c53766d12ec502`.
@@ -137,8 +143,14 @@ Its native receipt SHA-256 is
 `56f98509b49846d7702bf288d19cd639eb317bc2cad632809d05c1717e0e8d52`;
 independent receipt SHA-256 is
 `becd921202569b9e5a32a9b35e1b5a607215c90eb85a1f427deb5117086666ce`.
-The separate cross-thread identity receipt SHA-256 is
-`e5665fd65681bf15c1f794df12590ac118e378da31a8f534135caf3efaec4403`.
+One-thread artifact `11332087983` is 91,466,125 bytes, ZIP SHA-256
+`01ecb16837a567e7f7311a2d1b5ddb76e757790755b50604606a31e60735dc67`.
+Its native receipt SHA-256 is
+`2ff345bdff3ede9fc8f49a48ef05c22c2ac16d02a4523df869ce51534272df1f`;
+independent receipt SHA-256 is
+`b5660cd741be12b94cb3c5ae173e96b12542784a357d0a3c03d002153e3bf57f`.
+The complete one/two/four-thread identity receipt SHA-256 is
+`a196f3880f065903f2195f7cd185dc4bf90f04aa41b229fb5f015d6aa28c21c6`.
 The first local checker used Windows' thermal default while reconstructing
 a Mac profile and stopped before checking cases. That failure is retained;
 the corrected checker uses the unchanged Mac defaults and retains all byte
@@ -151,6 +163,9 @@ vector transports and repeat identities remain mandatory. Successful exports
 omit raw RGB/preprocessing bytes and models; failures retain private reports.
 Eight redundant cumulative-PR workflows were cancelled once, preserving this
 full candidate run and the earlier complete supplied-reference evidence.
+The separate [ranking-gap assessment](SCENE_RANKING_GAP_ASSESSMENT_20261005.md)
+measures every inverted pair and recalculates all full-reference winning
+scores before evaluating changed-view margins. It does not change admission.
 
 ## Remaining release work
 
