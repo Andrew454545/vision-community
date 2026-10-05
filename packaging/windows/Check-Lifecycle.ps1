@@ -10,7 +10,7 @@ param([Parameter(Mandatory=$true)][string]$SetupA, [Parameter(Mandatory=$true)][
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes, System.Windows.Forms, Microsoft.VisualBasic
-Add-Type 'using System; using System.Runtime.InteropServices; public static class LifecycleNative { [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr h, uint m, IntPtr w, IntPtr l); }'
+Add-Type 'using System; using System.Runtime.InteropServices; public static class LifecycleNative { [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr h, uint m, IntPtr w, IntPtr l); [DllImport("user32.dll")] public static extern bool IsWindow(IntPtr h); }'
 $UIA = [Windows.Automation.AutomationElement]
 
 $base = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'Programs\VISION Community'
@@ -66,8 +66,16 @@ function Get-Texts($Window) {
     return @($Window.FindAll([Windows.Automation.TreeScope]::Descendants, [Windows.Automation.Condition]::TrueCondition) | ForEach-Object { $_.Current.Name }) -join "`n"
 }
 function Confirm-Dialog($Window) {
-    # WM_COMMAND IDOK: the standard OK of a Windows message box.
-    [LifecycleNative]::PostMessage([IntPtr]$Window.Current.NativeWindowHandle, 0x0111, [IntPtr]1, [IntPtr]::Zero) | Out-Null
+    # WM_COMMAND IDOK, then a click on its OK button, until the box closes.
+    $handle = [IntPtr]$Window.Current.NativeWindowHandle
+    for ($attempt = 0; $attempt -lt 20 -and [LifecycleNative]::IsWindow($handle); $attempt++) {
+        if ($attempt % 2) {
+            $ok = Find-Control $Window 'OK'
+            if ($ok) { [LifecycleNative]::PostMessage([IntPtr]$ok.Current.NativeWindowHandle, 0x00F5, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null }
+        } else { [LifecycleNative]::PostMessage($handle, 0x0111, [IntPtr]1, [IntPtr]::Zero) | Out-Null }
+        Start-Sleep -Milliseconds 500
+    }
+    if ([LifecycleNative]::IsWindow($handle)) { throw 'message_box_did_not_close' }
 }
 function Show-Tree([int]$ProcessId) {
     # Diagnostics only: control types, names and classes, never file contents.
@@ -229,7 +237,8 @@ try {
     $process = Uninstall-Confirm
     $message = Wait-For { Find-Window $process.Id 'VISION Community' } 'changed removal message' 30
     Check 'changed_program_removal_refused' ((Get-Texts $message).Contains('repair') -and (Test-Path -LiteralPath $programA))
-    Confirm-Dialog $message; $process.WaitForExit(20000) | Out-Null
+    Confirm-Dialog $message
+    if (-not $process.WaitForExit(20000)) { throw 'refused_removal_did_not_exit' }
     $null = Install-With $copyA
     Check 'repair_restores_verified_program' ((Test-Program $programA $copyA) -and (Get-FileHash -LiteralPath $changed).Hash -eq $original)
 
