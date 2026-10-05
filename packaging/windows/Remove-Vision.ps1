@@ -14,6 +14,16 @@ function Assert-Plain([string]$Path) {
         $Path = Split-Path -Parent $Path
     }
 }
+function Remove-Leftover([string]$Path) {
+    # Windows PowerShell's recursive removal can traverse a junction; check first.
+    $pending = New-Object 'Collections.Generic.Stack[string]'; $pending.Push($Path)
+    while ($pending.Count) {
+        $item = Get-Item -LiteralPath $pending.Pop() -Force
+        if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) { return }
+        if ($item.PSIsContainer) { foreach ($entry in Get-ChildItem -LiteralPath $item.FullName -Force) { $pending.Push($entry.FullName) } }
+    }
+    Remove-Item -LiteralPath $Path -Recurse -Force
+}
 try {
     Assert-Plain $program
     $waiting = Get-Process -Id $WaitPid -ErrorAction SilentlyContinue
@@ -47,7 +57,10 @@ try {
     # Existing ownership/handover guards refuse an active batch or another task.
     . (Join-Path $project 'windows\Background-Control.ps1')
     $privateRoot = Get-VisionControlRoot ''
-    & (Join-Path $project 'windows\Install-Background.ps1') -Remove -Source $project -Root $privateRoot
+    # Nothing to hand over if VISION never ran: do not create a private folder.
+    if ((Get-ScheduledTask -TaskName $script:VisionBackgroundTask -ErrorAction SilentlyContinue) -or (Test-Path -LiteralPath $privateRoot)) {
+        & (Join-Path $project 'windows\Install-Background.ps1') -Remove -Source $project -Root $privateRoot
+    }
     $shell = New-Object -ComObject WScript.Shell
     $menu = Join-Path ([Environment]::GetFolderPath('Programs')) 'VISION Community'
     foreach ($link in @((Join-Path ([Environment]::GetFolderPath('DesktopDirectory')) 'VISION Community.lnk'),
@@ -58,11 +71,20 @@ try {
     $key = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\VISIONCommunity'
     if ((Test-Path -LiteralPath $key) -and (Get-ItemProperty -LiteralPath $key).InstallLocation -eq $program) { Remove-Item -LiteralPath $key }
     Remove-Item -LiteralPath $program -Recurse
+    # Tidy only empty folders and VISION's own interrupted-setup leftovers.
+    try {
+        if ((Test-Path -LiteralPath $menu) -and -not @(Get-ChildItem -LiteralPath $menu -Force).Count) { Remove-Item -LiteralPath $menu }
+        foreach ($entry in @(Get-ChildItem -LiteralPath $base -Force)) {
+            if ($entry.PSIsContainer -and $entry.Name -match '^(staging|retired)-[a-f0-9]{32}$') { Remove-Leftover $entry.FullName }
+            elseif (-not $entry.PSIsContainer -and $entry.Name -eq 'install.lock') { Remove-Item -LiteralPath $entry.FullName }
+        }
+        if (-not @(Get-ChildItem -LiteralPath $base -Force).Count) { Remove-Item -LiteralPath $base }
+    } catch { }
     # Remove this temporary helper after reading; the private worker folder stays.
     Remove-Item -LiteralPath $PSCommandPath
     Remove-Item -LiteralPath $PSScriptRoot
 } catch {
     Add-Type -AssemblyName System.Windows.Forms
-    [Windows.Forms.MessageBox]::Show('VISION could not be removed safely. Its application and your saved work are kept. Finish any active batch, then retry or ask the maintainer for help.','VISION Community') | Out-Null
+    [Windows.Forms.MessageBox]::Show('VISION was not removed because it is still processing or its files changed. Your application and saved work are kept. Choose Pause after this batch, wait for the batch to finish, close VISION, then remove it again.','VISION Community') | Out-Null
     exit 1
 }
