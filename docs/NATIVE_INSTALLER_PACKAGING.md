@@ -11,6 +11,8 @@ Object runtime/service gates, accepted work, recovery/endurance evidence and
 signed clean-device installation in [Production acceptance](PRODUCTION_ACCEPTANCE.md).
 Unsigned artifacts are clearly named `MAINTAINER-UNSIGNED-*`; CI does not
 publish them to Releases or replace the beginner download links.
+The [signing account setup guide](SIGNING-ACCOUNT-SETUP.md) gives the account
+holder the enrollment steps. Users of VISION need neither account.
 
 ## Package boundaries
 
@@ -55,7 +57,9 @@ macOS 13 or later. The Windows build uses the system Framework compiler and
 requires an Intel/AMD Windows 10/11 machine with .NET Framework 4.8. CI builds
 both native packages and runs actual package verification with zero account,
 model, imagery or contribution operations. It preserves unsigned maintainer
-artifacts for seven days. A successful package check is not a clean-user
+artifacts for seven days. Windows unsigned CI also waits for a detached helper
+to finish after its launcher process exits, retaining its finite result receipt.
+The signing build skips that unsigned-script fixture. A successful package check is not a clean-user
 installation, uninstall, native admission or production endurance test.
 
 ## Signed Mac candidate

@@ -3,6 +3,16 @@
 Updated 2026-10-05 UTC. **The project is not yet approved for production.**
 This checklist describes the current state; check off a release gate only with
 recorded evidence. Earlier failures and exploratory results remain separate.
+The [guided work selection](GUIDED_WORK_SELECTION.md) and
+[native installer packaging](NATIVE_INSTALLER_PACKAGING.md) support in
+[PR #9](https://github.com/Andrew454545/vision-community/pull/9) and
+[PR #10](https://github.com/Andrew454545/vision-community/pull/10) adds the
+Scenes / Objects / Both controls and native Windows/Mac launcher candidates.
+These do not close trusted lane admission, accepted production work, signed
+clean-device installation or endurance gates. Neither signing account is set
+up yet; the [account-holder setup](SIGNING-ACCOUNT-SETUP.md) explains what is
+needed before signed downloads can be built. Public download links still point
+to the older Windows Scenes preview and say so explicitly.
 The [project audit](PROJECT_AUDIT_20261004.md) records corrected API admission,
 request-size and error-handling defects, download consistency, tested Mac
 controls and remaining release/capacity/privacy findings. Source fixes do not
