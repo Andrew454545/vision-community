@@ -2,6 +2,8 @@
 // claim model quality or enable public contributions. No Cloudflare login.
 // Usage: node tools/check-local-runtime.mjs <miniflare-entry> <bundled-worker>
 import assert from "node:assert/strict";
+import { prepareDatabase } from './initialize-schema.mjs';
+import { localRateLimits } from './local-api-bindings.mjs';
 import { readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -21,12 +23,14 @@ const options = { modules: true, scriptPath: resolve(bundlePath), compatibilityD
     SEARCH_ENGINE: async request => Response.json({ ...await request.json(), processedLocations: 1,
       hits: [{ locationId: 1, outputSha256: "a".repeat(64), sourceIndex: 0, score: 0.8, viewOffset: 1 }] }) },
 };
+options.ratelimits=localRateLimits();options.bindings.RATE_LIMITS_REQUIRED='1';
 const mf = new Miniflare(convertV4MiniflareOptions ? convertV4MiniflareOptions(options) : options);
 
 try {
   const db = await mf.getD1Database("DB");
   const schema = readFileSync(new URL("../schema.sql", import.meta.url), "utf8");
   for (const statement of schema.split(";").filter(part => part.trim())) await db.prepare(statement).run();
+  await prepareDatabase(db);
   const emptyStatus = await mf.dispatchFetch("https://community.test/api/status");
   assert.equal(emptyStatus.status, 200);
   const empty = await emptyStatus.json();

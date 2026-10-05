@@ -14,13 +14,15 @@ export function checkStagingConfig(config) {
     database_id: resource.databaseId }], 'wrong staging database');
   assert.deepEqual(config.r2_buckets, [{ binding: 'INDEX', bucket_name: resource.bucket }], 'wrong staging bucket');
   assert.deepEqual(config.vars, { DEPLOYMENT_ENVIRONMENT: 'staging', INDEX_BUCKET_NAME: resource.bucket,
+    RATE_LIMITS_REQUIRED: '1',
     DELETION_ARCHIVE_REQUIRED: '1', DELETION_ARCHIVE_ENVIRONMENT: 'staging',
     DELETION_ARCHIVE_DB_ID: resource.databaseId, RESTORE_MAINTENANCE: '0',
     SCENE_POLICY_ID: '', SCENE_AUDIT_MAX_LOCATIONS: '8' }, 'staging admission/privacy settings changed');
   assert.deepEqual(config.services, [{ binding: 'SCENE_VERIFIER', service: 'vision-community-native-host-staging',
     entrypoint: 'NativeSceneVerification' }], 'unexpected service binding');
-  assert.deepEqual(config.ratelimits, [{ name: 'API_RATE_LIMITER', namespace_id: '1586479201',
-    simple: { limit: 120, period: 60 } }], 'staging abuse control changed');
+  assert.deepEqual(config.ratelimits, [{ name: 'API_RATE_LIMITER', namespace_id: '1586479201', simple: { limit: 120, period: 60 } },
+    { name: 'API_INGRESS_LIMITER', namespace_id: '1586479203', simple: { limit: 600, period: 60 } },
+    { name: 'API_VIEW_LIMITER', namespace_id: '1586479205', simple: { limit: 12, period: 60 } }], 'staging abuse control changed');
   assert.equal(config.main, 'src/worker.js');
   assert.deepEqual(config.assets, { directory: '../../community/web', binding: 'ASSETS',
     html_handling: 'auto-trailing-slash', not_found_handling: '404-page', run_worker_first: true });

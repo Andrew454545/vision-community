@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import test from 'node:test';
 import worker from './worker.js';
+import { prepareDatabase } from '../tools/initialize-schema.mjs';
 
 function database(sql) {
   let failure = null;
@@ -27,7 +28,7 @@ function post(path, body) {
 }
 test('asynchronous account-write failures return redacted JSON and do not create an account',async t=>{
   const sql=new DatabaseSync(':memory:');t.after(()=>sql.close());
-  const db=database(sql);db.fail(/^INSERT INTO accounts /);
+  const db=database(sql);await prepareDatabase(db);db.fail(/^INSERT INTO accounts /);
   const response=await worker.fetch(post('accounts',{}),{DB:db});
   assert.equal(response.status,500);assert.deepEqual(await response.json(),{error:'internal_error'});
   assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM accounts').get().n,0);
@@ -35,6 +36,7 @@ test('asynchronous account-write failures return redacted JSON and do not create
 test('asynchronous recovery failure preserves existing access and credit without raw diagnostics',async t=>{
   const sql=new DatabaseSync(':memory:');t.after(()=>sql.close());
   const db=database(sql),env={DB:db};
+  await prepareDatabase(db);
   const created=await worker.fetch(post('accounts',{}),env);
   assert.equal(created.status,201);
   const account=await created.json();

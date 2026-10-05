@@ -12,6 +12,24 @@ from community.vision_index import VisionIndexError
 
 
 class BackgroundTest(unittest.TestCase):
+    def test_maintenance_and_protection_outages_retry_after_persisted_cooldown(self):
+        for code in ('schema_update_required', 'rate_limit_unavailable', 'service_maintenance'):
+            with self.subTest(code=code), tempfile.TemporaryDirectory() as root:
+                worker, app = self.worker(root)
+                (Path(root) / 'saved-work.txt').write_text('retained batch and account', encoding='utf-8')
+                app.capabilities.side_effect = ContributeError(code, 503)
+                worker.run(once=True)
+                self.assertEqual(worker.last_state, 'waiting_for_service')
+                self.assertFalse((Path(root) / 'NEEDS-ATTENTION').exists())
+                self.assertTrue((Path(root) / 'background-retry.json').is_file())
+                app.capabilities.side_effect = None
+                worker.run(once=True)
+                app.indexer.assert_not_called()
+                worker.wall_clock.return_value += WAIT_SECONDS
+                worker.run(once=True)
+                app.indexer.assert_called_once()
+                self.assertEqual((Path(root) / 'saved-work.txt').read_text(encoding='utf-8'), 'retained batch and account')
+
     def test_transient_service_failures_retry_without_attention_marker(self):
         for status in (429, 502, 503, 504):
             with self.subTest(status=status), tempfile.TemporaryDirectory() as root:

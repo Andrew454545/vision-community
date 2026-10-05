@@ -1,5 +1,7 @@
 // Actual local workerd/D1: reserved staging admission IDs cannot open production.
 import assert from 'node:assert/strict';
+import { prepareDatabase } from './initialize-schema.mjs';
+import { localRateLimits } from './local-api-bindings.mjs';
 import { resolve, dirname } from 'node:path';
 import { pathToFileURL } from 'node:url';
 const [miniflarePath, bundlePath] = process.argv.slice(2);
@@ -15,8 +17,10 @@ for (const [index, change] of cases.entries()) {
     d1Databases: ['DB'], r2Buckets: ['INDEX'], bindings: { ...base, ...change },
     serviceBindings: { ASSETS: () => new Response('', {status:404}),
       SCENE_VERIFIER: () => { calls++; return Response.json({error:'must_not_execute'}, {status:503}); } } };
+  options.ratelimits=localRateLimits();options.bindings.RATE_LIMITS_REQUIRED='1';
   const mf = new Miniflare(convertV4MiniflareOptions ? convertV4MiniflareOptions(options) : options);
   try {
+    await prepareDatabase(await mf.getD1Database('DB'));
     const response = await mf.dispatchFetch('https://community.test/api/capabilities');
     assert.equal(response.status, 200);
     assert.equal((await response.json()).sceneContributions.ready, index === 0);

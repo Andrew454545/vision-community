@@ -11,6 +11,9 @@ community/.data/
 node_modules/
 deploy/cloudflare/node_modules
 .local-test-build/
+.local-api-protection-build/
+.local-api-protection-final-build/
+.local-api-protection-staging-build/
 .local-staging-build/
 .local-native-bridge-build/
 .local-release-build/

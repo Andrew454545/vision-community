@@ -12,7 +12,7 @@ export function makeSqlFixture(root, environment = "staging") {
   const backup = join(root, "backup.sqlite"), sql = new DatabaseSync(backup);
   try {
     sql.exec(readFileSync(new URL("../schema.sql", import.meta.url), "utf8"));
-    sql.exec(readFileSync(new URL("./worker.js", import.meta.url), "utf8")
+    sql.exec(readFileSync(new URL("../tools/initialize-schema.mjs", import.meta.url), "utf8")
       .match(/CREATE TABLE IF NOT EXISTS index_shards \([\s\S]*?\n\);/)[0]);
     sql.exec("ALTER TABLE pose_catalog ADD COLUMN assignee TEXT; ALTER TABLE pose_catalog ADD COLUMN assigned_at INTEGER");
     sql.prepare("INSERT INTO accounts (id,token_hash,recovery_hash,units) VALUES (?,?,?,?)").run(deletedId, "old-token", "old-recovery", 20);
