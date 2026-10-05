@@ -58,9 +58,12 @@ The previous chronological development log remains in
 | Mac private setup | Actual Apple-silicon private interpreter download/tree and HTTPS verification, public-source snapshot, local guided window and 37 guards pass. No native inference, account, imagery or contribution; Mac runtime/background and clean-device acceptance remain open. | [Mac starter](MAC_PRIVATE_STARTER_20261004.md) |
 | Mac background controls | Actual Apple-silicon guarded registration, immutable source/interpreter startup verification, safe idle replacement, private schedule/pause/resume window and nine exact runtime-link accounting pass. No native work, real account or imagery; actual restart/sign-in and endurance remain open. | [Mac controls](MAC_BACKGROUND_CONTROLS_20261004.md) |
 | Current Mac CPU programs | Locked builds pass after the private Actions budget increase. Scenes completes all 16/112-location 1/2/4-thread indexes and searches with identical within-run results and all 18 reference query orders/views matching. Objects completes all three models, identical six-view repeats, a complete one-location index and full verification. Exact pins and independently verified reduced evidence are retained; neither lane is production qualified. | [Mac native check](MAC_CPU_NATIVE_CHECK_20261004.md) |
+| Full current Mac Scenes | All nine 1,024-location 1/2/4-thread trials pass independent source/model/profile, transport and repeat checks. All 108 leading reference sets match; packed/raw/query results agree across all nine Mac trials. Close-score orders and one selected view differ from the reference. Four threads are about 2.31 times faster than one in this workload; production parallel/endurance qualification remains separate. | [Mac full comparison](MAC_CPU_NATIVE_CHECK_20261004.md) |
 | Setup download recovery | Interrupted model/runtime files are retained and resume with validated byte ranges and complete checksum verification. All 543 local Windows tests, 24 targeted guards, one actual pinned HTTPS recovery and all seven hosted CI jobs pass. Native setup no longer automatically installs global Python packages. | [Download recovery](RUNTIME_DOWNLOAD_RECOVERY_20261004.md) |
 | Slow-download recovery | A 30-minute elapsed body budget is checked between available HTTP fragments; saved prefixes survive expiry and retry. All 28 targeted and 547 local Windows tests plus a second actual pinned HTTPS recovery pass. All seven hosted CI jobs pass at `dc597dc`. | [Download recovery](RUNTIME_DOWNLOAD_RECOVERY_20261004.md) |
 | Saved-delivery replies | Malformed acknowledgements preserve exact ready/pending payloads and trigger persisted delayed retries. Valid rejection and corrupt saved local data still stop for review. All 62 focused and 552 local application checks pass, including actual HTTP/SQLite recovery across fresh workers. All seven hosted CI jobs pass at `b25b9aa`. | [Recovery evidence](SAVED_DELIVERY_RECOVERY_20261005.md) |
+| Desktop service replies | Credential-bearing API redirects are refused; JSON bodies are bounded even without declared length. Saved work survives these failures and resumes after persisted cooldown. All 66 focused and 564 local checks, all seven CI jobs and a credential-free actual HTTPS staging read pass. | [Reply protection](SERVICE_REPLY_PROTECTION_20261005.md) |
+| Close-score ranking assessment | All complete assessed rankings preserve reference ordering beyond a proposed 0.00050 score gap; the largest observed inversion gap is 0.000179630. Proposed absolute score bound 0.00025 is fitted to controlled evidence and does not approve other devices, selected views or live inputs. | [Gap assessment](SCENE_RANKING_GAP_ASSESSMENT_20261005.md) |
 | Background worker | Native scheduled startup, idle handover and idle forced-exit/pause/resume verified. Installed schedule: medium 06:00–00:00, max 00:00–06:00 local; saved account, 30-minute service retry, sign-in/recovery triggers and one worker. | [Background processing](BACKGROUND_PROCESSING.md) |
 | API protection | Supported routes are limited before body/database access, account budgets span read/write routes, previews have a smaller budget, and HTTP/scheduled requests never perform schema upgrades. Actual workerd checks and an explicit confirmed staging checkpoint/readback pass; this is not global load/cost approval. | [API protection](API_PROTECTION_20261004.md) |
 
@@ -247,12 +250,11 @@ differences and coverage limitations; this is not contribution approval. See
 [current Mac native evidence](MAC_CPU_NATIVE_CHECK_20261004.md).
 The current CPU candidate's full 1,024-location comparison has started in
 private run `37271532675`: three fresh trials each at one, two and four threads.
-It reuses the exact completed supplied-reference archive. The two- and four-thread
-jobs each complete all three trials and pass independent transport/reference/repeat
-checking. All 72 top-ten/top-100 reference sets match; close-score order and one
-view differ. Packed indexes, raw tensor hashes and queries agree across these six
-repeats. The one-thread job remains in progress. These finite jobs run
-independently of Codex; none grants production approval.
+It reuses the exact completed supplied-reference archive. All one/two/four-thread
+jobs finish all nine trials and pass independent transport/reference/repeat
+checking. All 108 top-ten/top-100 reference sets match; close-score order and one
+view differ. Packed indexes, raw tensor hashes and queries agree across all nine
+Mac repeats. These finite jobs have completed; none grants production approval.
 Staging and the existing public download remain unchanged.
 
 - [ ] Finish the guided Scenes / Objects / Both choice on both Windows and Mac,

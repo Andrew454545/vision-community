@@ -58,8 +58,12 @@ operation. These priorities are engineering judgments, not CVSS ratings.
    completes all nine trials, independently verified from retained raw files.
    All top-ten/top-100 reference sets match, while close-score ordering and one
    selected view differ. See [the full comparison](FULL_WINDOWS_SCENE_COMPARISON_20261005.md).
+   The [gap assessment](SCENE_RANKING_GAP_ASSESSMENT_20261005.md) measures all
+   ranking inversions and proposes an explicit score bound; selected-view
+   margins and independent release validation remain required.
    Explain these and held-out differences, derive production bounds and pin
-   exact distributed runtime/helpers. Current Mac full CPU trials are running;
+   exact distributed runtime/helpers. All nine current Mac full CPU trials now
+   pass independent transport/reference/repeat checks;
    earlier failures remain preserved. Live audits
    also need independently trusted imagery identity. Different fetched photos
    must not excuse forged embeddings or count as runtime error.
