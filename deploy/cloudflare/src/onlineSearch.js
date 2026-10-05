@@ -130,11 +130,14 @@ async function verifiedHits(db, query, hits, processedLocations) {
   return verified;
 }
 
-export async function onlineSearch(env, account, key, query) {
+export async function onlineSearch(env, account, key, query, { allowNew = true } = {}) {
   if (typeof key !== "string" || key.length < 8 || key.length > 100) throw new SearchError("invalid_idempotency_key", 400);
   const digest = await searchDigest(query);
   const replay = await replaySearch(env.DB, account, key, digest);
   if (replay) return replay;
+  // Closing an unqualified lane must not hide an already paid saved result.
+  // New execution/debits remain forbidden, before checking engine availability.
+  if (!allowNew) throw new SearchError("object_verification_unavailable");
   const owner = await env.DB.prepare("SELECT units FROM accounts WHERE id=? AND deleted_at IS NULL").bind(account).first();
   if (!owner) throw new SearchError("unauthorized", 401);
   if (owner.units < SEARCH_COST) throw new SearchError("insufficient_credit", 402);

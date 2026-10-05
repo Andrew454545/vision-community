@@ -45,6 +45,17 @@ function fixture(t, units = 200000) {
 function balance(sql) { return sql.prepare("SELECT units FROM accounts WHERE id='anonymous'").get().units; }
 function count(sql, table) { return sql.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get().n; }
 
+test("closed object admission still recovers an owned paid result without inference or a debit", async t => {
+  const { sql,env,query }=fixture(t);
+  query.lane="object";
+  const result={searchId:"d".repeat(32),lane:"object",results:[],map:{customCoordinates:[]}};
+  await settleSearch(env.DB,"anonymous","saved-object-search",await searchDigest(query),result,100000);
+  env.SEARCH_ENGINE.fetch=()=>{throw Error("must not run unqualified inference");};
+  assert.deepEqual(await onlineSearch(env,"anonymous","saved-object-search",query,{allowNew:false}),result);
+  await assert.rejects(onlineSearch(env,"anonymous","new-object-search",query,{allowNew:false}),/object_verification_unavailable/);
+  assert.equal(balance(sql),100000);assert.equal(count(sql,"ledger"),1);
+});
+
 test("online results use authoritative poses and replay without charging again", async t => {
   const { sql, env, query } = fixture(t);
   const result = await onlineSearch(env, "anonymous", "request-one", query);

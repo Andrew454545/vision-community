@@ -17,6 +17,8 @@ import { SearchError } from "./searchLedger.js";
 import { migrateAccountPrivacy, deleteAccount, cleanupAccountArtifacts, archiveAccountDeletionReceipts } from "./accountPrivacy.js";
 import { writeSceneArtifact } from "./artifactWrites.js";
 import { officialGen4Coverage, objectCoverageComplete } from "./objectCoverage.js";
+import { readRequestJson } from "./requestBody.js";
+import { localObjectPrototype } from "./objectAdmission.js";
 import { loadSceneReferences, sceneCapabilities } from "./sceneQuality.js";
 import { SCENE_PIPELINE_SCHEMA, verifierConfigured, auditBatchLimit, pipelineCapabilities, activeQualification, qualificationStatus, qualifyDevice, auditScene, stageScene } from "./scenePipeline.js";
 
@@ -97,8 +99,6 @@ function json(value, status = 200, extra = {}) {
 function error(code, status = 400, extra = {}) {
   return json({ error: code }, status, extra);
 }
-
-const MAX_JSON_BODY_BYTES = 8 * 1024 * 1024;
 
 async function rateLimit(env, request, account, route) {
   if (typeof env.API_RATE_LIMITER?.limit !== "function") return true;
@@ -690,8 +690,9 @@ async function leaseItemFromRow(row, generation) {
   return item;
 }
 
-async function lease(env, account, body) {
+async function lease(env, account, body, objectPrototype = false) {
   const lane = body.lane;
+  if (lane === "object" && !objectPrototype) return error("object_verification_unavailable", 503);
   const pace = body.pace || "medium";
   if (!UNITS[lane] || typeof body.count !== "number" || body.count < 1 || body.count > MAX_LEASE) return error("invalid_lease_request");
   const references = lane === "scene" ? await loadSceneReferences(env) : null;
@@ -905,7 +906,8 @@ async function submitFourView(env, account, leaseId, items, supplied, now) {
   return json({ accepted: items.length, unitsEarned: earned, replayed: false, segments: [] });
 }
 
-async function submitObjectIndex(env, account, leaseId, items, supplied, objectIndex, now) {
+async function submitObjectIndex(env, account, leaseId, items, supplied, objectIndex, now, objectPrototype = false) {
+  if (!objectPrototype) return error("object_verification_unavailable", 503);
   if (!env.INDEX) return error("index_unavailable", 503);
   if (!objectIndex || typeof objectIndex !== "object") return error("object_index_required", 422);
   if (items.some((row) => row.lane !== "object" || row.state !== "leased" || row.active_lease !== leaseId)) {
@@ -978,7 +980,7 @@ async function submitObjectIndex(env, account, leaseId, items, supplied, objectI
   return json({ accepted: items.length, unitsEarned: earned, replayed: false, segments: [] });
 }
 
-async function submit(env, account, body) {
+async function submit(env, account, body, objectPrototype = false) {
   const leaseId = body.leaseId;
   const outputs = body.outputs;
   if (typeof leaseId !== "string" || !Array.isArray(outputs) || outputs.length > MAX_LEASE) return error("invalid_submission");
@@ -1004,7 +1006,7 @@ async function submit(env, account, body) {
   }
   if (supplied.size !== items.length || items.some((row) => !supplied.has(row.id))) return error("incomplete_submission");
   if (leaseRow.lane === "object" || items.some((row) => row.lane === "object")) {
-    return submitObjectIndex(env, account, leaseId, items, supplied, body.objectIndex, now);
+    return submitObjectIndex(env, account, leaseId, items, supplied, body.objectIndex, now, objectPrototype);
   }
   const suppliedModels = [...supplied.values()].map((item) => item.model);
   if (suppliedModels.includes(FOUR_VIEW_MODEL)) {
@@ -1258,7 +1260,7 @@ async function views(request) {
 }
 
 
-async function search(env, account, body) {
+async function search(env, account, body, objectPrototype = false) {
   if (body.accountId !== account) return error("account_changed", 409);
   if (body.execute === "local") return error("online_search_required", 410);
   if (body.lane !== undefined && !["scene", "object"].includes(body.lane)) return error("invalid_query");
@@ -1300,7 +1302,8 @@ async function search(env, account, body) {
     filters, objectConfidence: ["balanced", "precise", "highRecall"].includes(body.objectConfidence) ? body.objectConfidence : "balanced",
     rejectRoadNames: body.rejectRoadNames === true, minimumGlobalLocation: body.minimumGlobalLocation ?? null,
   };
-  try { return json(await onlineSearch(env, account, body.idempotencyKey, query)); }
+  try { return json(await onlineSearch(env, account, body.idempotencyKey, query,
+    { allowNew: lane !== "object" || objectPrototype })); }
   catch (failure) {
     if (failure instanceof SearchError) return error(failure.code, failure.status);
     throw failure;
@@ -1361,23 +1364,14 @@ export default {
       }
       if (request.method !== "POST") return error("not_found", 404);
       if (!sameOrigin(request)) return error("cross_origin_request", 403);
-      const contentLength = request.headers.get("Content-Length");
-      if (contentLength !== null && (!/^\d+$/.test(contentLength) || Number(contentLength) > MAX_JSON_BODY_BYTES)) {
-        return error("request_too_large", 413);
-      }
-      const rawBody = await request.arrayBuffer();
-      if (rawBody.byteLength > MAX_JSON_BODY_BYTES) return error("request_too_large", 413);
-      const body = (() => {
-        try { return JSON.parse(new TextDecoder().decode(rawBody)); } catch { return null; }
-      })();
-      if (!body || typeof body !== "object" || Array.isArray(body)) return error("invalid_json");
+      const body = await readRequestJson(request);
       if (url.pathname === "/api/accounts") {
         if (!(await rateLimit(env, request, null, url.pathname))) return error("rate_limited", 429, { "retry-after": "60" });
-        return createAccount(env, request);
+        return await createAccount(env, request);
       }
       if (url.pathname === "/api/recovery") {
         if (!(await rateLimit(env, request, null, url.pathname))) return error("rate_limited", 429, { "retry-after": "60" });
-        return recover(env, request, body);
+        return await recover(env, request, body);
       }
       const account = await accountId(env, request);
       if (url.pathname === "/api/account/delete") {
@@ -1397,9 +1391,10 @@ export default {
       }
       if (url.pathname === "/api/leases/release") return await releaseLease(env, account, body);
       if (url.pathname === "/api/leases/renew") return await renewLease(env, account, body);
-      if (url.pathname === "/api/leases") return await lease(env, account, body);
-      if (url.pathname === "/api/submissions") return await submit(env, account, body);
-      if (url.pathname === "/api/searches") return await search(env, account, body);
+      const objectPrototype = localObjectPrototype(request, env);
+      if (url.pathname === "/api/leases") return await lease(env, account, body, objectPrototype);
+      if (url.pathname === "/api/submissions") return await submit(env, account, body, objectPrototype);
+      if (url.pathname === "/api/searches") return await search(env, account, body, objectPrototype);
       return error("not_found", 404);
     } catch (err) {
       return viewFailure(err) || error("internal_error", 500);
