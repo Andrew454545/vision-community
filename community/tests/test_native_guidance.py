@@ -59,8 +59,8 @@ class NativeGuidanceTests(unittest.TestCase):
         script = (ROOT / 'community' / 'desktop_web' / 'app.js').read_text(encoding='utf-8')
         windows = (ROOT / 'packaging' / 'windows' / 'Launcher.cs').read_text(encoding='utf-8')
         mac = (ROOT / 'packaging' / 'macos' / 'Launcher.swift').read_text(encoding='utf-8')
-        native = re.findall(r'<span class="native-app" hidden>(.*?)</span>', page)
-        folder = re.findall(r'<span class="folder-download">(.*?)</span>', page)
+        native = re.findall(r'<span class="native-app" id="(?:windows|mac)-background-native" hidden>(.*?)</span>', page)
+        folder = re.findall(r'<span class="folder-download" id="(?:windows|mac)-background-folder">(.*?)</span>', page)
         self.assertEqual((len(native), len(folder)), (2, 2))
         # Each named control exists with exactly that label in the native app.
         for text in native:
@@ -75,8 +75,8 @@ class NativeGuidanceTests(unittest.TestCase):
         # The folder variants name files that ship in the extracted download.
         self.assertIn('Background VISION.cmd', folder[0]); self.assertTrue((ROOT / 'Background VISION.cmd').is_file())
         self.assertIn('Background VISION.command', folder[1]); self.assertTrue((ROOT / 'Background VISION.command').is_file())
-        self.assertIn('querySelectorAll(".native-app")) node.hidden = state.nativeApp !== true', script)
-        self.assertIn('querySelectorAll(".folder-download")) node.hidden = state.nativeApp === true', script)
+        self.assertIn('byId(`${platform}-background-native`).hidden = state.nativeApp !== true', script)
+        self.assertIn('byId(`${platform}-background-folder`).hidden = state.nativeApp === true', script)
 
 
 if __name__ == '__main__':
