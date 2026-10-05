@@ -1,38 +1,32 @@
 # VISION Community
 
-Your PC finds Street View locations. Accepted results earn credits for searches.
+Process Street View locations on your computer. Accepted contributions earn
+credits for visual searches.
 
-**Preview: processing and online search are not open yet.**
+Processing and online search are currently closed.
 
-The finished app will support **Windows and Mac**, with **Scenes, Objects or Both**.
-The current guided download is a **Windows Scenes preview**.
-
-## Get started — Windows
+## Get started on Windows
 
 1. [Download VISION](https://github.com/Andrew454545/vision-community/releases/download/windows-starter-preview-20261004-recovery/VISION-Community-Windows.zip).
-2. Right-click the ZIP → **Extract All**. Open the new folder → **VISION Community** → **Start VISION.cmd**.
-3. Type **Y** and press **Enter** when asked. Follow the four buttons in VISION.
+2. Right-click the ZIP → **Extract All**. Open **VISION Community** → **Start VISION.cmd**.
+3. Type **Y** and press **Enter** when asked. Follow the four steps in VISION.
 
 For Intel or AMD Windows PCs. No Python, Git or administrator password needed.
 
-[Step-by-step help](START-HERE.md) · The download includes **START HERE.html**.
+[Setup guide](START-HERE.md) · The download includes **START HERE.html**.
 
-Keep VISION open, your PC awake and the internet connected. Choose **Pause after this batch** to stop.
+## Automatic processing
 
-For automatic processing, close VISION and open **Background VISION.cmd**. Paste your saved code once, choose the schedule and select **Save and enable**. [Automatic processing help](START-HERE.md#automatic-processing).
+Open **Background VISION.cmd**, enter your saved account code and choose your
+daytime and nighttime speeds. Select **Save and enable**.
 
-Apple silicon Mac maintainer preview: open **Background VISION.command** for day/night controls. [Mac preview help](macos/BACKGROUND.md).
+[Automatic processing guide](https://github.com/Andrew454545/vision-community/blob/codex/windows-production-readiness/START-HERE.md#automatic-processing)
 
-## Search
-
-[Open the website](https://vision-community.visioncommunity.workers.dev) → **My account** → enter your saved code.
-Describe a place → **Run Search** → **Download map**.
+## Search credits
 
 Each accepted scene location earns **1 unit**. A search costs **100,000 units**.
 Unused credits stay saved. Keep your account code private; lost codes cannot be recovered.
 
-## Project information
-
-[Developer guide](docs/DEVELOPER_GUIDE.md) · [Release checklist](docs/PRODUCTION_ACCEPTANCE.md) · [Contributing](CONTRIBUTING.md)
-
-Running Andrew’s larger PC test? Use the [calibration guide](calibration/START-HERE.md).
+[Open the website](https://vision-community.visioncommunity.workers.dev) ·
+[Developer guide](https://github.com/Andrew454545/vision-community/blob/codex/windows-production-readiness/docs/DEVELOPER_GUIDE.md) ·
+[Contributing](CONTRIBUTING.md)
