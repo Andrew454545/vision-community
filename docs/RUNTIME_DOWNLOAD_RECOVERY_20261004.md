@@ -21,6 +21,29 @@ to check availability instead of telling them to obtain an account immediately.
 
 ## Evidence
 
+Follow-up `dc597dc` checks a **30-minute response-body budget** using elapsed
+time between available HTTP fragments. A server sending tiny amounts of data
+can no longer hide its body progress inside a large buffered read. Expired
+attempts retain bounded prefixes and restart with a fresh budget; complete
+bytes still require their pinned checksum before reuse. The existing 120-second
+socket inactivity timeout remains. This body check is not an operating-system
+hard limit on connection/header handling or blocked filesystem operations.
+Python's [single-fragment reader](https://docs.python.org/3/library/http.client.html#http.client.HTTPResponse)
+provides the body reads.
+
+All **28 targeted tests** pass in 0.665 seconds, including four added guards:
+trickling body/resume, deadline at the last fragment, wall-clock independence
+and actual loopback HTTP interruption/range recovery. All **547 local Windows
+tests** pass in 426.935 seconds, with eight expected platform/filesystem skips,
+using the existing private PowerShell 7 and unchanged security policy. A second
+actual pinned HTTPS tokenizer recovery also passes with this code.
+[Follow-up application CI](https://github.com/Andrew454545/vision-community/actions/runs/37274191169)
+and [calibration CI](https://github.com/Andrew454545/vision-community/actions/runs/37274191082)
+pass all seven jobs at `dc597dc`: Windows 547 tests in 302.209 seconds with two
+Mac-only skips; Linux 547; all 232 hosted-service tests and complete workerd
+checks; actual Mac setup/background/controls and ownership; both 80-test
+calibration jobs. The earlier completed CI below describes `4378f88`.
+
 - All 24 targeted bootstrap/recovery tests pass in 0.055 seconds. Fifteen new
   guards cover interruptions, valid/invalid ranges, fresh attempts, ignored
   ranges, short fragments, chunked disconnects, oversize/corruption, complete

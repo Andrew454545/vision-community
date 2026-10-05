@@ -79,3 +79,10 @@ The full repeats, held-out tolerances, trusted live contributions and actual
 restart/endurance checks remain release gates. No accounts, submissions,
 credits or uploads are created by this recovery; the installed contributor is
 not inspected or modified.
+
+Follow-up on 5 October: all five remaining native trials complete. A separate
+offline verifier checks all nine retained/new cases, 110,592 raw tensor files
+and every reference/query/repeat comparison. See [the completed full
+comparison](FULL_WINDOWS_SCENE_COMPARISON_20261005.md). This closes the finite
+trial continuation; production qualification and the earlier failures remain
+separate.
