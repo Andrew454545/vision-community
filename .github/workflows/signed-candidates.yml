@@ -1,0 +1,130 @@
+name: signed candidates
+# Manual only. Runs in the `signing` environment, whose secrets/variables and
+# required reviewers the account holder configures (docs/SIGNING-ACCOUNT-SETUP.md).
+# Missing settings stop before any signing. Output is a short-lived artifact
+# for clean-device testing; nothing is published to Releases or download links.
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  mac-signed:
+    runs-on: macos-26
+    environment: signing
+    timeout-minutes: 60
+    env:
+      MAC_DEVELOPER_ID_P12_BASE64: ${{ secrets.MAC_DEVELOPER_ID_P12_BASE64 }}
+      MAC_DEVELOPER_ID_P12_PASSWORD: ${{ secrets.MAC_DEVELOPER_ID_P12_PASSWORD }}
+      MAC_SIGNING_IDENTITY: ${{ vars.MAC_SIGNING_IDENTITY }}
+      APPLE_NOTARY_KEY_P8: ${{ secrets.APPLE_NOTARY_KEY_P8 }}
+      APPLE_NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
+      APPLE_NOTARY_ISSUER: ${{ secrets.APPLE_NOTARY_ISSUER }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Stop unless Developer ID and notarization are configured
+        run: python -B packaging/signing_preflight.py mac
+      - name: Load the certificate and notary key into a temporary keychain
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          keychain="$RUNNER_TEMP/vision-signing.keychain-db"
+          password="$(uuidgen)"
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings -lut 3600 "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          printf '%s' "$MAC_DEVELOPER_ID_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/identity.p12"
+          security import "$RUNNER_TEMP/identity.p12" -k "$keychain" -P "$MAC_DEVELOPER_ID_P12_PASSWORD" -T /usr/bin/codesign
+          rm -f "$RUNNER_TEMP/identity.p12"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$password" "$keychain" > /dev/null
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+          printf '%s' "$APPLE_NOTARY_KEY_P8" > "$RUNNER_TEMP/notary.p8"
+          xcrun notarytool store-credentials VISION-notary --key "$RUNNER_TEMP/notary.p8" \
+            --key-id "$APPLE_NOTARY_KEY_ID" --issuer "$APPLE_NOTARY_ISSUER" --keychain "$keychain"
+          rm -f "$RUNNER_TEMP/notary.p8"
+          echo "VISION_SIGNING_KEYCHAIN=$keychain" >> "$GITHUB_ENV"
+      - name: Build, sign, notarize, staple and assess with Gatekeeper
+        run: |
+          python -B packaging/build_mac.py --output "$RUNNER_TEMP/mac-signed" --revision "$GITHUB_SHA" \
+            --identity "$MAC_SIGNING_IDENTITY" --notary-profile VISION-notary
+          python -B packaging/check_mac.py --app "$RUNNER_TEMP/mac-signed/VISION Community.app"
+      - name: Remove the temporary keychain
+        if: always()
+        run: |
+          if [ -n "${VISION_SIGNING_KEYCHAIN:-}" ]; then security delete-keychain "$VISION_SIGNING_KEYCHAIN"; fi
+          rm -f "$RUNNER_TEMP/identity.p12" "$RUNNER_TEMP/notary.p8"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SIGNED-CANDIDATE-FOR-CLEAN-DEVICE-TEST-Mac
+          path: |
+            ${{ runner.temp }}/mac-signed/VISION-Community-Mac.zip
+            ${{ runner.temp }}/mac-signed/package-receipt.json
+            ${{ runner.temp }}/mac-signed/notary-result.json
+          retention-days: 7
+  windows-signed:
+    runs-on: windows-latest
+    environment: signing
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      ARTIFACT_SIGNING_ENDPOINT: ${{ vars.ARTIFACT_SIGNING_ENDPOINT }}
+      ARTIFACT_SIGNING_ACCOUNT: ${{ vars.ARTIFACT_SIGNING_ACCOUNT }}
+      ARTIFACT_SIGNING_PROFILE: ${{ vars.ARTIFACT_SIGNING_PROFILE }}
+      WINDOWS_PUBLISHER_SUBJECT: ${{ vars.WINDOWS_PUBLISHER_SUBJECT }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Stop unless Artifact Signing is configured
+        run: python -B packaging/signing_preflight.py windows
+      - name: Sign in to Azure with this workflow's federated identity
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Prepare the signing node (pinned client, Windows SDK SignTool)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $package = Join-Path $env:RUNNER_TEMP 'artifact-signing-client.nupkg'
+          Invoke-WebRequest -UseBasicParsing -OutFile $package `
+            -Uri 'https://api.nuget.org/v3-flatcontainer/microsoft.artifactsigning.client/1.0.128/microsoft.artifactsigning.client.1.0.128.nupkg'
+          if ((Get-FileHash -LiteralPath $package -Algorithm SHA256).Hash -ne '74BD7D27E6CE1051409C38D9B46BC8DF0400ECD643D51FFBF2AC00869061E40B') { throw 'signing_client_checksum_mismatch' }
+          $client = Join-Path $env:RUNNER_TEMP 'artifact-signing-client'
+          Expand-Archive -LiteralPath $package -DestinationPath $client
+          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" | Sort-Object { [version]$_.Directory.Parent.Name } | Select-Object -Last 1
+          if (-not $signtool) { throw 'signtool_not_found' }
+          $metadata = Join-Path $env:RUNNER_TEMP 'artifact-signing-metadata.json'
+          @{ Endpoint = $env:ARTIFACT_SIGNING_ENDPOINT; CodeSigningAccountName = $env:ARTIFACT_SIGNING_ACCOUNT
+             CertificateProfileName = $env:ARTIFACT_SIGNING_PROFILE } | ConvertTo-Json | Set-Content -LiteralPath $metadata -Encoding utf8
+          "VISION_SIGNTOOL=$($signtool.FullName)" >> $env:GITHUB_ENV
+          "VISION_SIGNING_DLIB=$(Join-Path $client 'bin\x64\Azure.CodeSigning.Dlib.dll')" >> $env:GITHUB_ENV
+          "VISION_SIGNING_METADATA=$metadata" >> $env:GITHUB_ENV
+      - name: Build and sign; require valid timestamped signatures from the exact publisher
+        shell: pwsh
+        run: |
+          python -B packaging/build_windows.py --output "$env:RUNNER_TEMP/windows-signed" --revision "$env:GITHUB_SHA" `
+            --signer packaging/windows/Artifact-Sign.ps1 --publisher "$env:WINDOWS_PUBLISHER_SUBJECT"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SIGNED-CANDIDATE-FOR-CLEAN-DEVICE-TEST-Windows
+          path: |
+            ${{ runner.temp }}/windows-signed/VISION-Community-Setup.exe
+            ${{ runner.temp }}/windows-signed/package-receipt.json
+            ${{ runner.temp }}/windows-signed/package-self-check.json
+          retention-days: 7
