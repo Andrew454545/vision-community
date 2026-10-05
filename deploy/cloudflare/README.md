@@ -23,6 +23,9 @@ revision `1` needs the explicit, reviewed checkpoint in
 `migrations/0004_schema_revision.sql` while API writers are paused and drained.
 See [database maintenance and API limits](../../docs/API_PROTECTION_20261004.md).
 Later website-only updates using the same schema contract need no schema import.
+Older prototype databases first need the complete legacy upgrade; the checkpoint
+alone does not install missing tables or privacy fences. See the
+[offline legacy upgrade rehearsal](../../docs/LEGACY_SCHEMA_UPGRADE.md).
 Afterward, verify the short guide, privacy headers, all three rate-limit bindings,
 the schema version and closed `/api/capabilities`. Preserve records and credits.
 
