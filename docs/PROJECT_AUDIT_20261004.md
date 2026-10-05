@@ -41,7 +41,7 @@ it adds no global installation and does not change application behavior.
 | Privacy and recovery | Fixed public errors, local-window authentication, secret handling, account deletion archives, deletion-aware restore, browser journals and delivery outbox reviewed. Source-name checks are not proof of anonymity in Git history or provider records. |
 | Hosting | Checked-in production/staging bindings, immutable private native bundle/image identities, retained activation pointer, alarms and restart handling reviewed against current official types/docs and the pinned Wrangler schema. Actual workerd checks are offline; no fresh live-resource or billing audit was performed. |
 | Beginner experience and packaging | Download/guide consistency, Scenes-only preview labels, private setup, background controls and failure wording reviewed. Guided Objects/Both, signed distributed Mac/Windows packages and clean-device beginner acceptance are incomplete. |
-| Delivery and development | Public/private branch boundaries, build workflows, source versus released ZIP versions and preserved failure reports reviewed. Private native Mac jobs remain blocked before startup by GitHub Actions budget. |
+| Delivery and development | Public/private branch boundaries, build workflows, source versus released ZIP versions and preserved failure reports reviewed. After the budget increase both current Mac CPU builds pass; their exact candidates have separate finite inference checks queued. See [Mac native evidence](MAC_CPU_NATIVE_CHECK_20261004.md). |
 
 The loopback prototype remains an explicitly local developer tool. Its cheaper
 demo search and legacy diagnostic routes must not be hosted or presented as
@@ -96,11 +96,10 @@ operation. These priorities are engineering judgments, not CVSS ratings.
    cleanup nor a hard disk quota. Audit provider logs, names and retention
    separately from the anonymous UI.
 
-The account owner must increase the applicable **private repository GitHub
-Actions budget**, keeping an agreed spending cap, before the prepared native
-Mac build jobs can start. No API token needs to be posted in the PR. This is
-the known external prerequisite; the other gates require engineering and
-observed evidence, not an owner's declaration that the release is approved.
+The private repository Actions budget block is resolved: both current Mac CPU
+builds pass after the increase. Exact candidate inference and the remaining
+release gates require observed engineering evidence. No API token or separate
+owner declaration of production approval is needed for the finite checks.
 
 ## Validation
 

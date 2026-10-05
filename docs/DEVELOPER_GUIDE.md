@@ -30,6 +30,11 @@ python3 -m community.bootstrap
 On Windows, use the guided starter unless you are intentionally testing the
 advanced workflow.
 
+Native setup downloads the programs and models without installing Python
+packages. Interrupted downloads retain their progress; retry the same setup to
+continue. The older developer prototype needs its optional dependencies in a
+separate virtual environment.
+
 ## How to use the site
 
 The website shows your account and search credits. Processing runs on your
