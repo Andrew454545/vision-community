@@ -48,12 +48,18 @@ function Find-Window([int]$ProcessId, [string]$Title) {
     return $UIA::RootElement.FindFirst([Windows.Automation.TreeScope]::Children, $condition)
 }
 function Find-Control($Window, [string]$Name) {
-    return $Window.FindFirst([Windows.Automation.TreeScope]::Descendants,
-        (New-Object Windows.Automation.PropertyCondition($UIA::NameProperty, $Name)))
+    return $Window.FindFirst([Windows.Automation.TreeScope]::Descendants, (New-Object Windows.Automation.AndCondition(
+        (New-Object Windows.Automation.PropertyCondition($UIA::NameProperty, $Name)),
+        (New-Object Windows.Automation.PropertyCondition($UIA::ControlTypeProperty, [Windows.Automation.ControlType]::Button)))))
 }
 function Invoke-Control($Window, [string]$Name) {
-    $control = Wait-For { Find-Control $Window $Name } "control $Name" 20
-    $control.GetCurrentPattern([Windows.Automation.InvokePattern]::Pattern).Invoke()
+    $control = Wait-For { Find-Control $Window $Name } "button $Name" 20
+    $pattern = $null
+    if ($control.TryGetCurrentPattern([Windows.Automation.InvokePattern]::Pattern, [ref]$pattern)) { $pattern.Invoke(); return }
+    # Some hosted sessions expose WinForms buttons without Invoke; click the real control instead.
+    $handle = [IntPtr]$control.Current.NativeWindowHandle
+    if ($handle -eq [IntPtr]::Zero) { throw "button $Name has no invoke pattern or window handle" }
+    [LifecycleNative]::PostMessage($handle, 0x00F5, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
 }
 function Get-Texts($Window) {
     $condition = New-Object Windows.Automation.PropertyCondition($UIA::ControlTypeProperty, [Windows.Automation.ControlType]::Text)
@@ -167,10 +173,15 @@ try {
         $process = Open-Launcher $copyA
         $window = Wait-For { Find-Window $process.Id 'VISION Community' } 'setup window'
         $button = Wait-For { Find-Control $window 'Install VISION' } 'install button'
+        $staged = @(if (Test-Path -LiteralPath $base) { Get-ChildItem -LiteralPath $base -Directory -Force })
         [LifecycleNative]::PostMessage([IntPtr]$button.Current.NativeWindowHandle, 0x00F5, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
         Start-Sleep -Milliseconds $delay
         Stop-Process -Id $process.Id -Force; $process.WaitForExit()
+        $after = @(if (Test-Path -LiteralPath $base) { Get-ChildItem -LiteralPath $base -Directory -Force | ForEach-Object Name })
+        Write-Output ("interrupted after {0} ms: folders before={1} after=[{2}]" -f $delay, $staged.Count, ($after -join ','))
         Check "interrupted_${delay}ms_leaves_no_partial_program" ((-not (Test-Path -LiteralPath $programA)) -or (Test-Program $programA $copyA))
+        # Undo a completed install so each later attempt really interrupts setup.
+        if (Test-Path -LiteralPath $programA) { Remove-Item -LiteralPath $programA -Recurse -Force }
     }
     New-Item -ItemType Directory -Path (Join-Path $base ('staging-' + [Guid]::NewGuid().ToString('N') + '\project')) -Force | Out-Null
     [IO.File]::WriteAllText((Join-Path $base 'install.lock'), '')
