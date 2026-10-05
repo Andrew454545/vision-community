@@ -65,6 +65,16 @@ function Get-Texts($Window) {
     $condition = New-Object Windows.Automation.PropertyCondition($UIA::ControlTypeProperty, [Windows.Automation.ControlType]::Text)
     return @($Window.FindAll([Windows.Automation.TreeScope]::Descendants, $condition) | ForEach-Object { $_.Current.Name }) -join "`n"
 }
+function Show-Tree([int]$ProcessId) {
+    # Diagnostics only: control types, names and classes, never file contents.
+    $condition = New-Object Windows.Automation.PropertyCondition($UIA::ProcessIdProperty, $ProcessId)
+    foreach ($top in @($UIA::RootElement.FindAll([Windows.Automation.TreeScope]::Children, $condition))) {
+        foreach ($item in @($top) + @($top.FindAll([Windows.Automation.TreeScope]::Descendants, [Windows.Automation.Condition]::TrueCondition))) {
+            $patterns = @($item.GetSupportedPatterns() | ForEach-Object { $_.ProgrammaticName }) -join ','
+            Write-Output ("  {0} | {1} | {2} | {3}" -f $item.Current.ControlType.ProgrammaticName, $item.Current.Name, $item.Current.ClassName, $patterns)
+        }
+    }
+}
 function Wait-Text($Window, [string]$Fragment, [int]$Seconds = 60) {
     return Wait-For { $text = Get-Texts $Window; if ($text.Contains($Fragment)) { $text } } "text $Fragment" $Seconds
 }
@@ -80,6 +90,7 @@ function Close-Launcher($Process) {
 function Install-With([string]$Setup, [switch]$Keyboard) {
     $process = Open-Launcher $Setup
     $window = Wait-For { Find-Window $process.Id 'VISION Community' } 'setup window'
+    if (-not $script:treeShown) { $script:treeShown = $true; Write-Output 'UI Automation view of the setup window:'; Show-Tree $process.Id }
     if ($Keyboard) {
         # The default button answers Enter without a mouse.
         $null = Wait-For { [Microsoft.VisualBasic.Interaction]::AppActivate($process.Id); $true } 'focus' 10
@@ -139,6 +150,8 @@ function Find-RemovalMessage {
     }
 }
 
+$treeShown = $false
+Write-Output ("Session {0}, interactive {1}" -f [Diagnostics.Process]::GetCurrentProcess().SessionId, [Environment]::UserInteractive)
 New-Item -ItemType Directory -Path $work | Out-Null
 $copyA = Join-Path $work 'download-a\VISION-Community-Setup.exe'; $copyB = Join-Path $work 'download-b\VISION-Community-Setup.exe'
 New-Item -ItemType Directory -Path (Split-Path $copyA), (Split-Path $copyB) | Out-Null
@@ -172,6 +185,7 @@ try {
     foreach ($delay in @(0, 150, 400)) {
         $process = Open-Launcher $copyA
         $window = Wait-For { Find-Window $process.Id 'VISION Community' } 'setup window'
+        if (-not $treeShown) { $treeShown = $true; Write-Output 'UI Automation view of the setup window:'; Start-Sleep -Seconds 1; Show-Tree $process.Id }
         $button = Wait-For { Find-Control $window 'Install VISION' } 'install button'
         $staged = @(if (Test-Path -LiteralPath $base) { Get-ChildItem -LiteralPath $base -Directory -Force })
         [LifecycleNative]::PostMessage([IntPtr]$button.Current.NativeWindowHandle, 0x00F5, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
