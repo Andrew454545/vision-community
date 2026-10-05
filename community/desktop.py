@@ -600,12 +600,8 @@ def main():
     parser.add_argument("--no-browser", action="store_true")
     parser.add_argument("--prepare", action="store_true")
     parser.add_argument("--prepare-only", action="store_true")
-    # Set by the starters inside an installed native app, so the page names
-    # that app's buttons instead of files in an extracted download folder.
-    parser.add_argument("--native-app", action="store_true")
     args = parser.parse_args()
     app = DesktopApp(args.root)
-    app.state["nativeApp"] = args.native_app
     # Prevent two copies from leasing work from the same local working directory.
     guard = (app.root / "desktop.lock").open("a+b")
     try:

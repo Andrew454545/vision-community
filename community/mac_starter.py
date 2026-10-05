@@ -119,8 +119,7 @@ def main():
     root=regular(args.root,directory=True,missing=True);root.mkdir(parents=True,exist_ok=True)
     try:
         if sys.platform!='darwin':raise SnapshotError('mac_required')
-        source=Path(__file__).resolve().parents[1]
-        app,digest=copy_source(source,root)
+        app,digest=copy_source(Path(__file__).resolve().parents[1],root)
         if args.snapshot_only:
             with (root/'mac-source-check.json').open('x',encoding='utf-8') as output:
                 json.dump({'status':'PRIVATE_SOURCE_VERIFIED','sourceSha256':digest,
@@ -131,8 +130,6 @@ def main():
         arguments=[sys.executable,'-I','-B',str(app/'community'/entry),'--root',str(root)]
         if not args.background_controls:
             if args.prepare_only:arguments+=['--prepare-only']
-            # Only the installed native app carries a sealed release inventory.
-            if (source/'release-inventory.json').is_file():arguments+=['--native-app']
         return subprocess.run(arguments,check=False).returncode
     except Exception as error:
         report={'status':'INCOMPLETE','code':str(error) if isinstance(error,SnapshotError) else type(error).__name__,
