@@ -22,7 +22,7 @@ from community.contribute import CommunityClient, ContributeError, DEFAULT_URL
 from community.vision_index import default_runner, index_from_queue, parse_json_stdout, require_layout, program_name, VisionIndexError
 from community.pc_canary import (run_canary, canary_profile_matches, released_canary_policy,
                                  compact_approved_canary)
-from community.submission_outbox import SubmissionOutbox, MAX_PENDING_SUBMISSIONS
+from community.submission_outbox import SubmissionOutbox, MAX_PENDING_SUBMISSIONS, submission_result_state
 
 WEB = Path(__file__).with_name("desktop_web")
 ERRORS = {
@@ -30,6 +30,7 @@ ERRORS = {
     "rate_limit_unavailable": "The service is temporarily unavailable. Your saved work is kept. Try again later.",
     "service_maintenance": "The service is being updated. Your saved work is kept. Try again later.",
     "network_error": "The service could not be reached. Check your connection and try again.",
+    "invalid_submission_result": "The service reply could not be confirmed. Your saved work is kept. Try again later.",
     "runtime_download_failed": "A download was interrupted. Check your connection and choose Download again; verified files will be reused.",
     "runtime_mismatch": "A downloaded file failed its safety check. It was not used. Try downloading again.",
     "unsupported_platform": "This preview supports Intel or AMD Windows PCs and Apple silicon Macs. A compatible download for this computer is not ready yet.",
@@ -99,11 +100,22 @@ class DesktopClient(CommunityClient):
         if self.outbox:
             self.outbox.remember(lease_id, outputs)
         result = super().submit(lease_id, outputs)
-        if self.outbox:
-            self.outbox.result(lease_id, result)
+        self.save_submission_result(lease_id, result)
         if result.get("rejected"):
             raise ContributeError("scene_submission_rejected", 422)
         return result
+
+    def save_submission_result(self, lease_id, result):
+        try:
+            submission_result_state(lease_id, result)
+            if self.outbox:
+                self.outbox.result(lease_id, result)
+        except ValueError as error:
+            if str(error) != "invalid_submission_result":
+                raise
+            # This is a malformed acknowledgement, not an explicit rejection.
+            # Preserve the exact delivery and let the background retry later.
+            raise ContributeError("invalid_submission_result", 503) from None
 
     def request(self, method, path, body=None):
         if method == "POST" and path == "/api/leases" and body and body.get("lane") == "scene":
@@ -119,8 +131,7 @@ class DesktopClient(CommunityClient):
         status, data, _ = super().request("POST", "/api/scene-audits", {"submissionId": submission_id})
         if status != 200:
             raise ContributeError(str(data.get("error") if isinstance(data, dict) else "verification_failed"), status)
-        if self.outbox:
-            self.outbox.result(submission_id, data)
+        self.save_submission_result(submission_id, data)
         if data.get("rejected"):
             raise ContributeError("scene_submission_rejected", 422)
         return data

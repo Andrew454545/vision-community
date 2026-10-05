@@ -92,6 +92,8 @@ class BackgroundHTTPRestartTests(unittest.TestCase):
                     return self.send(200,{'pendingAudit':True,'submissionId':lease,
                         'accepted':0,'unitsEarned':0},partial=owner.phase=='drop-submit')
                 if self.path=='/api/scene-audits':
+                    if owner.phase=='malformed-audit':
+                        return self.send(200,{'accepted':-1,'unitsEarned':0,'pendingAudit':False})
                     if owner.phase=='audit-outage':
                         return self.send(503,{'error':'scene_verifier_unavailable'})
                     if owner.phase=='reject':
@@ -139,6 +141,30 @@ class BackgroundHTTPRestartTests(unittest.TestCase):
         for path in ('background-status.json','desktop-failure.json','background-retry.json'):
             if (self.root/path).exists():self.assertNotIn(CODE,(self.root/path).read_text())
         self.assertNotIn(CODE.encode(),(self.root/'indexes/submissions.sqlite').read_bytes())
+
+    def test_malformed_success_preserves_work_across_processes_and_recovers_after_cooldown(self):
+        self.phase='audit-outage'
+        self.assertTrue(self.child('seed')['pendingAudit'])
+        before=self.row()
+        self.phase='malformed-audit'
+        self.assertEqual(self.child(),{'state':'waiting_for_service','accepted':0})
+        self.assertEqual(self.row(),before)
+        self.assertEqual(self.awards,set())
+        self.assertFalse((self.root/'NEEDS-ATTENTION').exists())
+        self.assertEqual(json.loads((self.root/'desktop-failure.json').read_text())['code'],'invalid_submission_result')
+        self.assertEqual(json.loads((self.root/'background-retry.json').read_text())['nextAttemptAt'],11800)
+        calls=len(self.calls)
+        self.assertEqual(self.child(now=11000),{'state':'waiting_for_service','accepted':0})
+        self.assertEqual(len(self.calls),calls)
+        self.phase='ack'
+        self.assertEqual(self.child(now=11800),{'state':'waiting_for_space','accepted':1})
+        self.assertEqual(self.row()[0],'accepted')
+        self.assertIsNone(self.row()[1])
+        self.assertEqual(self.awards,{LEASE})
+        calls=len(self.calls)
+        self.assertEqual(self.child(now=11860),{'state':'waiting_for_space','accepted':0})
+        self.assertFalse(any(path=='/api/scene-audits' for _method,path,_body in self.calls[calls:]))
+        self.assert_private_and_no_new_work()
 
     def test_partial_replies_and_outage_recover_across_processes_without_duplicate_award(self):
         self.assertEqual(self.child('seed'),{'code':'network_error'})

@@ -18,6 +18,26 @@ MAX_PENDING_SUBMISSIONS = 64
 LOST_LEASE_CODES = frozenset({"expired_lease", "lease_lost", "unknown_lease"})
 
 
+def submission_result_state(lease_id, result):
+    """Only a coherent service acknowledgement may retire saved output."""
+    if not isinstance(result, dict):
+        raise ValueError("invalid_submission_result")
+    if any(key in result and type(result[key]) is not bool for key in ("pendingAudit", "rejected")):
+        raise ValueError("invalid_submission_result")
+    if any(key in result and (type(result[key]) is not int or not 0 <= result[key] <= 2**53 - 1)
+           for key in ("accepted", "unitsEarned")):
+        raise ValueError("invalid_submission_result")
+    if "submissionId" in result and result["submissionId"] != lease_id:
+        raise ValueError("invalid_submission_result")
+    pending, rejected = result.get("pendingAudit", False), result.get("rejected", False)
+    accepted, earned = result.get("accepted", 0), result.get("unitsEarned", 0)
+    if pending and rejected or (pending or rejected) and (accepted or earned):
+        raise ValueError("invalid_submission_result")
+    if not pending and not rejected and ("accepted" not in result or earned and not accepted):
+        raise ValueError("invalid_submission_result")
+    return "pending" if pending else "rejected" if rejected else "accepted"
+
+
 class SubmissionOutbox:
     def __init__(self, path, origin, account_id):
         if not isinstance(account_id, str) or not re.fullmatch(r"[0-9a-f]{32}", account_id):
@@ -70,11 +90,21 @@ class SubmissionOutbox:
                                (self.origin, self.account_id, lease_id, payload, digest))
 
     def result(self, lease_id, result):
-        if not isinstance(result, dict) or not (result.get("pendingAudit") is True
-                or result.get("rejected") is True or type(result.get("accepted")) is int):
-            raise ValueError("invalid_submission_result")
-        state = "pending" if result.get("pendingAudit") else "rejected" if result.get("rejected") else "accepted"
+        state = submission_result_state(lease_id, result)
         with self.connection() as connection:
+            if state == "accepted":
+                saved = connection.execute("""SELECT payload_json FROM deliveries
+                    WHERE origin=? AND account_id=? AND lease_id=? AND state IN ('ready','pending')""",
+                    (self.origin, self.account_id, lease_id)).fetchone()
+                if saved:
+                    try:
+                        outputs = json.loads(saved["payload_json"])
+                    except (TypeError, ValueError):
+                        raise ValueError("invalid_saved_submission") from None
+                    if not isinstance(outputs, list):
+                        raise ValueError("invalid_saved_submission")
+                    if result["accepted"] > len(outputs):
+                        raise ValueError("invalid_submission_result")
             connection.execute("""UPDATE deliveries SET state=?, result_json=?, updated_at=?,
                 payload_json=CASE WHEN ?='accepted' THEN NULL ELSE payload_json END
                 WHERE origin=? AND account_id=? AND lease_id=? AND state IN ('ready','pending')""",

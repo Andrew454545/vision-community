@@ -40,6 +40,7 @@ TRANSIENT_HTTP_CODES = frozenset({
     "rate_limited", "control_plane_unprovisioned", "scene_verifier_unavailable",
     "scene_verification_unavailable",
     "schema_update_required", "rate_limit_unavailable", "service_maintenance",
+    "invalid_submission_result",
 })
 SLEEP_REQUEST_ERRORS = frozenset({'keep_awake_failed', 'keep_awake_release_failed'})
 

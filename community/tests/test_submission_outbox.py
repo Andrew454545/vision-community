@@ -140,6 +140,58 @@ class OutboxTest(unittest.TestCase):
             self.assertEqual(state, "rejected")
             self.assertEqual(json.loads(payload), self.outputs)
 
+    def test_malformed_acknowledgements_preserve_ready_and_pending_rows_exactly(self):
+        bad_results = (None, [], {'accepted': -1}, {'accepted': True}, {'accepted': 1.0},
+            {'accepted': 2}, {'accepted': 2**53}, {'accepted': 1, 'unitsEarned': -1},
+            {'accepted': 0, 'unitsEarned': 1}, {'accepted': 1, 'unitsEarned': '1'},
+            {'accepted': 1, 'unitsEarned': float('nan')}, {'pendingAudit': True, 'accepted': 1},
+            {'rejected': True, 'accepted': 1}, {'pendingAudit': True, 'rejected': True},
+            {'pendingAudit': 'true', 'accepted': 0}, {'pendingAudit': False},
+            {'accepted': 0, 'rejected': None}, {'pendingAudit': True, 'submissionId': 'c'*32})
+        for state in ('ready', 'pending'):
+            with tempfile.TemporaryDirectory() as root:
+                client = self.client(root)
+                client.outbox.remember(self.lease, self.outputs)
+                if state == 'pending':client.outbox.result(self.lease, {'pendingAudit': True})
+                def row():
+                    with closing(sqlite3.connect(Path(root)/'submissions.sqlite')) as connection:
+                        return connection.execute('SELECT * FROM deliveries').fetchone()
+                original = row()
+                for result in bad_results:
+                    with self.subTest(state=state, result=result), self.assertRaisesRegex(ValueError, 'invalid_submission_result'):
+                        client.outbox.result(self.lease, result)
+                    self.assertEqual(row(), original)
+                self.assertEqual(client.pending, 1)
+
+    def test_wrong_submission_identity_is_retryable_and_cannot_retire_output(self):
+        with tempfile.TemporaryDirectory() as root:
+            client = self.client(root)
+            with patch.object(CommunityClient, 'request', return_value=(200,
+                    {'accepted': 1, 'unitsEarned': 1, 'submissionId': 'c'*32}, None)):
+                with self.assertRaises(ContributeError) as error:
+                    client.submit(self.lease, self.outputs)
+            self.assertEqual((error.exception.code, error.exception.status), ('invalid_submission_result', 503))
+            self.assertEqual(client.outbox.pending()[0]['state'], 'ready')
+            self.assertEqual(json.loads(client.outbox.pending()[0]['payload_json']), self.outputs)
+
+    def test_guided_client_without_journal_still_refuses_malformed_success(self):
+        client = DesktopClient(self.url)
+        with patch.object(CommunityClient, 'request', return_value=(200, {'accepted': -1}, None)):
+            with self.assertRaisesRegex(ContributeError, 'invalid_submission_result'):
+                client.audit_submission(self.lease)
+
+    def test_corrupt_saved_payload_requires_review_and_cannot_be_retired(self):
+        with tempfile.TemporaryDirectory() as root:
+            client = self.client(root)
+            client.outbox.remember(self.lease, self.outputs)
+            with closing(sqlite3.connect(Path(root)/'submissions.sqlite')) as connection:
+                connection.execute("UPDATE deliveries SET payload_json='not valid saved JSON'")
+                connection.commit()
+            with self.assertRaisesRegex(ValueError, 'invalid_saved_submission'):
+                client.save_submission_result(self.lease, {'accepted': 1, 'unitsEarned': 1})
+            self.assertEqual(client.outbox.pending()[0]['payload_json'], 'not valid saved JSON')
+            self.assertEqual(client.pending, 1)
+
     def test_pending_backlog_is_bounded_and_retries_are_fair(self):
         with tempfile.TemporaryDirectory() as root:
             client = self.client(root)

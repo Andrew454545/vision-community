@@ -13,7 +13,7 @@ from community.vision_index import VisionIndexError
 
 class BackgroundTest(unittest.TestCase):
     def test_maintenance_and_protection_outages_retry_after_persisted_cooldown(self):
-        for code in ('schema_update_required', 'rate_limit_unavailable', 'service_maintenance'):
+        for code in ('schema_update_required', 'rate_limit_unavailable', 'service_maintenance', 'invalid_submission_result'):
             with self.subTest(code=code), tempfile.TemporaryDirectory() as root:
                 worker, app = self.worker(root)
                 (Path(root) / 'saved-work.txt').write_text('retained batch and account', encoding='utf-8')
