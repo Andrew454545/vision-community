@@ -24,6 +24,7 @@ release ZIPs are unchanged. The remaining release and capacity gates stay open.
 | P1 | The public API read an entire request with `arrayBuffer()` before applying its 8 MiB limit. An absent or dishonest length header could consume memory before rejection. | Bound streaming reads by actual bytes, read count and a 60-second deadline; reject malformed UTF-8, non-object JSON and inconsistent lengths. Cancellation cannot hold the error response indefinitely. Six boundary guards and an oversized request without a length header in actual workerd pass. |
 | P2 | Async account-creation/recovery writes returned outside the API's error handler. A rejected database write could escape the fixed JSON failure contract. | Await both operations inside the handler. Real SQLite-backed regression fixtures inject failures and confirm redacted `internal_error`, no partial account and unchanged recovery token/balance. |
 | P2 | The website's main download button still selected the 2 October Windows preview while the short guide and README selected the recovery preview. | Align the button with `windows-starter-preview-20261004-recovery`. This is a source correction; the deployed button has not been read back in this phase. |
+| P1 | A malformed service acknowledgement could retire saved local delivery data using negative counts or contradictory pending/rejected flags. This is a source defect, not evidence of actual lost work. | Validate counts, state and delivery identity before updating the journal. Invalid replies keep the exact payload and retry after persisted cooldown; explicit rejection and corrupt local data still require review. All 62 focused checks, including actual HTTP/SQLite recovery across fresh workers, pass. See [saved-delivery recovery](SAVED_DELIVERY_RECOVERY_20261005.md). |
 
 The first CI run at `1572434` failed because the new full-Worker regression
 imported `jpeg-js` before the workflow installed its local dependencies. The
@@ -53,11 +54,13 @@ approval to the hosted service.
 P1 here means a release blocker; P2 means work required before general public
 operation. These priorities are engineering judgments, not CVSS ratings.
 
-1. **P1 — Runtime/reference approval:** finish the full identical-input PC
-   matrix, explain held-out ranking/view differences, derive production bounds
-   and pin the exact distributed runtime/helpers. The independently running
-   finite matrix's last inspected report was `INCOMPLETE`, at
-   `2026-10-05T00:16:47Z`; its earlier failures remain preserved. Live audits
+1. **P1 — Runtime/reference approval:** the full identical-input PC matrix now
+   completes all nine trials, independently verified from retained raw files.
+   All top-ten/top-100 reference sets match, while close-score ordering and one
+   selected view differ. See [the full comparison](FULL_WINDOWS_SCENE_COMPARISON_20261005.md).
+   Explain these and held-out differences, derive production bounds and pin
+   exact distributed runtime/helpers. Current Mac full CPU trials are running;
+   earlier failures remain preserved. Live audits
    also need independently trusted imagery identity. Different fetched photos
    must not excuse forged embeddings or count as runtime error.
 2. **P1 — Both platforms and lanes:** distribute the tested current Mac candidates;

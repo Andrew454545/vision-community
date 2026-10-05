@@ -99,6 +99,59 @@ unchanged native recompilation were needed. All 31 local candidate/reference
 guards pass in 0.667 seconds. The existing nine Object inference guards are
 also exercised on the actual Mac runner.
 
+## Full current-runtime comparison
+
+[Full candidate run 37271532675](https://github.com/Andrew454545/VISION/actions/runs/37271532675)
+uses private source `552c292` and the exact current Scene binary above. Three
+separate Apple-silicon CPU jobs each run three complete 1,024-location indexes
+and twelve-query searches, at one, two or four shared threads. They reuse the
+unchanged, independently verified full reference archive; they do not capture
+new reference imagery. Both the two- and four-thread jobs complete all three
+full trials; only the one-thread job remains in progress as of 5 October 2026 UTC.
+
+Independent checking validates all 49,152 normalized/pooler transports,
+24,576 preprocessing hashes, exact source/model/profile pins and all 72
+query comparisons across both completed jobs. Packed indexes, raw tensor
+hashes and native query results agree across all six repeats. Every
+top-ten/top-100 location set matches the reference. Eleven of twelve queries
+reorder close scores, and one selected view differs in each repeat. Minimum
+decoded cosine is 0.9999800294 and maximum relative L2 is 0.0063844681; maximum
+reference score difference is 0.00022419. Mac and Windows packed/query bytes
+remain different; agreement on these summary metrics is not byte identity.
+
+Two-thread index durations are 1,324.191 / 1,267.693 / 1,335.248 seconds;
+four-thread durations are 955.038 / 883.973 / 940.193 seconds. These hosted Mac
+observations do not select a Maximum setting while the full one-thread study
+remains incomplete. Memory, thermals and internal precision remain outside
+this check.
+
+Private artifact `11330176750` is 91,465,911 bytes, ZIP SHA-256
+`c3aa9d0da83697e2464560dadd5e5b32ce9818421437725e85c53766d12ec502`.
+Native receipt SHA-256:
+`5aa3bd959a6c53912421d19d9130aa7cc60d81fc89ce3a0755f028fdca95f1e4`.
+Independent receipt SHA-256:
+`d077e8984ee758572ee108f71ae4e132d50f773eef64a5019ec3f6553d1badd1`.
+Two-thread artifact `11330314673` is 91,466,184 bytes, ZIP SHA-256
+`da8ff8cf282653d60709806c9526e4f11c29c599131b92772ac22a7b7c68ae0b`.
+Its native receipt SHA-256 is
+`56f98509b49846d7702bf288d19cd639eb317bc2cad632809d05c1717e0e8d52`;
+independent receipt SHA-256 is
+`becd921202569b9e5a32a9b35e1b5a607215c90eb85a1f427deb5117086666ce`.
+The separate cross-thread identity receipt SHA-256 is
+`e5665fd65681bf15c1f794df12590ac118e378da31a8f534135caf3efaec4403`.
+The first local checker used Windows' thermal default while reconstructing
+a Mac profile and stopped before checking cases. That failure is retained;
+the corrected checker uses the unchanged Mac defaults and retains all byte
+and identity checks.
+
+Forty-two local candidate/reference guards pass. Each job has a finite
+180-minute internal budget, 90 minutes per index, ten minutes per search and
+200-minute outer limit. Source/model/binary pins, preprocessing hashes, complete
+vector transports and repeat identities remain mandatory. Successful exports
+omit raw RGB/preprocessing bytes and models; failures retain private reports.
+Eight redundant cumulative-PR workflows were cancelled once, preserving this
+full candidate run and the earlier complete supplied-reference evidence.
+
 ## Remaining release work
 
 Do not replace the distributed runtime manifest or enable admission using

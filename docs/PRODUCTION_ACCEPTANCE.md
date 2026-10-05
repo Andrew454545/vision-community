@@ -1,6 +1,6 @@
 # Production acceptance
 
-Updated 2026-10-04 UTC. **The project is not yet approved for production.**
+Updated 2026-10-05 UTC. **The project is not yet approved for production.**
 This checklist describes the current state; check off a release gate only with
 recorded evidence. Earlier failures and exploratory results remain separate.
 The [project audit](PROJECT_AUDIT_20261004.md) records corrected API admission,
@@ -44,6 +44,7 @@ The previous chronological development log remains in
 | --- | --- | --- |
 | Scenes on Windows | Final pinned package completed three fresh 1,024-location trials at each of 1/2/4 threads, zero errors and complete masks. Nine frozen 16-location replays agree with Mac on all 81 query orders/selected views. Bytes differ across platforms. | [Calibration](PC_CALIBRATION_20261002.md) |
 | Larger controlled Scenes | Andrew's unchanged supplied Mac binary captures/replays 128 new locations; nine identical-input PC repeats match all top-ten/top-100 sets. Two near-score rank pairs and one selected view differ in every repeat. All PC packed indexes/search results agree across threads; cumulative CPU and committed-memory receipts verify descendant cleanup. | [Held-out evidence](HELD_OUT_SCENE_REFERENCE_20261004.md) |
+| Full identical-input Windows Scenes | All nine 1,024-location trials at 1/2/4 threads complete; a separate verifier rechecks 110,592 raw tensor files and every comparison. Packed PC indexes and queries agree across all runs. All 108 top-ten/top-100 reference sets match; close-score orders and one selected view differ. Four threads are about 3.6 times faster than one in this frozen workload. | [Full comparison](FULL_WINDOWS_SCENE_COMPARISON_20261005.md) |
 | Fixed starter inputs | Three fixed synthetic Mac repeats and fresh PC 1/2/4-thread checks finish all 112 locations. Preprocessing hashes match Mac; PC packed indexes agree across threads and meet unchanged experimental bounds. Full production qualification remains separate. | [Fixed check](FIXED_PC_CHECK_20261004.md) |
 | Windows working-set observations | Three additional fixed 112-location runs record sampled sums around 797 MiB and peak committed memory around 957 MiB. All accounted processes were observed; owned cleanup passed and packed results stayed identical. This is not exact physical RAM, sustained capacity or thermal approval. | [Memory evidence](WINDOWS_SCENE_WORKING_SET_20261004.md) |
 | Actual staging contribution | Corrected binary64 pose serialization; fresh 112-location qualification; new eight-location batch independently audited, published and credited once. Two earlier strict-policy submissions remain rejected. | [Admission](STAGING_SCENE_ADMISSION_20261003.md) |
@@ -58,10 +59,12 @@ The previous chronological development log remains in
 | Mac background controls | Actual Apple-silicon guarded registration, immutable source/interpreter startup verification, safe idle replacement, private schedule/pause/resume window and nine exact runtime-link accounting pass. No native work, real account or imagery; actual restart/sign-in and endurance remain open. | [Mac controls](MAC_BACKGROUND_CONTROLS_20261004.md) |
 | Current Mac CPU programs | Locked builds pass after the private Actions budget increase. Scenes completes all 16/112-location 1/2/4-thread indexes and searches with identical within-run results and all 18 reference query orders/views matching. Objects completes all three models, identical six-view repeats, a complete one-location index and full verification. Exact pins and independently verified reduced evidence are retained; neither lane is production qualified. | [Mac native check](MAC_CPU_NATIVE_CHECK_20261004.md) |
 | Setup download recovery | Interrupted model/runtime files are retained and resume with validated byte ranges and complete checksum verification. All 543 local Windows tests, 24 targeted guards, one actual pinned HTTPS recovery and all seven hosted CI jobs pass. Native setup no longer automatically installs global Python packages. | [Download recovery](RUNTIME_DOWNLOAD_RECOVERY_20261004.md) |
+| Slow-download recovery | A 30-minute elapsed body budget is checked between available HTTP fragments; saved prefixes survive expiry and retry. All 28 targeted and 547 local Windows tests plus a second actual pinned HTTPS recovery pass. All seven hosted CI jobs pass at `dc597dc`. | [Download recovery](RUNTIME_DOWNLOAD_RECOVERY_20261004.md) |
+| Saved-delivery replies | Malformed acknowledgements preserve exact ready/pending payloads and trigger persisted delayed retries. Valid rejection and corrupt saved local data still stop for review. All 62 focused and 552 local application checks pass, including actual HTTP/SQLite recovery across fresh workers. All seven hosted CI jobs pass at `b25b9aa`. | [Recovery evidence](SAVED_DELIVERY_RECOVERY_20261005.md) |
 | Background worker | Native scheduled startup, idle handover and idle forced-exit/pause/resume verified. Installed schedule: medium 06:00–00:00, max 00:00–06:00 local; saved account, 30-minute service retry, sign-in/recovery triggers and one worker. | [Background processing](BACKGROUND_PROCESSING.md) |
 | API protection | Supported routes are limited before body/database access, account budgets span read/write routes, previews have a smaller budget, and HTTP/scheduled requests never perform schema upgrades. Actual workerd checks and an explicit confirmed staging checkpoint/readback pass; this is not global load/cost approval. | [API protection](API_PROTECTION_20261004.md) |
 
-Current tested application source `4378f88` passes all seven Community CI jobs:
+Application source `4378f88` passes all seven Community CI jobs:
 [tests](https://github.com/Andrew454545/vision-community/actions/runs/37257153471)
 and [calibration](https://github.com/Andrew454545/vision-community/actions/runs/37257153520).
 Actual Windows passes 543 tests in 339.854 seconds with two Mac-only skips;
@@ -170,18 +173,25 @@ shipping newer offline helpers requires new runtime and policy pins.
   and cleanup. Independent offline recovery verifies four retained full indexes
   and preserves the original failed receipt. All packed indexes agree; four-thread
   raw tensors have 712 hash differences from one thread, with identical PC query
-  results. Five fresh trials still remain. See [accounting recovery](WINDOWS_MATRIX_ACCOUNTING_RECOVERY_20261004.md).
+  results. The five remaining trials have now completed. A separate offline
+  verifier passes all nine raw cases and comparisons, preserving four retained
+  executions and five new ones. All 108 top-ten/top-100 reference sets match;
+  eleven queries reorder close scores and one selects a different view in each
+  repeat. The new [full comparison](FULL_WINDOWS_SCENE_COMPARISON_20261005.md)
+  records exact pins, timings, tensor differences and limits. The independently
+  running full PC comparison is complete, not production qualified. See the
+  preserved [accounting recovery](WINDOWS_MATRIX_ACCOUNTING_RECOVERY_20261004.md).
   All six CI jobs pass at `741c6da`, including both 80-test calibration jobs and
   all 482 Windows application checks. The remaining finite comparison has a
   verified limited Windows task and its own byte-pinned copy of 276 public files;
-  actual isolated Windows imports and all 80 guards pass. Its supervisor started
+  actual isolated Windows imports and all 80 guards pass. Its supervisor ran
   independently of Codex, rechecking retained cases before fresh native work.
   No production profile is approved by registration or these checks.
   All six Community CI jobs pass with the matrix at `5d1bb33`. A private
   format-compatibility check verifies a copy of earlier actual 128-location PC
   output, retains its raw tensors and confirms the original files unchanged;
   this runs no new native command. A separate finite Windows scheduled task
-  downloaded/verified the exact completed Mac run and started the matrix with
+  downloaded/verified the exact completed Mac run and executed the matrix with
   pinned source/runtime files. It is independent of Codex and the installed contributor
   worker. Its registration does not establish actual restart or endurance.
   The first full attempt failed near its original two-hour bound during repeat
@@ -235,6 +245,14 @@ orders/views matching; Objects completes all three models and a full native
 one-location index. Independently checked reduced evidence records numerical
 differences and coverage limitations; this is not contribution approval. See
 [current Mac native evidence](MAC_CPU_NATIVE_CHECK_20261004.md).
+The current CPU candidate's full 1,024-location comparison has started in
+private run `37271532675`: three fresh trials each at one, two and four threads.
+It reuses the exact completed supplied-reference archive. The two- and four-thread
+jobs each complete all three trials and pass independent transport/reference/repeat
+checking. All 72 top-ten/top-100 reference sets match; close-score order and one
+view differ. Packed indexes, raw tensor hashes and queries agree across these six
+repeats. The one-thread job remains in progress. These finite jobs run
+independently of Codex; none grants production approval.
 Staging and the existing public download remain unchanged.
 
 - [ ] Finish the guided Scenes / Objects / Both choice on both Windows and Mac,
