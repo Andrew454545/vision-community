@@ -39,7 +39,13 @@ to check availability instead of telling them to obtain an account immediately.
   skips. No security setting is modified.
 - [Complete Community CI](https://github.com/Andrew454545/vision-community/actions/runs/37257153471)
   and [calibration guards](https://github.com/Andrew454545/vision-community/actions/runs/37257153520)
-  are queued at this source revision. Do not describe queued checks as passing.
+  pass all seven jobs at this source revision. Windows passes all 543 tests
+  in 339.854 seconds with two Mac-only skips; Linux passes 543 in 50.006 seconds
+  with 31 platform skips. Cloudflare passes all 232 tests and the complete
+  workerd checks. Mac passes 41 setup, 42 sleep/background and 12 control
+  guards, plus 13 process-ownership checks with two Windows-only skips.
+  Calibration passes 80 guards on each platform, including actual Windows
+  private interpreter and native layout startup.
 
 The fix is committed to the development branch. The installed contributor,
 existing immutable Windows ZIP, public Mac executable pins, hosted website,

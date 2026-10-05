@@ -37,8 +37,9 @@ The independently downloaded Actions ZIPs match GitHub's exact digests:
 Private revision `038d5d5e5a308f113f73a8430bac355b26c2ec91` adds
 [finite run 37255958802](https://github.com/Andrew454545/VISION/actions/runs/37255958802).
 It reuses those exact candidates, checks their source and binary identities,
-and preserves failure receipts. At this checkpoint the jobs are queued;
-native model inference has not yet been observed in this run.
+and preserves failure receipts. Both actual inference jobs pass. Their private
+ZIPs were downloaded independently, matched to GitHub's digests and checked
+against the retained source, model and reference identities.
 
 Scenes uses Andrew's unchanged frozen 16-location packet and the pinned,
 non-photographic 112-location synthetic reference. At each of 1/2/4 shared
@@ -48,10 +49,47 @@ rank/view differences and uses the existing experimental cosine/L2 limits;
 it cannot grant production approval. Native children run through the existing
 caller-owned process wrapper with bounded commands and separated private logs.
 
+All six complete indexes and 18 query comparisons pass. The three thread
+settings produce identical packed index and search bytes within each case.
+All 18 query orders and selected views match Andrew's supplied binary. Candidate
+bytes differ from that binary, despite matching preprocessing hashes:
+
+| Fixed input | Minimum decoded cosine | Maximum relative L2 | Maximum search score difference |
+| --- | --- | --- | --- |
+| Original 16 locations | 0.9999926663 | 0.0038298157 | 0.00010592 |
+| Synthetic 112 locations | 0.9999936228 | 0.0035717019 | 0.000016236 |
+
+Independent local checking validates all 3,072 normalized/pooler transports,
+1,536 preprocessing hashes, complete masks/checkpoints and native thread
+markers. The retained receipt SHA-256 is
+`a2779eeadbc436626d49f6665ba4ef371023f0f067caa8f6c90841120b8726be`.
+The reduced artifact `11323179136` is 10,728,594 bytes, ZIP SHA-256
+`f8909dfd0aadc8d0bf5de85cc19e96ebd3d89fe701ffa0591f5c93427b90bd8d`.
+
+The 112-location indexing commands take 256.746 / 123.508 / 132.398 seconds
+at 1/2/4 threads respectively. Two threads are fastest in this one sample;
+four is not automatically the best Maximum setting. These are single-run
+observations on a hosted Mac, including model startup. They do not measure
+sustained throughput, memory/thermals or approve a user's parallel profile.
+
 Objects uses all 11 pinned assets for RF-DETR, YOLOE and OWLv2, two repeats of
 the same six views, an independently fetched complete one-location index and
 full native verification. Its live diagnostic fixture has no independently
 attested official Gen4 coverage and cannot become a contribution.
+
+All seven actual Object commands pass at one shared CPU thread. Both common
+detector repeats have the same reduced output hash and 154 detections; both
+hybrid repeats have the same hash and 12 detections. The independently fetched
+one-location index completes in 155.287 seconds. Full native verification checks
+87 files and 38 records with no indexing errors. The result's source/model pins,
+repeat identities, thread markers and full verification output were independently
+checked after download. This establishes execution and repeatability, not a
+comparison with Andrew's Object gold or official coverage.
+
+Object artifact `11323208539` is 5,723 bytes, ZIP SHA-256
+`4a19127cae19812b0fa5ba6ab596e3427090dc3a35cd56ad84417de6aece7289`.
+Its receipt SHA-256 is
+`82c70c4eae0d980b3b2acc2f722cd8d475f3b12b9e8039e56068a663d0d83fcf`.
 
 The workflow creates no account, credit, publication or production change.
 Private retained evidence excludes models, raw imagery and caches. Seven
@@ -65,8 +103,8 @@ also exercised on the actual Mac runner.
 
 Do not replace the distributed runtime manifest or enable admission using
 build evidence. The current manifest still pins older Mac executables.
-After actual inference, record the candidate/provider/model identity and
-differences, prepare immutable downloads, then verify guided native setup,
+The exact candidates now pass this finite inference check. Prepare immutable
+downloads, then verify guided native setup,
 separate lane qualification, accepted work, shared scheduling and recovery.
 Clean-device compatibility, real login/reboot/sleep and extended endurance
 remain open on both platforms. See [platform acceptance](PLATFORM_ACCEPTANCE.md).
