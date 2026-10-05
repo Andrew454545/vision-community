@@ -11,6 +11,7 @@ from unittest.mock import Mock, patch
 from community.background import BackgroundContributor, ProcessingSchedule, measure_storage
 from community.contribute import CommunityClient, save_session
 from community.desktop import DesktopApp, DesktopClient, DesktopError
+from community.work_plan import WorkPlan
 
 
 class StorageTest(unittest.TestCase):
@@ -24,10 +25,14 @@ class StorageTest(unittest.TestCase):
 
     def worker(self, *, allowance=4096, **settings):
         app = Mock()
+        app.work_plan = WorkPlan(self.root)
         app.client = None
         app.assets = {}
         app.resume_submissions.return_value = {"accepted": 0}
         app.indexer.return_value = {"accepted": 16, "batches": 1}
+        app.run_batch.side_effect = lambda: app.indexer(url=worker.url, pace="slow", batches=1,
+            count=16, client=app.client, persist_session=False, work_dir=worker.root / "indexes",
+            **app.assets, use_nice=False)
         def connect(*args, **kwargs):
             app.client = Mock()
             return {"recoveryCode": "private-code-do-not-share"}

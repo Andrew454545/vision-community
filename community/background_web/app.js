@@ -51,7 +51,7 @@ async function act(name, body) {
 el('settings').addEventListener('submit', event => {
   event.preventDefault();
   const settings = {};
-  for (const id of ['dayStart','nightStart','dayPace','nightPace']) settings[id] = el(id).value;
+  for (const id of ['dayStart','nightStart','dayPace','nightPace','workType']) settings[id] = el(id).value;
   for (const id of ['retryMinutes','storageLimitGb']) settings[id] = Number(el(id).value);
   settings.preventSleep = el('preventSleep').checked;
   act('enable', {settings, code: el('code').value, accept: el('accept').checked});

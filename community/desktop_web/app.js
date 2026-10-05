@@ -23,6 +23,11 @@ function showError(message) {
 }
 function render(state) {
   latest = state;
+  const workType = ["scene", "object", "both"].includes(state.workType) ? state.workType : "scene";
+  byId("work-type").value = workType;
+  byId("work-description").textContent = ({scene:"Scenes downloads about 1 GB.",object:"Objects downloads about 1 GB. Object batches can take longer.",both:"Both downloads about 2 GB and processes one batch at a time."})[workType];
+  byId("check-description").textContent = workType === "scene" ? "Scenes tests 112 locations. Keep the internet connected." : workType === "object" ? "Objects needs its own fixed-input computer check and approval." : "Scenes and Objects each need approval. One check cannot approve the other.";
+  byId("lane-availability").textContent = state.laneAvailability?.object === true ? "Objects is available with its own approved processing files and computer check." : "Objects is not open yet. Choose Scenes, or wait for the Object release.";
   byId("windows-background").hidden = state.backgroundAvailable !== true;
   byId("mac-background").hidden = state.backgroundAvailable === true;
   byId("phase").textContent = ({setup:"GETTING READY",download:"PREPARING THIS COMPUTER",checking:"RUNNING THE SHORT COMPUTER CHECK",ready:"READY",indexing:"INDEXING ON THIS COMPUTER",error:"NEEDS ATTENTION"})[state.phase] || "VISION";
@@ -58,6 +63,7 @@ function render(state) {
   byId("undelivered").textContent = state.undelivered > 0 ? `${state.undelivered.toLocaleString()} saved batches could not be delivered because their assignment ended. They earned no credits. Their files are kept; VISION can continue with new work.` : "";
   byId("account-status").textContent = state.connected ? "Your account is connected." : "Keep your private code. You will also use it on the search website.";
   const busy = state.busy || requesting;
+  byId("work-type").disabled = busy;
   byId("prepare").disabled = busy;
   byId("prepare").textContent = state.ready ? "Check setup again" : "Set up this computer";
   byId("connect").disabled = busy || !state.ready;
@@ -88,6 +94,7 @@ async function poll() {
   }
 }
 byId("prepare").onclick = () => action("/api/prepare");
+byId("work-type").onchange = () => action("/api/work-type", {workType:byId("work-type").value});
 byId("go-next").onclick = () => {
   const step = Number(byId("go-next").dataset.step);
   byId(`step-${step}`).scrollIntoView({block: "start"});

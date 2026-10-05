@@ -4,6 +4,7 @@ param(
     [Parameter(Mandatory=$true)][string]$Source,
     [Parameter(Mandatory=$true)][string]$Root,
     [switch]$AcceptContributions,
+    [ValidateSet('scene', 'object', 'both')][string]$WorkType = 'scene',
     [ValidateSet('slow', 'medium', 'max', 'pause')][string]$DayPace = 'medium',
     [ValidateSet('slow', 'medium', 'max', 'pause')][string]$NightPace = 'max',
     [ValidatePattern('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$')][string]$DayStart = '08:00',
@@ -182,6 +183,7 @@ except Exception as error:
     $arguments = '-B "{0}" --root "{1}" --accept-contributions --day-pace {2} --night-pace {3} --day-start {4} --night-start {5} --retry-minutes {6}' -f `
         $entry, $rootPath, $DayPace, $NightPace, $DayStart, $NightStart, $RetryMinutes
     $arguments += ' --storage-limit-gb ' + $StorageLimitGB
+    $arguments += ' --work-type ' + $WorkType
     if ($AllowSleep) { $arguments += ' --no-keep-awake' }
     $action = New-ScheduledTaskAction -Execute $windowlessPython -Argument $arguments
     $identity = [Security.Principal.WindowsIdentity]::GetCurrent().Name
@@ -207,6 +209,7 @@ except Exception as error:
         dayPace = $DayPace; nightPace = $NightPace; dayStart = $DayStart; nightStart = $NightStart
         retryMinutes = $RetryMinutes; keepAwake = -not [bool]$AllowSleep; clock = 'Windows local time'
         storageLimitGB = $StorageLimitGB
+        workType = $WorkType
     }
     if (Test-Path -LiteralPath $stopPath) { Remove-Item -LiteralPath $stopPath }
     $workerGuard.Dispose(); $workerGuard = $null
