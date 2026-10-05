@@ -22,7 +22,7 @@ For Intel or AMD Windows PCs. No Python, Git or administrator password needed.
 Open **Background VISION.cmd**, enter your saved account code and choose your
 daytime and nighttime speeds. Select **Save and enable**.
 
-[Automatic processing guide](https://github.com/Andrew454545/vision-community/blob/codex/windows-production-readiness/START-HERE.md#automatic-processing)
+[Automatic processing guide](START-HERE.md#automatic-processing)
 
 ## Search credits
 
