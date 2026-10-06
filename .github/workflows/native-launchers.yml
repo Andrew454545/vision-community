@@ -91,21 +91,22 @@ jobs:
           exit $LASTEXITCODE
       - name: Record the launch path under the default Windows client script policy
         # Windows 10/11 clients default to Restricted; hosted runners do not.
-        # Temporarily apply the stricter default to this disposable account,
-        # exercise the launcher's own detached-script path, then restore it.
+        # Inherit the stricter policy in this process/children only. Never change
+        # machine/user policy, even temporarily, in a diagnostic fixture.
         if: always()
         shell: powershell
         run: |
-          Remove-Item Env:PSExecutionPolicyPreference -ErrorAction SilentlyContinue
           $before = (Get-ExecutionPolicy -List | ForEach-Object { "$($_.Scope)=$($_.ExecutionPolicy)" }) -join ';'
-          try { Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy Restricted -Force -ErrorAction Stop } catch { }
-          $effective = & "$env:WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -Command 'Get-ExecutionPolicy'
-          $fixture = Join-Path $env:TEMP ('vision-policy-' + [Guid]::NewGuid().ToString('N'))
-          $p = Start-Process -FilePath "$env:RUNNER_TEMP/setup-a/MAINTAINER-UNSIGNED-VISION-Setup.exe" -ArgumentList '--detached-check', $fixture -PassThru -Wait
-          $result = Join-Path $fixture 'result.json'; $deadline = (Get-Date).AddSeconds(30)
-          while (-not (Test-Path $result) -and (Get-Date) -lt $deadline) { Start-Sleep -Milliseconds 250 }
-          $ran = Test-Path $result
-          try { Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy Undefined -Force -ErrorAction Stop } catch { }
+          $previousPreference = $env:PSExecutionPolicyPreference
+          try {
+            $env:PSExecutionPolicyPreference = 'Restricted'
+            $effective = & "$env:WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -Command 'Get-ExecutionPolicy'
+            $fixture = Join-Path $env:TEMP ('vision-policy-' + [Guid]::NewGuid().ToString('N'))
+            $p = Start-Process -FilePath "$env:RUNNER_TEMP/setup-a/MAINTAINER-UNSIGNED-VISION-Setup.exe" -ArgumentList '--detached-check', $fixture -PassThru -Wait
+            $result = Join-Path $fixture 'result.json'; $deadline = (Get-Date).AddSeconds(30)
+            while (-not (Test-Path $result) -and (Get-Date) -lt $deadline) { Start-Sleep -Milliseconds 250 }
+            $ran = Test-Path $result
+          } finally { $env:PSExecutionPolicyPreference = $previousPreference }
           $report = [ordered]@{ policiesBefore = $before; effectiveChildPolicy = "$effective".Trim(); launcherExit = $p.ExitCode
             unsignedScriptLaunchSucceeded = $ran; note = 'Launcher starts powershell.exe -File without an execution-policy argument.' }
           $report | ConvertTo-Json | Set-Content "$env:RUNNER_TEMP/windows-default-policy-probe.json"

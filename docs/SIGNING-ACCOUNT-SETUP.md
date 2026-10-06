@@ -34,6 +34,33 @@ Keep authentication and identity documents in the provider's portal. Public
 Trust is required for public installers; a private certificate profile does
 not satisfy this requirement.
 
+## Connect the accounts to GitHub (maintainer)
+
+The manual **signed candidates** workflow
+(`.github/workflows/signed-candidates.yml`) builds signed candidates without
+anyone copying a private key to their own computer. In the repository settings,
+create an environment named `signing`, add yourself as a required reviewer, and
+restrict it to the release branch. Add these values to that environment only:
+
+| Platform | Secrets | Variables |
+| --- | --- | --- |
+| Mac | `MAC_DEVELOPER_ID_P12_BASE64` (exported Developer ID Application certificate and key), `MAC_DEVELOPER_ID_P12_PASSWORD`, `APPLE_NOTARY_KEY_P8`, `APPLE_NOTARY_KEY_ID`, `APPLE_NOTARY_ISSUER` (App Store Connect API key for notarization) | `MAC_SIGNING_IDENTITY` (exactly `Developer ID Application: …`) |
+| Windows | none | `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` (an Entra app with a GitHub federated credential for the `signing` environment and the *Artifact Signing Certificate Profile Signer* role), `ARTIFACT_SIGNING_ENDPOINT`, `ARTIFACT_SIGNING_ACCOUNT`, `ARTIFACT_SIGNING_PROFILE`, `WINDOWS_PUBLISHER_SUBJECT` (the certificate's exact subject) |
+
+Windows uses a federated identity, so no Azure password or client secret is
+stored. The workflow first runs `packaging/signing_preflight.py`, which stops
+and names any missing setting without printing values. The Mac job keeps the
+certificate in a temporary keychain that it deletes afterwards. The Windows job
+downloads the checksum-pinned `Microsoft.ArtifactSigning.Client` 1.0.128.
+Preparation failures also clean that owned keychain and raw key files. Signing
+and notarization explicitly use the same keychain, with no manual change to the
+user's keychain search list. The finite Mac cleanup test uses invalid synthetic
+key material and local command fixtures; it does not prove real signing.
+Each job uploads one seven-day artifact named
+`SIGNED-CANDIDATE-FOR-CLEAN-DEVICE-TEST-…`. It never creates a Release or
+changes a download link. The workflow has not run with real credentials yet,
+because none exist.
+
 ## What happens next
 
 The maintainer builds the exact committed source using
@@ -46,3 +73,6 @@ with a new user account on each platform. Signing only addresses distribution.
 Trusted Scene/Object admission, accepted work and the remaining
 [production acceptance](PRODUCTION_ACCEPTANCE.md) gates also need to pass
 before the public download links change.
+
+Review the actual certificate subject and displayed publisher against the
+project's anonymity requirements before distributing any signed candidate.

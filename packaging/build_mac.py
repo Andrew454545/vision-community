@@ -14,12 +14,15 @@ from stage import REPO, regular, source_state, stage
 def command(*args):
     subprocess.run(args, check=True)
 
-def build(output, revision, identity=None, profile=None):
+def build(output, revision, identity=None, profile=None, keychain=None):
     if not re.fullmatch(r'[a-f0-9]{40}', revision): raise ValueError('invalid_revision')
     output = regular(output, directory=True, missing=True)
     if output.exists(): raise ValueError('package_output_exists')
     if bool(identity) != bool(profile) or identity and not identity.startswith('Developer ID Application: '):
         raise ValueError('developer_id_and_notary_profile_required_together')
+    if keychain is not None:
+        if not identity: raise ValueError('keychain_requires_signed_build')
+        keychain = regular(keychain)
     dirty = source_state(revision,signing=bool(identity))
     output.mkdir()
     app = output / 'VISION Community.app'
@@ -40,14 +43,15 @@ def build(output, revision, identity=None, profile=None):
     # An ad-hoc compiler signature is only local build evidence.
     public = False
     if identity:
-        command('codesign','--force','--options','runtime','--timestamp','--sign',identity,str(app))
+        credential_scope = ['--keychain', str(keychain)] if keychain is not None else []
+        command('codesign','--force','--options','runtime','--timestamp','--sign',identity,*credential_scope,str(app))
         command('codesign','--verify','--deep','--strict',str(app))
         upload = output/'notary-upload.zip'
         command('ditto','-c','-k','--keepParent',str(app),str(upload))
         receipt = output/'notary-result.json'
         with receipt.open('xb') as handle:
             subprocess.run(['xcrun','notarytool','submit',str(upload),'--keychain-profile',profile,
-                '--wait','--output-format','json'],stdout=handle,check=True)
+                *credential_scope,'--wait','--output-format','json'],stdout=handle,check=True)
         if json.loads(receipt.read_bytes()).get('status') != 'Accepted':raise ValueError('notarization_not_accepted')
         command('xcrun','stapler','staple',str(app)); command('xcrun','stapler','validate',str(app))
         command('spctl','--assess','--type','execute',str(app))
@@ -65,7 +69,8 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output',type=Path,required=True); parser.add_argument('--revision',required=True)
     parser.add_argument('--identity'); parser.add_argument('--notary-profile')
+    parser.add_argument('--notary-keychain', type=Path)
     args=parser.parse_args()
-    print(json.dumps(build(args.output,args.revision,args.identity,args.notary_profile)))
+    print(json.dumps(build(args.output,args.revision,args.identity,args.notary_profile,args.notary_keychain)))
 
 if __name__=='__main__':main()

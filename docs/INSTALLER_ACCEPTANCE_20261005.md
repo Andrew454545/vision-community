@@ -54,14 +54,12 @@ task or removal entry. Checks are in `packaging/windows/Check-Lifecycle.ps1` and
    launcher's own detached script did not run (`effectiveChildPolicy:
    Restricted`, `unsignedScriptLaunchSucceeded: false`). Hosted runners use
    `Unrestricted`, so the existing package checks could not see this.
-   Signing does not fix it. Changing the launch path is a security-policy
-   decision for the maintainer, so it was not made here. Options:
-   - port the starter logic out of PowerShell into the signed executable;
-   - run the signed script through a hosted PowerShell runspace that honours
-     Group Policy;
-   - use the per-process `-ExecutionPolicy Bypass` that the ZIP preview's
-     `Start VISION.cmd` already uses.
-   Users must not be asked to change their policy.
+   Signing does not fix it. The chosen production path is to move bootstrap,
+   controls and removal into the signed native application, while respecting
+   enterprise restrictions. Do not add an execution-policy bypass or ask users
+   to change security settings. The integration's policy diagnostic now uses
+   inherited process-only Restricted policy and restores its environment; it
+   never changes machine or user policy. This does not fix the launch path.
 2. **No signing accounts.** Unsigned candidates are rejected by Gatekeeper and
    will show SmartScreen warnings. The gated workflow and account setup are in
    [signing account setup](SIGNING-ACCOUNT-SETUP.md)
