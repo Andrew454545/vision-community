@@ -1,6 +1,6 @@
 # Production acceptance
 
-Updated 2026-10-05 UTC. **The project is not yet approved for production.**
+Updated 2026-10-06 UTC. **The project is not yet approved for production.**
 This checklist describes the current state; check off a release gate only with
 recorded evidence. Earlier failures and exploratory results remain separate.
 The [guided work selection](GUIDED_WORK_SELECTION.md) and
@@ -145,13 +145,30 @@ the default Object command and guided Scene client a shared restart-safe
 journal. Fresh-process loopback/SQLite fixtures verify exact Object resubmission,
 a single synthetic award, retained interrupted checkpoints and account/service
 isolation. Both starters require the new module. This is source and delivery
-evidence; guided Objects/Both, native qualification, hosted admission and
+evidence; released native Object qualification, hosted admission and
 accepted long-running work remain open.
-All seven exact-source CI jobs pass at `cbbc555`: 588 Windows checks with two
+All seven CI jobs for `cbbc555` pass: 588 Windows checks with two
 Mac-only skips, 588 Linux checks, 62 private Mac transport/delivery/Object guards
 without skips, existing Mac setup/background/control and ownership checks,
 232 service tests with complete workerd checks, and 80 guards on each
 calibration runner. See the linked delivery report for run URLs and scope.
+
+Andrew's merged guided choice, legacy schema upgrade and native package work
+also pass all nine CI jobs for head `37aeca9`: 605 Windows and Linux client
+checks, 237 service tests, the actual private Mac checks, both calibration jobs
+and unsigned package builds. The Windows link-privilege fixture failure is
+preserved; its corrected real-junction check passes without security changes.
+CI tests GitHub's proposed merge with main; its package receipts pin checkout
+`e3ba354e4341198b8c4285c90314ac386f941104`, not a released runtime. The
+subsequent [native guide correction](GUIDED_WORK_SELECTION.md) names the app's
+actual controls and preserves the folder-download instructions. These checks
+do not establish clean-device startup, Object qualification or live endurance.
+All nine CI jobs for the native-guide head `068682e` now pass: 609 Windows
+and Linux client tests, 238 service tests, actual private Mac/ownership checks,
+both calibration suites and unsigned package builds. The tested proposed
+merge is `3b8eaa79bfab1234e069f35c758447f82678ce9c`; the final evidence commit
+changes documentation only. Run URLs and preserved failure scope are in the
+[delivery report](OBJECT_DELIVERY_RECOVERY_20261005.md).
 
 ## Release gates still open
 
@@ -281,9 +298,12 @@ view differ. Packed indexes, raw tensor hashes and queries agree across all nine
 Mac repeats. These finite jobs have completed; none grants production approval.
 Staging and the existing public download remain unchanged.
 
-- [ ] Finish the guided Scenes / Objects / Both choice on both Windows and Mac,
-  with separate trusted qualification, delivery recovery and earned-credit
-  evidence for each lane. Keep unavailable lanes clearly labelled.
+- [x] Implement the guided Scenes / Objects / Both choice, saved lane cursor and
+  serialized handover in Windows and Mac client/control source. Keep unavailable
+  lanes clearly labelled; native apps and extracted downloads name their own controls.
+- [ ] Complete separate trusted native qualification, accepted delivery and
+  earned-credit evidence for each lane on both platforms. The default Object
+  computer-check provider and hosted Object admission remain unavailable.
 - [x] Complete actual clean-Linux inference/indexing with pinned assets and
   bounded shared threads; preserve the failed guard job and passing receipt.
 - [ ] Complete clean-device runtime dependency checks and publish checksum-pinned
