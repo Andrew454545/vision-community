@@ -1,5 +1,10 @@
 # Production acceptance
 
+The [offline Object reference checker](OBJECT_REFERENCE_CHECK.md) supports
+checksum-pinned saved faces and all three detector lanes without account or
+service access. It measures differences and keeps failures; it does not supply
+Object production qualification or open admission.
+
 Updated 2026-10-06 UTC. **The project is not yet approved for production.**
 This checklist describes the current state; check off a release gate only with
 recorded evidence. Earlier failures and exploratory results remain separate.

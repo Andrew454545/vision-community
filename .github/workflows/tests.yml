@@ -96,7 +96,7 @@ jobs:
         run: |
           private="$RUNNER_TEMP/mac-starter-private/python-3.14.8-20261003-arm64/python"
           export SSL_CERT_FILE="$private/lib/python3.14/site-packages/pip/_vendor/certifi/cacert.pem"
-          "$private/bin/python3.14" -I -B -c 'import sys,unittest;sys.path.insert(0,"."); suite=unittest.defaultTestLoader.loadTestsFromNames(["community.tests.test_mac_starter","community.tests.test_canary_released_dataset","community.tests.test_desktop_progress","community.tests.test_mac_launch_agent","community.tests.test_work_plan","community.tests.test_guided_lanes"]); result=unittest.TextTestRunner(verbosity=2).run(suite);sys.exit(not result.wasSuccessful())' 2>&1 | tee "$RUNNER_TEMP/mac-private-guards.log"
+          "$private/bin/python3.14" -I -B -c 'import sys,unittest;sys.path.insert(0,"."); suite=unittest.defaultTestLoader.loadTestsFromNames(["community.tests.test_mac_starter","community.tests.test_canary_released_dataset","community.tests.test_object_canary","community.tests.test_desktop_progress","community.tests.test_mac_launch_agent","community.tests.test_work_plan","community.tests.test_guided_lanes"]); result=unittest.TextTestRunner(verbosity=2).run(suite);sys.exit(not result.wasSuccessful())' 2>&1 | tee "$RUNNER_TEMP/mac-private-guards.log"
       - name: Open and close the actual private local window
         shell: bash
         run: |
