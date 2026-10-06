@@ -58,12 +58,13 @@ does not promise computation while the computer is off or asleep.
 
 Local unsigned builds pass the existing 28 native setup guards, package
 verification and native detached-helper fixture under inherited process-only
-Restricted policy. An additional **42 native background checks** pass, including
+Restricted policy. An additional **46 native background checks** pass, including
 actual temporary Task Scheduler COM registration/readback/deletion, changed
 configuration/source/executable refusal, foreign owner/elevation/action/root
 refusal, expiring/restricted recovery settings, account preservation, an actual
 competing process lock, cooperative idle handover, pause preservation,
-stop/failure/disabled resume refusal and native turn-off. The unique temporary
+stop/failure/disabled resume refusal, native turn-off, actual form construction
+and preservation of the guided work choice and default schedule. The unique temporary
 task is stopped and has a timer in 2099; it is never requested to start.
 
 The real private-Python fixture starts Both while paused, observes the actual
@@ -79,6 +80,17 @@ unchanged assertions pass with authorized ordinary Windows access. The
 linked-folder staging test similarly needs ordinary access for its temporary
 junction. Thirty targeted Python tests pass without skips. No security setting
 was weakened, and the installed contributor was not inspected or changed.
+
+The first CI run for application `1172df271dcb9b570aa765fb0201cefe04060a55`
+passes Windows fresh-download/private-Python/paused-worker and Mac package
+checks, but the real-window lifecycle times out finding the owned automatic
+window. That run is not an overall pass. Its complete failure log is retained.
+The automation lookup now searches descendants scoped to the exact process
+because owned modal forms can appear beneath their owner; it waits for the
+controls to finish their status check before closing them, and retains window
+diagnostics on a failed lookup. The native form also preserves the guided work
+choice when no schedule has been saved. The 46 local guards pass after these
+changes; actual CI window/removal evidence must still be recorded.
 
 The disposable Windows lifecycle workflow now tests the actual native
 automatic window under Restricted, two-revision owned registration, safe

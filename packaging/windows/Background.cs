@@ -85,6 +85,17 @@ static class Background {
     public const string ServiceURL="https://vision-community.visioncommunity.workers.dev";
     public static string Sid { get { using(var identity=WindowsIdentity.GetCurrent()) return identity.User.Value; } }
     public static string Text(Dictionary<string,object> value,string name) { object item; if(!value.TryGetValue(name,out item) || !(item is string)) throw new IOException("saved_file_invalid"); return (string)item; }
+    public static BackgroundSettings InitialSettings(string root) {
+        var path=Path.Combine(root,"background-settings.json"); Package.Plain(path);
+        if(File.Exists(path)) return BackgroundSettings.Read(path);
+        var settings=new BackgroundSettings(); var selection=Path.Combine(root,"work-selection.json"); Package.Plain(selection);
+        if(File.Exists(selection)) {
+            var saved=Starter.Object(selection); object version;
+            if(!saved.TryGetValue("version",out version) || !(version is int) || (int)version!=1) throw new IOException("saved_file_invalid");
+            settings.workType=Text(saved,"workType"); settings.Validate();
+        }
+        return settings;
+    }
     static string Canonical(string path) {
         if(String.IsNullOrWhiteSpace(path) || !Path.IsPathRooted(path) || path.StartsWith(@"\\") || path.StartsWith(@"\\?\")) throw new IOException("private_path_invalid");
         var full=Path.GetFullPath(path); if(!String.Equals(full,path,StringComparison.OrdinalIgnoreCase)) throw new IOException("private_path_invalid"); Package.Plain(full); return full;
@@ -338,7 +349,7 @@ sealed class BackgroundWindow: Form {
         root=folder; Text="VISION - Automatic processing"; ClientSize=new Size(720,760); MinimumSize=new Size(660,720); Font=new Font("Segoe UI",12); StartPosition=FormStartPosition.CenterScreen;
         var layout=new FlowLayoutPanel {Dock=DockStyle.Fill,FlowDirection=FlowDirection.TopDown,WrapContents=false,AutoScroll=true,Padding=new Padding(20)}; Controls.Add(layout);
         Add(layout,"Let VISION help automatically. You can close these controls while it works."); status=Add(layout,"");
-        var settings=File.Exists(Path.Combine(root,"background-settings.json"))?BackgroundSettings.Read(Path.Combine(root,"background-settings.json")):new BackgroundSettings();
+        var settings=Background.InitialSettings(root);
         Add(layout,"Work to process. Each type needs its own computer check; Both takes turns.");
         work=Choice(layout,"Work to process",new[]{"Scenes","Objects","Both"},Array.IndexOf(new[]{"scene","object","both"},settings.workType));
         Add(layout,"Times use this PC's clock. Maximum skips extra rests and uses approved parallel settings.");

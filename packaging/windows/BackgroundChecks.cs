@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using System.Windows.Forms;
 
 static class BackgroundChecks {
     static int count;
@@ -67,6 +68,16 @@ static class BackgroundChecks {
             Check(Starter.Object(Path.Combine(root,"fixture-exit.json"))["observedStop"] is bool && (bool)Starter.Object(Path.Combine(root,"fixture-exit.json"))["observedStop"]);
             owner.Dispose();
             Check(Starter.Hash(account)==accountHash && Starter.Hash(Path.Combine(root,"PAUSE"))==pauseHash);
+            Starter.Json(Path.Combine(root,"work-selection.json"),new {version=1,workType="both",next="object",unfinished="scene"});
+            var selectionHash=Starter.Hash(Path.Combine(root,"work-selection.json"));
+            using(var controls=new BackgroundWindow(root)) {
+                var pending=new Stack<Control>(); pending.Push(controls); var named=new Dictionary<string,Control>();
+                while(pending.Count!=0) foreach(Control control in pending.Pop().Controls) { pending.Push(control); if(!String.IsNullOrEmpty(control.AccessibleName)) named[control.AccessibleName]=control; }
+                Check(((ComboBox)named["Work to process"]).SelectedItem.ToString()=="Both");
+                Check(((DateTimePicker)named["Day start time"]).Value.ToString("HH:mm")=="06:00" && ((DateTimePicker)named["Night start time"]).Value.ToString("HH:mm")=="00:00");
+                Check(((ComboBox)named["Day processing speed"]).SelectedItem.ToString()=="Medium" && ((ComboBox)named["Night processing speed"]).SelectedItem.ToString()=="Maximum");
+            }
+            Check(Starter.Hash(Path.Combine(root,"work-selection.json"))==selectionHash);
             // Actual COM registration and readback, unique name, future timer;
             // STOP prevents processing even if this account signs in during it.
             taskName="VISION Community Native Check "+Guid.NewGuid().ToString("N");
