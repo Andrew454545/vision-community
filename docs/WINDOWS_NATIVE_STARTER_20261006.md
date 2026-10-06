@@ -1,5 +1,10 @@
 # Native Windows startup
 
+The later [native background update](WINDOWS_NATIVE_BACKGROUND_20261006.md)
+also implements Windows automatic controls, owned startup and actual removal,
+with passing finite Restricted-policy and lifecycle evidence. The remaining
+controls/removal statements below describe this earlier startup-only phase.
+
 **Start VISION now uses native setup code.** The Windows candidate verifies its
 sealed package, copies an immutable public source snapshot, downloads the pinned
 private Python archive and checks every extracted file before opening the guided
