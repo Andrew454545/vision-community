@@ -28,10 +28,22 @@ reply and independent imports from the copied snapshot. A cached-archive run
 also passes. Eleven packaging, guide and signing-preflight tests pass.
 
 These local builds record a dirty worktree and the preceding revision; they are
-development evidence, not immutable release artifacts. CI now builds/checks the
-committed revision under inherited process-only Restricted policy and exercises
-the fresh native download/page path. Record that run separately before treating
-it as exact-source CI evidence.
+development evidence, not immutable release artifacts. All eleven CI jobs pass
+for application head `b96ea6ad1f61c772b15f0c17e4022e77622d8357`:
+[native packages](https://github.com/Andrew454545/vision-community/actions/runs/37403460067),
+[application](https://github.com/Andrew454545/vision-community/actions/runs/37403460035),
+[calibration guards](https://github.com/Andrew454545/vision-community/actions/runs/37403459985),
+[Mac lifecycle](https://github.com/Andrew454545/vision-community/actions/runs/37403460096).
+Package receipts pin GitHub's proposed main merge
+`e4c5326466f6cd82ed16d1dc4e1116ccec611d22` and a clean source tree.
+The Windows package job proves the fresh native private download/page path
+under Restricted; the separate native detached-helper probe passes too.
+Windows real-window lifecycle retains all 30 checks; Mac lifecycle retains 22
+and signing cleanup retains 19. Windows/Linux each run 624 application tests;
+the service runs 238 tests plus full workerd checks. Both calibration runners
+run 80 guards. Actual private Mac setup/delivery/background/control/removal
+checks pass. These are finite fixtures, not signed clean-device or accepted
+native indexing/endurance evidence.
 
 Failures are preserved: the first build had a missing output parent; long-path
 checks found `FileNotFoundException` at a copied fixture and then Python cleanup
