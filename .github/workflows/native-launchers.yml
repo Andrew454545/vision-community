@@ -55,3 +55,68 @@ jobs:
             ${{ runner.temp }}/windows-native-package/package-self-check.json
             ${{ runner.temp }}/windows-native-package/detached-helper-check.json
           retention-days: 7
+  windows-lifecycle:
+    # Actual per-user install, interrupted setup, repeat, repair, update and
+    # removal on a disposable runner account, using two built revisions and
+    # synthetic private files. No account, service, model, imagery or signing.
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build the checked revision and a synthetic update revision
+        shell: pwsh
+        run: |
+          python -B packaging/build_windows.py --output "$env:RUNNER_TEMP/setup-a" --revision "$env:GITHUB_SHA"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          # A local empty commit gives the update a different revision; nothing is pushed.
+          git -c user.name=lifecycle -c user.email=lifecycle@invalid commit --allow-empty -q -m 'Synthetic update revision for lifecycle CI'
+          $update = (git rev-parse HEAD).Trim()
+          python -B packaging/build_windows.py --output "$env:RUNNER_TEMP/setup-b" --revision $update
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          "VISION_REVISION_B=$update" >> $env:GITHUB_ENV
+      - name: Install, interrupt, repeat, repair, update and remove through the real windows
+        shell: powershell
+        env:
+          VISION_DISPOSABLE_LIFECYCLE: '1'
+        run: |
+          & packaging/windows/Check-Lifecycle.ps1 `
+            -SetupA "$env:RUNNER_TEMP/setup-a/MAINTAINER-UNSIGNED-VISION-Setup.exe" -RevisionA $env:GITHUB_SHA `
+            -SetupB "$env:RUNNER_TEMP/setup-b/MAINTAINER-UNSIGNED-VISION-Setup.exe" -RevisionB $env:VISION_REVISION_B `
+            -Report "$env:RUNNER_TEMP/windows-lifecycle-report.json"
+          exit $LASTEXITCODE
+      - name: Record the launch path under the default Windows client script policy
+        # Windows 10/11 clients default to Restricted; hosted runners do not.
+        # Temporarily apply the stricter default to this disposable account,
+        # exercise the launcher's own detached-script path, then restore it.
+        if: always()
+        shell: powershell
+        run: |
+          Remove-Item Env:PSExecutionPolicyPreference -ErrorAction SilentlyContinue
+          $before = (Get-ExecutionPolicy -List | ForEach-Object { "$($_.Scope)=$($_.ExecutionPolicy)" }) -join ';'
+          try { Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy Restricted -Force -ErrorAction Stop } catch { }
+          $effective = & "$env:WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -Command 'Get-ExecutionPolicy'
+          $fixture = Join-Path $env:TEMP ('vision-policy-' + [Guid]::NewGuid().ToString('N'))
+          $p = Start-Process -FilePath "$env:RUNNER_TEMP/setup-a/MAINTAINER-UNSIGNED-VISION-Setup.exe" -ArgumentList '--detached-check', $fixture -PassThru -Wait
+          $result = Join-Path $fixture 'result.json'; $deadline = (Get-Date).AddSeconds(30)
+          while (-not (Test-Path $result) -and (Get-Date) -lt $deadline) { Start-Sleep -Milliseconds 250 }
+          $ran = Test-Path $result
+          try { Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy Undefined -Force -ErrorAction Stop } catch { }
+          $report = [ordered]@{ policiesBefore = $before; effectiveChildPolicy = "$effective".Trim(); launcherExit = $p.ExitCode
+            unsignedScriptLaunchSucceeded = $ran; note = 'Launcher starts powershell.exe -File without an execution-policy argument.' }
+          $report | ConvertTo-Json | Set-Content "$env:RUNNER_TEMP/windows-default-policy-probe.json"
+          Get-Content "$env:RUNNER_TEMP/windows-default-policy-probe.json"
+          if (-not $ran) { Write-Output "::warning::Under the default Windows client policy ($effective) the launcher's PowerShell scripts did not run. Clean-device launch is blocked until the maintainer chooses a supported launch path." }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-lifecycle-evidence
+          path: |
+            ${{ runner.temp }}/windows-lifecycle-report.json
+            ${{ runner.temp }}/windows-default-policy-probe.json
+          retention-days: 14
+          if-no-files-found: warn
