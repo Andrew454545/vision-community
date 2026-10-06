@@ -45,7 +45,9 @@ function Find-Window([int]$ProcessId, [string]$Title) {
     $condition = New-Object Windows.Automation.AndCondition(
         (New-Object Windows.Automation.PropertyCondition($UIA::ProcessIdProperty, $ProcessId)),
         (New-Object Windows.Automation.PropertyCondition($UIA::NameProperty, $Title)))
-    return $UIA::RootElement.FindFirst([Windows.Automation.TreeScope]::Children, $condition)
+    # Owned modal WinForms windows can be represented beneath their owner in
+    # the automation tree. The process-id condition keeps the lookup scoped.
+    return $UIA::RootElement.FindFirst([Windows.Automation.TreeScope]::Descendants, $condition)
 }
 function Find-Control($Window, [string]$Name) {
     # Windows PowerShell's managed client shows WinForms buttons as panes, so
@@ -229,7 +231,9 @@ try {
     try {
         $env:PSExecutionPolicyPreference = 'Restricted'
         $controlsProcess = Open-Launcher (Join-Path $programA 'VISION.exe') '--background' $programA
-        $controlsWindow = Wait-For { Find-Window $controlsProcess.Id 'VISION - Automatic processing' } 'native automatic controls under Restricted' 30
+        try { $controlsWindow = Wait-For { Find-Window $controlsProcess.Id 'VISION - Automatic processing' } 'native automatic controls under Restricted' 30 }
+        catch { Show-Tree $controlsProcess.Id; throw }
+        $null = Wait-For { $button = Find-Control $controlsWindow 'Save and enable'; $button -and $button.Current.IsEnabled } 'automatic controls ready' 30
         Check 'native_automatic_controls_under_restricted' ([bool](Find-Control $controlsWindow 'Save and enable') -and [bool](Find-Control $controlsWindow 'Pause after batch') -and [bool](Find-Control $controlsWindow 'Work to process'))
         [LifecycleNative]::PostMessage([IntPtr]$controlsWindow.Current.NativeWindowHandle, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
         $null = Wait-For { -not (Find-Window $controlsProcess.Id 'VISION - Automatic processing') } 'controls closed' 30

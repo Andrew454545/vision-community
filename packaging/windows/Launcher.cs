@@ -294,7 +294,10 @@ sealed class Launcher: Form {
                 Watch();
             };
             setup.RunWorkerAsync();
-        } catch(Exception error) { status.Text=Problem(error); }
+        } catch(Exception error) {
+            if(backgroundMode && installed) { Background.Failure(Starter.Root,error); status.Text=Background.Problem(error); }
+            else status.Text=Problem(error);
+        }
     }
     void Watch() {
             var timer=new System.Windows.Forms.Timer { Interval=500 }; timer.Tick+=(s,e)=>{
