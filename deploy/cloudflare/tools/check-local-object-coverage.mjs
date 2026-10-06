@@ -21,6 +21,10 @@ try {
   await execute(plan);await execute(plan);
   const rows=(await db.prepare('SELECT * FROM locations ORDER BY id').all()).results;
   assert.equal(rows.length,3);assert.equal(await objectCoverageComplete(db,rows),true);
+  await db.prepare("UPDATE object_coverage SET validator='official-gen4-historical-v1' WHERE location_id=2").run();
+  assert.equal(await objectCoverageComplete(db,rows),false);
+  await assert.rejects(execute(plan));await noGuard();
+  await db.prepare("UPDATE object_coverage SET validator='official-gen4-historical-v2-exact-pano' WHERE location_id=2").run();
   assert(rows.every(row=>row.state==='pending'&&row.contributor_id===null&&row.output_sha256===null));
   await noGuard();
   await db.prepare("UPDATE locations SET state='leased',active_lease='saved',lease_until=123 WHERE id=1").run();

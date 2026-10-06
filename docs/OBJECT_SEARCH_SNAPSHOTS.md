@@ -18,7 +18,7 @@ The operator must supply two independently trusted, checksum-pinned inputs:
 - A Community inventory exported using `INVENTORY_SQL` from
   `community/object_snapshot.py`. Each row must be published, credited to a
   contributor and joined to an `object_coverage` receipt from the pinned
-  `official-gen4-historical-v1` validator. A client-supplied `gen4` label does
+  `official-gen4-historical-v2-exact-pano` validator. A client-supplied `gen4` label does
   not satisfy this requirement. The inventory envelope has `version: 1`, the
   confirmed Community resource identity and a `rows` array, like scene snapshots.
 - An approval policy issued after trusted inference auditing of every complete
@@ -43,7 +43,7 @@ The operator policy has these required fields:
   "outputModel": "vision-object-index-v4",
   "verification": "independently-audited-object-inference",
   "runtimeIdentity": "PINNED_HYBRID_RUNTIME_IDENTITY",
-  "coverageValidator": "official-gen4-historical-v1",
+  "coverageValidator": "official-gen4-historical-v2-exact-pano",
   "artifacts": [
     {
       "keySha256": "SHA256_OF_THE_R2_PREFIX",

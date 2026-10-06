@@ -207,7 +207,7 @@ try {
     body: JSON.stringify({ accountId: objectAccount, ...body }) });
   await db.prepare(`INSERT INTO locations (id,asset_id,capture,lane,model,state,lat,lon,country,camera_generation)
     VALUES (90001,'ObjectProofOnlyPano1234','2026-01','object','synthetic-object-model','pending',1,2,'Albania','gen4')`).run();
-  await db.prepare("INSERT INTO object_coverage VALUES (90001,'official-gen4-historical-v1','',0)").run();
+  await db.prepare("INSERT INTO object_coverage VALUES (90001,'official-gen4-historical-v2-exact-pano','',0)").run();
   const objectLeaseRequest = { lane: "object", count: 1, client: "cli", pace: "slow" };
   for (const evidence of ["", "a".repeat(63), "g".repeat(64), "A".repeat(64)]) {
     await db.prepare("UPDATE object_coverage SET evidence_sha256=? WHERE location_id=90001").bind(evidence).run();

@@ -18,6 +18,10 @@ Generation 4 panorama's history cannot inherit the newer camera dimensions.
 The exact requested panorama's own metadata must pass the official copyright,
 country, date and camera checks. A redirected/unavailable panorama is rejected;
 its ID and pose are never replaced by a current one.
+New receipts use `official-gen4-historical-v2-exact-pano`. Assignment,
+publication, snapshots and Object search refuse the retired v1 authority even
+with an otherwise valid digest. Old rows remain stored for investigation; do
+not relabel them. They need a fresh trusted v7 validation.
 
 Do not use the retired Node validator, generic R2 catalog labels, the calibration
 fixture's camera labels, v6 cache/manifests, or relabeled files. Prepare at most
@@ -69,6 +73,10 @@ camera generations are accounted for but do not enter the Object queue.
 ## Evidence and remaining work
 
 The 19 focused importer checks and all 259 service checks pass on Windows.
+The full local application suite passes 640 tests in 487.920 seconds with eight
+skips; these skips are not treated as verified platform/filesystem behavior.
+The new snapshot regression rejects retired v1 coverage, and all queue, search,
+snapshot and restore boundaries require the new exact-panorama authority.
 Actual local workerd/D1 verifies late-failure rollback, exact retries, changed
 pose refusal, preservation of already leased certified work and refusal of
 uncertified active work. All data in those checks is explicitly synthetic;
@@ -77,7 +85,11 @@ The initial sandbox refusals are retained separately from the ordinary passing
 checks; no security setting was changed.
 
 The v7 native validator test/build workflow is tracked in private PR #14. Its
-actual result, followed by a small trusted live historical shard and independent
+corrected source `48cab4e` run `37480716583` was blocked before runner startup:
+GitHub reports that an Actions budget prevents further use. It did not compile
+or run native tests. The earlier invalid runner-context configuration failure
+and its correction are preserved separately. A passing actual native result,
+followed by a small trusted live historical shard and independent
 readback, is required before using this importer on real queue work. Object
 device qualification, trusted native auditing, immutable runtime distribution
 and sustained background processing remain separate acceptance requirements.

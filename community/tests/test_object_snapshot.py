@@ -14,6 +14,12 @@ from community.vision_index import VisionIndexError
 
 
 class ObjectSnapshotTest(unittest.TestCase):
+    def test_retired_timeline_coverage_cannot_be_reused_for_search(self):
+        self.rows[0]['coverage_validator'] = 'official-gen4-historical-v1'
+        with self.assertRaises(SnapshotError):
+            self.build('retired-coverage')
+        self.assertFalse((self.root / 'retired-coverage/snapshot.json').exists())
+
     def test_staging_object_snapshot_is_explicit_and_cannot_be_used_as_production(self):
         self.inventory["resource"] = CONFIRMED_STAGING_RESOURCE
         with self.assertRaisesRegex(SnapshotError, "invalid_community_inventory"):

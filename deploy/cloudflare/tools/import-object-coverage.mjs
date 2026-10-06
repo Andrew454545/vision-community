@@ -6,9 +6,10 @@ import {pathToFileURL} from 'node:url';
 import {parseArgs} from 'node:util';
 import {SCHEMA_CONTRACT,SCHEMA_REVISION} from '../src/schemaRevision.js';
 import {OBJECT_INDEX_MODEL} from '../src/objectIndex.js';
+import {COVERAGE_VALIDATOR} from '../src/objectCoverage.js';
 
 export const VALIDATOR_POLICY='strict-google-official-historical-v7-exact-pano-2026-10-06';
-export const COVERAGE_VALIDATOR='official-gen4-historical-v1';
+export {COVERAGE_VALIDATOR};
 export const MAX_ROWS=1000;
 const HEX=/^[0-9a-f]{64}$/;
 const MAX_FILE=8*1024*1024;

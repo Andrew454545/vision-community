@@ -21,7 +21,7 @@ from .search_snapshot import (HEX, MAX_INVENTORY_BYTES,
                              resource_for_environment, snapshot_resource)
 from .vision_index import VisionIndexError
 
-VALIDATOR = "official-gen4-historical-v1"
+VALIDATOR = "official-gen4-historical-v2-exact-pano"
 MAX_MANIFEST_BYTES = 1024 * 1024
 MAX_BUNDLE_BYTES = 32_000_000
 MAX_SNAPSHOT_BYTES = 2 * 1024**3

@@ -2,10 +2,14 @@
 
 The [official Object coverage importer](OFFICIAL_OBJECT_COVERAGE.md) now prepares
 bounded, independently pinned historical inputs and atomic queue/coverage
-batches. Nineteen focused and all 259 service checks pass; actual local D1
+batches. Nineteen focused, all 259 service checks and all 640 local application
+checks pass (eight application skips); actual local D1
 rollback/retry checks pass with synthetic data. A private source fix prevents
 older panoramas from inheriting a newer panorama's Generation 4 dimensions.
-Its native CI and a trusted live shard remain required; no real coverage or
+Retired v1 coverage is refused across queue/publication/search/snapshots; old
+rows remain stored and need fresh validation. The native CI did not start
+because of the private Actions budget. A passing native check and trusted live
+shard remain required; no real coverage or
 Object admission is established by these checks.
 
 The [offline Object reference checker](OBJECT_REFERENCE_CHECK.md) supports
@@ -351,7 +355,7 @@ Staging and the existing public download remain unchanged.
 - [ ] Deploy a trusted historical official Generation 4 coverage importer and
   exercise assignment, resume, publication and search in staging. An arbitrary
   client `gen4` label or valid panorama ID is not proof. Current gates require
-  `official-gen4-historical-v1` plus a complete lowercase evidence digest.
+  `official-gen4-historical-v2-exact-pano` plus a complete lowercase evidence digest.
 - [ ] Audit object submissions with trusted native inference and independently
   approved feature bundles. Structural checks and publication digests alone
   do not show that the contributor ran the models.
