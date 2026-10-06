@@ -45,7 +45,6 @@ class Controls:
             elif name == 'remove':
                 self.manager.remove()
             elif name == 'quit':
-                threading.Thread(target=self.server.shutdown, daemon=True).start()
                 return {'message':'Controls closed. Enabled automatic processing continues.'}
             else:
                 raise ValueError('invalid_control_action')
@@ -120,6 +119,13 @@ def handler_for(controls):
                 if not isinstance(value, dict):
                     raise ValueError('invalid_request')
                 self.send(200, controls.act(self.path[5:], value))
+                if self.path == '/api/quit':
+                    # The process owns the server's main thread. Shutdown before
+                    # flushing can exit it while this daemon request is still
+                    # sending the acknowledgement, cutting off a valid reply.
+                    self.wfile.flush()
+                    self.close_connection = True
+                    controls.server.shutdown()
             except Exception as error:
                 self.failure(error)
     return Handler

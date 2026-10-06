@@ -582,10 +582,13 @@ def handler_for(app: DesktopApp, token: str):
                 elif self.path == "/api/quit":
                     if app.state["busy"]:
                         raise DesktopError("busy")
-                    threading.Thread(target=self.server.shutdown, daemon=True).start()
                 else:
                     return self.send(404, {"error": "Not found."})
                 self.send(200, result)
+                if self.path == "/api/quit":
+                    self.wfile.flush()
+                    self.close_connection = True
+                    self.server.shutdown()
             except (ValueError, json.JSONDecodeError):
                 self.send(400, {"error": ERRORS["invalid_request"]})
             except Exception as error:
