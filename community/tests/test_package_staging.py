@@ -1,7 +1,9 @@
 """Public-only native packaging and immutable source guard checks."""
 import hashlib
 import json
+import os
 from pathlib import Path
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -36,7 +38,23 @@ class PackageStagingTests(unittest.TestCase):
             with self.assertRaises(ValueError):stage(destination,platform,'a'*40)
 
     def test_staging_refuses_linked_output_and_invalid_revision_before_writing(self):
-        (self.root/'linked').symlink_to(self.root,target_is_directory=True)
+        link = self.root / 'linked'
+        try:
+            link.symlink_to(self.root, target_is_directory=True)
+        except OSError as error:
+            if os.name != 'nt' or getattr(error, 'winerror', None) != 1314:
+                raise
+            # A Windows junction exercises the same reparse-point refusal
+            # without enabling Developer Mode or changing a security policy.
+            temporary = Path(tempfile.gettempdir()).resolve()
+            self.root.relative_to(temporary)
+            self.assertEqual(link.parent, self.root)
+            quote = lambda value: "'" + str(value).replace("'", "''") + "'"
+            command = ("$ErrorActionPreference='Stop'; New-Item -ItemType Junction -Path "
+                       + quote(link) + " -Target " + quote(self.root) + " | Out-Null")
+            subprocess.run(['powershell.exe', '-NoProfile', '-NonInteractive', '-Command', command],
+                           check=True, capture_output=True, text=True, timeout=30)
+            self.assertTrue(link.lstat().st_file_attributes & 0x400)
         for target,revision in ((self.root/'linked'/'out','a'*40),(self.root/'out','not-a-revision')):
             with self.assertRaises(ValueError):stage(target,'mac',revision)
             self.assertFalse((self.root/'out').exists())
