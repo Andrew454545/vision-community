@@ -5,6 +5,12 @@ Scenes describes places; Objects finds things in places. Both takes turns,
 running one native batch at a time. The Windows and Mac background controls
 offer the same choice alongside the day/night schedule.
 
+The guided page names the controls of the download that opened it. A sealed
+native app directs people to **Automatic processing** in the **VISION Community**
+window; an extracted download names its **Background VISION** file. Reconnection
+also names the matching way to reopen the app. On Mac, Return activates
+**Start VISION**. This source correction does not update an older download.
+
 This is client integration, not a production admission decision. The default
 remains Scenes. Object service admission and a released native Object computer
 check are still required. Selecting Objects or Both cannot reuse a Scene

@@ -8,16 +8,21 @@ project scope, not a claim that these combinations are available today.
 | --- | --- | --- |
 | Windows Scenes | Guided maintainer preview; actual native calibration and limited staging contribution/search tests; independently verified nine full identical-input 1/2/4-thread trials with matching top-ten/top-100 reference sets. | Justified ranking/view bounds, qualified distributed release, trusted live input identity, accepted background work and extended recovery/endurance. |
 | Mac Scenes | Controlled Mac reference and native ownership; actual private Python/source/window; guarded per-user background controls and finite scheduled recovery pass; current CPU native build plus complete 16/112-location inference/search; nine independently verified full 1,024-location trials at 1/2/4 threads pass on Apple silicon. | Guided native download, exact qualified runtime, accepted contributions, active-work handover, actual sign-in/restart and clean-device/endurance checks. |
-| Windows Objects | Portable native pilot with all three models; small frozen thread study and native structural verification. | Guided setup/qualification, published validated runtime, broader reference comparison, trusted Gen4 audit/publication and background recovery. |
-| Mac Objects | Original command-based integration and Mac runtime manifest; current locked CPU native build and all three models' six-view repeats, complete one-location index and full verification pass on Apple silicon. | Guided setup/qualification, current distributed runtime, broader native comparison, trusted Gen4 audit/publication and background recovery. |
+| Windows Objects | Portable native pilot with all three models; small frozen thread study and native structural verification; guided work choice and saved delivery foundation. | Released native computer check, published validated runtime, broader reference comparison, trusted Gen4 audit/publication and accepted background recovery. |
+| Mac Objects | Original command-based integration and Mac runtime manifest; current locked CPU native build and all three models' six-view repeats, complete one-location index and full verification pass on Apple silicon; guided work choice and saved delivery foundation. | Released native computer check, current distributed runtime, broader native comparison, trusted Gen4 audit/publication and accepted background recovery. |
 
 None of these rows is a completed production release. Linux inference evidence
 supports backend portability; it does not replace Mac or Windows user testing.
 The [saved Object delivery update](OBJECT_DELIVERY_RECOVERY_20261005.md) adds
 restart-safe delivery to the default Object command, with exact payload replay
 and a single synthetic award across fresh processes. It is a tested foundation
-for Both; guided selection, independent qualification, trusted Object admission
-and accepted background work remain required.
+for Both. The [guided work selection](GUIDED_WORK_SELECTION.md) now saves the
+Scenes / Objects / Both choice and serializes lane handover. Its default Object
+computer-check provider is still absent: choosing Objects or Both cannot grant
+approval or start unavailable work. Independent native qualification, trusted
+Object admission, shared resource budgets and accepted background work remain
+required. [Native packages](NATIVE_INSTALLER_PACKAGING.md) are build candidates,
+with Windows startup, safe Mac removal, signing and clean-device gates open.
 The [private Mac starter](MAC_PRIVATE_STARTER_20261004.md) is a maintainer preview;
 its bootstrap/window evidence does not establish native processing or admission.
 The [Mac background foundations](MAC_BACKGROUND_FOUNDATIONS_20261004.md) add
