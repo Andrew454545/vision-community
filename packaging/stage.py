@@ -46,6 +46,7 @@ def stage(destination, platform, revision, *, source=REPO):
     files |= {'START-HERE.md'}
     if platform == 'mac':
         files.add('macos/Start-Vision.command')
+        files.add('macos/Remove-Vision.command')
     else:
         files |= {'windows/Start-Vision.ps1', 'windows/Background-Control.ps1', 'windows/Install-Background.ps1',
                   'packaging/windows/Remove-Vision.ps1'}
