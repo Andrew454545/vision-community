@@ -151,13 +151,19 @@ function Uninstall-Confirm {
     # Use the exact command Windows Settings runs.
     $command = (Get-ItemProperty -LiteralPath $uninstallKey).UninstallString
     if ($command -notmatch '^"([^"]+)" --uninstall$') { throw 'unexpected_uninstall_command' }
-    $process = Open-Launcher $Matches[1] '--uninstall'
+    $previousPreference = $env:PSExecutionPolicyPreference
+    try {
+        # The actual launcher and its detached native helper inherit Restricted;
+        # the already-running diagnostic harness retains its ordinary policy.
+        $env:PSExecutionPolicyPreference = 'Restricted'
+        $process = Open-Launcher $Matches[1] '--uninstall'
+    } finally { $env:PSExecutionPolicyPreference = $previousPreference }
     $confirm = Wait-For { Find-Window $process.Id 'Remove VISION Community' } 'removal confirmation'
     Confirm-Dialog $confirm
     return $process
 }
 function Find-RemovalMessage {
-    foreach ($candidate in @(Get-Process -Name powershell -ErrorAction SilentlyContinue)) {
+    foreach ($candidate in @(Get-Process -Name VISION-remove -ErrorAction SilentlyContinue)) {
         $window = Find-Window $candidate.Id 'VISION Community'
         if ($window) { return $window }
     }
@@ -186,14 +192,6 @@ try {
     }
     foreach ($name in $fixtureNames) { [IO.File]::WriteAllText((Join-Path $privateRoot $name), $fixtures[$name]) }
     $privateBefore = Get-PrivateHashes
-    # A registered automatic task that can never start (one trigger in 2099).
-    $pythonw = Join-Path (Split-Path (Get-Command python).Source) 'pythonw.exe'
-    $identity = [Security.Principal.WindowsIdentity]::GetCurrent().Name
-    $action = New-ScheduledTaskAction -Execute $pythonw -Argument ('-B "{0}" --root "{1}" --accept-contributions --work-type both' -f (Join-Path $work 'never-run.py'), $privateRoot)
-    $task = New-ScheduledTask -Action $action -Trigger (New-ScheduledTaskTrigger -Once -At ([DateTime]'2099-01-01')) `
-        -Principal (New-ScheduledTaskPrincipal -UserId $identity -LogonType Interactive -RunLevel Limited)
-    Register-ScheduledTask -TaskName $taskName -InputObject $task | Out-Null
-
     # 1. Interrupted setup: stop the installer at several points mid-install.
     foreach ($delay in @(0, 150, 400)) {
         $process = Open-Launcher $copyA
@@ -220,6 +218,23 @@ try {
     Check 'install_removal_entry' (Test-Registry $programA)
     Check 'interrupted_setup_leftovers_removed' (((Get-ProgramFolders) -join ',') -eq $RevisionA.Substring(0,16))
     Check 'install_private_files_unchanged' ((Get-PrivateHashes) -eq $privateBefore)
+    # A real sealed native registration, future timer and preserved PAUSE/STOP.
+    # The fixture never requests a worker start or touches the service.
+    $fixtureRegister = Start-Process -FilePath (Join-Path $programA 'VISION.exe') -ArgumentList '--lifecycle-register' -PassThru -Wait
+    Check 'native_background_registration_verified' ($fixtureRegister.ExitCode -eq 0)
+    # Remove STOP solely in this disposable fixture to exercise removal's
+    # no-marker-on-active-work assertions. PAUSE still prevents any processing.
+    Remove-Item -LiteralPath (Join-Path $privateRoot 'STOP-AFTER-BATCH')
+    $previousPreference = $env:PSExecutionPolicyPreference
+    try {
+        $env:PSExecutionPolicyPreference = 'Restricted'
+        $controlsProcess = Open-Launcher (Join-Path $programA 'VISION.exe') '--background' $programA
+        $controlsWindow = Wait-For { Find-Window $controlsProcess.Id 'VISION - Automatic processing' } 'native automatic controls under Restricted' 30
+        Check 'native_automatic_controls_under_restricted' ([bool](Find-Control $controlsWindow 'Save and enable') -and [bool](Find-Control $controlsWindow 'Pause after batch') -and [bool](Find-Control $controlsWindow 'Work to process'))
+        [LifecycleNative]::PostMessage([IntPtr]$controlsWindow.Current.NativeWindowHandle, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
+        $null = Wait-For { -not (Find-Window $controlsProcess.Id 'VISION - Automatic processing') } 'controls closed' 30
+        Close-Launcher $controlsProcess
+    } finally { $env:PSExecutionPolicyPreference = $previousPreference }
     $null = Install-With $copyA -Keyboard
     Check 'repeat_install_by_keyboard_is_idempotent' ((Test-Program $programA $copyA) -and (Test-Links $programA) -and @(Get-ProgramFolders).Count -eq 1)
 

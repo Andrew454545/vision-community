@@ -47,14 +47,19 @@ static class Package {
         }
         Verify(root);
     }
-    public static void Verify(string root) {
+    public static void Verify(string root) { VerifyPinned(root,Build.Revision,Build.InventorySHA); }
+    public static void VerifyPinned(string root,string revision,string inventoryPin) {
         Plain(root); var path=Path.Combine(root,"release-inventory.json"); Plain(path);
-        var body=File.ReadAllBytes(path); if(body.Length>1000000 || Hash(body)!=Build.InventorySHA) throw new IOException("inventory_mismatch");
+        var body=Starter.Read(path,1000000); if(Hash(body)!=inventoryPin) throw new IOException("inventory_mismatch");
         var value=new JavaScriptSerializer().Deserialize<Dictionary<string,object>>(Encoding.UTF8.GetString(body));
-        if(Convert.ToInt32(value["version"])!=1 || (string)value["sourceRevision"]!=Build.Revision) throw new IOException("inventory_revision");
+        if(Convert.ToInt32(value["version"])!=1 || (string)value["sourceRevision"]!=revision) throw new IOException("inventory_revision");
         var files=(Dictionary<string,object>)value["files"];
         if(files.Count>256) throw new IOException("package_limit");
+        var directories=new HashSet<string>(StringComparer.Ordinal);
         foreach(var pair in files) {
+            if(!Regex.IsMatch(pair.Key,@"\A[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*\z") || pair.Key.Split('/').Any(p=>p=="."||p=="..")) throw new IOException("package_path");
+            var parent=Path.GetDirectoryName(pair.Key.Replace('/',Path.DirectorySeparatorChar));
+            while(!String.IsNullOrEmpty(parent)) { directories.Add(parent.Replace('\\','/')); parent=Path.GetDirectoryName(parent); }
             var file=Path.Combine(root,pair.Key.Replace('/',Path.DirectorySeparatorChar)); Plain(file);
             var pin=(Dictionary<string,object>)pair.Value;
             if(Starter.Size(file)!=Convert.ToInt64(pin["bytes"]) || Starter.Hash(file)!=(string)pin["sha256"]) throw new IOException("package_file_changed");
@@ -63,7 +68,10 @@ static class Package {
         var pending=new Stack<string>(); pending.Push(root);
         while(pending.Count>0) foreach(var entry in Directory.GetFileSystemEntries(pending.Pop())) {
             Plain(entry);
-            if(Directory.Exists(entry)) pending.Push(entry);
+            if(Directory.Exists(entry)) {
+                if(!directories.Contains(entry.Substring(root.Length+1).Replace('\\','/'))) throw new IOException("unexpected_package_directory");
+                pending.Push(entry);
+            }
             else {
                 var name=entry.Substring(root.Length+1).Replace('\\','/');
                 if(name!="release-inventory.json" && !files.ContainsKey(name)) throw new IOException("unexpected_package_file");
@@ -76,14 +84,6 @@ static class Package {
     public static string Project { get { return Path.Combine(Installed,"project"); } }
     public static string Executable { get { return Path.Combine(Installed,"VISION.exe"); } }
     public static string Current { get { return Assembly.GetExecutingAssembly().Location; } }
-    public static Process Script(string script,string arguments,bool detached=false) {
-        var shell=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows),"System32","WindowsPowerShell","v1.0","powershell.exe");
-        var task=new Process(); task.StartInfo=new ProcessStartInfo(shell,"-NoProfile -File "+Quote(script)+" "+arguments) {
-            UseShellExecute=detached,CreateNoWindow=!detached,WindowStyle=ProcessWindowStyle.Hidden,
-            RedirectStandardOutput=!detached,RedirectStandardError=!detached };
-        if(!detached) { task.OutputDataReceived+=(s,e)=>{}; task.ErrorDataReceived+=(s,e)=>{}; }
-        task.Start(); if(!detached) { task.BeginOutputReadLine(); task.BeginErrorReadLine(); } return task;
-    }
     static void Shortcut(string path,string args) {
         Plain(path); Directory.CreateDirectory(Path.GetDirectoryName(path));
         var type=Type.GetTypeFromProgID("WScript.Shell"); dynamic shell=Activator.CreateInstance(type);
@@ -97,7 +97,7 @@ static class Package {
         catch(Exception) { return false; }
     }
     // Delete a retired program copy without following a link inside it.
-    static void Remove(string path) {
+    public static void Remove(string path) {
         var attributes=File.GetAttributes(path);
         if((attributes&FileAttributes.Directory)!=0) {
             if((attributes&FileAttributes.ReparsePoint)==0) foreach(var entry in Directory.GetFileSystemEntries(path)) Remove(entry);
@@ -106,7 +106,7 @@ static class Package {
     }
     // Rename first: Windows refuses while VISION runs from (or inside) that copy,
     // so an open application is never partially deleted.
-    static bool Running(string path) {
+    public static bool Running(string path) {
         var prefix=Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar)+Path.DirectorySeparatorChar;
         foreach(var process in Process.GetProcessesByName("VISION")) {
             try { if(process.MainModule.FileName.StartsWith(prefix,StringComparison.OrdinalIgnoreCase)) return true; }
@@ -152,6 +152,8 @@ static class Package {
             }
             if(Directory.Exists(Project)) foreach(var file in Directory.GetFiles(Project,"*",SearchOption.AllDirectories))
                 if(!wanted.Contains(file.Substring(Project.Length+1))) { File.SetAttributes(file,FileAttributes.Normal); File.Delete(file); }
+            if(Directory.Exists(Project)) foreach(var directory in Directory.GetDirectories(Project,"*",SearchOption.AllDirectories).OrderByDescending(p=>p.Length))
+                if(Directory.GetFileSystemEntries(directory).Length==0) Directory.Delete(directory,false);
             foreach(var entry in Directory.GetFileSystemEntries(Installed))
                 if(!String.Equals(entry,Project,StringComparison.OrdinalIgnoreCase) && !String.Equals(entry,Executable,StringComparison.OrdinalIgnoreCase)) Remove(entry);
             if(!File.Exists(Executable) || Hash(File.ReadAllBytes(Executable))!=Hash(File.ReadAllBytes(Current))) File.Copy(Current,Executable,true);
@@ -200,10 +202,12 @@ static class Package {
         }
     }
     public static void Uninstall() {
-        Verify(Project); var temporary=Path.Combine(Path.GetTempPath(),"vision-remove-"+Guid.NewGuid().ToString("N"));
+        Verify(Project); if(!String.Equals(Current,Executable,StringComparison.OrdinalIgnoreCase)) throw new IOException("removal_scope");
+        var temporary=Path.Combine(Path.GetTempPath(),"vision-remove-"+Guid.NewGuid().ToString("N"));
         Plain(temporary); Directory.CreateDirectory(temporary);
-        var helper=Path.Combine(temporary,"Remove-Vision.ps1"); File.Copy(Path.Combine(Project,"packaging","windows","Remove-Vision.ps1"),helper);
-        Script(helper,"-Revision "+Build.Revision+" -InventoryHash "+Build.InventorySHA+" -WaitPid "+Process.GetCurrentProcess().Id,true);
+        var helper=Path.Combine(temporary,"VISION-remove.exe"); File.Copy(Current,helper,false);
+        if(Starter.Hash(helper)!=Starter.Hash(Current)) throw new IOException("helper_changed");
+        Process.Start(new ProcessStartInfo(helper,"--remove-child "+Process.GetCurrentProcess().Id+" "+Quote(Current)) {UseShellExecute=false,CreateNoWindow=true,WindowStyle=ProcessWindowStyle.Hidden});
     }
     public static int SelfCheck() {
         var root=Path.Combine(Path.GetTempPath(),"vision-package-check-"+Guid.NewGuid().ToString("N")); Plain(root);
@@ -270,6 +274,7 @@ sealed class Launcher: Form {
             // Check the files before asking about downloads, so a damaged copy
             // never asks for consent it cannot use.
             Package.Verify(Package.Project);
+            if(backgroundMode) { using(var controls=new BackgroundWindow(Starter.Root)) controls.ShowDialog(this); return; }
             if(!consent) {
                 if(MessageBox.Show(this,"VISION downloads its private setup files and up to about 2 GB of processing files for your chosen work. Imagery is retrieved when you request a computer check or start helping. Continue?","Allow VISION's downloads?",MessageBoxButtons.OKCancel)!=DialogResult.OK) return;
                 consent=true;
@@ -279,9 +284,7 @@ sealed class Launcher: Form {
             // Native verification/download work stays off the UI thread.
             var setup=new System.ComponentModel.BackgroundWorker();
             setup.DoWork+=(s,e)=>{
-                e.Result=backgroundMode
-                    ? Package.Script(Path.Combine(Package.Project,"windows","Background-Control.ps1"),"")
-                    : Starter.Start(Package.Project,Starter.Root);
+                e.Result=Starter.Start(Package.Project,Starter.Root);
             };
             setup.RunWorkerCompleted+=(s,e)=>{
                 preparing=false; setup.Dispose();
@@ -327,7 +330,13 @@ static class Program {
         if(args.Length==2 && args[0]=="--bootstrap-check") return StarterChecks.Check(args[1]);
         if(args.Length==2 && args[0]=="--guided-check") return StarterChecks.Guided(args[1]);
         if(args.Length==2 && args[0]=="--guided-download-check") return StarterChecks.Guided(args[1],true);
+        if(args.Length==3 && args[0]=="--worker") return Background.Worker(args[1],args[2]);
+        if(args.Length==2 && args[0]=="--background-check") return BackgroundChecks.Check(args[1]);
+        if(args.Length==2 && args[0]=="--background-owner-check") return BackgroundChecks.Owner(args[1]);
+        if(args.Length==2 && args[0]=="--background-run-check") return BackgroundChecks.Run(args[1]);
+        if(args.Length==1 && args[0]=="--lifecycle-register") return BackgroundChecks.LifecycleRegister();
         Application.EnableVisualStyles(); Application.SetCompatibleTextRenderingDefault(false);
+        if(args.Length==3 && args[0]=="--remove-child") { int parent; return Int32.TryParse(args[1],out parent) && parent>0?Removal.Run(parent,args[2]):1; }
         if(args.Contains("--uninstall")) {
             if(MessageBox.Show("Remove the VISION application and automatic startup? Your private account code and saved results will be kept.","Remove VISION Community",MessageBoxButtons.OKCancel)!=DialogResult.OK) return 0;
             try { Package.Uninstall(); return 0; } catch { MessageBox.Show("VISION could not be removed because some application files changed. Open the VISION setup download, choose Install VISION to repair it, then remove it again. Your saved work is kept.","VISION Community"); return 1; }

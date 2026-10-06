@@ -23,8 +23,10 @@ approval or start unavailable work. Independent native qualification, trusted
 Object admission, shared resource budgets and accepted background work remain
 required. [Native packages](NATIVE_INSTALLER_PACKAGING.md) are build candidates,
 with native Windows startup implemented and finite Restricted-policy private
-setup/page checks. Windows automatic controls/removal, signing and clean-device
-gates remain open. The Mac removal
+setup/page checks. Windows automatic controls, verified native startup and
+detached removal are now implemented, with finite guard and paused-worker
+evidence in the [native background report](WINDOWS_NATIVE_BACKGROUND_20261006.md).
+Signing, clean-device installation and accepted unattended work remain open. The Mac removal
 action is implemented; actual native batch handover and clean-device removal
 remain unqualified. See [installer integration](INSTALLER_INTEGRATION_20261006.md).
 The [private Mac starter](MAC_PRIVATE_STARTER_20261004.md) is a maintainer preview;

@@ -95,13 +95,28 @@ def _check(executable, report, archive=None):
               "assert all(Path(m.__file__).is_relative_to(root) for n,m in sys.modules.items() if n=='community' or n.startswith('community.'))")
         imported=subprocess.run([str(private_python),'-I','-B','-c',code,str(snapshots[0])],env=env,capture_output=True,timeout=20)
         if imported.returncode:raise ValueError('private_snapshot_import_failed')
-        result={**result,**receipt,'completeCloseReply':True,'privateSnapshotImports':True,'installedApplicationChanged':False,'startupTaskChanged':False}
+        # Reuse this exact pinned archive in a separate fresh native background
+        # fixture. PAUSE is created before Python starts; no account recovery,
+        # service request, imagery or inference is possible in its paused loop.
+        background=Path(tempfile.mkdtemp(prefix='vision-native-paused-')).absolute()
+        background_downloads=background/'private'/'downloads';background_downloads.mkdir(parents=True)
+        shutil.copyfile(downloads/'python-3.14.7-embed-amd64.zip',background_downloads/'python-3.14.7-embed-amd64.zip')
+        background_env={**env,'VISION_DISPOSABLE_BACKGROUND':'1'}
+        paused=subprocess.run([str(executable),'--background-run-check',str(background)],env=background_env,capture_output=True,timeout=100)
+        if paused.returncode:raise ValueError('native_paused_worker_failed')
+        background_receipt=json.loads(paused.stdout.decode('utf-8-sig'))
+        if background_receipt.get('status')!='NATIVE_PAUSED_BACKGROUND_PASS':raise ValueError('native_paused_worker_receipt_failed')
+        result={**result,**receipt,'completeCloseReply':True,'privateSnapshotImports':True,'installedApplicationChanged':False,'startupTaskChanged':False,'pausedBackground':background_receipt}
         report.write_text(json.dumps(result,indent=2)+'\n',encoding='utf-8')
         # Verify exact owned path before cleanup; do not delete user-selected paths.
         regular(folder,directory=True)
         if folder.parent!=Path(tempfile.gettempdir()).absolute() or not folder.name.startswith('vision-native-guided-'):
             raise ValueError('fixture_cleanup_scope')
         shutil.rmtree('\\\\?\\'+str(folder))
+        regular(background,directory=True)
+        if background.parent!=Path(tempfile.gettempdir()).absolute() or not background.name.startswith('vision-native-paused-'):
+            raise ValueError('background_fixture_cleanup_scope')
+        shutil.rmtree('\\\\?\\'+str(background))
         return result
     except Exception:
         # Keep only fixed status, not native output, paths, tokens or URL fragments.

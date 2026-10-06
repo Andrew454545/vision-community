@@ -62,7 +62,8 @@ def build(output, revision, signer=None, publisher=None):
         '/reference:System.Windows.Forms.dll','/reference:System.Drawing.dll','/reference:System.Web.Extensions.dll',
         '/reference:System.IO.Compression.dll','/reference:System.IO.Compression.FileSystem.dll',
         '/reference:System.Net.Http.dll','/reference:Microsoft.CSharp.dll',str(generated),str(REPO/'packaging/windows/Launcher.cs'),
-        str(REPO/'packaging/windows/Starter.cs'),str(REPO/'packaging/windows/StarterChecks.cs')],check=True)
+        str(REPO/'packaging/windows/Starter.cs'),str(REPO/'packaging/windows/StarterChecks.cs'),
+        str(REPO/'packaging/windows/Background.cs'),str(REPO/'packaging/windows/BackgroundChecks.cs'),str(REPO/'packaging/windows/Removal.cs')],check=True)
     if signer:powershell(signer,'-File',str(executable))
     # Wait/capture the GUI executable directly. No generated PowerShell wrapper.
     receipt=native_receipt(executable,'--self-check',report=output/'package-self-check.json')
