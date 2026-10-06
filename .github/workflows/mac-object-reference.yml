@@ -2,6 +2,7 @@ name: mac-object-reference
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, labeled]
     paths:
       - 'calibration/mac_object_reference.py'
       - 'calibration/test_mac_object_reference.py'
@@ -10,6 +11,12 @@ on:
       - 'calibration/object-reference-recipient.pem'
       - '.github/workflows/mac-object-reference.yml'
   workflow_dispatch:
+    inputs:
+      confirm_live_reference:
+        description: 'Run the finite Mac model download and live-imagery reference check'
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -19,7 +26,32 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  reference-guards:
+    if: github.event.action != 'labeled' || github.event.label.name == 'run-native-object-reference'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Bounded reference and private transport guards only
+        run: |
+          python -m venv "$RUNNER_TEMP/reference-python"
+          "$RUNNER_TEMP/reference-python/bin/python" -m pip install --disable-pip-version-check --only-binary=:all: cryptography==50.0.1
+          "$RUNNER_TEMP/reference-python/bin/python" -B -m unittest calibration.test_mac_object_reference calibration.test_reference_envelope community.tests.test_object_canary -v
+
   published-mac-detector-comparison:
+    # A retained label never repeats native work on synchronize. Only adding
+    # this exact label (or the explicitly confirmed manual run) requests it.
+    if: >-
+      (github.event_name == 'workflow_dispatch' && inputs.confirm_live_reference == true) ||
+      (github.event_name == 'pull_request' && github.event.action == 'labeled' &&
+       github.event.label.name == 'run-native-object-reference')
+    needs: reference-guards
     runs-on: macos-26
     timeout-minutes: 45
     steps:

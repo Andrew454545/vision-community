@@ -24,6 +24,15 @@ This older executable cannot attest the newer shared CPU pool, actual node
 placement, correspondence with Andrew's installed executable or full indexing.
 The workflow records those limits explicitly. It is not a qualification provider.
 
+Small reference/transport guards run automatically. A native Mac trial requires
+adding the PR label `run-native-object-reference`, or a manually confirmed
+**mac-object-reference** workflow run once the workflow exists on the default
+branch. Keeping the label on a PR does not repeat native inference on later
+commits. Manual runs without confirmation run only the guards. The native trial
+has a 45-minute deadline, downloads only twelve pinned Object assets, and fetches
+one location's six views; it cannot start an installed contributor or create
+accounts or credits.
+
 Nothing is downloaded or uploaded; the checker does not connect to a service or read
 an account. Each native command has a 15-minute limit and uses the existing
 process owner, CPU execution and one shared inference thread. Private account,
