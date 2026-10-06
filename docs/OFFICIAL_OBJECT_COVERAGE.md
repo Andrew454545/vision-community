@@ -86,14 +86,14 @@ no real coverage, imagery, model inference or financial change occurred.
 The initial sandbox refusals are retained separately from the ordinary passing
 checks; no security setting was changed.
 
-The actual native Windows check at private source `3de0112` passes all eleven
+The actual native Windows check passes all eleven
 tests without skips and a locked optimized build. An isolated compiler stays
 inside the workspace. It also fixes a real Windows directory-publication failure;
 Unicode/extended paths and preserving existing output are exercised.
 Five real repository panoramas pass v7, one-day metadata caching, the unchanged
 importer, real staging D1 atomic rollback/retry and independent primary readback.
 Accounts and banked units remain unchanged; no imagery or model inference is
-used. Exact private pins, retained initial failures, all twelve passing public
+used. Detailed private pins and failures stay in operator evidence. All twelve public
 CI jobs and unchanged closed staging availability are recorded in the
 [verification evidence](OFFICIAL_OBJECT_COVERAGE_20261006.md).
 
