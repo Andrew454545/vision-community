@@ -3,9 +3,11 @@
 This is a private maintainer operation. Contributors only choose their work
 in the app; they never certify coverage or run this importer.
 
-The importer is implemented and tested with synthetic inputs. **Live coverage
-is not established yet**, and Object contribution/search admission remains
-closed. No model result or numerical comparison can replace this check.
+Five real panoramas now pass the current native validator, importer and actual
+staging D1 rollback/replay/readback. They are pending metadata; Object
+contribution/search admission remains closed. See the
+[measured verification](OFFICIAL_OBJECT_COVERAGE_20261006.md).
+No model result or numerical comparison can replace this coverage check.
 
 ## Trusted source
 
@@ -84,12 +86,20 @@ no real coverage, imagery, model inference or financial change occurred.
 The initial sandbox refusals are retained separately from the ordinary passing
 checks; no security setting was changed.
 
-The v7 native validator test/build workflow is tracked in private PR #14. Its
-corrected source `48cab4e` run `37480716583` was blocked before runner startup:
-GitHub reports that an Actions budget prevents further use. It did not compile
-or run native tests. The earlier invalid runner-context configuration failure
-and its correction are preserved separately. A passing actual native result,
-followed by a small trusted live historical shard and independent
-readback, is required before using this importer on real queue work. Object
-device qualification, trusted native auditing, immutable runtime distribution
-and sustained background processing remain separate acceptance requirements.
+The actual native Windows check at private source `3de0112` passes all eleven
+tests without skips and a locked optimized build. An isolated compiler stays
+inside the workspace. It also fixes a real Windows directory-publication failure;
+Unicode/extended paths and preserving existing output are exercised.
+Five real repository panoramas pass v7, one-day metadata caching, the unchanged
+importer, real staging D1 atomic rollback/retry and independent primary readback.
+Accounts and banked units remain unchanged; no imagery or model inference is
+used. Exact private pins, retained initial failures, all twelve passing public
+CI jobs and unchanged closed staging availability are recorded in the
+[verification evidence](OFFICIAL_OBJECT_COVERAGE_20261006.md).
+
+The private Ubuntu/Windows workflow at the same source still cannot start
+because of that repository's Actions budget. The local Windows result does not
+supply a passing private CI or a new Mac model build.
+Object device qualification, trusted native auditing, immutable runtime
+distribution and sustained background processing remain separate acceptance
+requirements. Five pending coverage rows are not approved/indexed contributions.

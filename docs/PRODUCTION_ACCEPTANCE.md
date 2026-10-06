@@ -1,16 +1,17 @@
 # Production acceptance
 
-The [official Object coverage importer](OFFICIAL_OBJECT_COVERAGE.md) now prepares
-bounded, independently pinned historical inputs and atomic queue/coverage
-batches. Nineteen focused, all 259 service checks and all 640 local application
-checks pass (eight application skips); actual local D1
-rollback/retry checks pass with synthetic data. A private source fix prevents
-older panoramas from inheriting a newer panorama's Generation 4 dimensions.
-Retired v1 coverage is refused across queue/publication/search/snapshots; old
-rows remain stored and need fresh validation. The native CI did not start
-because of the private Actions budget. A passing native check and trusted live
-shard remain required; no real coverage or
-Object admission is established by these checks.
+The [official Object coverage importer](OFFICIAL_OBJECT_COVERAGE.md) now has
+[actual native Windows and live staging evidence](OFFICIAL_OBJECT_COVERAGE_20261006.md).
+All eleven native tests and the locked optimized metadata-validator build pass.
+Five real panorama IDs/poses pass Google's official Generation 4 metadata,
+the unchanged importer and actual staging D1 rollback/replay, followed by
+independent primary readback. These are pending metadata, not indexed results,
+device qualification or search credits. All twelve executed public CI jobs pass
+at application source `7ba40c1` (640 Windows/Linux checks with platform skips and
+259 service checks without skips). Retired v1 authority remains refused; old
+rows require fresh trusted validation. Object admission stays closed.
+The private Ubuntu/Windows CI and newer Mac model build remain blocked before
+runner startup by that repository's Actions budget.
 
 The [offline Object reference checker](OBJECT_REFERENCE_CHECK.md) supports
 checksum-pinned saved faces and all three detector lanes without account or
@@ -352,10 +353,14 @@ Staging and the existing public download remain unchanged.
 - [ ] Compare full RF-DETR, YOLOE and OWLv2 production paths with Andrew's
   reference on broader identical inputs. The small development pilot and
   detector thread study do not approve production inference or parallelism.
-- [ ] Deploy a trusted historical official Generation 4 coverage importer and
-  exercise assignment, resume, publication and search in staging. An arbitrary
-  client `gen4` label or valid panorama ID is not proof. Current gates require
-  `official-gen4-historical-v2-exact-pano` plus a complete lowercase evidence digest.
+- [x] Implement the trusted historical official Generation 4 importer and
+  verify five real source IDs/poses through native v7, local and actual staging
+  D1 atomic rollback/retry and independent primary readback. The new authority
+  is `official-gen4-historical-v2-exact-pano`; fixture/client camera labels are
+  not accepted as evidence. [Measured check](OFFICIAL_OBJECT_COVERAGE_20261006.md).
+- [ ] Exercise qualified Object assignment, resume, accepted publication and
+  credit-charged search in staging with the released native profiles. The
+  coverage rows are pending metadata; default qualification/admission is closed.
 - [ ] Audit object submissions with trusted native inference and independently
   approved feature bundles. Structural checks and publication digests alone
   do not show that the contributor ran the models.
