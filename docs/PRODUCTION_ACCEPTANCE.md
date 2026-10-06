@@ -172,6 +172,21 @@ changes documentation only. Run URLs and preserved failure scope are in the
 
 ## Release gates still open
 
+The [installer integration](INSTALLER_INTEGRATION_20261006.md) incorporates
+PR12 repair/lifecycle support and PR14 Mac lifecycle/signing automation.
+Windows setup/removal contention is serialized and signing failures clean only
+owned temporary credentials. The new **Remove VISION** Mac action verifies the
+existing private interpreter/registration, stops the worker cooperatively,
+unregisters startup and moves this app to Trash, retaining private work.
+Actual Mac paused-worker removal, repeated removal and the native Trash API
+pass. Complete guided/control close replies are also checked after correcting
+an early-exit race. All eleven CI jobs pass for corrected application head
+`40f6e2d`: 624 Windows and Linux client tests, 238 service checks, actual private
+Mac guards, both calibration suites and unsigned packages/lifecycles. The
+checked proposed main merge is `a9ab59e77fdae1ef69c9696c8cea8cd2c3992910`.
+The linked report retains failed attempts and exact scope. Active accepted native work, signing/clean devices and
+the other release gates below remain open.
+
 ### Production scene contributions and search
 
 - [ ] Broaden controlled reference coverage and derive numerical/ranking bounds

@@ -65,10 +65,13 @@ task or removal entry. Checks are in `packaging/windows/Check-Lifecycle.ps1` and
    [signing account setup](SIGNING-ACCOUNT-SETUP.md)
    ([PR #14](https://github.com/Andrew454545/vision-community/pull/14)). It has
    never run with real credentials.
-3. **Mac removal leaves automatic startup running.** The LaunchAgent runs from
-   the private folder, so moving the app to Trash leaves work scheduled with no
-   controls left to stop it. A Mac removal path is needed (for example, a
-   **Remove VISION** button that removes the agent before the app is trashed).
+3. **Moving the Mac app directly to Trash leaves automatic startup running.**
+   The app now provides **Remove VISION**: it verifies its existing private
+   interpreter and exact owned registration, requests a cooperative stop,
+   waits for the writer lock, unregisters startup and moves this app to Trash.
+   Failure keeps the app and private work. A never-used app needs no Python.
+   Actual qualified batch handover, signed clean-device removal and beginner
+   acceptance still need evidence; see [the integrated checks](INSTALLER_INTEGRATION_20261006.md).
 4. **Guide labels at release time.** `START-HERE.md` and `START HERE.html`
    correctly describe the published preview (**Set up this PC**, **Run the PC
    check**, **PC approved**). The current page says **Set up this computer**,
