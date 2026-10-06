@@ -19,7 +19,7 @@ import { deleteAccount, cleanupAccountArtifacts, archiveAccountDeletionReceipts 
 import { writeSceneArtifact } from "./artifactWrites.js";
 import { officialGen4Coverage, objectCoverageComplete } from "./objectCoverage.js";
 import { readRequestJson } from "./requestBody.js";
-import { localObjectPrototype } from "./objectAdmission.js";
+import { localObjectPrototype, objectCapabilities } from "./objectAdmission.js";
 import { loadSceneReferences, sceneCapabilities } from "./sceneQuality.js";
 import { verifierConfigured, auditBatchLimit, pipelineCapabilities, activeQualification, qualificationStatus, qualifyDevice, auditScene, stageScene } from "./scenePipeline.js";
 
@@ -1149,7 +1149,7 @@ async function search(env, account, body, objectPrototype = false) {
 
 const API_METHODS = new Map([
   ["/api/capabilities","GET"],["/api/status","GET"],["/api/me","GET"],["/api/views","GET"],
-  ["/api/scene-qualifications","GET,POST"],["/api/accounts","POST"],["/api/recovery","POST"],
+  ["/api/scene-qualifications","GET,POST"],["/api/object-qualifications","GET,POST"],["/api/accounts","POST"],["/api/recovery","POST"],
   ["/api/account/delete","POST"],["/api/scene-audits","POST"],["/api/leases/release","POST"],
   ["/api/leases/renew","POST"],["/api/leases","POST"],["/api/submissions","POST"],["/api/searches","POST"]
 ]);
@@ -1188,13 +1188,20 @@ export default {
       if (!env.DB) return error("control_plane_unprovisioned",503);
       await requireSchema(env);
       if (url.pathname === "/api/capabilities") {
-        return json(verifierConfigured(env) ? pipelineCapabilities(env) : sceneCapabilities(await loadSceneReferences(env)));
+        const scene=verifierConfigured(env) ? pipelineCapabilities(env) : sceneCapabilities(await loadSceneReferences(env));
+        return json({...scene,...objectCapabilities()});
       }
       if (url.pathname === "/api/status") return json(await status(env));
       const account=anonymous ? null : await accountId(env,request);
       // Deleted accounts may still replay their own saved deletion receipt.
       if (!anonymous && !account && url.pathname!=="/api/account/delete") return error("unauthorized",401);
       if (!anonymous) await accountLimit(env,request,account);
+      if (url.pathname === "/api/object-qualifications") {
+        // This contract is recognized but has no trusted native provider yet.
+        // Refuse before reading canary bytes or touching qualification state.
+        if (request.body) void request.body.cancel().catch(() => {});
+        return error("object_verification_unavailable",503,{"retry-after":"1800"});
+      }
       if (url.pathname === "/api/me") return json(await status(env, account, { lite: url.searchParams.get("lite") === "1" }));
       if (url.pathname === "/api/scene-qualifications" && request.method==="GET") {
         if (!verifierConfigured(env)) return error("scene_verification_unavailable",503);

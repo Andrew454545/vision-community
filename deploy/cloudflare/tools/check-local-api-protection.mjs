@@ -107,8 +107,33 @@ async function eventuallyLimited(mf,url,headers,initialStatus) {
     assert.equal(me.status,200);await unchanged(db,a.id);
   }finally{await mf.dispose();}
 }
+{
+  const mf=instance(base);
+  try {
+    const db=await mf.getD1Database('DB');await prepareDatabase(db);const a=await savedAccount(db);
+    const capabilities=await mf.dispatchFetch('https://community.test/api/capabilities');
+    assert.equal(capabilities.status,200);
+    assert.deepEqual((await capabilities.json()).objectContributions,{
+      ready:false,reason:'object_verification_unavailable',model:'vision-object-index-v4',
+      deviceQualificationRequired:true,officialGen4Required:true});
+    const before=await tables(db);
+    for(const method of ['GET','POST']) {
+      const response=await mf.dispatchFetch('https://community.test/api/object-qualifications?profileId='+'a'.repeat(64),
+        {method,headers:{...a.headers,'content-type':'application/json'},...(method==='POST'?{body:'not JSON'}:{})});
+      assert.equal(response.status,503);
+      assert.deepEqual(await response.json(),{error:'object_verification_unavailable'});
+      assert.equal(response.headers.get('retry-after'),'1800');
+    }
+    const unauthorized=await mf.dispatchFetch('https://community.test/api/object-qualifications');
+    assert.equal(unauthorized.status,401);
+    const unsupported=await mf.dispatchFetch('https://community.test/api/object-qualifications',{method:'PUT'});
+    assert.equal(unsupported.status,404);
+    await unchanged(db,a.id);assert.deepEqual(await tables(db),before);
+    assert.equal((await db.prepare('SELECT COUNT(*) AS n FROM scene_qualifications').first()).n,0);
+  }finally{await mf.dispose();}
+}
 console.log(JSON.stringify({status:'ACTUAL_WORKERD_API_PROTECTION_PASSED',fixtures:sequence,
   limiterRejections:rejected,missingBindingsClosedBeforeDatabase:true,missingSchemaClosedWithoutMigration:true,
   explicitFreshSchemaAndCheckpointChecked:true,damagedFenceRefused:true,accountAndViewBudgetsIndependent:true,
-  syntheticAccounts:2,creditsChanged:0,nativeCalls:0,imageryRetrieved:false,cloudResourcesAccessed:false,
+  objectQualificationExplicitlyClosed:true,syntheticAccounts:3,creditsChanged:0,nativeCalls:0,imageryRetrieved:false,cloudResourcesAccessed:false,
   strictGlobalQuotaClaimed:false,productionQualified:false}));

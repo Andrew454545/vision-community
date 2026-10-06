@@ -60,6 +60,11 @@ An accepted decision contains `qualified: true`, `lane: "object"`, the checked
 These are integration points for the maintainer's trusted policy implementation,
 not an alternate server gate or permission to enable Objects prematurely.
 
+The current service explicitly reports Object readiness as false. Its recognized
+Object qualification endpoint returns `object_verification_unavailable` without
+reading a canary or recording an approval. This replaces an ambiguous missing
+endpoint response; the native provider and admission implementation remain open.
+
 ## Validation scope
 
 The saved-choice and guided-lane tests exercise independent approvals, matching

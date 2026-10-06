@@ -19,7 +19,8 @@ node tools/upgrade-schema.mjs --database CLOSED_PRIVATE_COPY.sqlite --database-s
 The input must be a closed regular SQLite file with no WAL/journal sidecars,
 at most 512 MiB, and the independently established checksum. SQL exports must
 first be imported into a new private SQLite file; never supply a live database
-path. The destination must be new and its parent must exist. All generated
+path. Input files and output parents must have no symbolic links or directory
+redirection in their ancestors. The destination must be new and its parent must exist. All generated
 files are private and must remain outside Git/public releases.
 
 The tool runs the actual application migrations on a private copy in one

@@ -2,7 +2,7 @@
 import { createHash } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 import { constants, copyFileSync, existsSync, lstatSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import { initializeSchema } from './initialize-schema.mjs';
@@ -24,8 +24,20 @@ const encoded = value => JSON.stringify(value) + '\n';
 const fail = code => { throw new UpgradeError(code); };
 export class UpgradeError extends Error {}
 
+function noLinkedAncestors(path, directory = false) {
+  let current = resolve(path), leaf = true;
+  while (true) {
+    const info = lstatSync(current);
+    if (info.isSymbolicLink() || ((!leaf || directory) && !info.isDirectory())) fail('unsafe_upgrade_path');
+    const parent = dirname(current);
+    if (parent === current) return;
+    current = parent;leaf = false;
+  }
+}
+
 function checkInput(file, pin) {
   if (!HEX.test(pin || '')) fail('invalid_checksum_pin');
+  noLinkedAncestors(file);
   if (!lstatSync(file).isFile() || lstatSync(file).size > MAX_DATABASE) fail('invalid_database_file');
   if (sidecars(file)) fail('database_not_closed');
   if (hash(readFileSync(file)) !== pin) fail('input_checksum_mismatch');
@@ -90,11 +102,14 @@ export function schemaGuard(rows) {
 
 export async function rehearseUpgrade({ database, databaseSha256, out }) {
   const destination = resolve(out);
+  // Do not even create a failure folder through an untrusted parent link.
+  noLinkedAncestors(dirname(destination), true);
   mkdirSync(destination, { recursive: false, mode: 0o700 });
   let sql;
   try {
     const input = resolve(database);
     checkInput(input, databaseSha256);
+    noLinkedAncestors(destination, true);
     const copy = join(destination, 'upgraded.sqlite');
     copyFileSync(input, copy, constants.COPYFILE_EXCL);
     checkInput(copy, databaseSha256);
@@ -123,6 +138,7 @@ export async function rehearseUpgrade({ database, databaseSha256, out }) {
       sql.exec('COMMIT');
     } catch (error) { sql.exec('ROLLBACK'); throw error; }
     sql.close(); sql = null;
+    noLinkedAncestors(destination, true);
     checkInput(input, databaseSha256);
     const plan = [...schemaGuard(originalSchema), ...statements, 'DROP TABLE community_schema_upgrade_guard'];
     const planFile = sqlFile(plan);
@@ -138,6 +154,7 @@ export async function rehearseUpgrade({ database, databaseSha256, out }) {
   } catch (error) {
     if (sql) { try {sql.close();} catch {} }
     const code = error instanceof UpgradeError ? error.message : 'upgrade_rehearsal_failed';
+    noLinkedAncestors(destination, true);
     writeFileSync(join(destination,'failure-report.private.json'), encoded({complete:false,liveReady:false,error:code}), {flag:'wx',mode:0o600});
     throw new UpgradeError(code);
   }

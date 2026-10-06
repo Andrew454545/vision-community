@@ -15,6 +15,15 @@ native logs and exit receipts. Retrying cannot overwrite that folder.
 An incomplete report is saved atomically before and after commands, so an
 abrupt process exit keeps the completed comparisons for review. This is not
 physical power-loss or restart acceptance evidence.
+
+The separate `mac-object-reference` workflow collects portable detector values
+from the pinned published Mac program, with CPU and CoreML requested on the same
+six faces. It uses both `car` and `a car`. Results are encrypted for the local
+operator before artifact upload; the private key stays outside Git and CI.
+This older executable cannot attest the newer shared CPU pool, actual node
+placement, correspondence with Andrew's installed executable or full indexing.
+The workflow records those limits explicitly. It is not a qualification provider.
+
 Nothing is downloaded or uploaded; the checker does not connect to a service or read
 an account. Each native command has a 15-minute limit and uses the existing
 process owner, CPU execution and one shared inference thread. Private account,
