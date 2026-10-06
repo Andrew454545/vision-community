@@ -280,7 +280,7 @@ def runtime_profile(binary, model_dir):
         assets['bin/' + key] = file_sha256(regular(binary.parent / name))
     profile = {'version': 1, 'platform': sys.platform, 'execution': 'cpu', 'assets': assets,
                'threads': 1, 'pipeline': {name: file_sha256(regular(Path(__file__).with_name(name)))
-                                         for name in ('object_canary.py', 'object_index.py',
+                                         for name in ('object_canary.py', 'object_index.py', 'object_features.py',
                                                       'vision_index.py', 'process_owner.py')}}
     return {'sha256': fingerprint(profile), 'profile': profile}
 

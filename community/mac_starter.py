@@ -15,7 +15,7 @@ import sys
 
 MODULES = ('__init__ admin all_locations_full all_locations_tail background bootstrap catalog '
     'contribute delivery desktop features four_view indexed_local local_search measure mma mma_cloud '
-    'object_index object_canary pano parts pc_canary prompt rank scene_pipeline scene_quality search mac_launch_agent mac_launch_guard mac_starter mac_runtime mac_worker mac_background mac_background_control '
+    'object_index object_features object_canary pano parts pc_canary prompt rank scene_pipeline scene_quality search mac_launch_agent mac_launch_guard mac_starter mac_runtime mac_worker mac_background mac_background_control '
     'mac_remove seal_index segments send_mma server service source store submission_outbox verify '
     'vision_handoff vision_index process_owner work_plan worker windows_worker').split()
 FILES = tuple('community/'+name+'.py' for name in MODULES) + (
@@ -27,7 +27,7 @@ FILES = tuple('community/'+name+'.py' for name in MODULES) + (
     'calibration/gen4-v1/'+name for name in ('checksums.json', 'canary-112.tsv', 'fixture-1024.tsv',
         'fixture-manifest.json', 'generation-evidence.json', 'historical-reference.i8',
         'local-vision-observation.json', 'record-hashes.json'))
-REQUIRED = {'community/desktop.py', 'community/work_plan.py', 'community/object_index.py', 'community/bootstrap.py', 'community/vision_index.py',
+REQUIRED = {'community/desktop.py', 'community/work_plan.py', 'community/object_index.py', 'community/object_features.py', 'community/bootstrap.py', 'community/vision_index.py',
     'community/process_owner.py', 'community/runtime_manifest.json', 'community/submission_outbox.py', 'community/delivery.py', 'community/windows_worker.py',
     'community/desktop_web/index.html', 'calibration/run_windows.py', 'calibration/quality.py',
     'calibration/synthetic_canary.py', 'calibration/gen4-v1/checksums.json', 'community/mac_worker.py',
