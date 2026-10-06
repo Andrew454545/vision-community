@@ -68,6 +68,9 @@ jobs:
           "$RUNNER_TEMP/reference-python/bin/python" -m pip install --disable-pip-version-check --only-binary=:all: cryptography==50.0.1
           "$RUNNER_TEMP/reference-python/bin/python" -B -m unittest calibration.test_mac_object_reference calibration.test_reference_envelope community.tests.test_object_canary -v
       - name: Finite published-program detector comparison
+        # Leave time inside the 45-minute job for always-run encrypted failure
+        # preservation, even when model download/inference exceeds its budget.
+        timeout-minutes: 35
         run: '"$RUNNER_TEMP/reference-python/bin/python" -B -m calibration.mac_object_reference --out "$RUNNER_TEMP/mac-object-reference" --accept-downloads-and-live-imagery'
       - name: Preserve incomplete prerequisites
         if: always()
