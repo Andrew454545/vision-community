@@ -65,7 +65,7 @@ The previous chronological development log remains in
 | Banked accounting | Transactional publication/credit and search/result/debit; concurrency, replay and rollback tests. Actual hosted search used a separate disposable synthetic 100,000-unit balance; the eight real earned units stayed unchanged. Synthetic account deleted. | [Admission](STAGING_SCENE_ADMISSION_20261003.md) |
 | Privacy and recovery | Anonymous recovery/deletion, revoked credentials, late scene-write fences, immutable R2 deletion receipts, real staging deletion-aware D1 restore. Offline published-index/catalog integrity checker rejects missing, corrupt or linked files. | [Privacy](ACCOUNT_PRIVACY.md), [restore](PRIVATE_RESTORE.md) |
 | Beginner flow | Short README/website guide, guided Windows starter, qualification/service checks, saved-code recovery, pause/resume and private diagnostics. Website assets/privacy headers verified in staging. | [Service readiness](WEBSITE_SERVICE_READINESS.md) |
-| Native Windows setup | Native private bootstrap, isolated verified Python, immutable source snapshot, 28 refusal/reuse guards and a real fresh-download guided page under Restricted policy pass. Automatic controls, guarded scheduling and detached removal now use native C#; 46 additional guards and real paused private-Python startup/stop pass locally. The first real-window lifecycle lookup failure is preserved; corrected CI evidence remains required. No inference or release approval. | [Starter evidence](WINDOWS_NATIVE_STARTER_20261006.md), [Native background](WINDOWS_NATIVE_BACKGROUND_20261006.md) |
+| Native Windows setup | Native private bootstrap, isolated verified Python, immutable source snapshot, 28 setup guards, 46 background guards, real fresh-download/page/paused worker under Restricted and 32 actual install/update/repair/controls/removal checks pass. All eleven CI jobs pass at application head `c037f24`; the earlier modal-window lookup failure is preserved. No inference, clean physical-device, endurance or release approval. | [Starter evidence](WINDOWS_NATIVE_STARTER_20261006.md), [Native background](WINDOWS_NATIVE_BACKGROUND_20261006.md) |
 | Mac private setup | Actual Apple-silicon private interpreter download/tree and HTTPS verification, public-source snapshot, local guided window and 37 guards pass. No native inference, account, imagery or contribution; Mac runtime/background and clean-device acceptance remain open. | [Mac starter](MAC_PRIVATE_STARTER_20261004.md) |
 | Mac background controls | Actual Apple-silicon guarded registration, immutable source/interpreter startup verification, safe idle replacement, private schedule/pause/resume window and nine exact runtime-link accounting pass. No native work, real account or imagery; actual restart/sign-in and endurance remain open. | [Mac controls](MAC_BACKGROUND_CONTROLS_20261004.md) |
 | Current Mac CPU programs | Locked builds pass after the private Actions budget increase. Scenes completes all 16/112-location 1/2/4-thread indexes and searches with identical within-run results and all 18 reference query orders/views matching. Objects completes all three models, identical six-view repeats, a complete one-location index and full verification. Exact pins and independently verified reduced evidence are retained; neither lane is production qualified. | [Mac native check](MAC_CPU_NATIVE_CHECK_20261004.md) |
@@ -336,6 +336,14 @@ Staging and the existing public download remain unchanged.
   do not show that the contributor ran the models.
 
 ### Days or weeks of unattended processing
+
+The [native Windows background update](WINDOWS_NATIVE_BACKGROUND_20261006.md)
+now implements automatic controls, owned immutable source/interpreter startup,
+verified unlimited task duration and actual detached removal without PowerShell
+or a policy change. All eleven CI jobs pass at application head `c037f24`,
+including 32 actual Windows lifecycle checks under inherited Restricted and a
+real paused private-Python Both worker. This closes the native-script dependency;
+accepted native work, real sleep/sign-in/reboot and endurance gates remain open.
 
 The [Mac background foundations](MAC_BACKGROUND_FOUNDATIONS_20261004.md) now
 provide process-owned idle-sleep requests with actual Mac assertion/abrupt-exit

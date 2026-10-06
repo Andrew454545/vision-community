@@ -74,8 +74,8 @@ report. The guided-page fixture independently verifies authenticated page
 reuse, complete close reply and imports from its copied snapshot. No real
 account, service request, native inference, imagery or contribution is used.
 
-The laptop's process sandbox refused the initial scheduler access and the
-empty local page. Those failures and their fixture trees were preserved;
+The laptop's process sandbox refused the initial scheduler access; the empty
+local-page fixture also exited early in that environment. Those failures and their fixture trees were preserved;
 unchanged assertions pass with authorized ordinary Windows access. The
 linked-folder staging test similarly needs ordinary access for its temporary
 junction. Thirty targeted Python tests pass without skips. No security setting
@@ -90,12 +90,28 @@ because owned modal forms can appear beneath their owner; it waits for the
 controls to finish their status check before closing them, and retains window
 diagnostics on a failed lookup. The native form also preserves the guided work
 choice when no schedule has been saved. The 46 local guards pass after these
-changes; actual CI window/removal evidence must still be recorded.
+changes, and the corrected actual window/removal workflow passes below.
 
 The disposable Windows lifecycle workflow now tests the actual native
 automatic window under Restricted, two-revision owned registration, safe
-removal, update/repair and retention of synthetic private work. CI results
-for this change must be recorded after the immutable source is pushed.
+removal, update/repair and retention of synthetic private work.
+
+All **eleven CI jobs pass** for application head
+`c037f24c2841a4941946311bf35e41ac830ce801`, testing the clean proposed main merge
+`7a327c20ce5336a36474741161d594ebfbf21df5`:
+
+| Workflow | Evidence |
+| --- | --- |
+| [Native packages](https://github.com/Andrew454545/vision-community/actions/runs/37419643490) | Windows fresh pinned download, real empty guided page and paused Both worker under Restricted; 46 background guards; **32 actual Windows lifecycle checks**, including native modal controls, two-revision task ownership, active writer refusal, cooperative idle removal and preserved private hashes. Mac sealed package verification passes. |
+| [Application tests](https://github.com/Andrew454545/vision-community/actions/runs/37419643454) | Windows **627** tests / 407.557 seconds / two Mac-only skips; Linux **627** / 116.058 seconds / 31 platform skips; service **238**, full workerd checks and six dry builds. Actual Mac setup54, delivery/privacy62, sleep/background42 and controls/removal23 pass; ownership13 / 3.208 seconds / two Windows-only skips. |
+| [Calibration guards](https://github.com/Andrew454545/vision-community/actions/runs/37419643388) | 80 each on Windows and Linux. Windows 7.607 seconds; Linux 2.107 seconds. Embedded bootstrap/executable layout smoke only; no new full inference trial or live imagery. |
+| [Mac lifecycle](https://github.com/Andrew454545/vision-community/actions/runs/37419643396) | Existing 22 actual lifecycle checks and scoped signing cleanup pass. No real signing credentials or notarization used. |
+
+Package receipts record clean merge source and explicitly keep
+`publicDistributionReady`, `nativeRuntimesQualified` and `productionQualified`
+false. The synthetic second build revisions exercise update/ownership; they are
+not published releases. Complete logs and local failure/pass receipts are
+retained privately. This evidence update changes documentation only.
 
 ## Remaining release evidence
 
