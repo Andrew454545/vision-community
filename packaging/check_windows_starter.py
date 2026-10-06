@@ -90,7 +90,7 @@ def _check(executable, report, archive=None):
         # Imports must work from the actual copied snapshot, independently of the checkout.
         private_python=next((data/'python').glob('*/python.exe'))
         code=("import sys;from pathlib import Path;root=Path(sys.argv[1]);sys.path.insert(0,str(root));"
-              "import community.desktop,community.background,calibration.synthetic_canary;"
+              "import community.desktop,community.background,community.object_canary,calibration.synthetic_canary;"
               "assert len(calibration.synthetic_canary.image_bytes(0,0))==224*224*3;"
               "assert all(Path(m.__file__).is_relative_to(root) for n,m in sys.modules.items() if n=='community' or n.startswith('community.'))")
         imported=subprocess.run([str(private_python),'-I','-B','-c',code,str(snapshots[0])],env=env,capture_output=True,timeout=20)

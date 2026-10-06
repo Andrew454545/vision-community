@@ -39,7 +39,7 @@ function Get-VisionSourceFiles([string]$Source) {
     # Never copy a whole checkout, .git, accounts, databases, logs or local data.
     $modules = @('__init__', 'admin', 'all_locations_full', 'all_locations_tail',
         'background', 'bootstrap', 'catalog', 'contribute', 'delivery', 'desktop', 'features', 'four_view',
-        'indexed_local', 'local_search', 'measure', 'mma', 'mma_cloud', 'object_index', 'work_plan',
+        'indexed_local', 'local_search', 'measure', 'mma', 'mma_cloud', 'object_index', 'object_canary', 'work_plan',
         'pano', 'parts', 'pc_canary', 'prompt', 'rank', 'scene_pipeline', 'scene_quality', 'search',
         'seal_index', 'segments', 'send_mma', 'server', 'service', 'source', 'store', 'submission_outbox',
         'verify', 'vision_handoff', 'vision_index', 'process_owner', 'worker')
