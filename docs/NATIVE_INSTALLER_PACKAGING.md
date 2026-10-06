@@ -74,6 +74,14 @@ artifacts for seven days. Windows unsigned CI also waits for a detached helper
 to finish after its launcher process exits, retaining its finite result receipt.
 The signing build skips that unsigned-script fixture. A successful package check is not a clean-user
 installation, uninstall, native admission or production endurance test.
+Separate lifecycle jobs install two built revisions on disposable Windows and
+Mac runner accounts: interrupted setup, repeat, repair, update, active-work
+refusal, idle handover and removal, with synthetic private files kept intact.
+Setup repairs a changed installation in place and retires closed earlier
+versions. See [installer acceptance](INSTALLER_ACCEPTANCE_20261005.md) for
+results, fixed defects and the blockers that still need signing, a clean
+device or a maintainer decision. That includes the default Windows client
+script policy, which stops the current launcher.
 
 ## Signed Mac candidate
 
