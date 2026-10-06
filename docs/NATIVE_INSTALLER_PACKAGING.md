@@ -5,11 +5,12 @@ verified private Python directly. It does not run PowerShell or change policy.
 The finite real-page check exercises a fresh pinned download, authenticated
 existing-page verification and complete close reply under the normal
 [Restricted script policy](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_execution_policies?view=powershell-5.1);
-it creates no account or processing work. **Automatic processing and removal
-still depend on PowerShell files and must also be migrated.** The full Windows
-application therefore remains unqualified on a clean PC. The release path
-must finish moving controls and removal into the signed native application,
-with enterprise application restrictions still respected. Do not change the
+it creates no account or processing work. **Automatic processing, scheduling
+and removal now also use native C#**, with full source/private-Python checks
+before every autonomous launch. See the
+[native background evidence](WINDOWS_NATIVE_BACKGROUND_20261006.md).
+Signed clean-device installation and accepted unattended work remain open;
+enterprise application restrictions are still respected. Do not change the
 user's execution policy or add a Bypass/EncodedCommand workaround. The Mac app
 now offers cooperative removal of its owned background worker before moving
 this app to Trash, retaining private account and work data. Active native work

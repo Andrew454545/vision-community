@@ -17,7 +17,7 @@ MODULES = ('__init__ admin all_locations_full all_locations_tail background boot
     'contribute delivery desktop features four_view indexed_local local_search measure mma mma_cloud '
     'object_index pano parts pc_canary prompt rank scene_pipeline scene_quality search mac_launch_agent mac_launch_guard mac_starter mac_runtime mac_worker mac_background mac_background_control '
     'mac_remove seal_index segments send_mma server service source store submission_outbox verify '
-    'vision_handoff vision_index process_owner work_plan worker').split()
+    'vision_handoff vision_index process_owner work_plan worker windows_worker').split()
 FILES = tuple('community/'+name+'.py' for name in MODULES) + (
     'community/runtime_manifest.json', 'community/country-names.txt',
     'community/desktop_web/index.html', 'community/desktop_web/style.css', 'community/desktop_web/app.js',
@@ -28,7 +28,7 @@ FILES = tuple('community/'+name+'.py' for name in MODULES) + (
         'fixture-manifest.json', 'generation-evidence.json', 'historical-reference.i8',
         'local-vision-observation.json', 'record-hashes.json'))
 REQUIRED = {'community/desktop.py', 'community/work_plan.py', 'community/object_index.py', 'community/bootstrap.py', 'community/vision_index.py',
-    'community/process_owner.py', 'community/runtime_manifest.json', 'community/submission_outbox.py', 'community/delivery.py',
+    'community/process_owner.py', 'community/runtime_manifest.json', 'community/submission_outbox.py', 'community/delivery.py', 'community/windows_worker.py',
     'community/desktop_web/index.html', 'calibration/run_windows.py', 'calibration/quality.py',
     'calibration/synthetic_canary.py', 'calibration/gen4-v1/checksums.json', 'community/mac_worker.py',
     'community/mac_background.py', 'community/mac_background_control.py', 'community/mac_remove.py', 'community/background_web/index.html',
