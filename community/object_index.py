@@ -381,11 +381,15 @@ def _file_entry(
     payload: bytes,
     require_record_bytes: bool = True,
 ) -> None:
-    if entry.get("file") != file_name or entry.get("records") != records:
+    if (not isinstance(entry, dict) or type(entry.get("records")) is not int
+            or type(entry.get("bytes")) is not int
+            or entry.get("file") != file_name or entry.get("records") != records):
         raise VisionIndexError("verification_failed")
     # Class and hot-concept lanes store the size in bytes only. VISION's
     # manifest does not repeat recordBytes on those entries.
     stated = entry.get("recordBytes")
+    if isinstance(stated, bool):
+        raise VisionIndexError("verification_failed")
     if require_record_bytes:
         if stated != record_bytes:
             raise VisionIndexError("verification_failed")
@@ -409,7 +413,12 @@ def validate_object_index(
     global_start: int = GLOBAL_START,
 ) -> list[dict]:
     """Check a finished object index against the VISION v4 hybrid contract."""
-    if not isinstance(manifest, dict) or not isinstance(files, dict):
+    from .object_features import MAX_BYTES, MAX_LOCATIONS, MAX_SOURCE_BYTES
+    if (not isinstance(manifest, dict) or not isinstance(files, dict)
+            or not isinstance(items, list) or not 0 < len(items) <= MAX_LOCATIONS
+            or not isinstance(source_tsv, bytes) or not 0 < len(source_tsv) <= MAX_SOURCE_BYTES
+            or len(files) > 87 or not all(isinstance(raw, bytes) for raw in files.values())
+            or sum(map(len, files.values())) > MAX_BYTES):
         raise VisionIndexError("verification_failed")
     ordered = sorted(items, key=_item_id)
     total = len(ordered)
@@ -433,7 +442,12 @@ def validate_object_index(
         "offsets": 1,
         "globalIds": 1,
     }
-    if any(contracts.get(key) != value for key, value in expected_contracts.items()):
+    if any(type(contracts.get(key)) is not int or contracts.get(key) != value
+           for key, value in expected_contracts.items()):
+        raise VisionIndexError("verification_failed")
+    if any(isinstance(manifest.get(key), bool) for key in ("version", "totalLocations", "indexedLocations",
+            "globalStart", "minimumGlobalLocation", "maximumGlobalLocation", "imageSize", "tileGrid", "viewCount",
+            "faceSize", "bandsPerFace", "bandWidth", "bandHeight", "recordBytes", "sourceBytes")):
         raise VisionIndexError("verification_failed")
     if (
         manifest.get("version") != 4
@@ -478,7 +492,10 @@ def validate_object_index(
     countries = manifest.get("countries")
     if not isinstance(countries, list) or not countries or len(set(countries)) != len(countries):
         raise VisionIndexError("verification_failed")
-    lines = [line for line in source_tsv.decode("utf-8").splitlines() if line.strip()]
+    try:
+        lines = [line for line in source_tsv.decode("utf-8").splitlines() if line.strip()]
+    except UnicodeDecodeError:
+        raise VisionIndexError("verification_failed") from None
     if len(lines) != total:
         raise VisionIndexError("verification_failed")
     tsv_countries = []
@@ -531,7 +548,8 @@ def validate_object_index(
     for entry, (class_id, name) in zip(classes, OBJECT_CLASSES):
         file_name = class_file_name(class_id, name)
         payload = files.get(file_name)
-        if payload is None or entry.get("id") != class_id or entry.get("name") != name:
+        if (not isinstance(entry, dict) or isinstance(entry.get("id"), bool)
+                or payload is None or entry.get("id") != class_id or entry.get("name") != name):
             raise VisionIndexError("verification_failed")
         if not _near(entry.get("storageFloor"), storage_floor(class_id)):
             raise VisionIndexError("verification_failed")
@@ -552,7 +570,8 @@ def validate_object_index(
     for concept_id, (entry, name, floor) in enumerate(zip(hot, HOT_CONCEPTS, HOT_FLOORS)):
         file_name = hot_file_name(concept_id, name)
         payload = files.get(file_name)
-        if payload is None or entry.get("id") != concept_id or entry.get("name") != name:
+        if (not isinstance(entry, dict) or isinstance(entry.get("id"), bool)
+                or payload is None or entry.get("id") != concept_id or entry.get("name") != name):
             raise VisionIndexError("verification_failed")
         if not _near(entry.get("storageFloor"), floor):
             raise VisionIndexError("verification_failed")
@@ -594,6 +613,11 @@ def validate_object_index(
         if payload is None or records != total or record_bytes != 8:
             raise VisionIndexError("verification_failed")
         _file_entry(quality, file_name=quality["file"], records=total, record_bytes=8, payload=payload)
+    from .object_features import validate_feature_contents
+    try:
+        validate_feature_contents(manifest, files, source_tsv)
+    except (ValueError, KeyError, TypeError, OverflowError):
+        raise VisionIndexError("verification_failed") from None
     return outputs
 
 

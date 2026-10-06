@@ -10,6 +10,7 @@ import argparse
 import json
 import math
 import re
+import struct
 from pathlib import Path
 
 from .object_index import (CODEBOOK_SHA256, COMMON_MODEL_SHA256, OBJECT_INDEX_MODEL,
@@ -240,11 +241,16 @@ def load_bundle(folder: Path, key: str, rows: list[dict]) -> tuple[dict, dict, b
     return manifest, files, source, digest(encoded(identity))
 
 
-def normalized_source(rows: list[dict]) -> bytes:
+def normalized_source(rows: list[dict], *, road_flags: list[bool] | None = None) -> bytes:
+    # Preserve only the native boolean; never copy the original road text.
+    flags = road_flags if road_flags is not None else [False] * len(rows)
+    if len(flags) != len(rows) or any(type(flag) is not bool for flag in flags):
+        raise SnapshotError("invalid_object_source")
     items = [{"locationId": row["id"], "lat": row["lat"], "lng": row["lon"],
               "heading": row["heading"], "pitch": row["pitch"], "zoom": row["zoom"],
-              "panoId": row["asset_id"], "country": row.get("country") or "", "cameraGeneration": "gen4"}
-             for row in rows]
+              "panoId": row["asset_id"], "country": row.get("country") or "", "cameraGeneration": "gen4",
+              "roadName": "has road name" if flag else "no road name"}
+             for row, flag in zip(rows, flags)]
     return ("\n".join(object_tsv_lines(items)) + "\n").encode()
 
 
@@ -284,7 +290,7 @@ def build_object_snapshot(inventory: Path, inventory_sha256: str, policy: Path, 
         for bundle_index, (key, selected) in enumerate(groups.items()):
             selected.sort(key=lambda row: row["id"])
             folder = cache_directory(cache, key)
-            manifest, files, _, artifact_sha = load_bundle(folder, key, selected)
+            manifest, files, original_source, artifact_sha = load_bundle(folder, key, selected)
             key_sha = digest(key.encode())
             approval = approvals["byKey"].get(key_sha)
             expected_members = [public[row["id"]] for row in selected]
@@ -293,8 +299,23 @@ def build_object_snapshot(inventory: Path, inventory_sha256: str, policy: Path, 
             relative = f"objects/{key_sha}"
             output = destination / relative
             output.mkdir(parents=True, exist_ok=False)
-            source = normalized_source(selected)
-            manifest = {**manifest, "sourceBytes": len(source), "sourceSha256": digest(source)}
+            from .object_features import ROAD_TRUE
+            road_flags = [line.split("\t")[10].strip().lower() in ROAD_TRUE
+                          for line in original_source.decode("utf-8").splitlines()]
+            source = normalized_source(selected, road_flags=road_flags)
+            if len(source) > MAX_MANIFEST_BYTES:
+                raise SnapshotError("object_artifact_too_large")
+            # Removing private labels changes UTF-8 row lengths. Rebuild the
+            # lookup pointers from the exported bytes, not the private source.
+            positions, offset = [], 0
+            for line in source.splitlines(keepends=True):
+                positions.append(struct.pack("<Q", offset))
+                offset += len(line)
+            offsets = b"".join(positions)
+            files = {**files, "location-offsets.bin": offsets}
+            manifest = {**manifest, "sourceBytes": len(source), "sourceSha256": digest(source),
+                        "offsets": {**manifest["offsets"], "bytes": len(offsets), "sha256": digest(offsets)}}
+            validate_object_index(manifest, files, source, selected, lease_id=KEY.fullmatch(key).group(1))
             exported = {"locations.tsv": source, "manifest.json": encoded(manifest), **files}
             batch_bytes = sum(map(len, exported.values()))
             if (batch_bytes > MAX_BUNDLE_BYTES or len(source) > MAX_MANIFEST_BYTES
@@ -421,7 +442,15 @@ def verify_object_snapshot(root: Path, expected_sha256: str, *, environment: str
         if [row["id"] for row in rows] != sorted(row["id"] for row in rows):
             raise SnapshotError("invalid_snapshot_members")
         source = verify_file(folder, "locations.tsv", files["locations.tsv"], MAX_MANIFEST_BYTES)
-        if source != normalized_source(rows):
+        try:
+            source_fields = [line.split("\t") for line in source.decode("utf-8").splitlines()]
+            if (len(source_fields) != len(rows) or any(len(fields) != 12
+                    or fields[10] not in ("has road name", "no road name") for fields in source_fields)):
+                raise SnapshotError("object_source_pose_mismatch")
+            road_flags = [fields[10] == "has road name" for fields in source_fields]
+        except UnicodeDecodeError:
+            raise SnapshotError("object_source_pose_mismatch") from None
+        if source != normalized_source(rows, road_flags=road_flags):
             raise SnapshotError("object_source_pose_mismatch")
         payloads, batch_bytes = {}, len(source) + files["manifest.json"]["bytes"]
         for name in names:

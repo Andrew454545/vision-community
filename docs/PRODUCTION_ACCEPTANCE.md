@@ -1,5 +1,12 @@
 # Production acceptance
 
+The [Object feature validation and anonymous export repair](OBJECT_FEATURE_VALIDATION_20261006.md)
+adds native record checks across desktop, gateway and snapshots. The shared
+corpus passes actual workerd with eight valid formats and 63 rejected formats;
+95 focused Python and 332 JavaScript checks pass. Full native verification
+confirms the repaired two-location synthetic export. This is structural and
+privacy evidence; trusted model recomputation and Object admission remain open.
+
 The [official Object coverage importer](OFFICIAL_OBJECT_COVERAGE.md) now has
 [actual native Windows and live staging evidence](OFFICIAL_OBJECT_COVERAGE_20261006.md).
 All eleven native tests and the locked optimized metadata-validator build pass.
@@ -25,7 +32,7 @@ blocked before startup by GitHub's private Actions budget. Neither workflow
 supplies production qualification. The service now explicitly reports Object
 readiness false and recognizes the closed qualification endpoint.
 
-Updated 2026-10-06 UTC. **The project is not yet approved for production.**
+Updated 2026-10-06 UTC. **The project is not yet ready for production.**
 This checklist describes the current state; check off a release gate only with
 recorded evidence. Earlier failures and exploratory results remain separate.
 The [guided work selection](GUIDED_WORK_SELECTION.md) and
@@ -361,6 +368,10 @@ Staging and the existing public download remain unchanged.
 - [ ] Exercise qualified Object assignment, resume, accepted publication and
   credit-charged search in staging with the released native profiles. The
   coverage rows are pending metadata; default qualification/admission is closed.
+- [x] Validate bounded Object feature contents and rebuild anonymous export
+  pointers while retaining native road flags. Verify shared adversarial cases
+  in Python, JavaScript and actual workerd, plus independent native readback.
+  [Evidence](OBJECT_FEATURE_VALIDATION_20261006.md).
 - [ ] Audit object submissions with trusted native inference and independently
   approved feature bundles. Structural checks and publication digests alone
   do not show that the contributor ran the models.

@@ -1,5 +1,8 @@
 import json
 import sqlite3
+import struct
+import zlib
+from community.object_features import crc16
 import tempfile
 import unittest
 from pathlib import Path
@@ -54,11 +57,23 @@ def contract_bundle(items, lease_id, source_path):
     ordered = sorted(items, key=lambda item: item["locationId"])
     tsv = ("\n".join(object_tsv_lines(ordered)) + "\n").encode()
     total = len(ordered)
+    countries = list(dict.fromkeys(item.get("country") or "" for item in ordered))
+    offsets, metadata, position = [], [], 0
+    for line in tsv.splitlines(keepends=True):
+        fields = line.decode("utf-8").rstrip("\r\n").split("\t")
+        offsets.append(struct.pack("<Q", position))
+        position += len(line)
+        body = struct.pack("<HBB", countries.index(fields[8]),
+                           {"badcam":1,"gen1":2,"gen2":3,"gen3":4,"gen4":5,"trekker":6}.get(fields[9].lower(),0),
+                           int(fields[10].lower() in ("1","true","has road name","has_road_name")))
+        metadata.append(body + struct.pack("<I", zlib.crc32(body)))
+    proposal = bytes(128) + struct.pack("<4H2e2B", 0,0,65535,65535,0,1,0,1)
+    proposal += struct.pack("<H", crc16(proposal))
     files = {
-        "location-offsets.bin": b"\x00" * (8 * total),
-        "location-metadata.bin": b"\x00" * (8 * total),
+        "location-offsets.bin": b"".join(offsets),
+        "location-metadata.bin": b"".join(metadata),
         "global-location-ids.bin": b"".join(global_id_record(index) for index in range(total)),
-        "semantic-pq128.bin": b"\x00" * (144 * 16 * total),
+        "semantic-pq128.bin": proposal * (16 * total),
     }
     classes = []
     for class_id, name in OBJECT_CLASSES:
@@ -86,11 +101,6 @@ def contract_bundle(items, lease_id, source_path):
             "bytes": 0,
             "sha256": sha256_hex(b""),
         })
-    countries = []
-    for item in ordered:
-        country = item.get("country") or ""
-        if country and country not in countries:
-            countries.append(country)
     manifest = {
         "version": 4,
         "feature": OBJECT_FEATURE,
