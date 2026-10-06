@@ -21,6 +21,16 @@ diagnostic profile. Package checks exercise imports from the copied app.
 
 ## Evidence
 
+- Application source `1d9fc98` passes all twelve executed public CI jobs.
+  Windows and Linux each run 716 Python checks, with two and 31 platform
+  skips respectively. All 332 gateway/bridge checks and the 71-case actual
+  workerd corpus pass. The native model-comparison job is intentionally
+  skipped on ordinary source updates; this is not fresh inference evidence.
+  [Application/service run](https://github.com/Andrew454545/vision-community/actions/runs/37523661049),
+  [packages](https://github.com/Andrew454545/vision-community/actions/runs/37523661035),
+  [Mac lifecycle](https://github.com/Andrew454545/vision-community/actions/runs/37523661041),
+  [calibration guards](https://github.com/Andrew454545/vision-community/actions/runs/37523661045),
+  [reference guards](https://github.com/Andrew454545/vision-community/actions/runs/37523661044).
 - 714 full Python checks pass with eight platform-specific skips; all 95
   focused Object/content/snapshot checks pass without skips.
 - 332 gateway and bridge JavaScript checks pass without skips.

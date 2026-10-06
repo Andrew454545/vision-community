@@ -6,6 +6,12 @@ corpus passes actual workerd with eight valid formats and 63 rejected formats;
 95 focused Python and 332 JavaScript checks pass. Full native verification
 confirms the repaired two-location synthetic export. This is structural and
 privacy evidence; trusted model recomputation and Object admission remain open.
+Application source `1d9fc98` passes all twelve executed public CI jobs, including
+716 Python checks on each of Windows/Linux (two/31 platform skips), 332 service
+checks without skips and the shared actual-workerd corpus. Native model inference
+is intentionally skipped on ordinary updates. See the linked evidence above.
+The [remaining work and planning estimate](https://github.com/Andrew454545/vision-community/issues/15)
+summarizes release dependencies; the estimate is not a readiness claim.
 
 The [official Object coverage importer](OFFICIAL_OBJECT_COVERAGE.md) now has
 [actual native Windows and live staging evidence](OFFICIAL_OBJECT_COVERAGE_20261006.md).
