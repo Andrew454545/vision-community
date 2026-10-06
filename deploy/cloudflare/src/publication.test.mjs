@@ -13,7 +13,7 @@ test("download authority comes from contributed publications, never storage pres
       INSERT INTO locations VALUES (1, 'object', 'published', 'anonymous','gen4'),
         (2, 'object', 'published', NULL,'gen4'), (3, 'object', 'leased', 'anonymous','gen4'),
         (4, 'scene', 'published', 'anonymous','gen4');
-      INSERT INTO object_coverage VALUES (1, 'official-gen4-historical-v1','${"a".repeat(64)}');
+      INSERT INTO object_coverage VALUES (1, 'official-gen4-historical-v2-exact-pano','${"a".repeat(64)}');
       INSERT INTO published_index VALUES (1, NULL, 'object-index-v4/approved/'),
         (2, NULL, 'object-index-v4/imported/'), (3, NULL, 'object-index-v4/pending/'),
         (4, 'four-view-v4/approved.i8', NULL);`);
@@ -31,6 +31,11 @@ test("download authority comes from contributed publications, never storage pres
     assert.equal(await contributedArtifact(db, "four-view-v4/orphan.i8", "scene"), false);
     assert.equal(await contributedArtifact(db, "four-view-v4/approved.i8", "object"), false);
     assert.equal(await objectCoverageComplete(db, [{id: 1}]), true);
+    sql.exec("UPDATE object_coverage SET validator='official-gen4-historical-v1'");
+    assert.equal(await objectCoverageComplete(db, [{id: 1}]), false);
+    assert.deepEqual([...await contributedObjectPrefixes(db)], []);
+    assert.equal(await contributedArtifact(db, 'object-index-v4/approved/manifest.json', 'object'), false);
+    sql.exec("UPDATE object_coverage SET validator='official-gen4-historical-v2-exact-pano'");
     for (const evidence of ["", "a".repeat(63), "g".repeat(64), "A".repeat(64), Buffer.from("a".repeat(64))]) {
       sql.prepare("UPDATE object_coverage SET evidence_sha256=?").run(evidence);
       assert.equal(await objectCoverageComplete(db, [{id: 1}]), false);

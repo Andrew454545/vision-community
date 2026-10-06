@@ -54,7 +54,7 @@ LEASE_SECONDS = 30 * 60
 CLI_LEASE_SECONDS = 6 * 60 * 60
 UNITS_PER_LOCATION = {"scene": 1, "object": 10}
 RECOVERY_PEPPER_HEADER = "VISION-COMMUNITY-RECOVERY-V1"
-OFFICIAL_GEN4_VALIDATOR = "official-gen4-historical-v1"
+OFFICIAL_GEN4_VALIDATOR = "official-gen4-historical-v2-exact-pano"
 
 
 def certified_object_ids(connection, ids):

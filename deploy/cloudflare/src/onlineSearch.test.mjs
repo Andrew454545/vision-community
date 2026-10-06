@@ -215,7 +215,7 @@ test("object results require official Gen4 historical evidence", async t => {
     hits: [{ locationId: 1, outputSha256: "a".repeat(64), sourceIndex: 0, score: 0.8, viewOffset: 0, heading: 45, pitch: 5, zoom: 1,
       object: { lane: "common", className: "car", classId: 3, confidence: 0.8, supportCount: 2, bboxArea: 0.1 } }] });
   await assert.rejects(onlineSearch(env, "anonymous", "request-one", query), /search_unavailable/);
-  sql.exec(`INSERT INTO object_coverage VALUES (1,'official-gen4-historical-v1','${"d".repeat(64)}',0);`);
+  sql.exec(`INSERT INTO object_coverage VALUES (1,'official-gen4-historical-v2-exact-pano','${"d".repeat(64)}',0);`);
   sql.exec("UPDATE locations SET camera_generation='gen3'");
   await assert.rejects(onlineSearch(env, "anonymous", "request-one", query), /search_unavailable/);
   sql.exec("UPDATE locations SET camera_generation='gen4'");
@@ -274,7 +274,7 @@ test("missing or malformed object evidence cannot produce a paid map", async t =
   const { sql, env, query } = fixture(t);
   query.lane = "object";
   sql.exec(`UPDATE locations SET lane='object'; UPDATE published_index SET object_index_key='object-index-v4/test/';
-    INSERT INTO object_coverage VALUES (1,'official-gen4-historical-v1','${"d".repeat(64)}',0);`);
+    INSERT INTO object_coverage VALUES (1,'official-gen4-historical-v2-exact-pano','${"d".repeat(64)}',0);`);
   const object = { lane: "common", className: "car", classId: 3, confidence: 0.8, supportCount: 2, bboxArea: 0.1 };
   for (const changed of [null, { ...object, confidence: 0.01 }, { ...object, lane: "unknown" },
     { ...object, supportCount: 0 }, { ...object, bboxArea: 3 }]) {
@@ -290,7 +290,7 @@ test("semantic object hits support the reference runtime's zenith and nadir face
   const { sql, env, query } = fixture(t);
   query.lane = "object";
   sql.exec(`UPDATE locations SET lane='object'; UPDATE published_index SET object_index_key='object-index-v4/test/';
-    INSERT INTO object_coverage VALUES (1,'official-gen4-historical-v1','${"d".repeat(64)}',0);`);
+    INSERT INTO object_coverage VALUES (1,'official-gen4-historical-v2-exact-pano','${"d".repeat(64)}',0);`);
   for (const viewOffset of [4, 5]) {
     env.SEARCH_ENGINE.fetch = async request => Response.json({ ...await request.json(), processedLocations: 1,
       hits: [{ locationId: 1, outputSha256: "a".repeat(64), sourceIndex: 0, score: 0.8, viewOffset,
