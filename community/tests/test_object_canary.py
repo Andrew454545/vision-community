@@ -214,6 +214,22 @@ class ObjectCanaryTests(unittest.TestCase):
         self.assertEqual(len(dependencies), len(check.DLLS))
         self.assertTrue(all(key == key.lower() for key in dependencies))
 
+    def test_changed_feature_validator_changes_profile_and_fails_mid_check(self):
+        original=check.file_sha256
+        marker=['a'*64]
+        def digest(path):
+            return marker[0] if Path(path).name=='object_features.py' else original(path)
+        with patch.object(check,'file_sha256',side_effect=digest):
+            before=check.runtime_profile(self.binary,self.models)
+            marker[0]='b'*64
+            after=check.runtime_profile(self.binary,self.models)
+            self.assertNotEqual(before['sha256'],after['sha256'])
+            self.assertEqual(before['profile']['pipeline']['object_features.py'],'a'*64)
+            report=self.run_check(lambda argv,rows: marker.__setitem__(0,'c'*64))
+        self.assertEqual(report['status'],'FAILED')
+        self.assertEqual(report['error'],'object_runtime_changed_during_check')
+        self.assertFalse(report['qualified'])
+
     def test_abrupt_process_exit_keeps_incomplete_receipt_and_finished_lane(self):
         code = '''import json,os,sys
 from pathlib import Path

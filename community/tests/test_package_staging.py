@@ -29,6 +29,7 @@ class PackageStagingTests(unittest.TestCase):
             self.assertEqual(digest,hashlib.sha256((destination/'release-inventory.json').read_bytes()).hexdigest())
             self.assertIn('community/work_plan.py',manifest['files'])
             self.assertIn('community/object_index.py',manifest['files'])
+            self.assertIn('community/object_features.py',manifest['files'])
             self.assertFalse(any(part in name for name in manifest['files'] for part in ('.git/','account.json','private','node_modules','__pycache__')))
             for name,pin in manifest['files'].items():
                 self.assertEqual(pin['sha256'],hashlib.sha256((destination/name).read_bytes()).hexdigest())

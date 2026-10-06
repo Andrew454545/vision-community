@@ -15,11 +15,17 @@ Anonymous snapshot exports now rebuild row pointers after removing private
 labels. They preserve the native road-presence boolean using generic text and
 validate the complete exported bundle before sealing.
 
+Private Mac and Windows app copies require the feature validator, and Object
+diagnostic fingerprints include its hash. A changed validator invalidates the
+diagnostic profile. Package checks exercise imports from the copied app.
+
 ## Evidence
 
 - 714 full Python checks pass with eight platform-specific skips; all 95
   focused Object/content/snapshot checks pass without skips.
 - 332 gateway and bridge JavaScript checks pass without skips.
+- 49 packaging, private-copy and diagnostic guards pass with three
+  platform/privilege-specific skips; the copied validator runs a valid bundle.
 - The shared synthetic corpus passes in actual local workerd: eight valid
   formats and 63 rejected formats, including recalculated hashes and CRCs.
 - Two preserved native indexes pass the content checks.

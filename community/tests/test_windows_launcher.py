@@ -72,7 +72,7 @@ class WindowsLauncherTest(unittest.TestCase):
         (source / "community").mkdir(parents=True)
         (source / "windows").mkdir()
         (source / "windows/Start-Vision.ps1").write_bytes(LAUNCHER.read_bytes())
-        for name in ("community/desktop.py", "community/delivery.py", "community/bootstrap.py", "community/vision_index.py", "community/object_index.py", "community/work_plan.py", "community/process_owner.py", "community/submission_outbox.py",
+        for name in ("community/desktop.py", "community/delivery.py", "community/bootstrap.py", "community/vision_index.py", "community/object_index.py", "community/object_features.py", "community/work_plan.py", "community/process_owner.py", "community/submission_outbox.py",
                      "community/runtime_manifest.json", "community/desktop_web/index.html",
                      "calibration/run_windows.py", "calibration/quality.py", "calibration/synthetic_canary.py",
                      "calibration/gen4-v1/checksums.json"):
@@ -134,7 +134,7 @@ class WindowsLauncherTest(unittest.TestCase):
             private = root / "private"
             source.mkdir()
             private.mkdir()
-            public = ["community/desktop.py", "community/delivery.py", "community/bootstrap.py", "community/vision_index.py", "community/object_index.py", "community/work_plan.py", "community/process_owner.py", "community/submission_outbox.py",
+            public = ["community/desktop.py", "community/delivery.py", "community/bootstrap.py", "community/vision_index.py", "community/object_index.py", "community/object_features.py", "community/work_plan.py", "community/process_owner.py", "community/submission_outbox.py",
                       "community/runtime_manifest.json", "community/desktop_web/index.html",
                       "calibration/run_windows.py", "calibration/quality.py", "calibration/synthetic_canary.py", "calibration/gen4-v1/checksums.json"]
             secrets = [".git/config", ".env", "community/.data/account.json", "community/tests/test_private.py",
@@ -166,7 +166,7 @@ class WindowsLauncherTest(unittest.TestCase):
             # every Community dependency must come from the packaged snapshot.
             code = ("import sys; from pathlib import Path; "
                     "root = Path(" + repr(str(snapshot)) + ").resolve(); sys.path.insert(0, str(root)); "
-                    "import community.desktop, community.background, calibration.synthetic_canary; "
+                    "import community.desktop, community.background, community.object_features, calibration.synthetic_canary; "
                     "generator = Path(calibration.synthetic_canary.__file__).resolve(); "
                     "assert generator.is_relative_to(root), (str(generator), str(root)); "
                     "assert len(calibration.synthetic_canary.image_bytes(0, 0)) == 224 * 224 * 3; "

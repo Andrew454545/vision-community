@@ -64,6 +64,28 @@ class MacStarterTests(unittest.TestCase):
         (target/'source-inventory.json').write_bytes(b'{}')
         with self.assertRaisesRegex(starter.SnapshotError,'receipt_changed'):starter.copy_source(REPO,self.app)
 
+    def test_object_validator_runs_from_private_snapshot_and_is_required(self):
+        target,_=starter.copy_source(REPO,self.app)
+        self.assertIn('community/object_features.py', starter.REQUIRED)
+        code = '''import base64,json,sys
+from pathlib import Path
+root=Path(sys.argv[1]);sys.path.insert(0,str(root))
+from community.object_index import validate_object_index
+from community import object_features
+assert Path(object_features.__file__).is_relative_to(root)
+fixture=json.loads(Path(sys.argv[2]).read_bytes())
+bundle=fixture['baseline']
+files={key:base64.b64decode(value) for key,value in bundle['filesBase64'].items()}
+assert len(validate_object_index(bundle['manifest'],files,base64.b64decode(bundle['sourceBase64']),fixture['items'],lease_id=fixture['leaseId']))==2
+'''
+        child=subprocess.run([sys.executable,'-I','-B','-c',code,str(target),
+            str(REPO/'community/tests/fixtures/object-feature-content-v1.json')],
+            capture_output=True,timeout=20)
+        self.assertEqual(child.returncode,0,child.stderr.decode(errors='replace'))
+        (target/'community/object_features.py').unlink()
+        with self.assertRaisesRegex(starter.SnapshotError,'source_download_incomplete'):
+            starter.source_inventory(target)
+
     def test_linked_source_or_private_folder_is_rejected(self):
         source=self.root/'source';source.mkdir()
         link=self.root/'link'
