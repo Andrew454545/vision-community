@@ -1,4 +1,6 @@
 import { sha256Hex } from "./model.js";
+import { crc32, validateFeatureContents } from "./objectFeatures.js";
+export { crc32 } from "./objectFeatures.js";
 
 export const OBJECT_INDEX_MODEL = "vision-object-index-v4";
 export const OBJECT_ARCHITECTURE = "VISION Hybrid: RF-DETR Medium + YOLOE-26L + OWLv2 PQ128";
@@ -38,18 +40,6 @@ const LIVE_MARKERS = [
   "scheduled-sources",
   "object-hybrid-v1/coreml-cache",
 ];
-
-export function crc32(bytes) {
-  let value = 0xffffffff;
-  for (let index = 0; index < bytes.length; index += 1) {
-    value ^= bytes[index];
-    for (let bit = 0; bit < 8; bit += 1) {
-      const mask = -(value & 1);
-      value = ((value >>> 1) ^ (0xedb88320 & mask)) >>> 0;
-    }
-  }
-  return (~value) >>> 0;
-}
 
 export function globalIdRecord(globalId) {
   const body = new Uint8Array(8);
@@ -120,7 +110,10 @@ function manifestNames(manifest) {
 }
 
 export async function validateObjectIndex(manifest, files, sourceTsv, items, leaseId) {
-  if (!manifest || !files || !sourceTsv || !Array.isArray(items)) throw new Error("verification_failed");
+  if (!manifest || !files || typeof files !== "object" || !Array.isArray(items) || !items.length || items.length > 1000
+    || !(sourceTsv instanceof Uint8Array) || !sourceTsv.length || sourceTsv.length > 1024*1024
+    || Object.keys(files).length > 87 || !Object.values(files).every(raw => raw instanceof Uint8Array)
+    || Object.values(files).reduce((sum,raw) => sum+raw.length,0) > 32_000_000) throw new Error("verification_failed");
   if (typeof leaseId !== "string" || !/^[0-9a-f]{32}$/.test(leaseId)) throw new Error("verification_failed");
   const ordered = [...items].sort((left, right) => left.locationId - right.locationId);
   const total = ordered.length;
@@ -249,5 +242,6 @@ export async function validateObjectIndex(manifest, files, sourceTsv, items, lea
     const quality = manifest.viewQuality;
     if (!await fileEntry(quality, quality.file, total, 8, files[quality.file])) throw new Error("verification_failed");
   }
+  validateFeatureContents(manifest, files, sourceTsv);
   return outputs;
 }

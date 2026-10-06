@@ -1,3 +1,6 @@
+import struct
+import zlib
+from community.object_features import crc16
 import copy
 import json
 import tempfile
@@ -60,7 +63,7 @@ class ObjectSnapshotTest(unittest.TestCase):
         self.add_bundle("b" * 32, [20])
         self.inventory = {"version": 1, "resource": CONFIRMED_RESOURCE, "rows": self.rows}
 
-    def add_bundle(self, lease, ids):
+    def add_bundle(self, lease, ids, *, road_text="private-road-label", map_label="private-source-map-label"):
         key = f"object-index-v4/{lease}/"
         rows = [{"id": number, "asset_id": f"synthetic-{number}", "capture": "2026-09", "lane": "object",
                  "model": "input-model", "state": "published", "contributor_id": "private-account-id",
@@ -71,7 +74,7 @@ class ObjectSnapshotTest(unittest.TestCase):
                  "location_output_sha256": digest(global_id_record(offset))} for offset, number in enumerate(ids)]
         items = [{"locationId": row["id"], "panoId": row["asset_id"], "lat": row["lat"], "lng": row["lon"],
                   "heading": 90, "country": "Italy", "cameraGeneration": "gen4",
-                  "mapId": "private-source-map-label", "roadName": "private-road-label"} for row in rows]
+                  "mapId": map_label, "roadName": road_text} for row in rows]
         manifest, files, source = contract_bundle(items, lease, self.root / "private-local-path.tsv")
         manifest["privateExtension"] = {"account": "private-account-id", "path": str(self.root)}
         manifest["classes"][0]["privateNote"] = "private-account-id"
@@ -138,7 +141,9 @@ class ObjectSnapshotTest(unittest.TestCase):
         key = self.rows[0]["object_index_key"]
         folder = cache_directory(self.cache, key)
         raw = (folder / "semantic-pq128.bin").read_bytes()
-        changed = b"\x01" + raw[1:]
+        changed = b"\x01" + raw[1:142]
+        changed += struct.pack("<H", crc16(changed))
+        changed += raw[144:]
         (folder / "semantic-pq128.bin").write_bytes(changed)
         manifest = json.loads((folder / "manifest.json").read_bytes())
         manifest["semantic"]["sha256"] = digest(changed)
@@ -147,6 +152,26 @@ class ObjectSnapshotTest(unittest.TestCase):
         # whole-bundle audit must reject the self-consistent feature alteration.
         load_bundle(folder, key, self.rows[:2])
         self.failed("object_artifact_not_independently_approved")
+
+    def test_normalization_rebuilds_utf8_pointers_and_preserves_only_road_boolean(self):
+        key = self.add_bundle("d" * 32, [30, 31], road_text="has_road_name",
+                              map_label="synthetic-private-\u00e9-label" * 8)
+        original = (cache_directory(self.cache, key) / "location-offsets.bin").read_bytes()
+        report = self.build()
+        document = verify_object_snapshot(self.root / "snapshot", report["snapshotSha256"])
+        bundle = next(b for b in document["bundles"] if b["keySha256"] == digest(key.encode()))
+        folder = self.root / "snapshot" / bundle["path"]
+        source, offsets = (folder / "locations.tsv").read_bytes(), (folder / "location-offsets.bin").read_bytes()
+        self.assertNotEqual(original, offsets)
+        self.assertEqual(struct.unpack_from("<Q", offsets, 8)[0], len(source.splitlines(keepends=True)[0]))
+        self.assertNotIn(b"synthetic-private-", source)
+        for local in range(2):
+            offset = struct.unpack_from("<Q", offsets, local * 8)[0]
+            fields = source[offset:].splitlines()[0].decode("utf-8").split("\t")
+            self.assertEqual(fields[7], "synthetic-" + str(30 + local))
+            self.assertEqual(fields[10], "has road name")
+            self.assertEqual(fields[11], str(local))
+            self.assertEqual((folder / "location-metadata.bin").read_bytes()[local * 8 + 3], 1)
 
     def test_common_hot_and_semantic_file_corruption_is_rejected(self):
         folder = cache_directory(self.cache, self.rows[0]["object_index_key"])
@@ -257,7 +282,10 @@ class ObjectSnapshotTest(unittest.TestCase):
         key = self.rows[0]["object_index_key"]
         folder = cache_directory(self.cache, key)
         file = folder / "semantic-pq128.bin"
-        changed = b"\x01" + file.read_bytes()[1:]
+        raw = file.read_bytes()
+        changed = b"\x01" + raw[1:142]
+        changed += struct.pack("<H", crc16(changed))
+        changed += raw[144:]
         file.write_bytes(changed)
         manifest = json.loads((folder / "manifest.json").read_bytes())
         manifest["semantic"]["sha256"] = digest(changed)
@@ -271,7 +299,8 @@ class ObjectSnapshotTest(unittest.TestCase):
     def add_quality(self):
         key = self.rows[0]["object_index_key"]
         folder = cache_directory(self.cache, key)
-        raw = b"\x0f\x00\x00\x00\x00\x00\x00\x00" * 2
+        body = bytes([63, 63, 0, 0])
+        raw = (body + struct.pack("<I", zlib.crc32(body))) * 2
         (folder / "view-quality.bin").write_bytes(raw)
         manifest = json.loads((folder / "manifest.json").read_bytes())
         manifest["viewQuality"] = {"file": "view-quality.bin", "recordBytes": 8, "records": 2,
