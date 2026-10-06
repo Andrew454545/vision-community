@@ -147,6 +147,11 @@ a single synthetic award, retained interrupted checkpoints and account/service
 isolation. Both starters require the new module. This is source and delivery
 evidence; guided Objects/Both, native qualification, hosted admission and
 accepted long-running work remain open.
+All seven exact-source CI jobs pass at `cbbc555`: 588 Windows checks with two
+Mac-only skips, 588 Linux checks, 62 private Mac transport/delivery/Object guards
+without skips, existing Mac setup/background/control and ownership checks,
+232 service tests with complete workerd checks, and 80 guards on each
+calibration runner. See the linked delivery report for run URLs and scope.
 
 ## Release gates still open
 

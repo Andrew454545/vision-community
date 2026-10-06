@@ -33,8 +33,8 @@ erase saved work.
 
 The 104 focused checks pass on Windows in 187.444 seconds, with three existing
 platform/filesystem skips. They cover transport, both private source snapshots,
-native Object retry guards, Scene delivery and private diagnostics. Fourteen
-Object delivery scenarios. The new scenarios use real loopback HTTP, SQLite
+native Object retry guards, Scene delivery and private diagnostics. Fourteen new
+Object delivery scenarios use real loopback HTTP, SQLite
 and fresh Python processes, with an explicit synthetic native contract fixture.
 
 The lost-reply scenario commits one synthetic Object location, loses all three
@@ -47,7 +47,19 @@ recovery, explicit rejection, expiry and retained interrupted checkpoints.
 The full client suite passes 585 checks in 479.019 seconds, with eight existing
 skips, before the final renewal guards. Those three additional guards and all
 Object/Scene delivery and native Object retry guards pass in the final 48-check
-run in 42.753 seconds without skips. Exact-commit CI covers the final source.
+run in 42.753 seconds without skips.
+
+All seven exact-source CI jobs pass at
+`cbbc555ea6656577454fd8b02763f670cfc7b395`:
+[application checks](https://github.com/Andrew454545/vision-community/actions/runs/37323761047)
+and [calibration](https://github.com/Andrew454545/vision-community/actions/runs/37323761239).
+Windows passes 588 tests in 393.664 seconds with two Mac-only skips; Linux
+passes 588 in 108.247 seconds with 31 platform skips. The actual private Mac
+interpreter passes 62 privacy/transport/delivery/Object checks in 71.711 seconds
+without skips, plus 41 setup, 42 sleep/background and 12 control guards.
+Mac ownership passes 13 checks with two Windows-only skips. The service passes
+all 232 JavaScript tests, complete workerd checks and six dry-run builds.
+Both calibration jobs pass 80 guards; Linux has 18 platform skips.
 
 The first synthetic fixture run failed before upload: it pinned LF TSV bytes
 while the Windows writer produced CRLF. The fixture now pins the actual file
