@@ -1,5 +1,13 @@
 # Production acceptance
 
+The [official Object coverage importer](OFFICIAL_OBJECT_COVERAGE.md) now prepares
+bounded, independently pinned historical inputs and atomic queue/coverage
+batches. Nineteen focused and all 259 service checks pass; actual local D1
+rollback/retry checks pass with synthetic data. A private source fix prevents
+older panoramas from inheriting a newer panorama's Generation 4 dimensions.
+Its native CI and a trusted live shard remain required; no real coverage or
+Object admission is established by these checks.
+
 The [offline Object reference checker](OBJECT_REFERENCE_CHECK.md) supports
 checksum-pinned saved faces and all three detector lanes without account or
 service access. It measures differences and keeps failures; it does not supply
