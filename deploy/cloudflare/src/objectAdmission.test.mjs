@@ -1,6 +1,14 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { localObjectPrototype } from './objectAdmission.js';
+import { localObjectPrototype, objectCapabilities } from './objectAdmission.js';
+
+test('Object readiness explicitly names its separate computer and official Gen4 checks', () => {
+  assert.deepEqual(objectCapabilities(), {objectContributions:{ready:false,
+    reason:'object_verification_unavailable',model:'vision-object-index-v4',
+    deviceQualificationRequired:true,officialGen4Required:true}});
+  const first=objectCapabilities();first.objectContributions.ready=true;
+  assert.equal(objectCapabilities().objectContributions.ready,false);
+});
 
 test('unqualified hosted object work cannot be enabled by a button, flag alone or request header', () => {
   for (const url of ['https://vision-community-staging.visioncommunity.workers.dev/api/leases',

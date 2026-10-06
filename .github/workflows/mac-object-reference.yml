@@ -1,0 +1,68 @@
+name: mac-object-reference
+
+on:
+  pull_request:
+    paths:
+      - 'calibration/mac_object_reference.py'
+      - 'calibration/test_mac_object_reference.py'
+      - 'calibration/reference_envelope.py'
+      - 'calibration/test_reference_envelope.py'
+      - 'calibration/object-reference-recipient.pem'
+      - '.github/workflows/mac-object-reference.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mac-object-reference-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  published-mac-detector-comparison:
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Fixed input, output and failed-run guards
+        run: |
+          python -m venv "$RUNNER_TEMP/reference-python"
+          "$RUNNER_TEMP/reference-python/bin/python" -m pip install --disable-pip-version-check --only-binary=:all: cryptography==50.0.1
+          "$RUNNER_TEMP/reference-python/bin/python" -B -m unittest calibration.test_mac_object_reference calibration.test_reference_envelope community.tests.test_object_canary -v
+      - name: Finite published-program detector comparison
+        run: '"$RUNNER_TEMP/reference-python/bin/python" -B -m calibration.mac_object_reference --out "$RUNNER_TEMP/mac-object-reference" --accept-downloads-and-live-imagery'
+      - name: Preserve incomplete prerequisites
+        if: always()
+        shell: python
+        run: |
+          import json, os, pathlib
+          folder = pathlib.Path(os.environ['RUNNER_TEMP'])/'mac-object-reference/export'
+          folder.mkdir(parents=True, exist_ok=True)
+          receipt = folder/'mac-object-reference.json'
+          if not receipt.exists():
+              receipt.write_text(json.dumps({'version':1,'status':'INCOMPLETE','productionQualified':False,
+                  'referenceIsAndrewInstalledGold':False,'coverageAdmissionVerified':False,
+                  'acceptedContributions':0,'searchCreditsCreated':0,'rawImagesExported':False,
+                  'stage':'prerequisites','failure':{'code':'Inspect the workflow logs.'}})+'\n')
+      - name: Encrypt portable results for the local operator only
+        if: always()
+        run: |
+          "$RUNNER_TEMP/reference-python/bin/python" -B -m calibration.reference_envelope \
+            --folder "$RUNNER_TEMP/mac-object-reference/export" \
+            --public-key calibration/object-reference-recipient.pem --out "$RUNNER_TEMP/mac-object-reference.sealed.json" \
+            --source-revision "${{ github.event.pull_request.head.sha || github.sha }}" --run-id "$GITHUB_RUN_ID"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mac-object-reference-reduced-evidence
+          # Only authenticated ciphertext. The private key stays on the laptop.
+          # No plaintext values, imagery, source TSV, logs, indexes or runtime.
+          path: ${{ runner.temp }}/mac-object-reference.sealed.json
+          retention-days: 14
+          if-no-files-found: error

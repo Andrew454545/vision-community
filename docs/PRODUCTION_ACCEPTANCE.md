@@ -5,6 +5,13 @@ checksum-pinned saved faces and all three detector lanes without account or
 service access. It measures differences and keeps failures; it does not supply
 Object production qualification or open admission.
 
+An additional maintainer Mac workflow collects encrypted portable values from
+the published native program for CPU/CoreML-requested comparison. The original
+private Mac artifact omitted those values; its replacement build workflow is
+blocked before startup by GitHub's private Actions budget. Neither workflow
+supplies production qualification. The service now explicitly reports Object
+readiness false and recognizes the closed qualification endpoint.
+
 Updated 2026-10-06 UTC. **The project is not yet approved for production.**
 This checklist describes the current state; check off a release gate only with
 recorded evidence. Earlier failures and exploratory results remain separate.
