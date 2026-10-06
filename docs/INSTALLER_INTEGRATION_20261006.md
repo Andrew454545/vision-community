@@ -115,11 +115,14 @@ it is not a full package or clean-device success.
 
 ## Release limits
 
-Windows still needs native bootstrap, controls and removal without changing
-execution policy. The ordinary default policy blocks the present script
+This integration phase still needed native bootstrap, controls and removal without changing
+execution policy. The ordinary default policy blocked that revision's script
 launcher, including signed scripts. The CI diagnostic imposes Restricted in
 its own process/children only, restores its environment and makes no user or
 machine policy changes. Signing cannot solve this startup defect.
+The later [native Windows starter](WINDOWS_NATIVE_STARTER_20261006.md) replaces
+startup and the finite detached helper. Automatic controls/removal still need
+native migration; the full Windows release gate remains open.
 
 The new Mac flow still needs signed clean-device keyboard/VoiceOver checks,
 removal during accepted native work, real sign-in/restart and long-duration

@@ -22,7 +22,9 @@ computer-check provider is still absent: choosing Objects or Both cannot grant
 approval or start unavailable work. Independent native qualification, trusted
 Object admission, shared resource budgets and accepted background work remain
 required. [Native packages](NATIVE_INSTALLER_PACKAGING.md) are build candidates,
-with Windows startup, signing and clean-device gates open. The Mac removal
+with native Windows startup implemented and finite Restricted-policy private
+setup/page checks. Windows automatic controls/removal, signing and clean-device
+gates remain open. The Mac removal
 action is implemented; actual native batch handover and clean-device removal
 remain unqualified. See [installer integration](INSTALLER_INTEGRATION_20261006.md).
 The [private Mac starter](MAC_PRIVATE_STARTER_20261004.md) is a maintainer preview;

@@ -1,11 +1,14 @@
 # Native installer packaging
 
-The current Windows launcher is not ready for a clean Windows PC. Its
-`powershell.exe -File` startup is blocked by the normal
+Windows **Start VISION** now performs private setup in native C# and starts its
+verified private Python directly. It does not run PowerShell or change policy.
+The finite real-page check exercises a fresh pinned download, authenticated
+existing-page verification and complete close reply under the normal
 [Restricted script policy](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_execution_policies?view=powershell-5.1);
-signing the script does not remove that restriction. CI package self-checks on
-an Unrestricted runner do not establish first-run usability. The release path
-must move bootstrap, controls and removal into the signed native application,
+it creates no account or processing work. **Automatic processing and removal
+still depend on PowerShell files and must also be migrated.** The full Windows
+application therefore remains unqualified on a clean PC. The release path
+must finish moving controls and removal into the signed native application,
 with enterprise application restrictions still respected. Do not change the
 user's execution policy or add a Bypass/EncodedCommand workaround. The Mac app
 now offers cooperative removal of its owned background worker before moving
@@ -34,12 +37,20 @@ holder the enrollment steps. Users of VISION need neither account.
 The stager copies an explicit public client/fixture list, never a checkout or
 worker folder. It excludes Git history, credentials, accounts, indexes, databases,
 imagery, logs and model weights. An embedded SHA-256 binds the release inventory
-and every packaged file. Native startup verifies it before executing a script.
+and every packaged file. Native startup verifies it before executing a helper.
 Changed, missing, extra or redirected files refuse startup. The Mac app drains
 child output without displaying or sharing private text. Windows installation
 uses the current user's Programs folder, desktop/Start-menu shortcuts and
 uninstall registry entry; it asks for no elevation or execution-policy change.
 Both launchers wait for the guided app to finish before allowing a normal quit.
+Windows verifies every extracted private Python file against its pinned archive,
+including reused files, and refuses unknown files or redirected paths. Source
+snapshots use a public allowlist and reject changed receipts, files or extra
+directories. Downloads have size/time limits; interrupted files and fixed-code
+failure reports are kept. Python starts with isolated imports and a small clean
+environment. Native path handling supports long local paths without changing
+the computer's registry preference. These checks do not approve model inference,
+trusted contributions or months of unattended work.
 
 Windows removal first uses the existing task ownership and cooperative handover
 controls. A changed package, unfamiliar task or active batch refuses removal.

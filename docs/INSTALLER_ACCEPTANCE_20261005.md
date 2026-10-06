@@ -46,8 +46,8 @@ task or removal entry. Checks are in `packaging/windows/Check-Lifecycle.ps1` and
 
 ## Launch blockers found
 
-1. **The Windows launcher cannot start on a default Windows 10/11 client.**
-   `VISION.exe` runs `powershell.exe -File …\Start-Vision.ps1` without an
+1. **Windows automatic controls/removal still depend on script execution.**
+   The original `VISION.exe` ran `powershell.exe -File …\Start-Vision.ps1` without an
    execution-policy argument. Windows clients default to `Restricted`, which
    blocks every script file, signed or not. CI reproduced this: with the
    runner's CurrentUser scope set to the client default and then restored, the
@@ -59,7 +59,11 @@ task or removal entry. Checks are in `packaging/windows/Check-Lifecycle.ps1` and
    enterprise restrictions. Do not add an execution-policy bypass or ask users
    to change security settings. The integration's policy diagnostic now uses
    inherited process-only Restricted policy and restores its environment; it
-   never changes machine or user policy. This does not fix the launch path.
+   never changes machine or user policy. The later
+   [native starter](WINDOWS_NATIVE_STARTER_20261006.md) replaces **Start VISION**
+   bootstrap and the finite detached helper, with real private setup/page
+   checks under Restricted. Automatic controls and removal still require
+   migration; the complete application is not qualified on a clean PC.
 2. **No signing accounts.** Unsigned candidates are rejected by Gatekeeper and
    will show SmartScreen warnings. The gated workflow and account setup are in
    [signing account setup](SIGNING-ACCOUNT-SETUP.md)

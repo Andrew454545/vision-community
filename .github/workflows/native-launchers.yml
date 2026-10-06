@@ -40,11 +40,20 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Build and verify the native setup without installing or signing
+      - name: Build and open the empty native guided page under Restricted
         shell: pwsh
         run: |
-          python -B packaging/build_windows.py --output "$env:RUNNER_TEMP/windows-native-package" --revision "$env:GITHUB_SHA"
-          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $previousPreference = $env:PSExecutionPolicyPreference
+          try {
+            # Stricter inherited process-only policy; user/machine settings stay intact.
+            $env:PSExecutionPolicyPreference = 'Restricted'
+            python -B packaging/build_windows.py --output "$env:RUNNER_TEMP/windows-native-package" --revision "$env:GITHUB_SHA"
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+            python -B packaging/check_windows_starter.py `
+              --executable "$env:RUNNER_TEMP/windows-native-package/MAINTAINER-UNSIGNED-VISION-Setup.exe" `
+              --report "$env:RUNNER_TEMP/windows-native-package/native-guided-check.json"
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          } finally { $env:PSExecutionPolicyPreference = $previousPreference }
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -54,6 +63,8 @@ jobs:
             ${{ runner.temp }}/windows-native-package/package-receipt.json
             ${{ runner.temp }}/windows-native-package/package-self-check.json
             ${{ runner.temp }}/windows-native-package/detached-helper-check.json
+            ${{ runner.temp }}/windows-native-package/bootstrap-guards-check.json
+            ${{ runner.temp }}/windows-native-package/native-guided-check.json
           retention-days: 7
   windows-lifecycle:
     # Actual per-user install, interrupted setup, repeat, repair, update and
@@ -89,7 +100,7 @@ jobs:
             -SetupB "$env:RUNNER_TEMP/setup-b/MAINTAINER-UNSIGNED-VISION-Setup.exe" -RevisionB $env:VISION_REVISION_B `
             -Report "$env:RUNNER_TEMP/windows-lifecycle-report.json"
           exit $LASTEXITCODE
-      - name: Record the launch path under the default Windows client script policy
+      - name: Verify the native detached helper under Restricted
         # Windows 10/11 clients default to Restricted; hosted runners do not.
         # Inherit the stricter policy in this process/children only. Never change
         # machine/user policy, even temporarily, in a diagnostic fixture.
@@ -98,20 +109,23 @@ jobs:
         run: |
           $before = (Get-ExecutionPolicy -List | ForEach-Object { "$($_.Scope)=$($_.ExecutionPolicy)" }) -join ';'
           $previousPreference = $env:PSExecutionPolicyPreference
+          $previousModules = $env:PSModulePath
           try {
             $env:PSExecutionPolicyPreference = 'Restricted'
+            $env:PSModulePath = "$env:WINDIR\System32\WindowsPowerShell\v1.0\Modules"
             $effective = & "$env:WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -Command 'Get-ExecutionPolicy'
             $fixture = Join-Path $env:TEMP ('vision-policy-' + [Guid]::NewGuid().ToString('N'))
             $p = Start-Process -FilePath "$env:RUNNER_TEMP/setup-a/MAINTAINER-UNSIGNED-VISION-Setup.exe" -ArgumentList '--detached-check', $fixture -PassThru -Wait
             $result = Join-Path $fixture 'result.json'; $deadline = (Get-Date).AddSeconds(30)
             while (-not (Test-Path $result) -and (Get-Date) -lt $deadline) { Start-Sleep -Milliseconds 250 }
             $ran = Test-Path $result
-          } finally { $env:PSExecutionPolicyPreference = $previousPreference }
+          } finally { $env:PSExecutionPolicyPreference = $previousPreference; $env:PSModulePath = $previousModules }
           $report = [ordered]@{ policiesBefore = $before; effectiveChildPolicy = "$effective".Trim(); launcherExit = $p.ExitCode
-            unsignedScriptLaunchSucceeded = $ran; note = 'Launcher starts powershell.exe -File without an execution-policy argument.' }
+            nativeDetachedHelperSucceeded = $ran; legacyControlsAndRemovalStillRequireScripts = $true
+            note = 'Startup and this finite helper use native code. Background controls/removal still need migration.' }
           $report | ConvertTo-Json | Set-Content "$env:RUNNER_TEMP/windows-default-policy-probe.json"
           Get-Content "$env:RUNNER_TEMP/windows-default-policy-probe.json"
-          if (-not $ran) { Write-Output "::warning::Under the default Windows client policy ($effective) the launcher's PowerShell scripts did not run. Clean-device launch is blocked until the maintainer chooses a supported launch path." }
+          if (-not $ran -or "$effective".Trim() -ne 'Restricted' -or $p.ExitCode) { throw 'native_restricted_helper_failed' }
       - uses: actions/upload-artifact@v4
         if: always()
         with:
