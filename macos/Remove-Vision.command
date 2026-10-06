@@ -46,6 +46,6 @@ done
 # before any private Python code executes. No setup/free-space/consent flow runs.
 /usr/bin/env -i PATH="$PATH" /usr/bin/perl "$source_root/macos/verify-python.pl" \
     "$source_root/macos/python-arm64-inventory.json" \
-    a0f5d70672a69e5f34433bc7f2de43a2c85443af610007711d20f00334fc0c0d "$private"
+    a0f5d70672a69e5f34433bc7f2de43a2c85443af610007711d20f00334fc0c0d "$private" > /dev/null
 /usr/bin/env -i HOME="$HOME" PATH="$PATH" LC_ALL=C \
     "$private/python/bin/python3.14" -I -B "$source_root/community/mac_remove.py" --root "$root" "${arguments[@]}"

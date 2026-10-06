@@ -117,6 +117,7 @@ def main():
         removal=subprocess.run(['/bin/bash',str(repository/'macos/Remove-Vision.command'),
             '--root',str(root),'--check-label',manager.label,'--check-home',str(home)],
             capture_output=True,text=True,timeout=90)
+        receipt['applicationRemovalExitCode']=removal.returncode
         if removal.returncode or json.loads(removal.stdout).get('status')!='MAC_REMOVAL_READY':
             raise RuntimeError('application_removal_not_ready')
         if manager.status()['enabled'] or manager.plist.exists() or (root/'account.json').read_bytes()!=original:
