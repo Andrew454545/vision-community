@@ -90,3 +90,17 @@ Its report remained incomplete and retained that completed comparison.
 The native Windows package build passed its 28 setup guards with the new module
 included. That local package records a modified source tree and remains unsigned
 and unqualified. Exact committed-source CI evidence is recorded separately.
+
+All eleven CI jobs pass for application head `f890e63`, using clean proposed
+merge `09b789f84ebcecf2c3ce24bc3e8f51c8dace1218`. Windows and Linux each pass
+639 tests (two and 31 platform skips respectively). The private Apple-silicon
+Python run passes 66 setup/qualification guards, including all 12 new checker
+tests without skips. This tests the checker with synthetic data, not native
+Mac model inference. Native Windows/Mac packaging, actual lifecycle controls,
+the service's 238 tests and runtime checks, and both calibration guards pass.
+The sealed Windows private snapshot independently imports this module under
+inherited process-only Restricted. Package receipts remain unsigned and
+unqualified. See [application CI](https://github.com/Andrew454545/vision-community/actions/runs/37424547007),
+[native packages](https://github.com/Andrew454545/vision-community/actions/runs/37424546193),
+[calibration](https://github.com/Andrew454545/vision-community/actions/runs/37424546204)
+and [Mac lifecycle](https://github.com/Andrew454545/vision-community/actions/runs/37424546189).
