@@ -237,9 +237,12 @@ class MacBackground:
                 marker.unlink(missing_ok=True)
                 self.start_idle()
 
-    def remove(self):
+    def remove(self, *, expected_plist_sha=None):
         with self.operation():
             receipt, loaded = self.owned()
+            if expected_plist_sha is not None and (not receipt or
+                    receipt.get('plistSha256') != expected_plist_sha):
+                raise ValueError('background_controls_busy')
             if not receipt or receipt.get('removed'):
                 return
             with self.handover():

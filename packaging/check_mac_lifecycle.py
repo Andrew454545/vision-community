@@ -149,6 +149,17 @@ def run(archive_a, archive_b, report):
         revision_a, revision_b = state.revision(app_a), state.revision(app_b)
         state.check('two_distinct_revisions', revision_a != revision_b)
 
+        # Use the app's native Finder Trash API before any private folder exists.
+        # Its CI-only entry refuses existing private state or a startup job.
+        state.install(app_a)
+        result = subprocess.run([str(APP / BINARY), '--remove-unused-check'],
+                                capture_output=True, text=True, timeout=30)
+        state.check('native_unused_removal_succeeds', result.returncode == 0 and
+                    'UNUSED_APP_REMOVED' in result.stdout)
+        state.check('native_removal_moves_own_app_out_of_applications', not APP.exists())
+        state.check('native_unused_removal_creates_no_private_folder_or_agent',
+                    not PRIVATE.exists() and not AGENT.exists())
+
         for name, body in FIXTURES.items():
             target = PRIVATE / name
             target.parent.mkdir(parents=True, exist_ok=True)

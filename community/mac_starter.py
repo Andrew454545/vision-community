@@ -16,7 +16,7 @@ import sys
 MODULES = ('__init__ admin all_locations_full all_locations_tail background bootstrap catalog '
     'contribute delivery desktop features four_view indexed_local local_search measure mma mma_cloud '
     'object_index pano parts pc_canary prompt rank scene_pipeline scene_quality search mac_launch_agent mac_launch_guard mac_starter mac_runtime mac_worker mac_background mac_background_control '
-    'seal_index segments send_mma server service source store submission_outbox verify '
+    'mac_remove seal_index segments send_mma server service source store submission_outbox verify '
     'vision_handoff vision_index process_owner work_plan worker').split()
 FILES = tuple('community/'+name+'.py' for name in MODULES) + (
     'community/runtime_manifest.json', 'community/country-names.txt',
@@ -31,7 +31,7 @@ REQUIRED = {'community/desktop.py', 'community/work_plan.py', 'community/object_
     'community/process_owner.py', 'community/runtime_manifest.json', 'community/submission_outbox.py', 'community/delivery.py',
     'community/desktop_web/index.html', 'calibration/run_windows.py', 'calibration/quality.py',
     'calibration/synthetic_canary.py', 'calibration/gen4-v1/checksums.json', 'community/mac_worker.py',
-    'community/mac_background.py', 'community/mac_background_control.py', 'community/background_web/index.html',
+    'community/mac_background.py', 'community/mac_background_control.py', 'community/mac_remove.py', 'community/background_web/index.html',
     'community/background_web/app.js', 'community/background_web/style.css',
     'macos/python-arm64-inventory.json', 'macos/verify-python.pl', 'macos/verify-source.pl'}
 

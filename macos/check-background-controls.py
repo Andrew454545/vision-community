@@ -19,6 +19,7 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from community.background import measure_storage, single_instance, WorkerAlreadyRunning
 from community.mac_background import DEFAULT_SETTINGS, MacBackground
 from community.mac_runtime import runtime_links
+from community.mac_remove import prepare_removal
 from community.mac_starter import copy_source, FILES, regular
 
 
@@ -112,10 +113,19 @@ def main():
             raise RuntimeError('closing_controls_interrupted_worker')
         receipt['privateWindowAuthAssetsQuitAndIndependentWorker']=True
         phase='remove'
-        manager.remove()
+        removal=subprocess.run(['/bin/bash',str(repository/'macos/Remove-Vision.command'),
+            '--root',str(root),'--check-label',manager.label,'--check-home',str(home)],
+            capture_output=True,text=True,timeout=90)
+        if removal.returncode or json.loads(removal.stdout).get('status')!='MAC_REMOVAL_READY':
+            raise RuntimeError('application_removal_not_ready')
         if manager.status()['enabled'] or manager.plist.exists() or (root/'account.json').read_bytes()!=original:
             raise RuntimeError('private_agent_removal_failed')
         receipt['temporaryAgentRemoved']=True
+        receipt['applicationRemovalCooperativelyStoppedOwnedWorker']=True
+        original_registration=manager.receipt.read_bytes()
+        if prepare_removal(root,home=home,label=manager.label)['status']!='MAC_REMOVAL_READY' or manager.receipt.read_bytes()!=original_registration:
+            raise RuntimeError('application_removal_repeat_changed_receipt')
+        receipt['applicationRemovalRepeatPreservedReceiptAndAccount']=True
         phase='changed_source'
         # Execute the recorded system-only guard directly after an isolated
         # snapshot change. No changed Python must run, and a report must survive.

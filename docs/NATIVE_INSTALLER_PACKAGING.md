@@ -7,9 +7,11 @@ signing the script does not remove that restriction. CI package self-checks on
 an Unrestricted runner do not establish first-run usability. The release path
 must move bootstrap, controls and removal into the signed native application,
 with enterprise application restrictions still respected. Do not change the
-user's execution policy or add a Bypass/EncodedCommand workaround. Mac removal
-must also stop and unregister its owned background worker while retaining
-private account and work data. These are release gates, not signing instructions.
+user's execution policy or add a Bypass/EncodedCommand workaround. The Mac app
+now offers cooperative removal of its owned background worker before moving
+this app to Trash, retaining private account and work data. Active native work
+and clean-device removal still need acceptance. These are release gates, not
+signing instructions.
 The older extracted Windows starter contains a process-level Bypass argument;
 the production launcher must replace that path without weakening user policy.
 
@@ -43,8 +45,14 @@ Windows removal first uses the existing task ownership and cooperative handover
 controls. A changed package, unfamiliar task or active batch refuses removal.
 It removes only the installed program and matching shortcuts/registry entry;
 the private worker folder, account, outputs and reports stay in place. On Mac,
-remove automatic startup in the controls before moving the app to Trash; the
-private worker folder also stays in place.
+close the guided page/controls, then choose **Remove VISION** in the app.
+Removal verifies the existing private interpreter and exact owned startup
+registration, waits for its writer lock, removes automatic startup and moves
+only this application to Finder's Trash. It downloads nothing. An active batch,
+unfamiliar job or changed runtime keeps the app for review/retry; saved account,
+checkpoints, pending deliveries and reports stay in place. A never-used app can
+be removed without installing Python. Trashing the app directly does not run
+these controls.
 
 Each package receipt records the checked source revision, whether the working
 tree was dirty, archive hash and signing state. A wrong revision is refused.

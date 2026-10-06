@@ -122,7 +122,7 @@ jobs:
         shell: bash
         run: |
           private="$RUNNER_TEMP/mac-starter-private/python-3.14.8-20261003-arm64/python"
-          "$private/bin/python3.14" -I -B -c 'import sys,unittest;sys.path.insert(0,"."); result=unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.loadTestsFromName("community.tests.test_mac_background"));sys.exit(not result.wasSuccessful())' 2>&1 | tee "$RUNNER_TEMP/mac-background-control-guards.log"
+          "$private/bin/python3.14" -I -B -c 'import sys,unittest;sys.path.insert(0,"."); result=unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.loadTestsFromNames(["community.tests.test_mac_background","community.tests.test_mac_removal"]));sys.exit(not result.wasSuccessful())' 2>&1 | tee "$RUNNER_TEMP/mac-background-control-guards.log"
           "$private/bin/python3.14" -I -B macos/check-background-controls.py --root "$RUNNER_TEMP/mac-starter-private" --report "$RUNNER_TEMP/mac-background-controls.json"
       - name: Preserve aggregate Mac starter evidence
         if: always()
