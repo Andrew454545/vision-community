@@ -1,5 +1,15 @@
 # Native installer packaging
 
+The current Windows launcher is not ready for a clean Windows PC. Its
+`powershell.exe -File` startup is blocked by the normal Restricted script policy;
+signing the script does not remove that restriction. CI package self-checks on
+an Unrestricted runner do not establish first-run usability. The release path
+must move bootstrap, controls and removal into the signed native application,
+with enterprise application restrictions still respected. Do not change the
+user's execution policy or add a Bypass/EncodedCommand workaround. Mac removal
+must also stop and unregister its owned background worker while retaining
+private account and work data. These are release gates, not signing instructions.
+
 The packaging branch provides a native Apple-silicon **VISION Community.app**
 and a Windows per-user **VISION-Community-Setup.exe**. Users do not install
 Python or run terminal commands. The app opens the same four-step guided page
