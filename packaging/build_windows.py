@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -11,11 +12,30 @@ import time
 
 sys.path.insert(0, str(Path(__file__).parent))
 from stage import REPO, archive, inventory, regular, source_state, stage
+from community.mac_starter import source_inventory
+
+
+def native_receipt(executable, *arguments, report=None, timeout=60):
+    result = subprocess.run([str(executable), *map(str, arguments)], capture_output=True, timeout=timeout)
+    if report is not None:
+        report.write_bytes(result.stdout)
+    if result.returncode:
+        raise ValueError('native_package_check_failed')
+    return json.loads(result.stdout.decode('utf-8-sig'))
 
 
 def powershell(script, *arguments):
     shell = Path(os.environ['WINDIR'])/'System32/WindowsPowerShell/v1.0/powershell.exe'
     subprocess.run([str(shell),'-NoProfile','-File',str(script),*arguments],check=True)
+
+
+def clean_fixture(folder):
+    folder=regular(folder,directory=True)
+    if folder.parent!=Path(tempfile.gettempdir()).absolute() or not folder.name.startswith('vision-bootstrap-check-'):
+        raise ValueError('fixture_cleanup_scope')
+    # Exact mkdtemp child only. Python on some Windows hosts also requires the
+    # explicit long-path prefix when removing the deeply nested finite fixture.
+    shutil.rmtree('\\\\?\\'+str(folder) if os.name=='nt' and folder.drive else folder)
 
 
 def build(output, revision, signer=None, publisher=None):
@@ -31,35 +51,48 @@ def build(output, revision, signer=None, publisher=None):
     digest=inventory(project,revision)
     payload=output/'payload.zip'; payload_digest=archive(project,payload)
     generated=output/'Build.cs'
+    snapshot_names=sorted(name for name in source_inventory(REPO) if name.startswith(('community/','calibration/')))
     generated.write_text('static class Build { public const string PayloadSHA="'+payload_digest+'"; '+
-        'public const string InventorySHA="'+digest+'"; public const string Revision="'+revision+'"; }\n')
+        'public const string InventorySHA="'+digest+'"; public const string Revision="'+revision+'"; '+
+        'public static readonly string[] SnapshotNames=new string[]{'+','.join(json.dumps(name) for name in snapshot_names)+'}; }\n')
     executable=output/('VISION-Community-Setup.exe' if signer else 'MAINTAINER-UNSIGNED-VISION-Setup.exe')
     compiler=Path(os.environ['WINDIR'])/'Microsoft.NET/Framework64/v4.0.30319/csc.exe'
     subprocess.run([str(compiler),'/nologo','/target:winexe','/platform:x64','/optimize+',
         '/out:'+str(executable),'/resource:'+str(payload)+',VisionPayload',
         '/reference:System.Windows.Forms.dll','/reference:System.Drawing.dll','/reference:System.Web.Extensions.dll',
         '/reference:System.IO.Compression.dll','/reference:System.IO.Compression.FileSystem.dll',
-        '/reference:Microsoft.CSharp.dll',str(generated),str(REPO/'packaging/windows/Launcher.cs')],check=True)
+        '/reference:System.Net.Http.dll','/reference:Microsoft.CSharp.dll',str(generated),str(REPO/'packaging/windows/Launcher.cs'),
+        str(REPO/'packaging/windows/Starter.cs'),str(REPO/'packaging/windows/StarterChecks.cs')],check=True)
     if signer:powershell(signer,'-File',str(executable))
-    # Wait explicitly for a GUI-subsystem executable. The fixture never installs
-    # shortcuts, registers startup, retrieves inputs or starts a native indexer.
-    check=output/'check-package.ps1'
-    check.write_text("param($Program,$Report)\n$p=Start-Process -FilePath $Program -ArgumentList '--self-check' -Wait -PassThru -RedirectStandardOutput $Report\nif ($p.ExitCode) {exit 1}\n")
-    if signer:powershell(signer,'-File',str(check))
-    report=output/'package-self-check.json';powershell(check,str(executable),str(report))
-    if json.loads(report.read_text(encoding='utf-8-sig')).get('status')!='PACKAGE_VERIFIED':raise ValueError('package_check_failed')
-    # The finite fixture creates a local unsigned helper. Run it in unsigned CI,
-    # not on signing nodes which may require every development script signed.
-    if not signer:
-        with tempfile.TemporaryDirectory(prefix='vision-detached-check-') as folder:
-            fixture=Path(folder)/'child'
-            started=subprocess.Popen([str(executable),'--detached-check',str(fixture)])
-            if started.wait(timeout=20):raise ValueError('detached_fixture_start_failed')
-            result=fixture/'result.json';deadline=time.monotonic()+30
-            while not result.exists() and time.monotonic()<deadline:time.sleep(.1)
-            if not result.exists() or json.loads(result.read_text()).get('status')!='DETACHED_HELPER_PASS':
-                raise ValueError('detached_helper_did_not_finish')
-            (output/'detached-helper-check.json').write_bytes(result.read_bytes())
+    # Wait/capture the GUI executable directly. No generated PowerShell wrapper.
+    receipt=native_receipt(executable,'--self-check',report=output/'package-self-check.json')
+    if receipt.get('status')!='PACKAGE_VERIFIED':raise ValueError('package_check_failed')
+    (output/'package-self-check.json').write_text(json.dumps(receipt,indent=2)+'\n')
+    # Preserve the finite disposable tree on failure rather than losing its report
+    # to an unrelated cleanup exception. It is never an installed/private worker.
+    folder=Path(tempfile.mkdtemp(prefix='vision-bootstrap-check-'))
+    receipt=native_receipt(executable,'--bootstrap-check',folder/'fixture',report=output/'bootstrap-guards-check.json')
+    clean_fixture(folder)
+    if receipt.get('status')!='NATIVE_BOOTSTRAP_GUARDS_PASS':raise ValueError('bootstrap_guards_failed')
+    (output/'bootstrap-guards-check.json').write_text(json.dumps(receipt,indent=2)+'\n')
+    # The helper is the same native executable, including its signature if signed.
+    with tempfile.TemporaryDirectory(prefix='vision-detached-check-') as folder:
+        fixture=Path(folder)/'child'
+        started=subprocess.Popen([str(executable),'--detached-check',str(fixture)])
+        if started.wait(timeout=20):raise ValueError('detached_fixture_start_failed')
+        result=fixture/'result.json';deadline=time.monotonic()+30
+        while not result.exists() and time.monotonic()<deadline:time.sleep(.1)
+        if not result.exists() or json.loads(result.read_text()).get('status')!='DETACHED_HELPER_PASS':
+            raise ValueError('detached_helper_did_not_finish')
+        (output/'detached-helper-check.json').write_bytes(result.read_bytes())
+        # The child flushes its receipt just before exit; wait for its executable
+        # handle to close before the bounded disposable-directory cleanup.
+        for attempt in range(50):
+            try:
+                (fixture/'VISION-fixture.exe').unlink();break
+            except PermissionError:
+                time.sleep(.1)
+        else:raise ValueError('detached_helper_did_not_exit')
     public=False
     if signer:
         verify=output/'check-signatures.ps1'
