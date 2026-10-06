@@ -78,7 +78,7 @@ desktop.main()
         if duplicate.returncode != 0 or 'VISION is already open.' not in duplicate.stdout:
             raise ValueError('single_instance_setup_guard_failed')
         with urlopen(Request(base+'/api/quit', data=b'{}', headers=headers, method='POST'), timeout=5) as response:
-            if response.status != 200:
+            if response.status != 200 or json.load(response) != {'ok':True}:
                 raise ValueError('local_window_quit_failed')
         child.communicate(timeout=10)
         if child.returncode != 0 or (window/'instance.json').exists() or (window/'local-test-url.txt').exists():

@@ -107,7 +107,8 @@ def main():
         if not status['enabled'] or not status['accountSaved'] or not status['running']:
             raise RuntimeError('private_window_status_failed')
         with urlopen(Request(base+'/api/quit',data=b'{}',headers=headers,method='POST'),timeout=5) as response:
-            if response.status!=200:raise RuntimeError('private_window_quit_failed')
+            if response.status!=200 or json.load(response)!={'message':'Controls closed. Enabled automatic processing continues.'}:
+                raise RuntimeError('private_window_quit_failed')
         child.wait(timeout=10)
         if child.returncode or private_url.exists() or not manager.status()['running']:
             raise RuntimeError('closing_controls_interrupted_worker')

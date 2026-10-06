@@ -5,11 +5,14 @@ from pathlib import Path
 import plistlib
 import tempfile
 import unittest
+from contextlib import redirect_stdout
+from io import StringIO
 from unittest.mock import patch
 
 from community.background import single_instance
 from community.mac_background import DEFAULT_SETTINGS, MacBackground
 from community.mac_remove import prepare_removal
+from community import mac_remove
 from community.mac_runtime import PYTHON_FOLDER, PYTHON_RELATIVE
 from community.mac_starter import copy_source
 from community.tests.test_mac_background import Scheduler
@@ -123,6 +126,33 @@ class MacRemovalTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'unfamiliar'):
             self.prepare()
         self.assertIsNotNone(self.scheduler.config)
+
+    def test_another_control_operation_refuses_removal_before_stop_or_unload(self):
+        for enabled in (False, True):
+            if enabled:
+                self.enable()
+            self.scheduler.calls.clear()
+            with self.manager.operation():
+                with self.assertRaisesRegex(ValueError, 'controls_busy'):
+                    self.prepare()
+            self.assertFalse((self.root / 'STOP-AFTER-BATCH').exists())
+            self.assertFalse(any(c[1] == 'bootout' for c in self.scheduler.calls))
+
+    def test_cli_failure_keeps_private_report_without_raw_error_or_account(self):
+        self.enable(); account = (self.root / 'account.json').read_bytes()
+        output = StringIO()
+        with patch('sys.argv', ['mac_remove.py','--root',str(self.root)]), \
+             patch.object(mac_remove, 'prepare_removal', side_effect=ValueError('private raw code or path')), \
+             redirect_stdout(output):
+            self.assertEqual(mac_remove.main(), 1)
+        reports = list((self.root / 'setup-failures').glob('*.json'))
+        self.assertEqual(len(reports), 1)
+        record = json.loads(reports[0].read_bytes())
+        self.assertEqual(record, {'status':'INCOMPLETE','phase':'mac-application-removal',
+                                  'errorType':'ValueError'})
+        self.assertEqual((self.root / 'account.json').read_bytes(), account)
+        self.assertNotIn('private raw', output.getvalue())
+        self.assertNotIn('synthetic saved code', output.getvalue())
 
     def test_absent_worker_does_not_create_private_folder_or_account(self):
         missing = self.root / 'never-used'

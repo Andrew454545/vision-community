@@ -202,7 +202,9 @@ class MacBackgroundTests(unittest.TestCase):
         with controls.busy:
             self.assertEqual(request('/api/pause','{}',**headers)[0],400)
         self.assertEqual(request('/api/pause','{}',**headers)[0],200)
-        self.assertEqual(request('/api/quit','{}',**headers)[0],200)
+        status, body = request('/api/quit','{}',**headers)
+        self.assertEqual(status,200)
+        self.assertEqual(json.loads(body), {'message':'Controls closed. Enabled automatic processing continues.'})
         thread.join(3)
         self.assertTrue(self.scheduler.running)
 
