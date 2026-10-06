@@ -24,12 +24,18 @@ This older executable cannot attest the newer shared CPU pool, actual node
 placement, correspondence with Andrew's installed executable or full indexing.
 The workflow records those limits explicitly. It is not a qualification provider.
 
+The [first completed Mac/Windows comparison](MAC_OBJECT_REFERENCE_20261006.md)
+verifies identical input/model bytes, exact within-profile repeats and the
+actual cross-platform score/box differences for all three lanes. Detector
+structures agree for this one location; no production tolerance is inferred.
+
 Small reference/transport guards run automatically. A native Mac trial requires
 adding the PR label `run-native-object-reference`, or a manually confirmed
 **mac-object-reference** workflow run once the workflow exists on the default
 branch. Keeping the label on a PR does not repeat native inference on later
 commits. Manual runs without confirmation run only the guards. The native trial
-has a 45-minute deadline, downloads only twelve pinned Object assets, and fetches
+has a 35-minute detector/download step within a 45-minute job, leaving time to
+encrypt and upload an incomplete receipt. It downloads twelve pinned Object assets and fetches
 one location's six views; it cannot start an installed contributor or create
 accounts or credits.
 
