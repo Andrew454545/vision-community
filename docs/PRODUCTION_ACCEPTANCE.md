@@ -9,6 +9,9 @@ The [complete Object index comparator](OBJECT_INDEX_COMPARISON.md) adds bounded,
 pinned comparison of stored detection, quality and semantic features. This is
 an offline diagnostic prerequisite, not a trusted inference verifier, a
 reference provenance decision or production qualification.
+Its optional pinned-codebook analysis now measures decoded semantic vector
+differences, explicitly separating rejected placeholders and undefined norms;
+this does not replace original tensor or native query comparisons.
 
 The [offline recovery soak](RECOVERY_SOAK_20261008.md) completed 24 scheduled
 rounds of 80 existing checks on Windows: no failures/errors, one existing

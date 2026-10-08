@@ -9,17 +9,19 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import struct
 
 from community.object_canary import regular
-from community.object_index import manifest_file_names, validate_object_index
+from community.object_index import CODEBOOK_SHA256, manifest_file_names, validate_object_index
 from community.object_snapshot import public_manifest
 from community.vision_index import VisionIndexError
 
 MAX_MANIFEST = 1024 * 1024
 MAX_FILES = 32_000_000
+CODEBOOK_BYTES = 128 * 256 * 4 * 4
 LEASE = "0" * 32
 
 
@@ -93,6 +95,57 @@ def load_index(path, checksum, source):
     return manifest, files, digest(raw)
 
 
+class PQ128Codebook:
+    """VISION's 128 subquantizers, 256 four-float centroids each, little endian.
+
+    The caller supplies an independent pin. CLI comparison always requires
+    the canonical v4 model pin; no embeddings or centroids enter the report.
+    """
+    def __init__(self, raw, checksum):
+        require(isinstance(raw, bytes) and len(raw) == CODEBOOK_BYTES,
+                "invalid_comparison_codebook_size")
+        require(digest(raw) == checksum, "comparison_codebook_pin_mismatch")
+        self.values = struct.unpack("<131072f", raw)
+        require(all(math.isfinite(value) for value in self.values),
+                "nonfinite_comparison_codebook")
+        self.sha256 = checksum
+
+    def decode(self, codes):
+        require(isinstance(codes, bytes) and len(codes) == 128, "invalid_semantic_codes")
+        return tuple(value for subquantizer, code in enumerate(codes)
+                     for value in self.values[(subquantizer * 256 + code) * 4:
+                                              (subquantizer * 256 + code) * 4 + 4])
+
+
+def embedding_metrics():
+    return {"pairsCompared": 0, "excludedRejectedPairs": 0,
+            "undefinedCosinePairs": 0, "undefinedRelativeL2Pairs": 0,
+            "minimumCosineSimilarity": None, "maximumAbsoluteL2": 0.0,
+            "maximumRelativeL2": None}
+
+
+def measure_embeddings(result, reference, candidate):
+    require(len(reference) == len(candidate) == 512, "invalid_decoded_embedding_dimensions")
+    result["pairsCompared"] += 1
+    gold_norm = math.sqrt(math.fsum(value * value for value in reference))
+    actual_norm = math.sqrt(math.fsum(value * value for value in candidate))
+    error = math.sqrt(math.fsum((a - b) ** 2 for a, b in zip(reference, candidate)))
+    result["maximumAbsoluteL2"] = max(result["maximumAbsoluteL2"], error)
+    if gold_norm == 0 or actual_norm == 0:
+        result["undefinedCosinePairs"] += 1
+    else:
+        cosine = math.fsum(a * b for a, b in zip(reference, candidate)) / (gold_norm * actual_norm)
+        cosine = min(1.0, max(-1.0, cosine))
+        previous = result["minimumCosineSimilarity"]
+        result["minimumCosineSimilarity"] = cosine if previous is None else min(previous, cosine)
+    if gold_norm == 0:
+        result["undefinedRelativeL2Pairs"] += 1
+    else:
+        relative = error / gold_norm
+        previous = result["maximumRelativeL2"]
+        result["maximumRelativeL2"] = relative if previous is None else max(previous, relative)
+
+
 def compare_lane(reference, candidate):
     def records(raw):
         return {row[0]: row for offset in range(0, len(raw), 32)
@@ -120,29 +173,50 @@ def compare_lane(reference, candidate):
     return result
 
 
-def compare_semantic(reference, candidate):
+def compare_semantic(reference, candidate, codebook=None, active_locations=None):
+    require(len(reference) == len(candidate) and len(reference) % (16 * 144) == 0,
+            "incomplete_semantic_comparison")
+    locations = len(reference) // (16 * 144)
+    if active_locations is None:
+        active_locations = [True] * locations
+    require(len(active_locations) == locations and all(type(value) is bool for value in active_locations),
+            "invalid_semantic_comparison_mask")
     result = {"recordsCompared": len(reference) // 144, "differentRecords": 0,
               "differentCodeBytes": 0, "differentFaces": 0,
               "maximumBoxDifference": 0.0, "maximumLogitShiftDifference": 0.0,
               "maximumLogitScaleDifference": 0.0,
-              "decodedEmbeddingDistanceMeasured": False}
+              "decodedEmbeddingDistanceMeasured": False,
+              "embeddingMetrics": embedding_metrics() if codebook is not None else None}
     for offset in range(0, len(reference), 144):
         left, right = reference[offset:offset + 144], candidate[offset:offset + 144]
         result["differentRecords"] += left != right
         result["differentCodeBytes"] += sum(a != b for a, b in zip(left[:128], right[:128]))
         result["differentFaces"] += left[140] != right[140]
+        if codebook is not None:
+            if active_locations[offset // (16 * 144)]:
+                measure_embeddings(result["embeddingMetrics"], codebook.decode(left[:128]), codebook.decode(right[:128]))
+            else:
+                result["embeddingMetrics"]["excludedRejectedPairs"] += 1
         for a, b in zip(struct.unpack_from("<4H", left, 128), struct.unpack_from("<4H", right, 128)):
             result["maximumBoxDifference"] = max(result["maximumBoxDifference"], abs(a - b) / 65535)
         for key, a, b in zip(("maximumLogitShiftDifference", "maximumLogitScaleDifference"),
                              struct.unpack_from("<2e", left, 136), struct.unpack_from("<2e", right, 136)):
             result[key] = max(result[key], abs(a - b))
+    if codebook is not None:
+        result["codebookSha256"] = codebook.sha256
+        result["decodedEmbeddingDistanceMeasured"] = result["embeddingMetrics"]["pairsCompared"] > 0
     return result
 
 
-def compare(reference, reference_sha256, candidate, candidate_sha256, source_path):
+def compare(reference, reference_sha256, candidate, candidate_sha256, source_path, codebook_path=None):
     source = read(source_path, MAX_MANIFEST)
+    codebook_raw = read(codebook_path, CODEBOOK_BYTES) if codebook_path is not None else None
+    codebook = PQ128Codebook(codebook_raw, CODEBOOK_SHA256) if codebook_raw is not None else None
     gold, left, gold_sha = load_index(reference, reference_sha256, source)
     actual, right, actual_sha = load_index(candidate, candidate_sha256, source)
+    if codebook is not None:
+        require(gold["semantic"]["codebookSha256"] == actual["semantic"]["codebookSha256"] == codebook.sha256,
+                "comparison_codebook_identity_mismatch")
     require(gold["countries"] == actual["countries"]
             and gold["globalStart"] == actual["globalStart"], "comparison_identity_mismatch")
     # Quality masks can change; the policy and its independent authorities must
@@ -158,11 +232,16 @@ def compare(reference, reference_sha256, candidate, candidate_sha256, source_pat
     quality_file = gold.get("viewQuality", {}).get("file")
     quality_changes = (sum(left[quality_file][i:i + 4] != right[quality_file][i:i + 4]
                            for i in range(0, len(left[quality_file]), 8)) if quality_file else 0)
+    # A zero-view native placeholder has no searchable embedding. Keep its raw
+    # differences visible, but never treat a decoded placeholder as real output.
+    active_locations = [bool(left[quality_file][i * 8 + 1] and right[quality_file][i * 8 + 1])
+                        if quality_file else True for i in range(gold["totalLocations"])]
     result = {"version": 1, "scope": "offline-object-index-comparison", "status": "COMPLETE",
               "referenceManifestSha256": gold_sha, "candidateManifestSha256": actual_sha,
               "sourceSha256": digest(source), "locations": gold["totalLocations"],
               "exactFeatureMatch": left == right, "viewQualityDifferences": quality_changes,
-              "lanes": lanes, "semantic": compare_semantic(left["semantic-pq128.bin"], right["semantic-pq128.bin"]),
+              "lanes": lanes, "semantic": compare_semantic(left["semantic-pq128.bin"], right["semantic-pq128.bin"],
+                                                              codebook, active_locations),
               "qualified": False, "referenceProvenanceVerified": False,
               "identicalPixelsVerified": False, "nativeSearchParityVerified": False,
               "serverAuthorization": False}
@@ -172,6 +251,8 @@ def compare(reference, reference_sha256, candidate, candidate_sha256, source_pat
     # Catch files changed during comparison, including the explicitly selected
     # TSV. Preserve the original pins; never silently accept replacement bytes.
     require(read(source_path, MAX_MANIFEST) == source, "comparison_inputs_changed")
+    if codebook_raw is not None:
+        require(read(codebook_path, CODEBOOK_BYTES) == codebook_raw, "comparison_inputs_changed")
     require(load_index(reference, gold_sha, source)[:2] == (gold, left)
             and load_index(candidate, actual_sha, source)[:2] == (actual, right),
             "comparison_inputs_changed")
@@ -195,21 +276,28 @@ def main(argv=None):
     parser.add_argument("--candidate-manifest", type=Path, required=True)
     parser.add_argument("--candidate-sha256", required=True)
     parser.add_argument("--source", type=Path, required=True)
+    parser.add_argument("--codebook", type=Path, help="Optional canonical pinned OWLv2 PQ128 codebook")
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args(argv)
     # Fresh sibling output only: never write into a reference/candidate folder.
     parent = regular(args.out.absolute().parent, directory=True)
     output = parent / args.out.name
-    for folder in (args.reference_manifest.absolute().parent, args.candidate_manifest.absolute().parent):
+    inputs = [args.reference_manifest, args.candidate_manifest, args.source]
+    if args.codebook is not None:
+        inputs.append(args.codebook)
+    folders = [args.reference_manifest.absolute().parent, args.candidate_manifest.absolute().parent]
+    if args.codebook is not None:
+        folders.append(args.codebook.absolute().parent)
+    for folder in folders:
         require(not output.is_relative_to(folder), "comparison_output_overlaps_input")
-    for input_path in (args.reference_manifest, args.candidate_manifest, args.source):
+    for input_path in inputs:
         require(not input_path.absolute().is_relative_to(output), "comparison_output_overlaps_input")
     output.mkdir(exist_ok=False)
     report = output / "object-index-comparison.json"
     save(report, {"status": "INCOMPLETE", "qualified": False})
     try:
         result = compare(args.reference_manifest, args.reference_sha256,
-                         args.candidate_manifest, args.candidate_sha256, args.source)
+                         args.candidate_manifest, args.candidate_sha256, args.source, args.codebook)
         save(report, result)
         print("Object index comparison complete; this is not contribution approval.")
         return 0
