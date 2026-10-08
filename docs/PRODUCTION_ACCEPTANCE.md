@@ -1,5 +1,20 @@
 # Production acceptance
 
+GitHub Actions spending is on hold at the user's request (8 October 2026).
+Continue local checks without dispatching jobs or triggering paid workflows;
+see the repository's developer instructions. Earlier CI evidence remains valid
+only for its recorded revisions. New local checks do not establish Mac execution.
+
+The [complete Object index comparator](OBJECT_INDEX_COMPARISON.md) adds bounded,
+pinned comparison of stored detection, quality and semantic features. This is
+an offline diagnostic prerequisite, not a trusted inference verifier, a
+reference provenance decision or production qualification.
+
+The [offline recovery soak](RECOVERY_SOAK_20261008.md) completed 24 scheduled
+rounds of 80 existing checks on Windows: no failures/errors, one existing
+permission skip per round. This supports fixture recovery reliability; actual
+accepted work, physical restart, Mac and extended workload gates remain open.
+
 The [Object feature validation and anonymous export repair](OBJECT_FEATURE_VALIDATION_20261006.md)
 adds native record checks across desktop, gateway and snapshots. The shared
 corpus passes actual workerd with eight valid formats and 63 rejected formats;
