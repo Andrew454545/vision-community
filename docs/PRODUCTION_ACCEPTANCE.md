@@ -528,6 +528,14 @@ Confirmed historical catalog/reference provenance limits are recorded in
 
 ## Continuing work
 
+The [9 October cross-platform comparison](OBJECT_CROSS_PLATFORM_20261009.md)
+measures fresh Windows/Mac native outputs on three distinct saved locations,
+including nonempty Hot queries. Detection presence, quality masks, hit order
+and stored PQ codes agree; small score/aiming differences are retained. Native
+LF checkout fixes a content-derived quality identity mismatch. The failed
+16-location Windows timeout and copied-index source-path refusal remain
+preserved. These diagnostics assign no production tolerance or approval.
+
 The [complete-batch acknowledgement repair](DELIVERY_ACKNOWLEDGEMENTS_20261008.md)
 keeps saved Scene/Object payloads after partial or empty fresh success replies,
 while preserving explicit already-published replay. All 58 focused local Windows
