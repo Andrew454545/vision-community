@@ -2,6 +2,7 @@ import { randomHex, sha256Hex, encodeUtf8, SEARCH_COST, viewOffsetsFor, wrapHead
 import { replaySearch, settleSearch, SearchError } from "./searchLedger.js";
 import { SEARCH_CONTRACT_VERSION, querySemantics, validHitObject, exportSearchMap } from "./searchExport.js";
 import { officialGen4Coverage } from "./objectCoverage.js";
+import { searchCost, validSearchQuote } from "./searchPricing.js";
 
 const HEX = /^[0-9a-f]{64}$/;
 const RESPONSE_LIMIT = 4 * 1024 * 1024;
@@ -130,7 +131,7 @@ async function verifiedHits(db, query, hits, processedLocations) {
   return verified;
 }
 
-export async function onlineSearch(env, account, key, query, { allowNew = true } = {}) {
+export async function onlineSearch(env, account, key, query, { allowNew = true, maxCostUnits } = {}) {
   if (typeof key !== "string" || key.length < 8 || key.length > 100) throw new SearchError("invalid_idempotency_key", 400);
   const digest = await searchDigest(query);
   const replay = await replaySearch(env.DB, account, key, digest);
@@ -138,14 +139,21 @@ export async function onlineSearch(env, account, key, query, { allowNew = true }
   // Closing an unqualified lane must not hide an already paid saved result.
   // New execution/debits remain forbidden, before checking engine availability.
   if (!allowNew) throw new SearchError("object_verification_unavailable");
+  const cost = searchCost(env);
+  if (cost === null) throw new SearchError("search_unavailable");
+  // A saved paid result is replayed above, regardless of today's price/quote.
+  // Old clients knew the historical price; they cannot authorize a higher one.
+  const maximum = maxCostUnits === undefined ? SEARCH_COST : maxCostUnits;
+  if (!validSearchQuote(maximum)) throw new SearchError("invalid_search_quote", 400);
+  if (cost > maximum) throw new SearchError("search_price_changed", 409);
   const owner = await env.DB.prepare("SELECT units FROM accounts WHERE id=? AND deleted_at IS NULL").bind(account).first();
   if (!owner) throw new SearchError("unauthorized", 401);
-  if (owner.units < SEARCH_COST) throw new SearchError("insufficient_credit", 402);
+  if (owner.units < cost) throw new SearchError("insufficient_credit", 402);
   const computed = await engineResult(env, query, digest);
   const hits = await verifiedHits(env.DB, query, computed.hits, computed.processedLocations);
   return settleSearch(env.DB, account, key, digest, {
-    searchId: randomHex(16), query: query.queryName, lane: query.lane, results: hits,
+    searchId: randomHex(16), query: query.queryName, lane: query.lane, results: hits, costUnits: cost,
     demo: false, persistImagery: false, local: false,
     map: exportSearchMap(query, hits, computed.processedLocations),
-  }, SEARCH_COST);
+  }, cost);
 }

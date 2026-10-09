@@ -1,7 +1,7 @@
 # Online search with banked credits
 
 The accepted product rule is one banked credit per completed hosted search.
-`SEARCH_COST` remains 100,000 units; scenes earn one and objects earn ten.
+The historical default remains 100,000 units; scenes earn one and objects earn ten.
 Credits have no expiry or cap. An empty, valid result is a completed search.
 Engine errors, invalid results and failed database transactions spend nothing.
 A replay of the same request key and normalized query returns its saved result.
@@ -9,6 +9,38 @@ Changing that query under the same key returns 409 rather than another debit.
 Clients send their expected anonymous `accountId` alongside the request. If
 another sign-in changes the authenticated account during a retry, the Worker
 returns `account_changed` instead of charging the other account.
+
+## Price changes and saved requests
+
+The optional operator variable `SEARCH_COST_UNITS` sets a positive integer
+decimal price. Omit it to retain the historical default. An explicitly empty,
+malformed or unsafe value disables new searches; it never means free search or
+silently falls back to another price. Status reports `searchCost: null` and
+search unavailable, while the balance and already-paid recovery remain intact.
+No override is enabled in the checked-in staging/production configurations.
+
+The website displays the service's `searchCost` and saves it as `maxCostUnits`
+with the request **before** delivery. This field is a spending ceiling, never
+the server's price. The service charges its configured price when that price is
+within the ceiling. A rise above the saved ceiling returns `search_price_changed`
+(409) before inference or debit. The browser preserves the query/key, refreshes
+the price and requires explicit review before increasing the saved ceiling.
+Malformed explicit ceilings return `invalid_search_quote` (400), also without
+inference/debit. Old clients without a ceiling cannot authorize a charge above
+the historical 100,000-unit price.
+
+Pricing is outside the normalized query fingerprint so that the original paid
+reply, ledger debit and banked balance survive price changes. Paid replay runs
+before current price, ceiling, engine and lane availability checks. New results
+record their actual `costUnits`; historic replies are returned unchanged, even
+when they have no such field. A request captures its authorized price before
+inference and uses that same amount for atomic settlement. Repeated requests
+cannot add a debit. No price update rewrites historical balances or debits.
+
+This contract prepares a measured early-release price; it does not establish
+one. Use processing effort **and** representative hosted cost/capacity evidence
+before activating an override. Component fixtures with synthetic balances do
+not prove genuinely earned-credit search or sustainable production pricing.
 
 ## Engine requirements
 

@@ -244,6 +244,20 @@
     </main>
   </div>
 
+  <dialog id="price-review" aria-labelledby="price-review-title">
+    <div class="sheet-head">
+      <strong id="price-review-title">Review search price</strong>
+      <button id="price-review-close" class="icon-btn" type="button" aria-label="Keep request saved">×</button>
+    </div>
+    <div class="contribute">
+      <p class="rail-copy" id="price-review-copy"></p>
+      <div class="recover">
+        <button id="price-review-continue" class="primary" type="button">Continue at current price</button>
+        <button id="price-review-cancel" class="compact-btn" type="button">Keep request saved</button>
+      </div>
+    </div>
+  </dialog>
+
   <footer class="statusbar">
     <span class="stage-dot" id="stage-dot" aria-hidden="true"></span>
     <div class="stage-copy">
@@ -314,13 +328,13 @@
       <div class="progress" role="progressbar" aria-labelledby="progress-label">
         <div id="progress-fill"></div>
       </div>
-      <p id="progress-label">0 of 100,000 toward a search</p>
+      <p id="progress-label">Checking the search price…</p>
       <p class="rail-copy">You can keep contributing after earning a search. Unused search credits stay in your account for later. Save your private account code so you can recover them.</p>
       <p class="rail-copy">Search here in your browser. One completed search uses one banked credit. Failed searches do not spend credits, and retrying the same search recovers its results.</p>
       <div class="balance">
         <span id="units-label">Toward a search</span>
         <strong id="units">0</strong>
-        <small><span id="searches-available">0</span> searches ready · needs <span id="search-cost">100000</span> · <span id="units-need">100,000 more</span></small>
+        <small><span id="searches-available">—</span> searches ready · needs <span id="search-cost">checking…</span> · <span id="units-need">credits stay saved</span></small>
       </div>
       <p class="rail-copy" id="queue-label">Checking remaining work…</p>
 

@@ -7,6 +7,21 @@ const scope = { AbortSignal, crypto };
 runInNewContext(readFileSync(new URL("../../../community/web/service-readiness.js", import.meta.url), "utf8"), scope);
 runInNewContext(readFileSync(new URL("../../../community/web/search-journal.js", import.meta.url), "utf8"), scope);
 const Readiness = scope.VisionServiceReadiness;
+const Pricing = scope.VisionSearchPricing;
+
+test("credit guidance follows the actual price and never treats an absent price as free", () => {
+  assert.equal(Pricing.cost({ searchCost: 100 }), 100);
+  assert.equal(Pricing.canAfford({ searchCost: 100, units: 100 }), true);
+  assert.equal(Pricing.canAfford({ searchCost: 100, units: 99 }), false);
+  assert.match(Pricing.message({ searchCost: 100, units: 90 }), /100 units.*10 more needed/);
+  assert.match(Pricing.message({ searchCost: 200, units: 100 }), /200 units.*100 more needed/);
+  for (const searchCost of [undefined, null, 0, -1, "100", NaN, Infinity, 1.5]) {
+    const status = { searchCost, units: 200000 };
+    assert.equal(Pricing.cost(status), null);
+    assert.equal(Pricing.canAfford(status), false);
+    assert.match(Pricing.message(status), /unavailable.*credits stay saved/);
+  }
+});
 const capabilities = () => ({ version: 1, sceneContributions: {
   ready: true, scope: "audited-new-locations", deviceQualificationRequired: true,
   canaryLocations: 112, verification: "trusted-profile-canary-and-submission-audit",

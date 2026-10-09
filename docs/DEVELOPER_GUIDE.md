@@ -12,7 +12,7 @@ The service stores **panorama metadata and embeddings only**, then outputs
 JSON on map-making.app to view the locations.
 
 Each verified scene location earns 1 unit. Each verified object location earns
-10 units. **One search costs 100,000 units** (100,000 scene locations, or
+10 units. **The default search price is 100,000 units** (100,000 scene locations, or
 10,000 object locations). New accounts start at zero. There is no trial, owner,
 or API bypass.
 
@@ -45,12 +45,14 @@ Windows and Linux still needs a published, validated runtime.
 2. Contribute locations using the local app. Verified scenes earn 1 unit;
    verified object locations earn 10. Pending checks do not earn credits yet.
 3. Use saved credits to search in the browser. One completed online search
-   spends 100,000 units. Retrying the same interrupted request recovers its
+   spends the price shown in your account. Retrying the same interrupted request recovers its
    result without another charge.
    Exported results open in map-making.app. Hosted search is still awaiting its
    validated engine; while unavailable, credits remain saved.
 
-A search needs **100,000 places** (or 10,000 objects). There is no shortcut. An example search is already loaded, so you do not need a JSON file unless you have one from VISION.
+Your account shows the current price and progress toward a search. Unused credit
+stays saved. See [the online pricing contract](../deploy/cloudflare/ONLINE-SEARCH.md)
+for safe price changes and paid-request recovery.
 
 If you were given the project folder and want it to go faster, see [CONTRIBUTING.md](../CONTRIBUTING.md). Most people can ignore that.
 

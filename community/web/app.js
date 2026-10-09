@@ -15,7 +15,9 @@ const ERRORS = {
   service_maintenance: "The service is being updated. Your saved searches and credits are kept. Try again later.",
   rate_limited: "Please wait a minute, then try again. Your saved searches and credits are kept.",
   no_available_work: "No more work is waiting for that choice right now. Try Scene, Objects, or Both.",
-  insufficient_credit: "Keep indexing. A search needs 100,000 scenes (or 10,000 objects).",
+  insufficient_credit: "Keep indexing until the progress bar is full. Your credits stay saved.",
+  search_price_changed: "The search price changed. Your request stays saved. Review the current price before trying again.",
+  invalid_search_quote: "Review the current search price before trying again. Your request stays saved.",
   verification_failed: "That scene could not be checked, so it was not counted.",
   view_unavailable: "Street View did not return that scene, so it was not counted.",
   expired_lease: "That batch timed out. Indexing will take the next one.",
@@ -66,6 +68,31 @@ const VIEW_DIRECTION_LABELS = {
 
 let signedIn = false;
 let state = null;
+let searchPriceReview = null;
+function closePriceReview() {
+  const dialog = $("price-review");
+  if (dialog?.open) dialog.close();
+}
+function showPriceReview(cost) {
+  const dialog = $("price-review");
+  if (!dialog || !searchPriceReview) return;
+  $("price-review-copy").textContent = `The current search price is ${number(cost)} units. Continue at this price? Recovering an already-paid result is free.`;
+  dialog.showModal();
+}
+$("price-review-continue")?.addEventListener("click", () => {
+  if (!searchPriceReview) return;
+  searchPriceReview.approved = true;
+  closePriceReview();
+  $("run-search")?.click();
+});
+$("price-review-cancel")?.addEventListener("click", () => {
+  closePriceReview();
+  $("search-status").textContent = "Your saved search is waiting. Continue when you are ready.";
+});
+$("price-review-close")?.addEventListener("click", () => {
+  closePriceReview();
+  $("search-status").textContent = "Your saved search is waiting. Continue when you are ready.";
+});
 const serviceReadiness = new VisionServiceReadiness();
 let lastProcessAvailability = null;
 let pauseRequested = false;
@@ -245,25 +272,25 @@ function restorePrefs() {
 }
 
 function paintBalance() {
-  const cost = Number(state?.searchCost || 100000);
+  const cost = VisionSearchPricing.cost(state);
   const units = Number(state?.units || 0);
   const need = Math.max(0, cost - units);
-  $("search-cost").textContent = number(cost);
+  $("search-cost").textContent = cost === null ? "checking…" : number(cost);
   $("units").textContent = number(units);
-  $("searches-available").textContent = number(state?.searchesAvailable || Math.floor(units / cost));
+  $("searches-available").textContent = cost === null ? "—" : number(Math.floor(units / cost));
   const fill = $("progress-fill");
   if (fill) fill.style.width = `${Math.min(100, cost ? (units / cost) * 100 : 0)}%`;
   if ($("progress-label")) {
-    $("progress-label").textContent = need === 0
+    $("progress-label").textContent = cost === null ? "Checking the search price…" : need === 0
       ? "Search is unlocked"
       : `${number(units)} of ${number(cost)} toward a search`;
   }
   if ($("units-need")) {
-    $("units-need").textContent = need === 0
+    $("units-need").textContent = cost === null ? "credits stay saved" : need === 0
       ? "search unlocked"
       : `${number(need)} more`;
   }
-  if ($("process").dataset.busy && need === 0) {
+  if ($("process").dataset.busy && cost !== null && need === 0) {
     $("build-label").textContent = "Search is unlocked. Pause to search, or keep indexing for another search.";
   }
 }
@@ -271,8 +298,8 @@ function paintBalance() {
 function applyCredit(unitsEarned) {
   if (!state) state = {};
   state.units = Number(state.units || 0) + Number(unitsEarned || 0);
-  const cost = Number(state.searchCost || 100000);
-  state.searchesAvailable = Math.floor(state.units / cost);
+  const cost = VisionSearchPricing.cost(state);
+  state.searchesAvailable = cost === null ? 0 : Math.floor(state.units / cost);
   paintBalance();
   updateReady();
 }
@@ -802,7 +829,7 @@ function updateReady() {
   const generationReady = selectedGenerations().length > 0;
   const onSite = state?.searchOnSite === true;
   const hasInput = hasQueryInput();
-  const credited = Number(state?.units || 0) >= Number(state?.searchCost || Infinity);
+  const credited = VisionSearchPricing.canAfford(state);
   let pending = false;
   try { pending = signedIn && !!searchJournal.read(state?.accountId); } catch { /* Run reports the recovery problem. */ }
   const ready = serviceReadiness.canSearch(pending) && (pending || (hasInput && includeReady && generationReady && signedIn && credited && onSite));
@@ -910,6 +937,7 @@ async function refresh(options = {}) {
   $("site-description").textContent = testSite ? "Test website · separate accounts and credits" : "Scene and object search";
   document.title = testSite ? "VISION — Test website" : "VISION";
   if (previous?.accountId !== state.accountId) {
+    searchPriceReview = null;
     lastMap = null;
     $("results").replaceChildren();
     showResultActions(false);
@@ -932,11 +960,12 @@ async function refresh(options = {}) {
   const cutoff = $("import-cutoff");
   if (cutoff && cutoff.options[0]) cutoff.options[0].textContent = `All imports · ${number(indexed)} locations`;
   paintBalance();
-  const need = Math.max(0, Number(state.searchCost || 0) - Number(state.units || 0));
+  const cost = VisionSearchPricing.cost(state);
+  const need = cost === null ? null : Math.max(0, cost - Number(state.units || 0));
   if (!signedIn) {
     $("search-status").textContent = "Choose My account and enter your saved code to see your credits.";
   } else if (!lastMap) {
-    $("search-status").textContent = state.searchOnSite !== true ? ERRORS.search_unavailable
+    $("search-status").textContent = cost === null ? VisionSearchPricing.message(state) : state.searchOnSite !== true ? ERRORS.search_unavailable
       : need === 0 ? "Ready to search online using your saved credits."
         : `${number(indexed)} indexed locations · ${number(need)} more until Search unlocks.`;
   }
@@ -1520,9 +1549,9 @@ $("run-search").addEventListener("click", async () => {
     updateReady();
     return;
   }
-  const credited = Number(state?.units || 0) >= Number(state?.searchCost || Infinity);
+  const credited = VisionSearchPricing.canAfford(state);
   if (!credited && !pending) {
-    $("search-status").textContent = "Keep indexing until the bar is full. A search needs 100,000 scenes, or 10,000 objects.";
+    $("search-status").textContent = VisionSearchPricing.message(state);
     updateReady();
     return;
   }
@@ -1534,7 +1563,19 @@ $("run-search").addEventListener("click", async () => {
   let savedRequest;
   const searchAccount = state.accountId;
   try {
+    if (pending && searchPriceReview?.accountId === searchAccount
+        && searchPriceReview.idempotencyKey === pending.idempotencyKey) {
+      const cost = VisionSearchPricing.cost(state);
+      if (cost === null) throw new Error("search_unavailable");
+      if (!searchPriceReview.approved) {
+        showPriceReview(cost);
+        return;
+      }
+      searchJournal.approvePrice(searchAccount, pending.idempotencyKey, cost);
+      searchPriceReview = null;
+    }
     savedRequest = searchJournal.prepare(searchAccount, {
+      maxCostUnits: VisionSearchPricing.cost(state),
       lane: selectedLane(),
       queryMap: queryMap || undefined,
       prompt: typedPrompt() || undefined,
@@ -1587,6 +1628,12 @@ $("run-search").addEventListener("click", async () => {
     searchJournal.complete(searchAccount, savedRequest.body.idempotencyKey, result);
     await refresh();
   } catch (error) {
+    if (["search_price_changed", "invalid_search_quote"].includes(error.message) && savedRequest) {
+      searchPriceReview = { accountId: searchAccount, idempotencyKey: savedRequest.body.idempotencyKey };
+      try { await refresh(); } catch { /* The pending request and old quote stay saved. */ }
+      $("search-status").textContent = `${explain(error)} ${VisionSearchPricing.message(state)} Choose Recover search to review the price.`;
+      return;
+    }
     if (error.status === 400 && savedRequest) searchJournal.complete(searchAccount, savedRequest.body.idempotencyKey);
     $("search-status").textContent = `Search stopped: ${explain(error)}`;
   } finally {
@@ -1645,8 +1692,7 @@ refresh().then(() => {
 document.addEventListener("visibilitychange", async () => {
   if (!$("process").dataset.busy) return;
   if (document.hidden) {
-    const need = Math.max(0, Number(state?.searchCost || 100000) - Number(state?.units || 0));
-    if (need > 0) {
+    if (!VisionSearchPricing.canAfford(state)) {
       $("build-label").textContent = "Bring this tab to the front — indexing slows in the background.";
     }
     return;
