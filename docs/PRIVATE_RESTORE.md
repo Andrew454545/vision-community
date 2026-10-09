@@ -5,6 +5,11 @@ an automatic Cloudflare restore. It prepares a new private SQLite copy, leaves
 the original backup unchanged and never contacts Cloudflare, R2 or a user.
 Its completion report deliberately says `liveReady: false`.
 
+Use the separate [privacy-storage recovery check](PRIVACY_STORAGE_RECOVERY.md)
+for actual cached deletion archive and permanent fence bytes from a recovered
+bucket. It requires an independently trusted current export after outbox
+completion; the intermediate repaired database is not that authority.
+
 Restoring an old database can restore revoked credentials and saved searches.
 Before any restored database becomes accessible, reapply every deletion recorded
 after the backup. The deletion record must come from a separate, current trusted

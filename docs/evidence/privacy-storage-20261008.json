@@ -1,0 +1,20 @@
+{
+  "scope": "offline-community-privacy-storage",
+  "platform": "macOS 27.0.1 arm64",
+  "node": "22.20.0",
+  "baseRevision": "7b9df80ac4933a0843cc14030cca2ff18f262dbf",
+  "focusedTests": {"passed": 52, "failed": 0, "skipped": 0},
+  "serviceTests": {"passed": 385, "failed": 0, "skipped": 0},
+  "failuresPreserved": [
+    "Initial missing-receipt fault fixture was blocked by its own SQLite foreign key; fixture corrected without disabling foreign keys",
+    "Initial full suite had one sandbox loopback EPERM; unchanged suite passed with local networking allowed"
+  ],
+  "actualWorkerDeletionArchiveAndCleanupBytesTested": true,
+  "lateInputChangesRefused": true,
+  "closedWalModeExportTested": true,
+  "cloudflareContacted": false,
+  "githubActionsRun": false,
+  "liveReady": false,
+  "productionQualified": false,
+  "creditRecoveryVerified": false
+}
