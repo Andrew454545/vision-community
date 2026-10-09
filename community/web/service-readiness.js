@@ -54,3 +54,20 @@ class VisionServiceReadiness {
   }
 }
 globalThis.VisionServiceReadiness = VisionServiceReadiness;
+
+globalThis.VisionSearchPricing = Object.freeze({
+  cost(status) {
+    return Number.isSafeInteger(status?.searchCost) && status.searchCost > 0 ? status.searchCost : null;
+  },
+  canAfford(status) {
+    const cost = this.cost(status);
+    return cost !== null && Number.isSafeInteger(status?.units) && status.units >= cost;
+  },
+  message(status) {
+    const cost = this.cost(status);
+    if (cost === null) return "The search price is unavailable. Your credits stay saved.";
+    const units = Number.isSafeInteger(status?.units) && status.units >= 0 ? status.units : 0;
+    const need = Math.max(0, cost - units);
+    return `A search costs ${cost.toLocaleString()} units.${need ? ` Keep indexing: ${need.toLocaleString()} more needed.` : " You have enough saved credit."}`;
+  },
+});

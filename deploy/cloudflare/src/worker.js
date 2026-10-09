@@ -1,5 +1,5 @@
 import {
-  MODEL_ID, SEARCH_COST, UNITS, LEASE_SECONDS, MAX_LEASE, RECOVERY_PEPPER, SCENE_DIM,
+  MODEL_ID, UNITS, LEASE_SECONDS, MAX_LEASE, RECOVERY_PEPPER, SCENE_DIM,
   OBJECT_PROPOSALS, OBJECT_DIM,
   sha256Hex, encodeUtf8, equalHex, seedBytes, renderFacesFromSeed, embeddingFor,
   outputDigest,
@@ -16,6 +16,7 @@ import { ingressLimit, accountLimit, viewLimit, ApiLimitError } from './apiRateL
 import { OBJECT_INDEX_MODEL, validateObjectIndex } from "./objectIndex.js";
 import { onlineSearch, onlineSearchConfigured, INDEX_DOWNLOAD_ROUTES } from "./onlineSearch.js";
 import { SearchError } from "./searchLedger.js";
+import { searchCost } from "./searchPricing.js";
 import { deleteAccount, cleanupAccountArtifacts, archiveAccountDeletionReceipts } from "./accountPrivacy.js";
 import { writeSceneArtifact } from "./artifactWrites.js";
 import { officialGen4Coverage, objectCoverageComplete } from "./objectCoverage.js";
@@ -204,6 +205,7 @@ async function accountId(env, request) {
 }
 
 async function status(env, account, options = {}) {
+  const cost = searchCost(env);
   const lite = Boolean(options.lite);
   const rows = await env.DB.prepare(
     `SELECT lane,
@@ -239,10 +241,10 @@ async function status(env, account, options = {}) {
     r2: lite
       ? { provisioned: Boolean(env.INDEX), bucket: env.INDEX ? env.INDEX_BUCKET_NAME || "vision-community" : null, binding: "INDEX", publicAccess: false, role: "sealed-segments" }
       : await r2Status(env),
-    searchCost: SEARCH_COST,
+    searchCost: cost,
     searchBackend: "online",
-    searchOnSite: onlineSearchConfigured(env),
-    searchReady: onlineSearchConfigured(env),
+    searchOnSite: cost !== null && onlineSearchConfigured(env),
+    searchReady: cost !== null && onlineSearchConfigured(env),
     indexDownloads: false,
     accountDeletionAvailable: true,
     model: MODEL_ID,
@@ -269,7 +271,7 @@ async function status(env, account, options = {}) {
     const row = await env.DB.prepare("SELECT units FROM accounts WHERE id=?").bind(account).first();
     result.accountId = account;
     result.units = row?.units || 0;
-    result.searchesAvailable = Math.floor(result.units / SEARCH_COST);
+    result.searchesAvailable = cost === null ? 0 : Math.floor(result.units / cost);
     if (!lite) {
       const sceneWork = await workStatus(env, account, "scene");
       const objectWork = await workStatus(env, account, "object");
@@ -1144,7 +1146,7 @@ async function search(env, account, body, objectPrototype = false) {
     rejectRoadNames: body.rejectRoadNames === true, minimumGlobalLocation: body.minimumGlobalLocation ?? null,
   };
   try { return json(await onlineSearch(env, account, body.idempotencyKey, query,
-    { allowNew: lane !== "object" || objectPrototype })); }
+    { allowNew: lane !== "object" || objectPrototype, maxCostUnits: body.maxCostUnits })); }
   catch (failure) {
     if (failure instanceof SearchError) return error(failure.code, failure.status);
     throw failure;

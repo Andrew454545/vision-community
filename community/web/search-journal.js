@@ -38,6 +38,17 @@ globalThis.VisionSearchJournal = class {
     catch { throw new Error("search_storage_unavailable"); }
     return { body, recovering: false };
   }
+  approvePrice(account, key, maxCostUnits) {
+    const pending = this.read(account);
+    if (!pending || pending.idempotencyKey !== key) throw new Error("search_recovery_invalid");
+    if (!Number.isSafeInteger(maxCostUnits) || maxCostUnits <= 0) throw new Error("invalid_search_quote");
+    // Only explicit user consent can raise the quote. Preserve the request key
+    // and query so a concurrent/already-paid result still replays for free.
+    const body = { ...pending, maxCostUnits };
+    try { this.storage.setItem(this.key(account), JSON.stringify(body)); }
+    catch { throw new Error("search_storage_unavailable"); }
+    return body;
+  }
   result(account) {
     if (this.storage.getItem(`vision-community-deleted:${account}`)) return null;
     const saved = this.storage.getItem(`${this.key(account)}:result`);

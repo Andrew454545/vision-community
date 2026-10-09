@@ -45,6 +45,123 @@ function fixture(t, units = 200000) {
 function balance(sql) { return sql.prepare("SELECT units FROM accounts WHERE id='anonymous'").get().units; }
 function count(sql, table) { return sql.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get().n; }
 
+test("the configured current price is charged once, rather than the browser's maximum", async t => {
+  const { sql, env, query } = fixture(t, 120);
+  env.SEARCH_COST_UNITS = "100";
+  const result = await onlineSearch(env, "anonymous", "quoted-new-price", query, { maxCostUnits: 110 });
+  assert.equal(result.costUnits, 100);
+  assert.equal(balance(sql), 20);
+  assert.equal(sql.prepare("SELECT units FROM ledger").get().units, -100);
+  env.SEARCH_COST_UNITS = "200";
+  delete env.SEARCH_ENGINE;
+  assert.deepEqual(await onlineSearch(env, "anonymous", "quoted-new-price", query, { maxCostUnits: 1 }), result);
+  assert.equal(balance(sql), 20);
+  assert.equal(count(sql, "ledger"), 1);
+});
+
+test("a stale maximum refuses inference and debit, then explicit review can reuse the saved key", async t => {
+  const { sql, env, query } = fixture(t, 500);
+  env.SEARCH_COST_UNITS = "200";
+  let calls = 0;
+  const engine = env.SEARCH_ENGINE.fetch;
+  env.SEARCH_ENGINE.fetch = request => { calls++; return engine(request); };
+  await assert.rejects(onlineSearch(env, "anonymous", "stale-price-key", query, { maxCostUnits: 100 }),
+    error => error.code === "search_price_changed" && error.status === 409);
+  assert.equal(calls, 0);
+  assert.equal(balance(sql), 500);
+  assert.equal(count(sql, "searches"), 0);
+  assert.equal(count(sql, "ledger"), 0);
+  const result = await onlineSearch(env, "anonymous", "stale-price-key", query, { maxCostUnits: 200 });
+  assert.equal(result.costUnits, 200);
+  assert.equal(calls, 1);
+  assert.equal(balance(sql), 300);
+  assert.deepEqual(await onlineSearch(env, "anonymous", "stale-price-key", query, { maxCostUnits: 100 }), result);
+  assert.equal(calls, 1);
+});
+
+test("malformed quotes and invalid configured prices fail before engine work without losing paid replay", async t => {
+  const { sql, env, query } = fixture(t);
+  let calls = 0;
+  const engine = env.SEARCH_ENGINE.fetch;
+  env.SEARCH_ENGINE.fetch = request => { calls++; return engine(request); };
+  for (const maxCostUnits of [null, true, "100000", 0, -1, 1.5, Infinity, Number.MAX_SAFE_INTEGER + 1]) {
+    await assert.rejects(onlineSearch(env, "anonymous", "invalid-quote-key", query, { maxCostUnits }),
+      error => error.code === "invalid_search_quote" && error.status === 400);
+  }
+  assert.equal(calls, 0);
+  const result = await onlineSearch(env, "anonymous", "original-price-key", query);
+  assert.equal(result.costUnits, 100000);
+  const savedBytes = sql.prepare("SELECT result_json FROM searches").get().result_json;
+  for (const value of ["", "0", "1e2", "9007199254740992"]) {
+    env.SEARCH_COST_UNITS = value;
+    await assert.rejects(onlineSearch(env, "anonymous", "invalid-config-key", query), /search_unavailable/);
+    assert.deepEqual(await onlineSearch(env, "anonymous", "original-price-key", query, { maxCostUnits: null }), result);
+  }
+  assert.equal(calls, 1);
+  assert.equal(balance(sql), 100000);
+  assert.equal(count(sql, "ledger"), 1);
+  assert.equal(sql.prepare("SELECT result_json FROM searches").get().result_json, savedBytes);
+});
+
+test("legacy unquoted clients cannot be silently charged above the old known price", async t => {
+  const { sql, env, query } = fixture(t, 500000);
+  env.SEARCH_COST_UNITS = "200000";
+  const engine = env.SEARCH_ENGINE.fetch;
+  env.SEARCH_ENGINE.fetch = () => { throw Error("unapproved inference"); };
+  await assert.rejects(onlineSearch(env, "anonymous", "legacy-price-key", query), /search_price_changed/);
+  assert.equal(balance(sql), 500000);
+  assert.equal(count(sql, "ledger"), 0);
+  env.SEARCH_ENGINE.fetch = engine;
+  env.SEARCH_COST_UNITS = "100";
+  assert.equal((await onlineSearch(env, "anonymous", "legacy-price-key", query)).costUnits, 100);
+  assert.equal(balance(sql), 499900);
+});
+
+test("old paid replies retain their exact original bytes and debit after a price change", async t => {
+  const { sql, env, query } = fixture(t);
+  const old = { searchId: "e".repeat(32), lane: "scene", results: [], map: { customCoordinates: [] } };
+  await settleSearch(env.DB, "anonymous", "historic-paid-key", await searchDigest(query), old, 100000);
+  const before = sql.prepare("SELECT result_json FROM searches").get().result_json;
+  env.SEARCH_COST_UNITS = "100";
+  delete env.SEARCH_ENGINE;
+  assert.deepEqual(await onlineSearch(env, "anonymous", "historic-paid-key", query, { maxCostUnits: 100 }), old);
+  assert.equal(sql.prepare("SELECT result_json FROM searches").get().result_json, before);
+  assert.equal(sql.prepare("SELECT units FROM ledger").get().units, -100000);
+  assert.equal(balance(sql), 100000);
+});
+
+test("the authorized price is captured before inference and cannot drift before settlement", async t => {
+  const { sql, env, query } = fixture(t, 500);
+  env.SEARCH_COST_UNITS = "100";
+  const engine = env.SEARCH_ENGINE.fetch;
+  env.SEARCH_ENGINE.fetch = request => { env.SEARCH_COST_UNITS = "500"; return engine(request); };
+  const result = await onlineSearch(env, "anonymous", "price-during-flight", query, { maxCostUnits: 100 });
+  assert.equal(result.costUnits, 100);
+  assert.equal(balance(sql), 400);
+  assert.equal(sql.prepare("SELECT units FROM ledger").get().units, -100);
+});
+
+test("concurrent configured-price requests preserve the last balance and once-only debit", async t => {
+  const { sql, env, query } = fixture(t, 100);
+  env.SEARCH_COST_UNITS = "100";
+  const duplicate = await Promise.all([
+    onlineSearch(env, "anonymous", "new-price-duplicate", query, { maxCostUnits: 100 }),
+    onlineSearch(env, "anonymous", "new-price-duplicate", query, { maxCostUnits: 200 }),
+  ]);
+  assert.deepEqual(duplicate[0], duplicate[1]);
+  assert.equal(balance(sql), 0);
+  assert.equal(count(sql, "ledger"), 1);
+  sql.prepare("UPDATE accounts SET units=100 WHERE id='anonymous'").run();
+  const different = await Promise.allSettled([
+    onlineSearch(env, "anonymous", "new-price-distinct-one", query, { maxCostUnits: 100 }),
+    onlineSearch(env, "anonymous", "new-price-distinct-two", query, { maxCostUnits: 100 }),
+  ]);
+  assert.equal(different.filter(r => r.status === "fulfilled").length, 1);
+  assert.equal(different.find(r => r.status === "rejected").reason.code, "insufficient_credit");
+  assert.equal(balance(sql), 0);
+  assert.equal(count(sql, "ledger"), 2);
+});
+
 test("closed object admission still recovers an owned paid result without inference or a debit", async t => {
   const { sql,env,query }=fixture(t);
   query.lane="object";

@@ -12,6 +12,31 @@ function fixture() {
   return { create: () => new scope.VisionSearchJournal(storage), storage };
 }
 
+test("price review never silently raises a saved quote or replaces its query and request key", () => {
+  const { create } = fixture(), account = "a".repeat(32);
+  const first = create().prepare(account, { prompt: "red door", maxCostUnits: 100 });
+  assert.equal(create().prepare(account, { prompt: "changed query", maxCostUnits: 500 }).body.maxCostUnits, 100);
+  const approved = create().approvePrice(account, first.body.idempotencyKey, 500);
+  assert.equal(approved.idempotencyKey, first.body.idempotencyKey);
+  assert.equal(approved.prompt, "red door");
+  assert.equal(approved.accountId, account);
+  assert.equal(approved.maxCostUnits, 500);
+  assert.equal(JSON.stringify(create().prepare(account, {}).body), JSON.stringify(approved));
+});
+
+test("failed price approval preserves the original request, including storage and account fences", () => {
+  const { create, storage } = fixture(), account = "a".repeat(32);
+  const first = create().prepare(account, { prompt: "red door", maxCostUnits: 100 });
+  for (const price of [null, true, "200", 0, -1, Infinity, 1.5]) {
+    assert.throws(() => create().approvePrice(account, first.body.idempotencyKey, price), /invalid_search_quote/);
+  }
+  assert.throws(() => create().approvePrice(account, "unrelated-key", 200), /search_recovery_invalid/);
+  assert.throws(() => create().approvePrice("b".repeat(32), first.body.idempotencyKey, 200), /search_recovery_invalid/);
+  storage.setItem = () => { throw Error("disk full"); };
+  assert.throws(() => create().approvePrice(account, first.body.idempotencyKey, 200), /search_storage_unavailable/);
+  assert.equal(JSON.stringify(create().read(account)), JSON.stringify(first.body));
+});
+
 test("lost search response is recovered with the same key and exact original query after restart", () => {
   const { create } = fixture();
   const account = "a".repeat(32);
