@@ -122,3 +122,11 @@ links and a closed WAL-mode export. This does not validate live R2 credentials,
 durability, inventory completeness outside the trusted snapshot, service
 reopening or recovery of accepted work and credits. Complete the remaining
 [production recovery acceptance](PRODUCTION_ACCEPTANCE.md) before reopening.
+
+The integrated tool also passes local Windows validation: 53 focused checks
+and 386 complete service checks pass, with two explicit file-symlink privilege
+skips. Directory-junction source/cache rejection and database sidecars are
+tested separately without that privilege. The original privilege failures are
+preserved; no security setting was changed. See the
+[Windows evidence](evidence/privacy-storage-windows-20261009.json) and the
+[original Mac evidence](evidence/privacy-storage-20261008.json).
