@@ -287,6 +287,14 @@ database, 128 MiB per catalog, 100,000 publications, 200,000 checked files and
 
 ## Remaining recovery requirements
 
+The [credit recovery comparison](CREDIT_RECOVERY.md) now checks the proposed
+recovered SQLite state against separately pinned historical and independently
+trusted current snapshots. It detects missing post-backup work/debits, duplicate
+awards, altered paid-result replay and credential rollback. It is read-only;
+financial replay/import, durable independent authority and actual provider
+readback remain operator requirements. Do not treat the intermediate privacy
+repair as current financial authority.
+
 Preserve permanent R2 privacy markers and scene write intents across restore.
 Stop/drain old unconditional writers and retain only compatible create-only
 writers before reopening. Removing a marker, restoring private bytes over it,

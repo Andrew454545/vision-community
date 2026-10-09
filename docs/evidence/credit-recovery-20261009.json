@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "recordedDate": "2026-10-09",
+  "platform": {
+    "os": "macOS 27.0.1",
+    "architecture": "arm64",
+    "node": "22.20.0"
+  },
+  "baseRevision": "979c822",
+  "sourcePins": {
+    "deploy/cloudflare/tools/credit-recovery.mjs": "2ba7c0c22dbeb094177bb1dbd4a09787edad95c14a9358b5d153cab655b9d918",
+    "deploy/cloudflare/src/creditRecovery.test.mjs": "05e84ec197f06511bc26cbc8e3d294edd5cbdf595ab6ede1002795cec4e8f2be"
+  },
+  "focused": {
+    "tests": 26,
+    "passed": 26,
+    "failed": 0,
+    "skipped": 0,
+    "durationMs": 1429.870084
+  },
+  "service": {
+    "tests": 414,
+    "passed": 414,
+    "failed": 0,
+    "skipped": 0,
+    "durationMs": 5036.455667
+  },
+  "preservedFailure": {
+    "scope": "initial full service suite in restricted sandbox",
+    "passed": 413,
+    "failed": 1,
+    "reason": "Existing localhost HTTP fixture: listen EPERM 127.0.0.1",
+    "recovery": "Unchanged full suite passed with local networking allowed"
+  },
+  "syntheticPublicationsOnly": true,
+  "actualSearchSettlementAndDeletionFunctions": true,
+  "nativeInferenceRun": false,
+  "actionsRun": false,
+  "providerWrites": false,
+  "liveReady": false,
+  "productionQualified": false,
+  "creditRecoveryVerified": false,
+  "providerRecoveryVerified": false,
+  "priorSuccessfulValidation": {
+    "focusedDurationMs": 15403.477125,
+    "serviceDurationMs": 4500.218708,
+    "testSourceSha256": "e5b2ec5fb214723960f587975bec71fb2e3ed382d065b3ccd173affc48ef9589"
+  },
+  "finalTestPathUsesFileURLToPath": true
+}

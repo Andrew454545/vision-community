@@ -63,6 +63,11 @@ and private staging readback pass. Status reads cannot prolong idle compute.
 Whole-account billing, realistic capacity and full production recovery remain
 part of the production-operations exit gate.
 
+The [offline credit recovery comparison](CREDIT_RECOVERY.md) supplies the
+post-backup accounting checker, including preserved work/debit history, exact
+paid-result replay and account/credential state. Its synthetic local tests do
+not close the full live storage/secret/credit recovery gate.
+
 ## External resources, not engineering approval
 
 No further owner-side engineering sign-off or Actions budget is requested.
