@@ -504,6 +504,8 @@ they do not satisfy the actual restart, accepted-work or endurance gates below.
   All 52 focused checks and 385 local service checks pass on Apple-silicon Mac;
   the initial sandbox-only loopback refusal is preserved. This does not prove
   live R2 restoration, contribution/native-bundle recovery or secret rotation.
+  Integration also passes 386 local Windows service checks, with two explicit
+  file-symlink privilege skips; separate directory-junction checks pass.
 - [ ] Reconcile credits and searches earned/spent after backup without replay
   awards or duplicate debits. The offline financial comparison detects changed
   balances, earnings/debits, replay keys and saved responses against a separately

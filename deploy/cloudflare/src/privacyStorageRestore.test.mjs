@@ -57,6 +57,16 @@ function fails(options, fn = checkPrivacyStorage) {
   assert.throws(() => fn(options));
   assert.equal(existsSync(join(options.out, fn === checkPrivacyStorage ? "privacy-storage-report.json" : "privacy-plan-report.json")), false);
 }
+function fileLink(t, target, path) {
+  try { symlinkSync(target, path, "file"); return true; }
+  catch (error) {
+    if (process.platform === "win32" && ["EPERM", "EACCES"].includes(error.code)) {
+      t.skip("Windows file-symlink privilege is unavailable; directory-junction checks run separately");
+      return false;
+    }
+    throw error;
+  }
+}
 for (const environment of ["production", "staging"]) test(`independently cached privacy bytes verify for ${environment} without live approval`, t => {
   const options = setup(t, undefined, environment), original = readFileSync(options.current), result = checkPrivacyStorage(options);
   assert.equal(result.complete, true); assert.equal(result.objectsVerified, true);
@@ -129,7 +139,7 @@ for (const mode of ["missing", "changed", "truncated", "linked"]) test(`cached p
   if (mode === "changed") writeFileSync(p, "changed");
   if (mode === "truncated") truncateSync(p, 2);
   if (mode === "missing") rmSync(p);
-  if (mode === "linked") { rmSync(p); symlinkSync(options.current, p); }
+  if (mode === "linked") { rmSync(p); if (!fileLink(t, options.current, p)) return; }
   fails(options);
 });
 test("a repinned plan cannot omit an object present in the pinned current database", t => {
@@ -140,10 +150,24 @@ test("changed source database and existing output cannot be overwritten", t => {
   const options = setup(t); writeFileSync(join(options.root, "plan/current.sqlite"), "changed private database"); fails(options);
   const original = readFileSync(options.inventory); fails({ ...options, out: options.cache }); assert.deepEqual(readFileSync(options.inventory), original);
 });
-test("linked source and database sidecars fail before a successful report", t => {
+test("database sidecars fail before a successful report", t => {
   const options = fixture(t); writeFileSync(options.current + "-wal", "unhashed WAL"); fails(options, planPrivacyStorage);
-  rmSync(options.current + "-wal"); const link = join(options.root, "alias.sqlite"); symlinkSync(options.current, link);
+});
+test("linked source fails before a successful report", t => {
+  const options = fixture(t), link = join(options.root, "alias.sqlite");
+  if (!fileLink(t, options.current, link)) return;
   fails({ ...options, current: link, out: join(options.root, "linked-plan") }, planPrivacyStorage);
+});
+test("a linked database parent is refused without file-symlink privilege", t => {
+  const options = fixture(t), source = join(options.root, "source"), alias = join(options.root, "source-alias");
+  mkdirSync(source); writeFileSync(join(source, "current.sqlite"), readFileSync(options.current));
+  symlinkSync(source, alias, "junction");
+  fails({ ...options, current: join(alias, "current.sqlite") }, planPrivacyStorage);
+});
+test("a linked cache directory is refused without file-symlink privilege", t => {
+  const options = setup(t), alias = join(options.root, "cache-alias");
+  symlinkSync(options.cache, alias, "junction");
+  fails({ ...options, cache: alias });
 });
 test("closed WAL-mode export remains read-only and creates no sidecars", t => {
   const options = fixture(t, sql => sql.exec("PRAGMA journal_mode=WAL")); planPrivacyStorage(options);
