@@ -1,8 +1,8 @@
 # Verify credits and paid results after restoring a backup
 
 This is an **operator-only offline check**, not a volunteer setup step. It reads
-three closed SQLite snapshots, makes no provider calls, and changes no balance,
-credential, publication or database. It supplies the accounting comparison that
+three closed SQLite snapshots, makes no provider calls, and leaves their balance,
+credential, publication and database bytes unchanged. It supplies the accounting comparison that
 must pass before a restored service can reopen.
 
 The snapshots have distinct roles:
@@ -61,9 +61,16 @@ node deploy/cloudflare/tools/credit-recovery.mjs --environment staging --backup 
 ```
 
 Use `production` only for independently confirmed production snapshots. The
-destination must be new and its parent must exist. The tool opens databases
-read-only and writes only a private aggregate completion or failure report.
-All inputs are checked again before the completion marker is written.
+destination must be new and its parent must exist. The tool makes three private,
+checksum-verified copies and queries those copies read-only. It checks the
+originals and copies again before writing an aggregate completion report last.
+A failed attempt retains its copies and a redacted failure report.
+
+The output's `backup.private.sqlite`, `current.private.sqlite` and
+`recovered.private.sqlite` contain the same sensitive credentials and saved
+searches as the inputs. Keep the entire directory private and out of GitHub.
+Allow up to 1.5 GiB of additional disk space for the three bounded copies.
+Never reuse a failed or completed output directory.
 
 It verifies:
 
@@ -122,3 +129,20 @@ It includes all 26 new accounting checks; the new file-symlink case is one of
 those skips. This is a separate platform integration result, with its retained
 log checksum in [the Windows receipt](evidence/credit-recovery-windows-integration-20261009.json).
 No production export, provider write or GitHub Actions run was performed.
+
+The subsequent pinned-input fix closes a reproduced race: the original checker
+could read a temporary source WAL containing different paid results, then accept
+the original main-file checksum after that WAL disappeared. It now queries only
+new, bounded, checksum-verified private copies, rechecks them before completion,
+and hashes the exact bounded authority bytes it parses. The owned copies use
+[SQLite's immutable read mode](https://www.sqlite.org/uri.html#uriimmutable),
+so a closed WAL-mode export does not create new journal files during inspection.
+Never apply that mode to a live database with writers.
+
+Windows x64 / Node 24.19.0 passes **56 of 57** focused credit, privacy-repair and
+SQL-preparation checks, with one existing file-symlink permission skip and no
+failures. This includes 30 credit cases covering the transient WAL, changed
+copies, closed WAL-mode inputs and escaped paths. The old checker reproduction
+and an intermediate closed-WAL failure remain retained separately. The changed
+component has not been rerun on Mac, and no actual private database was copied.
+See [the supplemental evidence](evidence/credit-recovery-pinned-inputs-20261009.json).

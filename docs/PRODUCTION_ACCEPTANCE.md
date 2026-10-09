@@ -35,6 +35,12 @@ checks; the historical default price is unchanged. The complete recorded local
 Windows service suite passes 448/451 tests with three permission skips and no
 failures. Genuine earned-credit search and production recovery remain open.
 
+The [offline credit-recovery checker](CREDIT_RECOVERY.md) now rejects a
+reproduced transient-source-WAL mismatch by querying pinned private copies.
+The affected Windows restore selection passes 56/57 checks with one existing
+permission skip. Full private-data/provider recovery and the changed component's
+Mac recheck remain open; the original failed reproduction is preserved.
+
 The [Windows windowless-process follow-up](WINDOWS_CONSOLE_RECOVERY_20261009.md)
 passes 157 affected local checks, including an actual GUI-parent/no-console
 probe, and retires four terminal legacy Scene test tasks with reports preserved.

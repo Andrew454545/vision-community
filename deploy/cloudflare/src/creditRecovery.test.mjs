@@ -77,9 +77,11 @@ test('three pinned snapshots reconcile post-backup work, search debit, rotation 
   const result=checkCreditRecovery(f.options);
   assert.equal(result.accountingCopyVerified,true); assert.equal(result.liveReady,false);
   assert.equal(result.creditRecoveryVerified,false);assert.equal(result.productionQualified,false);
+  assert.equal(result.pinnedCopiesVerified,true);assert.equal(result.sourceCopiesRetained,true);
   assert.equal(result.postBackupEarnedUnits,'1');assert.equal(result.postBackupSearchUnits,'-2');
   assert.equal(result.postBackupLedgerEntries,2);assert.equal(result.creditedPublications,4);
   assert.equal(result.savedPaidSearches,2);assert.deepEqual([f.backup,f.current,f.recovered].map(sha),before);
+  assert.deepEqual(['backup','current','recovered'].map(name=>sha(join(f.options.out,`${name}.private.sqlite`))),before);
 });
 
 test('actual saved settlement replays after reopening without another debit or ledger row',async t=>{
@@ -176,6 +178,28 @@ test('unclosed WAL/journal snapshots are rejected',async t=>{
   assert.throws(()=>checkCreditRecovery(f.options),/snapshot_has_sidecars/);
 });
 
+test('closed WAL-mode snapshots use isolated copies and retain unchanged original bytes',async t=>{
+  const f=await fixture(t);
+  for(const file of [f.backup,f.current,f.recovered]){
+    const db=open(t,file);db.exec('PRAGMA journal_mode=WAL');db.close();
+    assert.equal(existsSync(file+'-wal'),false);assert.equal(existsSync(file+'-shm'),false);
+  }
+  repin(f);
+  const before=[f.backup,f.current,f.recovered].map(sha);
+  assert.equal(checkCreditRecovery(f.options).pinnedCopiesVerified,true);
+  assert.deepEqual([f.backup,f.current,f.recovered].map(sha),before);
+  for(const name of ['backup','current','recovered']){
+    assert.equal(existsSync(join(f.options.out,`${name}.private.sqlite-wal`)),false);
+    assert.equal(existsSync(join(f.options.out,`${name}.private.sqlite-shm`)),false);
+  }
+});
+
+test('private copy paths containing URI punctuation retain the intended destination',async t=>{
+  const f=await fixture(t);f.options.out=join(f.p,'report #&% space');
+  assert.equal(checkCreditRecovery(f.options).pinnedCopiesVerified,true);
+  assert.equal(sha(join(f.options.out,'recovered.private.sqlite')),f.options.recoveredSha256);
+});
+
 test('linked input snapshots are rejected',async t=>{
   const f=await fixture(t),linked=join(f.p,'linked.sqlite');
   try{symlinkSync(f.current,linked);}catch(e){if(process.platform==='win32'&&e.code==='EPERM'){t.skip('file symlink privilege unavailable');return;}throw e;}
@@ -202,6 +226,61 @@ test('a pinned authority changed during database verification cannot obtain a co
   assert.equal(changed,true);assert.equal(existsSync(join(f.options.out,'credit-recovery-report.json')),false);
 });
 
+test('a transient source WAL cannot supply unpinned recovered search results',async t=>{
+  const f=await fixture(t);
+  mutate(t,f.recovered,`UPDATE searches SET result_json='{"searchId":"later-search","changed":true}' WHERE id='later-search'`);
+  repin(f);
+  const originalBytes=readFileSync(f.recovered), current=open(t,f.current);
+  const approvedReply=current.prepare("SELECT result_json FROM searches WHERE id='later-search'").get().result_json;
+  current.close();
+  const originalPrepare=DatabaseSync.prototype.prepare, originalClose=DatabaseSync.prototype.close;
+  let checked=0, reader, writer, injected=false, restored=false;
+  function restoreSource() {
+    if(writer?.isOpen) originalClose.call(writer);
+    if(injected&&!restored){writeFileSync(f.recovered,originalBytes);restored=true;}
+  }
+  DatabaseSync.prototype.prepare=function(sql,...args){
+    if(sql==='PRAGMA quick_check'&&++checked===3){
+      reader=this;injected=true;
+      writer=new DatabaseSync(f.recovered);
+      writer.exec('PRAGMA journal_mode=WAL; PRAGMA wal_autocheckpoint=0');
+      originalPrepare.call(writer,"UPDATE searches SET result_json=? WHERE id='later-search'").run(approvedReply);
+      assert.ok(existsSync(f.recovered+'-wal'));
+    }
+    return originalPrepare.call(this,sql,...args);
+  };
+  DatabaseSync.prototype.close=function(...args){
+    const result=originalClose.apply(this,args);
+    if(this===reader)restoreSource();
+    return result;
+  };
+  try{assert.throws(()=>checkCreditRecovery(f.options),/recovered_searches_mismatch/);}
+  finally{
+    DatabaseSync.prototype.prepare=originalPrepare;DatabaseSync.prototype.close=originalClose;
+    restoreSource();
+  }
+  assert.equal(injected,true);assert.equal(restored,true);
+  assert.equal(sha(f.recovered),f.options.recoveredSha256);
+  assert.equal(existsSync(f.recovered+'-wal'),false);
+  assert.equal(existsSync(join(f.options.out,'credit-recovery-report.json')),false);
+});
+
+test('a copied snapshot changed during comparison cannot obtain a completion marker',async t=>{
+  const f=await fixture(t),original=DatabaseSync.prototype.prepare;let changed=false;
+  DatabaseSync.prototype.prepare=function(sql,...args){
+    if(!changed&&sql==='SELECT * FROM searches ORDER BY id'){
+      changed=true;
+      const copy=join(f.options.out,'backup.private.sqlite');
+      writeFileSync(copy,Buffer.concat([readFileSync(copy),Buffer.from('changed during comparison')]));
+    }
+    return original.call(this,sql,...args);
+  };
+  try{assert.throws(()=>checkCreditRecovery(f.options),/input_checksum_mismatch/);}
+  finally{DatabaseSync.prototype.prepare=original;}
+  assert.equal(changed,true);assert.equal(existsSync(join(f.options.out,'credit-recovery-report.json')),false);
+  assert.equal(existsSync(join(f.options.out,'credit-recovery-failure.json')),true);
+});
+
 test('source snapshots without a stop-writers assertion cannot authorize accounting recovery',async t=>{
   const f=await fixture(t),d=JSON.parse(readFileSync(f.authority));d.writersStopped=false;
   writeFileSync(f.authority,JSON.stringify(d));f.options.authoritySha256=sha(f.authority);
@@ -213,7 +292,7 @@ test('actual command-line entrypoint returns only a private aggregate report',as
   const result=spawnSync(process.execPath,[fileURLToPath(script),'--backup',f.backup,'--current',f.current,
     '--recovered',f.recovered,'--authority',f.authority,'--authority-sha256',f.options.authoritySha256,
     '--recovered-sha256',f.options.recoveredSha256,'--authority-not-before','150',
-    '--environment','staging','--out',f.options.out],{encoding:'utf8'});
+    '--environment','staging','--out',f.options.out],{encoding:'utf8',windowsHide:true});
   assert.equal(result.status,0,result.stderr);assert.equal(JSON.parse(result.stdout).accountingCopyVerified,true);
   assert.ok(!result.stdout.includes(account));assert.ok(!result.stdout.includes('private reply'));
 });
