@@ -15,6 +15,11 @@ The 9 October 2026 allocation was calculated from the saved native MMA commit:
 | Additional local reservation | 5,000,000 |
 | Remaining contributor pool | **307,758,881** |
 
+The complete allocation was uploaded, independently read back and registered on
+9 October: **618 unique input shards**, shared by the Scene and Object lanes.
+All three old input families were retired and their **936 objects** were removed
+and checked absent. Contribution history and testing references were retained.
+
 The indexed input union contains 24,955,313 unique IDs; 8,380 are absent from the
 current master. The master has zero duplicate panorama IDs. Different poses of
 one panorama are one location for allocation purposes. Published contribution,
