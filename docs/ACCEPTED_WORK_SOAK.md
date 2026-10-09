@@ -12,18 +12,25 @@ Mac run, but both must pass before the corresponding release claim is made.
 1. Pin the application, native runtime, models and approved parallel profiles.
    Each selected lane must have current device qualification under the exact
    policy used by its independent verifier. A diagnostic receipt is insufficient.
-2. Confirm the service actually accepts fresh work in each lane and has eligible
+2. Confirm the required environment and database schema are ready. If the gate
+   requires production, finish its full-data rehearsal and controlled migration
+   first. A restricted genuine acceptance cohort need not open public admission;
+   label its environment accurately and do not substitute a staging diagnostic
+   for required production evidence. Confirm the service actually accepts fresh
+   work in each lane and has eligible
    assignments. Objects need trusted current official Gen4 assignment evidence
    and real protected/quality authority. Never relabel old reference indexes or
    failed submissions as contributions.
 3. Complete one fresh batch in each selected lane through the background worker.
    Independently confirm publication and the once-only credit transaction.
    Repeat its delivery to check that credit does not increase again.
-4. Confirm saved account, checkpoint and delivery recovery, one native writer,
+4. Confirm online search works with genuinely earned credit and exact paid-result
+   replay. Do not accumulate a large balance to avoid resolving early pricing.
+5. Confirm saved account, checkpoint and delivery recovery, one native writer,
    automatic startup, the local day/night schedule and explicit CPU/RAM/storage
    budgets. Use medium by day and Maximum from 00:00 to 06:00 unless the tester
    saved another schedule. Maximum needs a verified parallel profile.
-5. Fix a private evidence destination, retention allowance, end time and safe
+6. Fix a private evidence destination, retention allowance, end time and safe
    stop path. Keep raw logs, account codes and location data out of public reports.
    Run the contributor through the operating system's normal background startup;
    Codex and an open terminal must not be required.

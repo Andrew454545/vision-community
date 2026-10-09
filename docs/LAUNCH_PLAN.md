@@ -10,6 +10,10 @@ critical-path order, Geonections's engineering authority, immediate resource
 requests and work to run alongside the seven-day accepted-work test. Use it to
 finish these gates without expanding release scope.
 
+Use the [single work and dependency list](LAUNCH_BLOCKERS.md) for each owner,
+next action, prerequisite, completion check and evidence location. Missing
+resources do not suspend independent engineering work.
+
 | Exit gate | Work to finish | Evidence required to close it |
 |---|---|---|
 | Trusted contributions | Finalize measured Scene/runtime policies; connect Object qualification, quarantine and native auditing to publication. Bind official Gen4 Objects to trusted server assignments and real quality authority. | Fresh qualified contributions in both lanes from Windows and Mac; incorrect or unqualified work refused; retries award credit once. |

@@ -115,3 +115,10 @@ existing localhost HTTP fixture with `listen EPERM`; that log is preserved.
 The unchanged suite passed with local networking allowed. No Actions job,
 Cloudflare operation, native indexing or live credit was created. Aggregate
 evidence is in [the validation receipt](evidence/credit-recovery-20261009.json).
+
+The integrated Windows x64 / Node 24.19.0 service suite subsequently completed
+**440 checks: 437 passed, three file-symlink privilege skips, zero failures**.
+It includes all 26 new accounting checks; the new file-symlink case is one of
+those skips. This is a separate platform integration result, with its retained
+log checksum in [the Windows receipt](evidence/credit-recovery-windows-integration-20261009.json).
+No production export, provider write or GitHub Actions run was performed.

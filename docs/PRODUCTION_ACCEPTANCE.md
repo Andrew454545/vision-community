@@ -631,3 +631,13 @@ checks, and commit/push to the authorized branch. Keep local processing
 independent of Codex. The seven-hour development heartbeat should not poll a
 healthy/waiting indexer or notify on unchanged status. Pause it only when the
 agreed release requirements have evidence; never claim “perfect” without tests.
+
+The [ordered completion checklist](COMPLETION_EXECUTION_PLAN.md) and
+[single work/dependency list](LAUNCH_BLOCKERS.md) now track the critical path.
+PR #19's financial recovery checker is integrated; the full Windows service
+suite passes 437 of 440 checks, with three file-symlink privilege skips and no
+failures. [Its receipt](evidence/credit-recovery-windows-integration-20261009.json)
+does not close live recovery. The separate finite one-location diagnostic has
+actually started, with [startup and resource evidence](WINDOWS_NATIVE_DIAGNOSTIC_20261009.md);
+its 24-round completion is pending. Neither seven-day accepted-work clock has
+started. The original two-location timeout remains failed and preserved.
