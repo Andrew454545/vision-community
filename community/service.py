@@ -25,6 +25,8 @@ from .parts import (
     family_for_key,
     family_priority_sql,
     parse_part,
+    available_catalog_sql,
+    available_location_sql,
 )
 from .mma import MMAError, build_map, location_record, parse_map
 from .rank import (
@@ -498,15 +500,15 @@ class CommunityService:
             counts = {
                 row["lane"]: {"pending": row["pending"], "published": row["published"]}
                 for row in connection.execute(
-                    """SELECT lane,
-                         SUM(CASE WHEN state='published' THEN 0 ELSE 1 END) AS pending,
+                    f"""SELECT lane,
+                         SUM(CASE WHEN state!='published' AND COALESCE(queue_state,'pending')='pending' AND {available_location_sql()} THEN 1 ELSE 0 END) AS pending,
                          SUM(CASE WHEN state='published' THEN 1 ELSE 0 END) AS published
                        FROM locations GROUP BY lane"""
                 )
             }
             for row in connection.execute(
-                """SELECT lane, SUM(row_count - next_row) AS remaining
-                   FROM pose_catalog GROUP BY lane"""
+                f"""SELECT lane, SUM(row_count - next_row) AS remaining
+                   FROM pose_catalog WHERE {available_catalog_sql()} GROUP BY lane"""
             ):
                 lane_counts = counts.setdefault(row["lane"], {"pending": 0, "published": 0})
                 remaining = int(row["remaining"] or 0)
@@ -977,14 +979,14 @@ class CommunityService:
 
     def _part_count(self, connection: sqlite3.Connection, lane: str) -> int:
         row = connection.execute(
-            "SELECT COUNT(*) AS n FROM pose_catalog WHERE lane=?", (lane,)
+            f"SELECT COUNT(*) AS n FROM pose_catalog WHERE lane=? AND {available_catalog_sql()}", (lane,)
         ).fetchone()
         return int(row["n"] if row is not None else 0)
 
     def _part_number(self, connection: sqlite3.Connection, lane: str, shard_id: int) -> int:
         row = connection.execute(
             f"""SELECT COUNT(*) AS n FROM pose_catalog
-                WHERE lane=? AND (
+                WHERE lane=? AND {available_catalog_sql()} AND (
                     {family_priority_sql("r2_key")} < (
                         SELECT {family_priority_sql("r2_key")} FROM pose_catalog
                         WHERE lane=? AND shard_id=?
@@ -1019,7 +1021,7 @@ class CommunityService:
     def _work_status(self, connection: sqlite3.Connection, account_id: str, lane: str) -> dict | None:
         shard = connection.execute(
             f"""SELECT * FROM pose_catalog
-                WHERE lane=? AND assignee=? AND next_row < row_count
+                WHERE lane=? AND assignee=? AND next_row < row_count AND {available_catalog_sql()}
                 ORDER BY {self._catalog_order_sql()} LIMIT 1""",
             (lane, account_id),
         ).fetchone()
@@ -1041,14 +1043,14 @@ class CommunityService:
 
     def _catalog_remaining(self, connection: sqlite3.Connection, lane: str) -> bool:
         row = connection.execute(
-            "SELECT 1 FROM pose_catalog WHERE lane=? AND next_row < row_count LIMIT 1",
+            f"SELECT 1 FROM pose_catalog WHERE lane=? AND next_row < row_count AND {available_catalog_sql()} LIMIT 1",
             (lane,),
         ).fetchone()
         return row is not None
 
     def _shard_by_part(self, connection: sqlite3.Connection, lane: str, part: int):
         return connection.execute(
-            f"""SELECT * FROM pose_catalog WHERE lane=?
+            f"""SELECT * FROM pose_catalog WHERE lane=? AND {available_catalog_sql()}
                 ORDER BY {self._catalog_order_sql()} LIMIT 1 OFFSET ?""",
             (lane, part - 1),
         ).fetchone()
@@ -1063,9 +1065,9 @@ class CommunityService:
     ):
         stale = now - STEAL_AFTER_SECONDS
         changed = connection.execute(
-            """UPDATE pose_catalog
+            f"""UPDATE pose_catalog
                SET assignee=?, assigned_at=?
-               WHERE lane=? AND shard_id=? AND next_row < row_count AND COALESCE(held, 0)=0
+               WHERE lane=? AND shard_id=? AND next_row < row_count AND {available_catalog_sql()}
                  AND (
                     assignee IS NULL OR assignee=?
                     OR (
@@ -1114,7 +1116,7 @@ class CommunityService:
             return claimed
         existing = connection.execute(
             f"""SELECT * FROM pose_catalog
-                WHERE lane=? AND assignee=? AND next_row < row_count AND COALESCE(held, 0)=0
+                WHERE lane=? AND assignee=? AND next_row < row_count AND {available_catalog_sql()}
                 ORDER BY {self._catalog_order_sql()} LIMIT 1""",
             (lane, account_id),
         ).fetchone()
@@ -1122,7 +1124,7 @@ class CommunityService:
             return existing
         candidates = connection.execute(
             f"""SELECT * FROM pose_catalog
-                WHERE lane=? AND next_row < row_count AND COALESCE(held, 0)=0
+                WHERE lane=? AND next_row < row_count AND {available_catalog_sql()}
                 ORDER BY {self._catalog_order_sql()}""",
             (lane,),
         ).fetchall()
@@ -1141,10 +1143,11 @@ class CommunityService:
         count: int,
     ) -> list:
         return connection.execute(
-            """SELECT id, asset_id, capture, lane, model, label, generation, source, rights, attribution,
+            f"""SELECT id, asset_id, capture, lane, model, label, generation, source, rights, attribution,
                       lat, lon, heading, pitch, zoom, country, camera_generation, catalog_shard,
                       state, lease_until
                FROM locations WHERE lane=? AND catalog_shard=? AND COALESCE(queue_state, 'pending')='pending'
+                 AND {available_location_sql()}
                  AND (state='pending' OR (state='leased' AND lease_until<=?))
                  AND (lane!='object' OR (camera_generation='gen4' AND EXISTS (SELECT 1 FROM object_coverage c
                        WHERE c.location_id=locations.id AND c.validator=?
@@ -1162,10 +1165,11 @@ class CommunityService:
         count: int,
     ) -> list:
         return connection.execute(
-            """SELECT id, asset_id, capture, lane, model, label, generation, source, rights, attribution,
+            f"""SELECT id, asset_id, capture, lane, model, label, generation, source, rights, attribution,
                       lat, lon, heading, pitch, zoom, country, camera_generation, catalog_shard,
                       state, lease_until
                FROM locations WHERE lane=? AND COALESCE(queue_state, 'pending')='pending'
+                 AND {available_location_sql()}
                  AND (state='pending' OR (state='leased' AND lease_until<=?))
                  AND (lane!='object' OR (camera_generation='gen4' AND EXISTS (SELECT 1 FROM object_coverage c
                        WHERE c.location_id=locations.id AND c.validator=?
@@ -1196,7 +1200,7 @@ class CommunityService:
         while len(claimed) < count and attempts < 32:
             attempts += 1
             current = connection.execute(
-                "SELECT * FROM pose_catalog WHERE lane=? AND shard_id=?",
+                f"SELECT * FROM pose_catalog WHERE lane=? AND shard_id=? AND {available_catalog_sql()}",
                 (lane, shard_id),
             ).fetchone()
             if current is None or int(current["next_row"]) >= int(current["row_count"]):

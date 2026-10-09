@@ -5,6 +5,14 @@ Updated **9 October 2026**. Start with the finite
 preserves historical results and limitations; completed reference trials do not
 require repeating merely because an older paragraph described them as pending.
 
+The [allocation integration and endurance checks](ALLOCATION_ENDURANCE_20261009.md)
+now cover retired catalog assignments, queued fallback, late holds and competing
+claims. Andrew's exact-exclusion/export tools are integrated; the complete
+replacement catalog handoff is still pending. A finite 24-round offline Windows
+supervisor was started independently of Codex, but its first native round timed
+out after 902.781 seconds and the failure receipt is preserved. It created no
+accepted work or credit and does not close the seven-day production workload gate.
+
 The [native Object auditing component](NATIVE_OBJECT_AUDIT.md) now reruns the
 pinned CPU program, requires two full native verifications and compares every
 feature lane against independently pinned assignment/quality authority. Its
