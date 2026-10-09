@@ -75,10 +75,10 @@ need Python, Arrow, source exports or Cloudflare credentials.
    country/pose, readback mismatch or changing input stops publication. Failed
    shards and journals remain available. Rerunning the same command renders the
    same bytes and verifies prior objects before continuing.
-8. Only a complete, independently read-back manifest is eligible for assignment
-   registration. A sealed manifest can describe an initial verified subset;
-   append only verified disjoint batches while uploading the remainder, and
-   report the full expected count separately until the full allocation is ready.
+8. Register the replacement only after the full allocation is uploaded and its
+   manifest and every shard have been independently read back. Partial manifests
+   are progress evidence; they do not authorize retiring the old full/tail
+   catalogs or changing their pending assignment rows.
    `pool-split.py` prepares disjoint masks for bounded parallel publication and
    verifies their complete union against the original mask, optionally reusing
    an already verified ordered prefix. Reconcile pending rows by exact panorama ID: skip only owner or
