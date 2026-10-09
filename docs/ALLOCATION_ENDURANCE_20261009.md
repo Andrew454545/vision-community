@@ -21,10 +21,12 @@ before and after the final manifest readback. Changed inputs cannot leave a
 local completion marker. Exporter pipes close on success and failure; an exporter
 that ignores cooperative shutdown is stopped within a bounded wait.
 
-The replacement allocation remains unregistered while uploading. No catalog
-registration, owner process, reserved queue or production bucket was modified
-by this integration. Final complete-manifest, pending-row reconciliation and
-cutover receipts remain required from the allocation handoff.
+The replacement allocation was subsequently completed by Andrew. Its privately
+pinned complete-manifest, pending-row reconciliation and cutover receipts have
+been independently checked; fresh D1 readback confirms 618 shards per lane and
+zero retired-family registrations. See [the completed handoff](ALLOCATION_HANDOFF_20261009.md).
+This integration did not change the owner process, reserved queue or production
+data. Coverage, runtime qualification and application rollout remain separate.
 
 ## Running offline endurance test
 
@@ -62,6 +64,7 @@ uploads nothing and creates no accounts, contributions or credits. It repeats tw
 cannot establish broad model quality, official coverage, Mac endurance, physical
 OS restart, uninterrupted thermal behavior or seven days of qualified accepted
 work. The supervisor's terminal failure receipt makes later triggers no-op;
-disabling the Windows task itself could not be verified in this session because
-the local approval service had reached its usage limit. Sleeping or powered-off computers cannot compute. The
+the failed diagnostic task has now also been disabled after exact action/path
+ownership checks, with its disabled-state readback retained privately. The
+installed contributor is unchanged. Sleeping or powered-off computers cannot compute. The
 [five release gates](LAUNCH_PLAN.md) remain open.

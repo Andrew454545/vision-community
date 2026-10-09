@@ -100,8 +100,9 @@ refusal, idle handover and removal, with synthetic private files kept intact.
 Setup repairs a changed installation in place and retires closed earlier
 versions. See [installer acceptance](INSTALLER_ACCEPTANCE_20261005.md) for
 results, fixed defects and the blockers that still need signing, a clean
-device or a maintainer decision. That includes the default Windows client
-script policy, which stops the current launcher.
+device or a maintainer decision. The later native C# launcher and background
+controls described above remove the earlier script-policy blocker; genuine
+signatures and clean-device acceptance remain required.
 
 ## Signed Mac candidate
 

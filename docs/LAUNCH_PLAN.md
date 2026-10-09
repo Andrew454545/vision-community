@@ -30,9 +30,10 @@ gates belong in follow-up work; “perfect” is not a measurable release test.
   settlement as separate checks. A valid file format cannot stand in for them.
 - Use GitHub for source/releases and confirmed Community Cloudflare resources
   for private state and contributed indexes. Do not publish the reference corpus.
-- Retire the overlapping full/tail/indexed assignment families in code. Activate
-  the disjoint replacement only after its complete verified manifest and pending
-  row reconciliation are available; unknown camera labels cannot admit Objects.
+- The overlapping full/tail/indexed families are retired in code and the live
+  catalog. The complete disjoint replacement and pending-row reconciliation are
+  [verified](ALLOCATION_HANDOFF_20261009.md); unknown camera labels cannot admit
+  Objects, and the replacement does not qualify the application for release.
 - Do not spend more on GitHub Actions. Use existing private toolchains and local
   Mac handoffs, preserve failures, and include `[skip ci]` in development commits.
 

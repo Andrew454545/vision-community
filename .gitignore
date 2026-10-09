@@ -15,6 +15,7 @@ deploy/cloudflare/node_modules
 .local-api-protection-final-build/
 .local-api-protection-staging-build/
 .local-staging-build/
+.local-staging-test-build/
 .local-native-bridge-build/
 .local-release-build/
 .local-verifier-bridge-build/

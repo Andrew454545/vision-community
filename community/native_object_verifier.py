@@ -23,11 +23,13 @@ from .object_index import (manifest_file_names, object_tsv_lines, source_id_for,
                            RUNTIME_IDENTITY, CODEBOOK_SHA256)
 from .object_snapshot import VALIDATOR, public_manifest
 from .process_owner import run_owned
+from .protected_reference import ProtectedReference
 from .search_snapshot import digest, encoded, file_digest, pinned_read, resource_for_environment
 from .vision_index import THREAD_ENVIRONMENT_KEYS
 
 MAX_MANIFEST = 1024 * 1024
 MAX_FILES = 32_000_000
+MAX_PROTECTED_SNAPSHOT = 64 * 1024 * 1024
 # A 16-location Windows replay exceeded 900 seconds. Audit small batches under
 # that same finite budget; do not silently extend a failed experiment's limit.
 MAX_LOCATIONS = 4
@@ -143,6 +145,13 @@ class NativeObjectVerifier:
         require(authority_doc['quality'].get('tunnelEvidenceManifest') is None,
                 'unsupported_object_audit_authority')
         self.authority_doc = authority_doc
+        snapshot = authority_doc.get('protectedSnapshot')
+        require(isinstance(snapshot, dict) and isinstance(snapshot.get('path'), str)
+                and Path(snapshot['path']).is_absolute()
+                and type(snapshot.get('bytes')) is int and 0 < snapshot['bytes'] <= MAX_PROTECTED_SNAPSHOT
+                and isinstance(snapshot.get('sha256'), str) and native.HEX.fullmatch(snapshot['sha256']),
+                'invalid_object_audit_protected_snapshot')
+        self.snapshot_path = regular(snapshot['path'])
         self.verify_inputs()
 
     def validate_model_paths(self):
@@ -188,6 +197,17 @@ class NativeObjectVerifier:
                     and path.stat().st_mtime_ns // 1_000_000 == entry.get('modifiedUnixMillis')
                     and file_digest(path) == entry.get('sha256'), 'object_audit_authority_changed')
         require(database['wal']['path'] == database['main']['path'] + '-wal', 'invalid_object_audit_authority')
+        snapshot = self.authority_doc['protectedSnapshot']
+        raw = pinned_read(regular(self.snapshot_path), snapshot['sha256'], MAX_PROTECTED_SNAPSHOT)
+        require(len(raw) == snapshot['bytes'], 'object_audit_protected_snapshot_changed')
+        self.protected = ProtectedReference(native.strict_json(raw), database=database['main']['path'])
+        require(snapshot.get('generatedAt') == self.protected.generated_at,
+                'invalid_object_audit_protected_snapshot')
+        # The native inline-pool sealer permits one second because exporter
+        # timestamps have second precision. Do not let a newer MMA fingerprint
+        # bless an older coordinate snapshot.
+        require(all(not entry['exists'] or entry['modifiedUnixMillis'] <= self.protected.generated_unix_millis + 1000
+                    for entry in database.values()), 'object_audit_protected_snapshot_stale')
 
     def assignment(self, path, pin, source):
         doc = read_json(path, pin)
@@ -209,6 +229,7 @@ class NativeObjectVerifier:
                     and isinstance(row.get('coverageEvidenceSha256'), str)
                     and native.HEX.fullmatch(row['coverageEvidenceSha256']), 'invalid_object_audit_assignment')
             native.validate_pose(row, {row.get('country')}, member=True)
+            require(not self.protected.contains(row['lat'], row['lng']), 'object_audit_protected_assignment')
             require(isinstance(row.get('country'), str) and 0 < len(row['country']) <= 100,
                     'invalid_object_audit_assignment')
             ids.add(row['locationId'])
@@ -278,6 +299,7 @@ class NativeObjectVerifier:
         out = Path(out).absolute()
         regular(out.parent, directory=True)
         inputs = [self.binary.parent, self.models, self.policy_path.parent, self.authority_path.parent,
+                  self.snapshot_path.parent,
                   regular(assignment).parent, regular(source).parent, regular(candidate, directory=True)]
         inputs += [Path(v['path']).parent for v in self.authority_doc['protectedDatabase'].values()]
         require(not any(overlaps(out, root) for root in inputs), 'object_audit_output_overlaps_input')
@@ -354,6 +376,8 @@ class NativeObjectVerifier:
                           policyId=self.document['policyId'], policySha256=self.policy_sha256,
                           runtimeProfileSha256=self.profile['sha256'], sourceSha256=digest(original_source),
                           nativeReferenceRecomputed=True, assignmentSha256=assignment_sha256,
+                          protectedSnapshotSha256=self.authority_doc['protectedSnapshot']['sha256'],
+                          protectedAssignmentsChecked=True,
                           candidateManifestSha256=candidate_sha256, referenceManifestSha256=reference_pin,
                           locations=total, inputIdentity='LIVE_RETRIEVAL_NOT_FROZEN', comparison=measured)
         except (Exception, KeyboardInterrupt) as error:

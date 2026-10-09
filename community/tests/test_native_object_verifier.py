@@ -34,11 +34,23 @@ class NativeObjectVerifierTests(unittest.TestCase):
                 (self.binary.parent / name).write_bytes(b'synthetic-library')
         self.database = self.root / 'policy/protected.sqlite'
         self.database.write_bytes(b'synthetic fingerprint; not official coverage')
+        os.utime(self.database, (1760000000, 1760000000))
+        self.snapshot = self.root / 'policy/protected.json'
+        self.snapshot_document = {'schemaVersion': 1, 'database': str(self.database),
+            'generatedAt': '2026-10-09T00:00:00Z', 'sourceLocationCount': 4, 'uniqueLocationCount': 1,
+            'sourceMaps': [{'id': str(i), 'name': name, 'folder': folder, 'locationCount': 1}
+                for i, (name, folder) in enumerate([
+                    ('‼️GEONECTIONS JSON‼️', None), ('Past Locations', None),
+                    ('synthetic-map', 'Titled Maps ‼️'), ('synthetic-map', 'Titled Maps ‼️ Done✅')])],
+            'coordinates': [{'lat': 0, 'lng': 0}]}
+        self.snapshot.write_bytes(encoded(self.snapshot_document))
         self.authority = self.root / 'policy/authority.json'
         self.authority.write_bytes(encoded({'contract': 'vision-gen4-inline-object-import-v1',
             'inlineQualityFilterRequired': True, 'runtimeLiveProtectedFilterRequired': True,
             'invariants': {'protectedDatabaseFingerprintSealed': True},
             'quality': {'currentTunnelEvidence': 'none-darkness-never-rejects-v1'},
+            'protectedSnapshot': {'path': str(self.snapshot), 'bytes': self.snapshot.stat().st_size,
+                'sha256': digest(self.snapshot.read_bytes()), 'generatedAt': self.snapshot_document['generatedAt']},
             'protectedDatabase': {
                 'main': {'path': str(self.database), 'exists': True, 'bytes': self.database.stat().st_size,
                     'sha256': digest(self.database.read_bytes()),
@@ -292,6 +304,49 @@ class NativeObjectVerifierTests(unittest.TestCase):
                 with self.assertRaisesRegex(audit.ObjectAuditError, 'budget'):
                     self.start()
                 self.policy[key] = original
+
+    def test_protected_assignment_is_refused_before_any_native_execution(self):
+        row = self.trusted['records'][0]
+        self.snapshot_document['coordinates'] = [{'lat': row['lat'], 'lng': row['lng']}]
+        self.snapshot.write_bytes(encoded(self.snapshot_document))
+        authority = json.loads(self.authority.read_bytes())
+        authority['protectedSnapshot'].update(bytes=self.snapshot.stat().st_size, sha256=digest(self.snapshot.read_bytes()))
+        self.authority.write_bytes(encoded(authority))
+        self.policy['protectedAuthority'].update(bytes=self.authority.stat().st_size, sha256=digest(self.authority.read_bytes()))
+        self.verifier = self.start()
+        result = self.run_audit()
+        self.assertEqual((result['status'], result['decision'], result['error']),
+                         ('FAILED', 'pending', 'object_audit_protected_assignment'))
+        self.assertEqual(self.calls, [])
+
+    def test_missing_or_mismatched_snapshot_cannot_supply_authority(self):
+        original = self.authority.read_bytes()
+        for mode in ('missing', 'database', 'date', 'stale'):
+            with self.subTest(mode=mode):
+                authority = json.loads(original)
+                if mode == 'missing':
+                    del authority['protectedSnapshot']
+                else:
+                    snapshot = copy.deepcopy(self.snapshot_document)
+                    if mode == 'database': snapshot['database'] = str(self.root / 'different.sqlite')
+                    elif mode == 'stale':
+                        snapshot['generatedAt'] = '2024-10-09T00:00:00Z'
+                        authority['protectedSnapshot']['generatedAt'] = snapshot['generatedAt']
+                    else: snapshot['generatedAt'] = '2026-10-08T00:00:00Z'
+                    self.snapshot.write_bytes(encoded(snapshot))
+                    authority['protectedSnapshot'].update(bytes=self.snapshot.stat().st_size, sha256=digest(self.snapshot.read_bytes()))
+                self.authority.write_bytes(encoded(authority))
+                self.policy['protectedAuthority'].update(bytes=self.authority.stat().st_size, sha256=digest(self.authority.read_bytes()))
+                with self.assertRaises(ValueError): self.start()
+
+    def test_changed_snapshot_during_native_work_keeps_a_pending_failure(self):
+        def changed(command, job, timeout):
+            value = self.fake_native(command, job, timeout)
+            if command[1] == 'index-segment': self.snapshot.write_bytes(b'changed snapshot')
+            return value
+        result = self.run_audit(runner=changed)
+        self.assertEqual((result['status'], result['decision']), ('FAILED', 'pending'))
+        self.assertFalse(result['serverAuthorization'])
 
     def test_staging_policy_cannot_be_used_with_production_resources(self):
         self.policy['environment'] = 'production'
