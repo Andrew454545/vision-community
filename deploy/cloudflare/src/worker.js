@@ -113,12 +113,12 @@ const FAMILY_LABELS = {
 };
 
 function catalogOrderSql() {
-  return `CASE WHEN r2_key LIKE 'catalog/all-locations-tail-v1/%' THEN 0 WHEN r2_key LIKE 'catalog/all-locations-full-v1/%' THEN 1 WHEN r2_key LIKE 'catalog/vision-indexed-v1/%' THEN 2 ELSE 3 END, shard_id`;
+  return `CASE WHEN r2_key LIKE 'catalog/official-remaining-v1/%' THEN 0 WHEN r2_key LIKE 'catalog/all-locations-tail-v1/%' THEN 0 WHEN r2_key LIKE 'catalog/all-locations-full-v1/%' THEN 1 WHEN r2_key LIKE 'catalog/vision-indexed-v1/%' THEN 2 ELSE 3 END, shard_id`;
 }
 
 function familyForKey(key) {
   const value = key || "";
-  if (value.startsWith("catalog/all-locations-tail-v1/")) return "new-places";
+  if (value.startsWith("catalog/all-locations-tail-v1/") || value.startsWith("catalog/official-remaining-v1/")) return "new-places";
   if (value.startsWith("catalog/all-locations-full-v1/")) return "whole-map";
   if (value.startsWith("catalog/vision-indexed-v1/")) return "already-indexed";
   return "other";
@@ -157,11 +157,11 @@ async function partNumber(env, lane, shardId) {
   const row = await env.DB.prepare(
     `SELECT COUNT(*) AS n FROM pose_catalog
      WHERE lane=? AND (
-       CASE WHEN r2_key LIKE 'catalog/all-locations-tail-v1/%' THEN 0 WHEN r2_key LIKE 'catalog/all-locations-full-v1/%' THEN 1 WHEN r2_key LIKE 'catalog/vision-indexed-v1/%' THEN 2 ELSE 3 END
-       < (SELECT CASE WHEN r2_key LIKE 'catalog/all-locations-tail-v1/%' THEN 0 WHEN r2_key LIKE 'catalog/all-locations-full-v1/%' THEN 1 WHEN r2_key LIKE 'catalog/vision-indexed-v1/%' THEN 2 ELSE 3 END FROM pose_catalog WHERE lane=? AND shard_id=?)
+       CASE WHEN r2_key LIKE 'catalog/official-remaining-v1/%' THEN 0 WHEN r2_key LIKE 'catalog/all-locations-tail-v1/%' THEN 0 WHEN r2_key LIKE 'catalog/all-locations-full-v1/%' THEN 1 WHEN r2_key LIKE 'catalog/vision-indexed-v1/%' THEN 2 ELSE 3 END
+       < (SELECT CASE WHEN r2_key LIKE 'catalog/official-remaining-v1/%' THEN 0 WHEN r2_key LIKE 'catalog/all-locations-tail-v1/%' THEN 0 WHEN r2_key LIKE 'catalog/all-locations-full-v1/%' THEN 1 WHEN r2_key LIKE 'catalog/vision-indexed-v1/%' THEN 2 ELSE 3 END FROM pose_catalog WHERE lane=? AND shard_id=?)
        OR (
-         CASE WHEN r2_key LIKE 'catalog/all-locations-tail-v1/%' THEN 0 WHEN r2_key LIKE 'catalog/all-locations-full-v1/%' THEN 1 WHEN r2_key LIKE 'catalog/vision-indexed-v1/%' THEN 2 ELSE 3 END
-         = (SELECT CASE WHEN r2_key LIKE 'catalog/all-locations-tail-v1/%' THEN 0 WHEN r2_key LIKE 'catalog/all-locations-full-v1/%' THEN 1 WHEN r2_key LIKE 'catalog/vision-indexed-v1/%' THEN 2 ELSE 3 END FROM pose_catalog WHERE lane=? AND shard_id=?)
+         CASE WHEN r2_key LIKE 'catalog/official-remaining-v1/%' THEN 0 WHEN r2_key LIKE 'catalog/all-locations-tail-v1/%' THEN 0 WHEN r2_key LIKE 'catalog/all-locations-full-v1/%' THEN 1 WHEN r2_key LIKE 'catalog/vision-indexed-v1/%' THEN 2 ELSE 3 END
+         = (SELECT CASE WHEN r2_key LIKE 'catalog/official-remaining-v1/%' THEN 0 WHEN r2_key LIKE 'catalog/all-locations-tail-v1/%' THEN 0 WHEN r2_key LIKE 'catalog/all-locations-full-v1/%' THEN 1 WHEN r2_key LIKE 'catalog/vision-indexed-v1/%' THEN 2 ELSE 3 END FROM pose_catalog WHERE lane=? AND shard_id=?)
          AND shard_id <= ?
        )
      )`
@@ -299,7 +299,8 @@ async function r2Status(env) {
   const head = await env.INDEX.head("registry.json");
   status.registry = Boolean(head);
   status.registryBytes = head ? head.size : 0;
-  const catalog = await env.INDEX.head("catalog/all-locations-tail-v1/manifest.json");
+  const catalog = await env.INDEX.head("catalog/official-remaining-v1/manifest.json")
+    || await env.INDEX.head("catalog/all-locations-tail-v1/manifest.json");
   status.poseCatalog = Boolean(catalog);
   status.poseCatalogBytes = catalog ? catalog.size : 0;
   return status;
