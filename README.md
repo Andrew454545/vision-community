@@ -7,6 +7,9 @@ Processing and online search are currently closed.
 The current download is a **Windows Scenes preview**. The public release will
 also offer Mac, Objects and Both when those options are ready.
 
+Your batch contains locations that are separate from Andrew's locally indexed
+and reserved work. [How locations are allocated](docs/CONTRIBUTOR_POOL.md).
+
 ## Get started on Windows
 
 1. [Download VISION](https://github.com/Andrew454545/vision-community/releases/download/windows-starter-preview-20261004-recovery/VISION-Community-Windows.zip).

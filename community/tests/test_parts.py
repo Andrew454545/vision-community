@@ -31,6 +31,7 @@ def catalog_line(index: int, pano: str, heading: float = 90, country: str = "Ita
 
 class CorpusPartHelpersTest(unittest.TestCase):
     def test_tail_is_preferred_over_full_corpus(self):
+        self.assertEqual(family_for_key("catalog/official-remaining-v1/date/part-00/shard-0.tsv"), "new-places")
         self.assertEqual(family_for_key("catalog/all-locations-tail-v1/shard-19.tsv"), "new-places")
         self.assertEqual(family_for_key("catalog/all-locations-full-v1/shard--20000.tsv"), "whole-map")
         self.assertEqual(parse_part("12"), 12)
