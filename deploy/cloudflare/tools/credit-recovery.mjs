@@ -1,8 +1,8 @@
 // Offline, read-only operator check. Does not replay SQL or change balances.
 import { createHash } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
-import { lstatSync, existsSync, openSync, readSync, closeSync, mkdirSync,
-  writeFileSync, fsyncSync, readFileSync } from 'node:fs';
+import { lstatSync, existsSync, openSync, readSync, writeSync, closeSync, mkdirSync,
+  writeFileSync, fsyncSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
@@ -172,6 +172,40 @@ function pinFile(path, pin, maximum = MAX_BYTES) {
   } } finally { closeSync(fd); }
   requireTrue(hash.digest('hex') === pin, 'input_checksum_mismatch');
 }
+function copySnapshot(source, destination, pin) {
+  const input = openSync(source,'r'), buffer = Buffer.alloc(1024*1024);
+  let output, bytes = 0;
+  try {
+    output = openSync(destination,'wx',0o600);
+    for (let n; (n = readSync(input,buffer,0,buffer.length,null));) {
+      bytes += n; requireTrue(bytes <= MAX_BYTES,'input_changed_or_oversized');
+      for (let written = 0; written < n;) {
+        const count = writeSync(output,buffer,written,n-written,null);
+        requireTrue(count > 0,'snapshot_copy_failed'); written += count;
+      }
+    }
+    fsyncSync(output);
+  } finally {
+    closeSync(input); if(output !== undefined) closeSync(output);
+  }
+  pinFile(destination,pin);
+  pinFile(source,pin);
+}
+function readAuthority(path, pin) {
+  pinFile(path,pin,64*1024);
+  const fd = openSync(path,'r'), buffer = Buffer.alloc(64*1024+1);
+  let length = 0;
+  try {
+    while(length < buffer.length) {
+      const count = readSync(fd,buffer,length,buffer.length-length,null);
+      if(!count) break; length += count;
+    }
+  } finally { closeSync(fd); }
+  requireTrue(length <= 64*1024,'input_changed_or_oversized');
+  const raw = buffer.subarray(0,length);
+  requireTrue(digest(raw) === pin,'input_checksum_mismatch');
+  return JSON.parse(raw.toString('utf8'));
+}
 export function checkCreditRecovery({ backup, current, recovered, authority, authoritySha256,
   recoveredSha256, authorityNotBefore, out, environment = 'production', now = Math.floor(Date.now()/1000) }) {
   const destination = resolve(out), paths = [backup,current,recovered,authority].map(p => resolve(p));
@@ -179,8 +213,7 @@ export function checkCreditRecovery({ backup, current, recovered, authority, aut
   // mkdir with no recursive flag refuses existing destinations and missing parents.
   mkdirSync(destination, { mode: 0o700 });
   try {
-    pinFile(paths[3],authoritySha256,64*1024);
-    const document = JSON.parse(readFileSync(paths[3], 'utf8'));
+    const document = readAuthority(paths[3],authoritySha256);
     const expected = RESOURCE_PROFILES[environment];
     requireTrue(expected && document?.version === 1 && document.scope === 'vision-community-credit-recovery'
       && document.writersStopped === true && integer(authorityNotBefore) && authorityNotBefore >= 0
@@ -190,17 +223,28 @@ export function checkCreditRecovery({ backup, current, recovered, authority, aut
       && Object.entries(expected).every(([k,v]) => document.resource[k] === v), 'invalid_or_stale_authority');
     const pins = [document.backupSha256,document.currentSha256,recoveredSha256,authoritySha256];
     paths.forEach((p,i) => pinFile(p,pins[i],i===3?64*1024:MAX_BYTES));
+    // Query only new pinned copies. Read-only SQLite connections can still see
+    // a source WAL created after its checksum check; rehashing the original
+    // later cannot prove which rows the earlier comparison actually read.
+    const copies = ['backup','current','recovered'].map(name => join(destination,`${name}.private.sqlite`));
+    copies.forEach((p,i) => copySnapshot(paths[i],p,pins[i]));
     const dbs = [];
     let result;
     try {
-      for (const p of paths.slice(0,3)) dbs.push(new DatabaseSync(p,{ readOnly:true }));
+      for (const p of copies) {
+        // These owned copies have no writers. Immutable mode also avoids
+        // creating empty WAL/SHM files for a closed WAL-mode snapshot.
+        const db = new DatabaseSync(pathToFileURL(p).href+'?immutable=1',{ readOnly:true,allowExtension:false });
+        dbs.push(db); db.exec('PRAGMA trusted_schema=OFF');
+      }
       result = verifyCreditRecovery(...dbs);
     } finally { dbs.forEach(db => db.close()); }
     // Recheck every input after all comparisons; the success marker is last.
     paths.forEach((p,i) => pinFile(p,pins[i],i===3?64*1024:MAX_BYTES));
+    copies.forEach((p,i) => pinFile(p,pins[i]));
     const report = { version:1, scope:document.scope, complete:true, resource:expected,
       capturedAt:document.capturedAt, authoritySha256, backupSha256:pins[0], currentSha256:pins[1],
-      recoveredSha256:pins[2], ...result };
+      recoveredSha256:pins[2], pinnedCopiesVerified:true, sourceCopiesRetained:true, ...result };
     writeReport(join(destination,'credit-recovery-report.json'), report);
     return report;
   } catch (error) {
