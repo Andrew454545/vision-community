@@ -16,7 +16,7 @@ import struct
 
 from community.object_canary import regular
 from community.object_index import CODEBOOK_SHA256, manifest_file_names, validate_object_index
-from community.object_snapshot import public_manifest
+from community.object_snapshot import QUALITY_FIELDS, public_manifest, validate_quality_structure
 from community.vision_index import VisionIndexError
 
 MAX_MANIFEST = 1024 * 1024
@@ -72,8 +72,21 @@ def load_index(path, checksum, source):
     if "frozenViewsManifestSha256" in document:
         require(isinstance(frozen_pin, str) and len(frozen_pin) == 64
                 and all(c in "0123456789abcdef" for c in frozen_pin), "invalid_frozen_comparison_pin")
+    quality = document.get("viewQuality")
+    unprotected_diagnostic = frozen_pin is not None and isinstance(quality, dict) \
+        and quality.get("protectedAuthorityManifestSha256") is None
     manifest = public_manifest({key: value for key, value in document.items()
-                                if key != "frozenViewsManifestSha256"})
+                                if key != "frozenViewsManifestSha256"
+                                and not (unprotected_diagnostic and key == "viewQuality")})
+    if unprotected_diagnostic:
+        # A blur-only native diagnostic has no protected import authority. Do
+        # not invent a pin to satisfy publication validation. Validate the
+        # actual structural quality policy here; normal exports remain strict.
+        clean_quality = {key: quality[key] for key in QUALITY_FIELDS if key in quality}
+        require(not any(isinstance(value, (dict, list)) for value in clean_quality.values()),
+                "invalid_diagnostic_quality")
+        validate_quality_structure(clean_quality, manifest.get("totalLocations"), manifest.get("permanentlyInvalidLocations", 0))
+        manifest["viewQuality"] = clean_quality
     names = manifest_file_names(manifest)
     require(len(names) == len(set(names)) and len(names) <= 87
             and all(isinstance(name, str) and name.isascii()
@@ -255,6 +268,8 @@ def compare(reference, reference_sha256, candidate, candidate_sha256, source_pat
               "serverAuthorization": False}
     result["declaredFrozenViews"] = {"reference": gold.get("frozenViewsManifestSha256"),
                                      "candidate": actual.get("frozenViewsManifestSha256")}
+    result["declaredProtectedQualityAuthority"] = {"reference": gold.get("viewQuality", {}).get("protectedAuthorityManifestSha256"),
+                                                   "candidate": actual.get("viewQuality", {}).get("protectedAuthorityManifestSha256")}
     result["nativeCounters"] = {label: {key: manifest.get(key, 0) for key in
                                           ("fetchErrors", "inferenceErrors", "permanentlyInvalidLocations")}
                                 for label, manifest in (("reference", gold), ("candidate", actual))}
