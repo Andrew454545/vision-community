@@ -51,6 +51,20 @@ class ObjectIndexComparisonTests(unittest.TestCase):
     def result(self):
         return comparison.compare(*self.pair(), self.source_path)
 
+    def test_frozen_identity_is_diagnostic_without_pixel_attestation(self):
+        self.gold["frozenViewsManifestSha256"] = "a" * 64
+        self.actual["frozenViewsManifestSha256"] = "b" * 64
+        result = self.result()
+        self.assertEqual(result["declaredFrozenViews"], {"reference": "a" * 64, "candidate": "b" * 64})
+        self.assertFalse(result["identicalPixelsVerified"])
+        self.assertFalse(result["qualified"])
+
+    def test_invalid_frozen_identity_is_refused(self):
+        for value in (None, "", "A" * 64, "g" * 64):
+            self.gold["frozenViewsManifestSha256"] = value
+            with self.assertRaisesRegex(comparison.ComparisonError, "invalid_frozen_comparison_pin"):
+                self.result()
+
     def change_common(self, field, value):
         name = next(entry["file"] for entry in self.actual["classes"] if entry["records"])
         raw = bytearray(self.candidate_files[name])

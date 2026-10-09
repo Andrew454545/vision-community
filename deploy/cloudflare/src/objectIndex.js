@@ -110,6 +110,7 @@ function manifestNames(manifest) {
 }
 
 export async function validateObjectIndex(manifest, files, sourceTsv, items, leaseId) {
+  if (manifest && Object.hasOwn(manifest, "frozenViewsManifestSha256")) throw new Error("verification_failed");
   if (!manifest || !files || typeof files !== "object" || !Array.isArray(items) || !items.length || items.length > 1000
     || !(sourceTsv instanceof Uint8Array) || !sourceTsv.length || sourceTsv.length > 1024*1024
     || Object.keys(files).length > 87 || !Object.values(files).every(raw => raw instanceof Uint8Array)

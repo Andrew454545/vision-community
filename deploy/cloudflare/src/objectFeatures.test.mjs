@@ -43,6 +43,14 @@ test("known native checksum vectors",() => {
   const raw = new TextEncoder().encode("123456789");
   assert.equal(crc8(raw),0xf4); assert.equal(crc16(raw),0x29b1); assert.equal(crc32(raw),0xcbf43926);
 });
+
+test("frozen replay is refused as a contribution even with a null marker", async () => {
+  for (const value of [null, "a".repeat(64), ""]) {
+    const {manifest, files, source} = await mutate({});
+    manifest.frozenViewsManifestSha256 = value;
+    await assert.rejects(validateObjectIndex(manifest, files, source, document.items, document.leaseId), /verification_failed/);
+  }
+});
 test("baseline covers all lanes and UTF-8 row pointers without granting admission",async () => {
   const {manifest,files,source} = await mutate({});
   assert.deepEqual(validateFeatureContents(manifest,files,source),

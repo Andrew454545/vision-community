@@ -54,6 +54,13 @@ def mutate(case):
 
 
 class ObjectFeatureTests(unittest.TestCase):
+    def test_frozen_replay_is_not_a_contribution(self):
+        for value in (None, "a" * 64, ""):
+            manifest, files, source = mutate({})
+            manifest["frozenViewsManifestSha256"] = value
+            with self.assertRaisesRegex(VisionIndexError, "verification_failed"):
+                validate_object_index(manifest, files, source, DOCUMENT["items"], lease_id=DOCUMENT["leaseId"])
+
     def test_known_native_checksum_vectors(self):
         self.assertEqual(crc8(b"123456789"), 0xf4)
         self.assertEqual(crc16(b"123456789"), 0x29b1)

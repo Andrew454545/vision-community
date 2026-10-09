@@ -520,6 +520,12 @@ Confirmed historical catalog/reference provenance limits are recorded in
 
 ## Continuing work
 
+The [8 October replay separation](OBJECT_FROZEN_REPLAY_20261008.md) keeps private
+saved-image diagnostics out of submissions and published snapshots. The offline
+comparator reports their declared input identity without treating it as proof
+of pixels, reference quality or qualification. The private native handoff is
+prepared for local Mac execution; GitHub Actions spending remains on hold.
+
 Use the open gates to select concrete work, preserve evidence, run relevant
 checks, and commit/push to the authorized branch. Keep local processing
 independent of Codex. The seven-hour development heartbeat should not poll a

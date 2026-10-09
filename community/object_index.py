@@ -414,6 +414,8 @@ def validate_object_index(
 ) -> list[dict]:
     """Check a finished object index against the VISION v4 hybrid contract."""
     from .object_features import MAX_BYTES, MAX_LOCATIONS, MAX_SOURCE_BYTES
+    if isinstance(manifest, dict) and "frozenViewsManifestSha256" in manifest:
+        raise VisionIndexError("verification_failed")
     if (not isinstance(manifest, dict) or not isinstance(files, dict)
             or not isinstance(items, list) or not 0 < len(items) <= MAX_LOCATIONS
             or not isinstance(source_tsv, bytes) or not 0 < len(source_tsv) <= MAX_SOURCE_BYTES
