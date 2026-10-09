@@ -5,6 +5,11 @@ required first release: Windows and Mac, Scenes, Objects and Both, online
 search, banked credit and unattended local work. Improvements beyond these
 gates belong in follow-up work; “perfect” is not a measurable release test.
 
+Andrew's [completion execution plan](COMPLETION_EXECUTION_PLAN.md) sets the
+critical-path order, Geonections's engineering authority, immediate resource
+requests and work to run alongside the seven-day accepted-work test. Use it to
+finish these gates without expanding release scope.
+
 | Exit gate | Work to finish | Evidence required to close it |
 |---|---|---|
 | Trusted contributions | Finalize measured Scene/runtime policies; connect Object qualification, quarantine and native auditing to publication. Bind official Gen4 Objects to trusted server assignments and real quality authority. | Fresh qualified contributions in both lanes from Windows and Mac; incorrect or unqualified work refused; retries award credit once. |
