@@ -68,7 +68,12 @@ test('wrong pins, linked inputs, open journals and unknown schemas preserve fail
       rmSync(input+'-wal');
       if(process.platform==='win32') {
         const target=join(root,'linked-target');mkdirSync(target);copyFileSync(input,join(target,'legacy.sqlite'));
-        symlinkSync(target,join(root,'redirected-input'),'junction');linkedInput=join(root,'redirected-input','legacy.sqlite');
+        try { symlinkSync(target,join(root,'redirected-input'),'junction'); }
+        catch(error) {
+          if(['EPERM','EACCES'].includes(error.code)) { t.skip('Windows directory-link privilege is unavailable'); return; }
+          throw error;
+        }
+        linkedInput=join(root,'redirected-input','legacy.sqlite');
       }else symlinkSync(input,linkedInput);
     }
     if(mode==='schema'){const sql=new DatabaseSync(input);sql.exec('CREATE TABLE unrecognized(value TEXT)');sql.close();}
@@ -106,7 +111,12 @@ test('historical data mutation, including bytes after a NUL, aborts and rolls ba
 test('redirected input and output parents are refused without changing the closed source or link target',async t=>{
   const {root,input,out}=fixture(t);await legacyFixture(input);const pin=checksum(input);
   const target=join(root,'regular-folder');mkdirSync(target);copyFileSync(input,join(target,'closed.sqlite'));
-  const redirected=join(root,'redirect');symlinkSync(target,redirected,process.platform==='win32'?'junction':'dir');
+  const redirected=join(root,'redirect');
+  try { symlinkSync(target,redirected,process.platform==='win32'?'junction':'dir'); }
+  catch(error) {
+    if(process.platform==='win32' && ['EPERM','EACCES'].includes(error.code)) { t.skip('Windows directory-link privilege is unavailable'); return; }
+    throw error;
+  }
   await assert.rejects(rehearseUpgrade({database:join(redirected,'closed.sqlite'),databaseSha256:pin,out}),{message:'unsafe_upgrade_path'});
   assert.equal(JSON.parse(readFileSync(join(out,'failure-report.private.json'))).error,'unsafe_upgrade_path');
   assert.equal(existsSync(join(out,'upgraded.sqlite')),false);
