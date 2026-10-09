@@ -1,0 +1,210 @@
+{
+  "date": "2026-10-09",
+  "platform": "Windows",
+  "scope": "windowless-owned-console-work-and-finite-test-retirement",
+  "actualGuiParentProbe": {
+    "cases": 3,
+    "defaultFlagsWindowless": true,
+    "priorityPreserved": true,
+    "conflictingConsoleRequestSuppressed": true,
+    "childExitStatusPreserved": 7
+  },
+  "regressionGroups": {
+    "process-index-final": {
+      "tests": 69,
+      "passed": 69,
+      "errors": 0,
+      "failures": 0,
+      "skips": [],
+      "seconds": 18.25,
+      "productionQualified": false
+    },
+    "caller-recovery": {
+      "tests": 62,
+      "passed": 62,
+      "errors": 0,
+      "failures": 0,
+      "skips": [],
+      "seconds": 69.391,
+      "productionQualified": false
+    },
+    "windows-controls": {
+      "tests": 26,
+      "passed": 26,
+      "errors": 0,
+      "failures": 0,
+      "skips": [],
+      "seconds": 145.719,
+      "productionQualified": false
+    }
+  },
+  "totalPassed": 157,
+  "totalFailures": 0,
+  "totalErrors": 0,
+  "totalSkips": 0,
+  "initialFailuresPreserved": {
+    "restrictedTemporaryFolder": true,
+    "resourceBoundaryAssertions": 2,
+    "headlessHostNotRelabelledAsExited": true,
+    "verifiedCleanupStillRequired": true
+  },
+  "finiteTasksRetired": {
+    "count": 4,
+    "completedUnqualified": 1,
+    "failed": 3,
+    "exactActionsAndConfigurationPinsVerified": true,
+    "currentUserOwnershipVerified": true,
+    "originalResultsUnchanged": true,
+    "contributorRegistrationUnchanged": true,
+    "forceStoppedProcesses": 0
+  },
+  "popUpSourceAttributed": false,
+  "boundedPrivateVisibilityTrace": {
+    "startedAt": "2026-10-09T23:31:38.151905+00:00",
+    "maximumSeconds": 1200,
+    "eventOnly": true,
+    "windowless": true,
+    "windowTitlesCollected": false,
+    "commandArgumentsCollected": false,
+    "windowsClosedOrHidden": 0,
+    "completionNotClaimed": true
+  },
+  "retainedEvidence": {
+    "process-index-final": {
+      "receipt": {
+        "bytes": 142,
+        "sha256": "ad3b7ec2d92206ee966a20ed12fb55df1ef6ad42e9e35552e6694df561260972"
+      },
+      "stderr": {
+        "bytes": 13280,
+        "sha256": "1d8da1012053c6e4f7f1c846538e2dd54755ed9fd50ef42808ea5eedfdfd1c62"
+      }
+    },
+    "caller-recovery": {
+      "receipt": {
+        "bytes": 143,
+        "sha256": "83fc67154db40a109ad301bfb7dfa1149ab332223638ceb792ca45f4c2ad2dd9"
+      },
+      "stderr": {
+        "bytes": 13105,
+        "sha256": "043c13bf248a4ede9e9ab1135e6072d2b2e106228b06265a66f9eace3b9316f5"
+      }
+    },
+    "windows-controls": {
+      "receipt": {
+        "bytes": 144,
+        "sha256": "40d5daee2c403e900b12c11724a27a5d41a23199a1cef0ab733637cade1371c4"
+      },
+      "stderr": {
+        "bytes": 5255,
+        "sha256": "c93da21fc56c44263d9a3fdcbaf784e852b91d74cf652308b0cb7878933d746e"
+      }
+    },
+    "retirement": {
+      "bytes": 2053,
+      "sha256": "da6d9d5b791c3fe0c62db2186e943604d7c7ddb400b8709e964b5f7001ccf714"
+    },
+    "inspection": {
+      "bytes": 15876,
+      "sha256": "26a087346ea400a3a80b6fd7984dd0f547b5493137d3f336f131da1ca2ee2800"
+    },
+    "restrictedFailure": {
+      "bytes": 378,
+      "sha256": "08bc4840a65ce45fa9bdd1c0a40eff4dcf5e2bdf9281985dd25dd70e0a4ae586"
+    },
+    "initialResourceFailure": {
+      "receipt": {
+        "bytes": 143,
+        "sha256": "c68cd4363ae8914ebf52d705a4e011205d4f3c6b44a439ab0632717c0455c5e4"
+      },
+      "stderr": {
+        "bytes": 14619,
+        "sha256": "32989d4e4deeb4cc9c3324506fa530d641c71479b3dbba7cbc9f243dd854607d"
+      }
+    },
+    "accountingProbes": {
+      "nonzero": {
+        "bytes": 927,
+        "sha256": "940d55676a8d1164f9636b53688cef4b3a119faa536c873aa0b02807f1233ae3"
+      },
+      "nested": {
+        "bytes": 925,
+        "sha256": "dd51df4f36992e394b05487017761b748249befd4521bc39580be26dc21cc698"
+      }
+    },
+    "taskRegistrations": [
+      {
+        "before": {
+          "bytes": 4392,
+          "sha256": "3a78e5f2ae41a7b4fa8bd6d36f3f8f5ad60f955493c898a4aca5fe0c96560a15"
+        },
+        "after": {
+          "bytes": 4452,
+          "sha256": "3c6f33f832cc94875c3a27255996aa029f44d69ab2f55804aad3af9c67c5b995"
+        }
+      },
+      {
+        "before": {
+          "bytes": 4338,
+          "sha256": "e0f472b9b36baad1a79b70319edcd5079bfcfdd55a4b324851e016c01e1a588e"
+        },
+        "after": {
+          "bytes": 4398,
+          "sha256": "5766f8d1582ad2b64c2381c46a14fc0a1b2844724ff22cb986de99fd31e3c1af"
+        }
+      },
+      {
+        "before": {
+          "bytes": 4248,
+          "sha256": "d0bab747fcde684b24172a6c4c5ea889ba2e179dc6b59536737ba676c7350558"
+        },
+        "after": {
+          "bytes": 4308,
+          "sha256": "e53b805e65feb696fde5b830a8757a73a5c7bea5c77b70d34e3fb232fb67889b"
+        }
+      },
+      {
+        "before": {
+          "bytes": 4294,
+          "sha256": "6506d42878170c60f7217fa80be61a3eba556ae0ba773ab3f0b4c50c7cc42431"
+        },
+        "after": {
+          "bytes": 4354,
+          "sha256": "201c84e56dd035355955aedb1176c3aacf2313f6f1de6e965565ef7d9ba5fb57"
+        }
+      }
+    ],
+    "community/process_owner.py": {
+      "bytes": 7906,
+      "sha256": "e43d63741c8ec9ccdf716cf653c2785c60f393604d0914c42d18fcf924cdcc80"
+    },
+    "community/tests/test_process_owner.py": {
+      "bytes": 17793,
+      "sha256": "b7cb92aab759935b9b63540070dddfa4257db9e0a587296ff145a42ae3139193"
+    },
+    "community/tests/test_windows_launcher.py": {
+      "bytes": 25148,
+      "sha256": "5aed1cddf2f3a1005390f65a80f1f8e8c8c9fb5090d93153221ec38b446e2611"
+    },
+    "calibration/test_windows_resource_measurement.py": {
+      "bytes": 25856,
+      "sha256": "e6d3d4d9f998d865387d682c9eb5d68ce11a7441e6d1a50849f122584840647e"
+    },
+    "visibilityObserverSource": {
+      "bytes": 4625,
+      "sha256": "ea32eec43cf6b6f73478653528a318b37b4bf8bfb1363d31eea5a03d659badd8"
+    },
+    "visibilityObserverStart": {
+      "bytes": 60,
+      "sha256": "902b94239f54d1192d4164e5b840aa7ca2d78499489d5f469bd0d67aea2ac4ac"
+    }
+  },
+  "priorEnduranceFailureReclassified": false,
+  "productionAccountingCodeChanged": false,
+  "nativeInference": false,
+  "imageryRetrieved": false,
+  "productionDatabaseCopied": false,
+  "acceptedWorkSoakStarted": false,
+  "publicAdmissionOpened": false,
+  "productionQualified": false
+}

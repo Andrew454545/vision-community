@@ -23,7 +23,8 @@ if len(sys.argv) > 2:
         (root / 'grandchild-beat').write_text(str(i))
         time.sleep(.03)
 else:
-    grandchild = subprocess.Popen([sys.executable, '-B', __file__, str(root), 'grandchild'], stdin=subprocess.DEVNULL)
+    grandchild = subprocess.Popen([sys.executable, '-B', __file__, str(root), 'grandchild'], stdin=subprocess.DEVNULL,
+                                 creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0)
     (root / 'pids.json').write_text(json.dumps([os.getpid(), grandchild.pid]))
     print('native child started', flush=True)
     for i in range(600):
@@ -162,7 +163,8 @@ class ProcessOwnerTest(unittest.TestCase):
             root = Path(folder)
             command = [sys.executable, "-I", "-B", process_owner.__file__, "0", "--", sys.executable,
                        "-c", "from pathlib import Path; Path('native-started').touch()"]
-            completed = subprocess.run(command, input=b"", cwd=root, capture_output=True, timeout=10)
+            completed = subprocess.run(command, input=b"", cwd=root, capture_output=True, timeout=10,
+                                       creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0)
             self.assertEqual(completed.returncode, 77)
             self.assertFalse((root / "native-started").exists())
 
@@ -225,6 +227,37 @@ class ProcessOwnerTest(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, (root / "driver.stderr").read_text())
             self.assertTrue((root / "windowless-passed").exists())
 
+    @unittest.skipUnless(os.name == "nt", "Windows console isolation")
+    def test_owned_default_and_caller_priority_have_no_console_from_gui_parent(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            pythonw = Path(sys.executable).with_name("pythonw.exe")
+            self.assertTrue(pythonw.is_file())
+            probe = ("import ctypes,json,sys; "
+                     "api=ctypes.WinDLL('kernel32'); api.GetConsoleWindow.restype=ctypes.c_void_p; "
+                     "api.GetCurrentProcess.restype=ctypes.c_void_p; "
+                     "api.GetPriorityClass.argtypes=[ctypes.c_void_p]; "
+                     "print(json.dumps({'hasConsole':bool(api.GetConsoleWindow()),"
+                     "'priority':api.GetPriorityClass(api.GetCurrentProcess())})); sys.exit(7)")
+            driver = root / "owned-windowless-parent.py"
+            driver.write_text(
+                "import json,os,subprocess,sys\nfrom pathlib import Path\nsys.path.insert(0," + repr(str(REPO)) + ")\n"
+                "from community.process_owner import run_owned\nroot=Path(sys.argv[1]); results=[]\n"
+                "for name,options in [('default',{}),('priority',{'creationflags':subprocess.BELOW_NORMAL_PRIORITY_CLASS}),('console',{'creationflags':subprocess.CREATE_NEW_CONSOLE})]:\n"
+                "    with (root/(name+'.stdout')).open('wb') as out, (root/(name+'.stderr')).open('wb') as err:\n"
+                "        result=run_owned([str(Path(sys.executable).with_name('python.exe')),'-c'," + repr(probe) + "],env=os.environ.copy(),cwd=root,stdout=out,stderr=err,timeout=10,**options)\n"
+                "    results.append({'exit':result.returncode,**json.loads((root/(name+'.stdout')).read_text())})\n"
+                "(root/'results.json').write_text(json.dumps(results))\n")
+            with (root / "driver.stderr").open("wb") as errors:
+                result = subprocess.run([str(pythonw), "-B", str(driver), str(root)],
+                    stdout=subprocess.DEVNULL, stderr=errors, timeout=30,
+                    creationflags=subprocess.CREATE_NO_WINDOW)
+            self.assertEqual(result.returncode, 0, (root / "driver.stderr").read_text())
+            results = json.loads((root / "results.json").read_text())
+            self.assertEqual([item['hasConsole'] for item in results], [False, False, False])
+            self.assertEqual([item['exit'] for item in results], [7, 7, 7])
+            self.assertEqual(results[1]['priority'], subprocess.BELOW_NORMAL_PRIORITY_CLASS)
+
     def test_timeout_stops_native_and_grandchild_without_losing_checkpoint(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
@@ -244,7 +277,8 @@ class ProcessOwnerTest(unittest.TestCase):
                 "from community.background import single_instance\nfrom community.vision_index import default_runner\n"
                 "root=Path(sys.argv[1])\nwith single_instance(root):\n    default_runner(" + repr(child) + ",os.environ.copy(),root)\n")
             with (root / "parent.stderr").open("wb") as errors:
-                parent = subprocess.Popen([sys.executable, "-B", str(driver), str(root)], stdout=subprocess.DEVNULL, stderr=errors)
+                parent = subprocess.Popen([sys.executable, "-B", str(driver), str(root)], stdout=subprocess.DEVNULL, stderr=errors,
+                                          creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0)
                 try:
                     self.wait_for(lambda: (root / "pids.json").exists() and (root / "grandchild-beat").exists())
                     parent.kill()  # Abrupt exit, not a cooperative stop/finally.

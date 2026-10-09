@@ -11,6 +11,13 @@ Updated 2026-10-09 after browser recovery and terminal diagnostic readback.
 
 ## Ordered handoff
 
+The [windowless process follow-up](WINDOWS_CONSOLE_RECOVERY_20261009.md) passes
+157 affected local checks and retires four terminal legacy Scene test tasks.
+The exact reported pop-up is not yet attributed. A private 20-minute trace runs
+independently of Codex; on a later session inspect its final
+`work/console-audit-20261009/visibility-trace.private.json` once, without polling.
+Keep unrelated terminals and the contributor's recovery task unchanged.
+
 1. **Complete:** actual browser price review, cancellation, reload, approval of the displayed amount and free paid replay. All four deliveries retained the original query/key and incurred one synthetic debit. See [pricing recovery](SEARCH_PRICING_RECOVERY_20261009.md).
 2. **Complete:** push `e99332b` and verify the remote. Keep the historical default price until real accepted-work cost and capacity evidence supports a change. Use `[skip ci]` for the follow-up fixes/evidence too.
 3. **Complete:** preserve the terminal diagnostic receipt and add a supplemental correction with all three completed native rounds and the actual round-4 failure. The older two-location timeout stays failed. Never relabel either failure as a successful multithreaded profile.
