@@ -25,6 +25,13 @@ Local Windows validation:
 - The initial sandboxed run could not reach its loopback services; its failure
   log is retained. The passing run has loopback access and uses disposable
   synthetic data, with no hosted account, contribution or credit change.
+- The final complete Windows application suite runs 722 tests in 514.141
+  seconds: 714 pass and eight existing platform/privilege checks skip. Earlier
+  failures remain preserved: a deep test-folder path reached the Windows
+  260-character boundary, then one loopback request was aborted by Windows.
+  All 17 launcher checks pass in the shorter private test folder; the isolated
+  control-window suite passes unchanged before the final full rerun. No
+  security setting, request bound or product protection was changed.
 
 This source change does not update an older installed download or satisfy Mac,
 accepted native work, trusted Object admission or endurance acceptance.
