@@ -54,8 +54,9 @@ class PackageStagingTests(unittest.TestCase):
             quote = lambda value: "'" + str(value).replace("'", "''") + "'"
             command = ("$ErrorActionPreference='Stop'; New-Item -ItemType Junction -Path "
                        + quote(link) + " -Target " + quote(self.root) + " | Out-Null")
+            powershell = os.environ.get('VISION_TEST_POWERSHELL') or 'powershell.exe'
             try:
-                subprocess.run(['powershell.exe', '-NoProfile', '-NonInteractive', '-Command', command],
+                subprocess.run([powershell, '-NoProfile', '-NonInteractive', '-Command', command],
                                check=True, capture_output=True, text=True, timeout=30)
             except subprocess.CalledProcessError as junction_error:
                 if os.name != 'nt':
