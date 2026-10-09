@@ -46,7 +46,7 @@ task or removal entry. Checks are in `packaging/windows/Check-Lifecycle.ps1` and
 
 ## Launch blockers found
 
-1. **Windows automatic controls/removal still depend on script execution.**
+1. **Windows script dependency found on 5 October; fixed on 6 October.**
    The original `VISION.exe` ran `powershell.exe -File …\Start-Vision.ps1` without an
    execution-policy argument. Windows clients default to `Restricted`, which
    blocks every script file, signed or not. CI reproduced this: with the
@@ -62,8 +62,12 @@ task or removal entry. Checks are in `packaging/windows/Check-Lifecycle.ps1` and
    never changes machine or user policy. The later
    [native starter](WINDOWS_NATIVE_STARTER_20261006.md) replaces **Start VISION**
    bootstrap and the finite detached helper, with real private setup/page
-   checks under Restricted. Automatic controls and removal still require
-   migration; the complete application is not qualified on a clean PC.
+   checks under Restricted. The subsequent
+   [native background controls](WINDOWS_NATIVE_BACKGROUND_20261006.md) also
+   replace automatic registration, controls and removal with native code.
+   [Integrated installer checks](INSTALLER_INTEGRATION_20261006.md) record the
+   inherited Restricted-policy lifecycle results. No execution-policy change
+   is required. Signed clean-PC acceptance remains open.
 2. **No signing accounts.** Unsigned candidates are rejected by Gatekeeper and
    will show SmartScreen warnings. The gated workflow and account setup are in
    [signing account setup](SIGNING-ACCOUNT-SETUP.md)

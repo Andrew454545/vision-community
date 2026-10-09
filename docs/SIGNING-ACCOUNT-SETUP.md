@@ -2,7 +2,9 @@
 
 This is for the VISION account holder. People using VISION do not need either
 account. The installer code is prepared, but no signing account is configured
-as of 5 October 2026.
+as of 8 October 2026. The protected GitHub `signing` environment is ready; it
+contains no credentials. GitHub Actions spending is currently on hold, so do
+not dispatch the signing workflow until that restriction is lifted.
 
 ## Mac
 
@@ -38,9 +40,14 @@ not satisfy this requirement.
 
 The manual **signed candidates** workflow
 (`.github/workflows/signed-candidates.yml`) builds signed candidates without
-anyone copying a private key to their own computer. In the repository settings,
-create an environment named `signing`, add yourself as a required reviewer, and
-restrict it to the release branch. Add these values to that environment only:
+anyone copying a private key to their own computer. The `signing` environment
+was created on 8 October 2026 with `Andrew454545` as required reviewer and
+`codex/windows-production-readiness` as the only permitted branch. Readback
+confirmed zero environment secrets and zero variables. The account holder may
+review their own manual candidate; administrator bypass remains GitHub's
+default, so this is a reviewer gate, not an assertion that bypass is disabled.
+If the release branch changes, update the branch restriction before signing.
+Add these values to that environment only after the accounts are ready:
 
 | Platform | Secrets | Variables |
 | --- | --- | --- |
