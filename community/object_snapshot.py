@@ -120,6 +120,8 @@ def public_manifest(document: dict) -> dict:
     """Allowlist fields; never propagate local paths or arbitrary extra metadata."""
     if not isinstance(document, dict):
         raise SnapshotError("invalid_object_artifact")
+    if "frozenViewsManifestSha256" in document:
+        raise SnapshotError("diagnostic_object_artifact")
     result = {key: document[key] for key in MANIFEST_SCALARS if key in document}
     if any(isinstance(value, (dict, list)) for value in result.values()):
         raise SnapshotError("invalid_object_artifact")

@@ -68,7 +68,12 @@ def load_index(path, checksum, source):
     # Paths/source allocation labels are not inference features. Do not follow
     # manifest source paths or change input bytes. Use the same v4 envelope and
     # content validator as submissions, with an in-memory diagnostic label.
-    manifest = public_manifest(document)
+    frozen_pin = document.get("frozenViewsManifestSha256")
+    if "frozenViewsManifestSha256" in document:
+        require(isinstance(frozen_pin, str) and len(frozen_pin) == 64
+                and all(c in "0123456789abcdef" for c in frozen_pin), "invalid_frozen_comparison_pin")
+    manifest = public_manifest({key: value for key, value in document.items()
+                                if key != "frozenViewsManifestSha256"})
     names = manifest_file_names(manifest)
     require(len(names) == len(set(names)) and len(names) <= 87
             and all(isinstance(name, str) and name.isascii()
@@ -92,6 +97,9 @@ def load_index(path, checksum, source):
                               source, items, lease_id=LEASE, global_start=manifest["globalStart"])
     except VisionIndexError:
         raise ComparisonError("invalid_comparison_index") from None
+    # Keep the diagnostic identity in the comparison, never the submission envelope.
+    if frozen_pin is not None:
+        manifest["frozenViewsManifestSha256"] = frozen_pin
     return manifest, files, digest(raw)
 
 
@@ -245,6 +253,8 @@ def compare(reference, reference_sha256, candidate, candidate_sha256, source_pat
               "qualified": False, "referenceProvenanceVerified": False,
               "identicalPixelsVerified": False, "nativeSearchParityVerified": False,
               "serverAuthorization": False}
+    result["declaredFrozenViews"] = {"reference": gold.get("frozenViewsManifestSha256"),
+                                     "candidate": actual.get("frozenViewsManifestSha256")}
     result["nativeCounters"] = {label: {key: manifest.get(key, 0) for key in
                                           ("fetchErrors", "inferenceErrors", "permanentlyInvalidLocations")}
                                 for label, manifest in (("reference", gold), ("candidate", actual))}

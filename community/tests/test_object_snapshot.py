@@ -17,6 +17,12 @@ from community.vision_index import VisionIndexError
 
 
 class ObjectSnapshotTest(unittest.TestCase):
+    def test_manifest_sanitization_cannot_hide_frozen_replay(self):
+        from community.object_snapshot import public_manifest
+        for value in (None, "a" * 64, ""):
+            with self.assertRaisesRegex(SnapshotError, "diagnostic_object_artifact"):
+                public_manifest({"frozenViewsManifestSha256": value})
+
     def test_retired_timeline_coverage_cannot_be_reused_for_search(self):
         self.rows[0]['coverage_validator'] = 'official-gen4-historical-v1'
         with self.assertRaises(SnapshotError):
