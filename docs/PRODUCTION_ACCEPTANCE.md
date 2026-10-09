@@ -28,6 +28,13 @@ Continue local checks without dispatching jobs or triggering paid workflows;
 see the repository's developer instructions. Earlier CI evidence remains valid
 only for its recorded revisions. New local checks do not establish Mac execution.
 
+The complete local Cloudflare Worker suite currently runs **313 tests**: 306
+pass, with seven explicit skips for Windows directory/file-link cases that this
+machine cannot create without the OS link privilege, and zero failures. Those
+skips preserve the security checks for link-capable hosts; they do not assert
+that a link is safe. The same suite previously stopped with raw `EPERM` setup
+errors, so the test harness now records the platform limitation honestly.
+
 The [complete Object index comparator](OBJECT_INDEX_COMPARISON.md) adds bounded,
 pinned comparison of stored detection, quality and semantic features. This is
 an offline diagnostic prerequisite, not a trusted inference verifier, a
