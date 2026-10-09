@@ -79,16 +79,19 @@ def child_file(root: Path, name: str) -> Path:
     return path
 
 
-def validate_quality(quality: dict, locations: int, invalid: int) -> None:
-    # Reference: VISION VisionModels.validateProtectedGen4ViewQuality. Retain
-    # evidence identities and semantics, never the Mac's absolute file paths.
+def validate_quality_structure(quality: dict, locations: int, invalid: int) -> None:
+    """Validate quality contents, without asserting protected import authority.
+
+    Only the offline frozen-input comparator uses this directly. Publication
+    must use validate_quality, which also requires the protected authority pin.
+    """
     counts = ("keptViews", "blurRejectedViews", "darkTunnelRejectedViews", "fullyRejectedLocations")
     if (type(locations) is not int or locations < 1 or quality.get("file") != "view-quality.bin"
             or quality.get("policy") != "vision-per-view-quality-v1" or quality.get("viewCount") != 6
             or quality.get("blurAreaFractionExclusive") != 0.5 or quality.get("tileGrid") != 8
             or quality.get("tunnelVisionProbabilityInclusive") != 0.85
-            or any(not isinstance(quality.get(field), str) or not HEX.fullmatch(quality[field]) for field in
-                   ("implementationIdentity", "protectedAuthorityManifestSha256"))
+            or not isinstance(quality.get("implementationIdentity"), str)
+            or not HEX.fullmatch(quality["implementationIdentity"])
             or any(type(quality.get(field)) is not int or not 0 <= quality[field] <= locations * 6 for field in counts)):
         raise SnapshotError("invalid_object_view_quality")
     rejected = quality.get("permanentlyInvalidLocations", 0)
@@ -113,6 +116,15 @@ def validate_quality(quality: dict, locations: int, invalid: int) -> None:
                 or quality["darkTunnelRejectedViews"] > quality["tunnelEvidenceQualifiedViews"]):
             raise SnapshotError("invalid_object_view_quality")
     else:
+        raise SnapshotError("invalid_object_view_quality")
+
+
+def validate_quality(quality: dict, locations: int, invalid: int) -> None:
+    # Reference: VISION VisionModels.validateProtectedGen4ViewQuality. Retain
+    # evidence identities and semantics, never the Mac's absolute file paths.
+    validate_quality_structure(quality, locations, invalid)
+    if (not isinstance(quality.get("protectedAuthorityManifestSha256"), str)
+            or not HEX.fullmatch(quality["protectedAuthorityManifestSha256"])):
         raise SnapshotError("invalid_object_view_quality")
 
 

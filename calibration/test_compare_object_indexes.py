@@ -65,6 +65,34 @@ class ObjectIndexComparisonTests(unittest.TestCase):
             with self.assertRaisesRegex(comparison.ComparisonError, "invalid_frozen_comparison_pin"):
                 self.result()
 
+    def test_frozen_blur_only_quality_is_measured_without_invented_authority(self):
+        from community.object_snapshot import public_manifest
+        for manifest in (self.gold, self.actual):
+            manifest["frozenViewsManifestSha256"] = "a" * 64
+            manifest["viewQuality"].pop("protectedAuthorityManifestSha256")
+        report = self.result()
+        self.assertTrue(report["exactFeatureMatch"])
+        self.assertEqual(report["declaredProtectedQualityAuthority"], {"reference": None, "candidate": None})
+        for manifest in (self.gold, self.actual):
+            with self.assertRaisesRegex(ValueError, "diagnostic_object_artifact"): public_manifest(manifest)
+            without_marker = {k: v for k, v in manifest.items() if k != "frozenViewsManifestSha256"}
+            with self.assertRaisesRegex(ValueError, "invalid_object_view_quality"): public_manifest(without_marker)
+
+    def test_unprotected_quality_without_valid_frozen_identity_remains_refused(self):
+        self.gold["viewQuality"].pop("protectedAuthorityManifestSha256")
+        with self.assertRaisesRegex(ValueError, "invalid_object_view_quality"): self.result()
+
+    def test_frozen_blur_only_quality_still_enforces_all_policy_requirements(self):
+        for manifest in (self.gold, self.actual):
+            manifest["frozenViewsManifestSha256"] = "a" * 64
+            manifest["viewQuality"].pop("protectedAuthorityManifestSha256")
+        for key, value in (("implementationIdentity", None), ("darkTunnelRejectedViews", 1),
+                           ("tileGrid", 4), ("keptViews", [])):
+            with self.subTest(key=key):
+                original = self.gold["viewQuality"][key]; self.gold["viewQuality"][key] = value
+                with self.assertRaises(ValueError): self.result()
+                self.gold["viewQuality"][key] = original
+
     def change_common(self, field, value):
         name = next(entry["file"] for entry in self.actual["classes"] if entry["records"])
         raw = bytearray(self.candidate_files[name])

@@ -20,7 +20,8 @@ The report distinguishes missing/added detections and discrete metadata changes
 from numeric score, confidence, heading, pitch, zoom and area differences.
 Heading errors use circular degrees. Semantic proposals compare in stored
 ordinal order: code bytes, faces, boxes, logit shifts and scales. There is no
-proposal rearrangement or native search comparison.
+proposal rearrangement. Native replies can be measured separately with the
+[offline search comparator](OBJECT_SEARCH_COMPARISON.md).
 Zero error with no shared detections does not mean a match; inspect record counts.
 
 Add `--codebook <models/owlv2-pq128-codebook.bin>` to measure decoded semantic

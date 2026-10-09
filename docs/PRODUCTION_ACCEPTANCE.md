@@ -520,6 +520,13 @@ Confirmed historical catalog/reference provenance limits are recorded in
 
 ## Continuing work
 
+The [offline Object search comparator](OBJECT_SEARCH_COMPARISON.md) adds pinned
+query/filter and native-reply validation, with explicit rank/score/aim changes
+and empty-result counts. The private frozen replay can exercise blur filtering
+and all three search routes with bounded owned processes and native readback
+before and after search. This does not establish protected/tunnel authority,
+official coverage, gold provenance or trusted admission.
+
 The [8 October replay separation](OBJECT_FROZEN_REPLAY_20261008.md) keeps private
 saved-image diagnostics out of submissions and published snapshots. The offline
 comparator reports their declared input identity without treating it as proof
