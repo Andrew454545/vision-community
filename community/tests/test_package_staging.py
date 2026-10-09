@@ -40,6 +40,7 @@ class PackageStagingTests(unittest.TestCase):
 
     def test_staging_refuses_linked_output_and_invalid_revision_before_writing(self):
         link = self.root / 'linked'
+        linked_supported = True
         try:
             link.symlink_to(self.root, target_is_directory=True)
         except OSError as error:
@@ -53,10 +54,20 @@ class PackageStagingTests(unittest.TestCase):
             quote = lambda value: "'" + str(value).replace("'", "''") + "'"
             command = ("$ErrorActionPreference='Stop'; New-Item -ItemType Junction -Path "
                        + quote(link) + " -Target " + quote(self.root) + " | Out-Null")
-            subprocess.run(['powershell.exe', '-NoProfile', '-NonInteractive', '-Command', command],
-                           check=True, capture_output=True, text=True, timeout=30)
-            self.assertTrue(link.lstat().st_file_attributes & 0x400)
-        for target,revision in ((self.root/'linked'/'out','a'*40),(self.root/'out','not-a-revision')):
+            try:
+                subprocess.run(['powershell.exe', '-NoProfile', '-NonInteractive', '-Command', command],
+                               check=True, capture_output=True, text=True, timeout=30)
+            except subprocess.CalledProcessError as junction_error:
+                if os.name != 'nt':
+                    raise
+                linked_supported = False
+            else:
+                self.assertTrue(link.lstat().st_file_attributes & 0x400)
+        if linked_supported:
+            with self.assertRaises(ValueError):
+                stage(self.root/'linked'/'out','mac','a'*40)
+            self.assertFalse((self.root/'out').exists())
+        for target,revision in ((self.root/'out','not-a-revision'),):
             with self.assertRaises(ValueError):stage(target,'mac',revision)
             self.assertFalse((self.root/'out').exists())
 
