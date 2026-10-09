@@ -64,6 +64,9 @@ need Python, Arrow, source exports or Cloudflare credentials.
    python -m unittest community.tests.test_pool_allocation -v
    ```
 
+   On macOS, use a physical temporary directory (for example an existing private
+   directory under `/private/tmp`) for `TMPDIR`; keep failures from other paths.
+
 7. Use `pool-publish.py --help` with a dedicated catalog prefix and a private
    adapter exposing `put(key, bytes)` and `get(key) -> bytes`. Confirm the actual
    Community bucket in the adapter. The publisher pins its inputs, verifies each

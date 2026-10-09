@@ -71,7 +71,7 @@ struct Partitions {
   void close() { for (auto &f : outputs) { f.flush(); require(bool(f), "Partition flush failed"); f.close(); } }
 };
 struct Counts {
-  uint64_t eligible = 0, duplicates = 0, local = 0, reserved = 0, community = 0,
+  uint64_t eligible = 0, duplicates = 0, allDuplicates = 0, local = 0, reserved = 0, community = 0,
            distinctLocal = 0, distinctReserved = 0, distinctCommunity = 0;
 };
 Counts reduce(Partitions &p, Bits &bits) {
@@ -95,6 +95,7 @@ Counts reduce(Partitions &p, Bits &bits) {
         community |= records[j].row == COMMUNITY; candidates += records[j].row < RESERVED;
       }
       c.distinctLocal += local; c.distinctReserved += reserved; c.distinctCommunity += community;
+      if (candidates) c.allDuplicates += candidates - 1;
       if (local) c.local += candidates;
       else if (reserved) c.reserved += candidates;
       else if (community) c.community += candidates;
@@ -138,7 +139,7 @@ std::shared_ptr<arrow::ipc::RecordBatchFileReader> reader(const fs::path &path) 
 }
 void report(const fs::path &dir, const Counts &c, uint64_t rows, uint64_t malformed, uint64_t reserved = 0) {
   std::ofstream f(dir / "identity-report.json");
-  f << "{\"sourceRows\":" << rows << ",\"eligibleUnique\":" << c.eligible << ",\"duplicateSourceRows\":" << c.duplicates
+  f << "{\"sourceRows\":" << rows << ",\"eligibleUnique\":" << c.eligible << ",\"duplicateSourceRows\":" << c.allDuplicates << ",\"duplicateEligibleRows\":" << c.duplicates
     << ",\"excludedLocalRows\":" << c.local << ",\"excludedReservedRows\":" << c.reserved << ",\"excludedCommunityRows\":" << c.community
     << ",\"distinctLocalIds\":" << c.distinctLocal << ",\"distinctReservedIds\":" << c.distinctReserved << ",\"distinctCommunityIds\":" << c.distinctCommunity
     << ",\"malformedInputIds\":" << malformed << ",\"localReservationRows\":" << reserved
