@@ -50,6 +50,13 @@ def verified_put(adapter, key, data):
 def publish(args):
     out = args.output.resolve()
     out.mkdir(exist_ok=True)
+    # A failed recheck must not leave an old marker looking like current success.
+    # Retain that earlier completion as historical evidence.
+    if (out / "complete.private.json").exists():
+        serial = 0
+        while (out / f"complete-before-resume-{serial}.private.json").exists():
+            serial += 1
+        (out / "complete.private.json").rename(out / f"complete-before-resume-{serial}.private.json")
     source_before = snapshot(args.source)
     if file_digest(args.source) != args.source_sha256:
         raise RuntimeError("Source hash differs from the independently pinned native commit")
@@ -67,6 +74,9 @@ def publish(args):
             "identityReportSha256": file_digest(args.identity_report),
             "countryAuthoritySha256": file_digest(args.countries),
             "exporterSha256": file_digest(args.exporter), "prefix": args.prefix}
+    declared_mask = report.get("derivedMaskSha256") or report.get("maskSha256")
+    if declared_mask and declared_mask != pins["maskSha256"]:
+        raise RuntimeError("Mask differs from its sealed identity authority")
     pin_path = out / "input-pins.private.json"
     if pin_path.exists() and json.loads(pin_path.read_text()) != pins:
         raise RuntimeError("Resume input identities changed; preserve the earlier attempt")

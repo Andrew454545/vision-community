@@ -51,16 +51,26 @@ def split(mask, source_rows, reused, parts):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--mask", type=Path, required=True)
+    parser.add_argument("--identity-report", type=Path, required=True)
     parser.add_argument("--source-rows", type=int, required=True)
     parser.add_argument("--reuse-verified-prefix", type=int, default=0)
     parser.add_argument("--parts", type=int, default=4)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
-    args.output.mkdir()  # Refuse to replace an earlier attempt.
     data = args.mask.read_bytes()
+    authority = json.loads(args.identity_report.read_text())
+    if authority["sourceRows"] != args.source_rows or authority["malformedInputIds"]:
+        parser.error("The sealed identity authority has incompatible bounds or malformed input")
+    if authority["identityComparison"] != "complete-22-byte-panorama-id":
+        parser.error("Complete panorama identity authority is required")
+    if sum(b.bit_count() for b in data) != authority["eligibleUnique"]:
+        parser.error("Mask cardinality differs from the sealed identity authority")
+    args.output.mkdir()  # Refuse to replace an earlier attempt.
     outputs = split(data, args.source_rows, args.reuse_verified_prefix, args.parts)
     original = hashlib.sha256(data).hexdigest()
+    authority_pin = hashlib.sha256(args.identity_report.read_bytes()).hexdigest()
     report = {"sourceRows": args.source_rows, "originalMaskSha256": original,
+              "originalIdentityReportSha256": authority_pin,
               "reusedVerifiedPrefix": args.reuse_verified_prefix, "parts": [],
               "completeDisjointUnionVerified": True}
     for serial, value in enumerate(outputs):
@@ -71,6 +81,7 @@ def main():
                     "malformedInputIds": 0, "identityComparison": "complete-22-byte-panorama-id",
                     "derivedMaskSha256": hashlib.sha256(value).hexdigest(),
                     "originalMaskSha256": original, "disjointSubset": True,
+                    "originalIdentityReportSha256": authority_pin,
                     "productionQualified": False}
         (args.output / f"part-{serial:02d}.json").write_text(json.dumps(identity) + "\n")
         report["parts"].append({"part": serial, "eligibleUnique": count,

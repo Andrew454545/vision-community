@@ -83,14 +83,14 @@ class PoolAllocationTests(unittest.TestCase):
     def test_exact_panorama_exclusion_and_duplicate_poses(self):
         local = self.tsv("indexed.tsv", [self.pano(1)])
         reserve = self.tsv("reserved.tsv", [self.pano(2)])
-        path = self.arrow([self.pano(x) for x in [1, 2, 3, 3, 4]])
-        out = self.run_identity(f"indexed\t0\t{local}\nreserved\t1\t{reserve}\n", path, 5)
+        path = self.arrow([self.pano(x) for x in [1, 1, 2, 2, 3, 3, 4]])
+        out = self.run_identity(f"indexed\t0\t{local}\nreserved\t1\t{reserve}\n", path, 7)
         report = json.loads((out / "identity-report.json").read_text())
         self.assertEqual((report["eligibleUnique"], report["excludedLocalRows"], report["excludedReservedRows"],
-                          report["duplicateSourceRows"]), (2, 1, 1, 1))
-        self.assertEqual((out / "eligible.bits").read_bytes(), bytes([0b10100]))
+                          report["duplicateSourceRows"]), (2, 2, 2, 3))
+        self.assertEqual((out / "eligible.bits").read_bytes(), bytes([0b1010000]))
         p = self.root / "spec.tsv"
-        again = subprocess.run([IDENTITY, "source", str(p), str(out), "5", str(path)], capture_output=True)
+        again = subprocess.run([IDENTITY, "source", str(p), str(out), "7", str(path)], capture_output=True)
         self.assertNotEqual(again.returncode, 0)
 
     def test_zero_queue_prefix_does_not_exclude_future_work(self):
@@ -154,6 +154,39 @@ class PoolAllocationTests(unittest.TestCase):
         self.assertTrue((self.root / "publication/render-0/shard-000000.tsv").exists())
         self.assertFalse((self.root / "publication/complete.private.json").exists())
         self.assertFalse((self.root / "publication/manifest.private.json").exists())
+
+    def test_successful_publication_and_changed_remote_resume(self):
+        path = self.arrow([self.pano(1), self.pano(2)])
+        sealed = self.run_identity("", path, 2)
+        store = self.root / "remote"
+        store.mkdir()
+        adapter = self.root / "adapter.py"
+        adapter.write_text("from pathlib import Path\nimport hashlib\n"
+                           f"root=Path({str(store)!r})\n"
+                           "def name(key): return root/hashlib.sha256(key.encode()).hexdigest()\n"
+                           "def put(key,data): name(key).write_bytes(data)\n"
+                           "def get(key): return name(key).read_bytes()\n")
+        publication = self.root / "publication"
+        command = [sys.executable, str(TOOLS / "pool-publish.py"), "--source", str(path),
+                   "--source-sha256", hashlib.sha256(path.read_bytes()).hexdigest(), "--source-rows", "2",
+                   "--mask", str(sealed / "eligible.bits"), "--countries", str(self.countries),
+                   "--identity-report", str(sealed / "identity-report.json"), "--exporter", EXPORT,
+                   "--adapter", str(adapter), "--output", str(publication),
+                   "--prefix", "catalog/offline-test", "--shard-id-start", "-100000"]
+        first = subprocess.run(command, capture_output=True, text=True)
+        self.assertEqual(first.returncode, 0, first.stderr)
+        self.assertEqual(json.loads((publication / "complete.private.json").read_text())["totalRows"], 2)
+        second = subprocess.run(command, capture_output=True, text=True)
+        self.assertEqual(second.returncode, 0, second.stderr)
+        self.assertEqual(len((publication / "verified-shards.private.jsonl").read_text().splitlines()), 1)
+        key = "catalog/offline-test/shard-000000.tsv"
+        (store / hashlib.sha256(key.encode()).hexdigest()).write_bytes(b"changed")
+        third = subprocess.run(command, capture_output=True, text=True)
+        self.assertNotEqual(third.returncode, 0)
+        self.assertIn("Resume remote readback mismatch", third.stderr)
+        self.assertFalse((publication / "complete.private.json").exists())
+        self.assertTrue((publication / "complete-before-resume-1.private.json").exists())
+        self.assertTrue((publication / "render-2/shard-000000.tsv").exists())
 
 
 if __name__ == "__main__":
