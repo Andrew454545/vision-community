@@ -52,8 +52,19 @@ test("actual native-host HTTP hop computes byte length and preserves Unicode JSO
   });
   await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
   t.after(() => new Promise(resolve => server.close(resolve)));
-  const response = await handleSearch(request(), env, (_, init) =>
-    fetch(`http://127.0.0.1:${server.address().port}/search`, init));
+  let loopbackDenied = false;
+  const response = await handleSearch(request(), env, async (_, init) => {
+    try {
+      return await fetch(`http://127.0.0.1:${server.address().port}/search`, init);
+    } catch (error) {
+      if (["EACCES", "EPERM"].includes(error?.cause?.code)) loopbackDenied = true;
+      throw error;
+    }
+  });
+  if (loopbackDenied) {
+    t.skip("host policy denies loopback TCP connections");
+    return;
+  }
   assert.equal(response.status, 200);
 });
 
