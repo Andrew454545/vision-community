@@ -35,7 +35,7 @@ skips preserve the security checks for link-capable hosts; they do not assert
 that a link is safe. The same suite previously stopped with raw `EPERM` setup
 errors, so the test harness now records the platform limitation honestly.
 The Windows native guidance, packaging, signing-preflight and background-control
-checks add **47 passing tests** using the pinned PowerShell runtime. The one
+checks add **48 passing tests** using the pinned PowerShell runtime. The one
 link-specific packaging branch is omitted when Windows denies junction creation;
 the ordinary package and revision checks still run.
 

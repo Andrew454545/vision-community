@@ -104,6 +104,11 @@ class NativeGuidanceTests(unittest.TestCase):
             self.assertIn('this preview is closed', text)
             self.assertIn('when contributions open', text)
 
+    def test_home_page_has_a_closed_preview_fallback_before_javascript(self):
+        page = (ROOT / 'community' / 'web' / 'index.html').read_text(encoding='utf-8').lower()
+        self.assertIn('id="welcome-status"', page)
+        self.assertIn('preview: processing and search are closed for now.', page)
+
 
 if __name__ == '__main__':
     unittest.main()
