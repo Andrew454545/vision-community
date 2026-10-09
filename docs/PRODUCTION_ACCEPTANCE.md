@@ -38,12 +38,18 @@ Continue local checks without dispatching jobs or triggering paid workflows;
 see the repository's developer instructions. Earlier CI evidence remains valid
 only for its recorded revisions. New local checks do not establish Mac execution.
 
-The complete local Cloudflare Worker suite currently runs **314 tests**: 307
-pass, with seven explicit skips for Windows directory/file-link cases that this
-machine cannot create without the OS link privilege, and zero failures. Those
-skips preserve the security checks for link-capable hosts; they do not assert
-that a link is safe. The same suite previously stopped with raw `EPERM` setup
-errors, so the test harness now records the platform limitation honestly.
+The full local Cloudflare service regression currently runs **414 tests**: 412
+pass, with two explicit Windows file-symlink privilege skips and zero failures.
+Directory-junction checks pass. The earlier restricted 314-test selection had
+seven file/directory-link skips and remains separate historical evidence. These
+skips preserve security checks for link-capable hosts; they do not assert that a
+link is safe. Earlier raw `EPERM` fixture failures are preserved.
+The [durable native compute allowance](HOSTED_COMPUTE_ALLOWANCE_20261009.md)
+survives actual local workerd disk restart and refuses concurrent overspending.
+It is deployed to the existing private staging host with the sealed bundle,
+image/runtime and settings preserved. Status reads cannot extend idle compute.
+This bounds operations/starts, not the entire Cloudflare invoice; realistic
+capacity, billing and full production recovery remain open.
 Windows native guidance, packaging, signing-preflight and background-control
 checks use the pinned PowerShell runtime. The one
 link-specific packaging branch is omitted when Windows denies junction creation;
@@ -565,6 +571,11 @@ they do not satisfy the actual restart, accepted-work or endurance gates below.
   workloads, global overload and costs before public load; Cloudflare's local
   permissive counters are not a global spending cap. See
   [API evidence](API_PROTECTION_20261004.md) and [the audit](PROJECT_AUDIT_20261004.md).
+  The [9 October private native allowance](HOSTED_COMPUTE_ALLOWANCE_20261009.md)
+  now durably reserves operations and starts, survives restart/redeploy, stops
+  exhausted compute and prevents status-driven idle extensions. Provider and
+  read-only service readback pass; no models or new contributions were run.
+  This is a component safeguard, not whole-account billing/capacity approval.
 
 Credits have no added expiry or cap. A finite queue cannot supply infinite useful
 work; an empty queue waits without re-crediting old locations. Preserve legacy

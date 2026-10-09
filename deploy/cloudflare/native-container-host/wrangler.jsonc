@@ -19,6 +19,8 @@
   "vars": {
     "OPERATOR_BUCKET_NAME": "vision-community-staging",
     "NATIVE_IMAGERY_EGRESS": "disabled",
+    "NATIVE_DAILY_COMPUTE_REQUESTS": "48",
+    "NATIVE_DAILY_CONTAINER_STARTS": "12",
     "NATIVE_RUNTIME_SHA256": "bbc60e94e6590c657f256d89f6d63db47f7f3d53d1ba37ffeafba07b6211d64e",
     "NATIVE_IMAGE": "registry.cloudflare.com/272760294910ef0b246980278aeb36e2/vision-community-native-scene@sha256:94aaae47d06fb01d08b1f37059517c8ee35c2a23112c25f19a0fa8cb156c8204"
   },
