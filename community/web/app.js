@@ -76,12 +76,13 @@ function closePriceReview() {
 function showPriceReview(cost) {
   const dialog = $("price-review");
   if (!dialog || !searchPriceReview) return;
+  searchPriceReview.displayedCost = cost;
   $("price-review-copy").textContent = `The current search price is ${number(cost)} units. Continue at this price? Recovering an already-paid result is free.`;
   dialog.showModal();
 }
 $("price-review-continue")?.addEventListener("click", () => {
   if (!searchPriceReview) return;
-  searchPriceReview.approved = true;
+  searchPriceReview.approvedCost = searchPriceReview.displayedCost;
   closePriceReview();
   $("run-search")?.click();
 });
@@ -937,6 +938,7 @@ async function refresh(options = {}) {
   $("site-description").textContent = testSite ? "Test website · separate accounts and credits" : "Scene and object search";
   document.title = testSite ? "VISION — Test website" : "VISION";
   if (previous?.accountId !== state.accountId) {
+    closePriceReview();
     searchPriceReview = null;
     lastMap = null;
     $("results").replaceChildren();
@@ -1567,7 +1569,7 @@ $("run-search").addEventListener("click", async () => {
         && searchPriceReview.idempotencyKey === pending.idempotencyKey) {
       const cost = VisionSearchPricing.cost(state);
       if (cost === null) throw new Error("search_unavailable");
-      if (!searchPriceReview.approved) {
+      if (searchPriceReview.approvedCost !== cost) {
         showPriceReview(cost);
         return;
       }
