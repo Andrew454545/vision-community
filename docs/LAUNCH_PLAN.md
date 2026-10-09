@@ -75,3 +75,6 @@ chat or disable operating-system protections.
 There is no defensible completion date while those resources are missing.
 Once admission works, the accepted-work soak itself requires at least seven
 days and can run alongside packaging, recovery and capacity validation.
+The [seven-day check protocol](ACCEPTED_WORK_SOAK.md) records the prerequisites,
+independent Windows/Mac start conditions and evidence required. Neither
+accepted-work clock is running while the service remains closed.
