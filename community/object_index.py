@@ -38,7 +38,6 @@ from .contribute import (
     load_session,
     save_session,
 )
-from .pano import CLI_LEASE_CAP
 from .delivery import DurableCommunityClient
 from .vision_index import (
     MAX_INDEX_FAILURES,
@@ -84,6 +83,11 @@ OBJECT_CAPABILITIES = [
 ]
 DUTY_CYCLE_PERCENT = 25
 CHECKPOINT_EVERY = 10
+# Keep unattended native jobs small on both platforms. A single measured
+# Object location can take minutes; the old 8/32/64-location defaults tied up
+# a whole lease for hours and delayed pause/schedule changes. Pace is separate
+# from batch size. Experienced operators can still choose an explicit count.
+DEFAULT_NATIVE_BATCH_LOCATIONS = 1
 RECORD_BYTES = 32
 GLOBAL_ID_BYTES = 12
 SEMANTIC_RECORD_BYTES = 144
@@ -868,7 +872,7 @@ def index_from_queue(
         raise VisionIndexError("invalid_batch")
     work_dir = Path(work_dir)
     assert_not_live_vision_path(work_dir)
-    size = count if count is not None else CLI_LEASE_CAP["object"][pace]
+    size = count if count is not None else DEFAULT_NATIVE_BATCH_LOCATIONS
     session = client or DurableCommunityClient(url)
     stored = load_session(session_path, url) if session_path is not None else None
     if not recovery_code:
@@ -1666,7 +1670,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--url", default=DEFAULT_URL)
     parser.add_argument("--pace", choices=tuple(PACE_NICE), default="slow")
-    parser.add_argument("--count", type=int)
+    parser.add_argument("--count", type=int, help="Locations per batch (default: 1; completed batches repeat automatically).")
     parser.add_argument("--batches", type=int)
     parser.add_argument("--part", type=int)
     parser.add_argument("--recovery-code", dest="recovery_code")

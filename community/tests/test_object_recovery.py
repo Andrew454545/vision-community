@@ -6,8 +6,9 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from community.object_index import (OBJECT_FEATURE, _default_runner, index_object_tsv,
+from community.object_index import (OBJECT_FEATURE, _default_runner, index_object_tsv, index_from_queue,
                                     object_index_is_complete)
+from community.contribute import ContributeError
 from community.vision_index import MAX_INDEX_FAILURES, MAX_NO_PROGRESS, VisionIndexError
 
 CPU_POOL = "[vision-object] ONNX Runtime global threads: 1, spinning disabled"
@@ -43,6 +44,23 @@ class ObjectRecoveryTest(unittest.TestCase):
 
     def failures(self):
         return [json.loads(path.read_text()) for path in self.root.glob("object-failure-*.json")]
+
+    def test_unattended_default_keeps_object_leases_small_at_every_pace(self):
+        requested = []
+        class ConnectedClient:
+            token = 'synthetic-local-only'
+            def lease(self, lane, count, pace, part=None):
+                requested.append((lane, count, pace))
+                raise ContributeError('no_available_work', 409)
+        with patch.dict(os.environ, {}, clear=True):
+            for pace in ('slow', 'medium', 'max'):
+                result = index_from_queue(url='https://community.test', pace=pace, batches=1,
+                    work_dir=self.root, client=ConnectedClient())
+                self.assertEqual(result['batches'], 0)
+            index_from_queue(url='https://community.test', count=3, batches=1,
+                work_dir=self.root, client=ConnectedClient())
+        self.assertEqual(requested, [('object', 1, 'slow'), ('object', 1, 'medium'),
+                                    ('object', 1, 'max'), ('object', 3, 'slow')])
 
     def test_transient_exits_resume_then_require_both_native_verifications(self):
         attempts = 0

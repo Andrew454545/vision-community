@@ -29,6 +29,8 @@ MIN_FREE_BYTES = 5 * 1024**3
 MAX_STORAGE_ENTRIES = 200_000
 STORAGE_SCAN_SECONDS = 10
 PACES = ("slow", "medium", "max", "pause")
+DEFAULT_DAY_START = "06:00"
+DEFAULT_NIGHT_START = "00:00"
 RECOVERABLE_QUEUE_ERRORS = frozenset({"expired_lease", "lease_lost", "unknown_lease"})
 TERMINAL_SERVICE_ERRORS = frozenset({
     "verification_failed", "scene_qualification_rejected", "scene_device_not_qualified",
@@ -56,15 +58,15 @@ def clock_minutes(value):
             raise ValueError
         return hour * 60 + minute
     except (TypeError, ValueError):
-        raise ValueError("Use a time such as 08:00 or 22:00 (24-hour clock).") from None
+        raise ValueError("Use a time such as 06:00 or 00:00 (24-hour clock).") from None
 
 
 @dataclass(frozen=True)
 class ProcessingSchedule:
     day_pace: str = "medium"
     night_pace: str = "max"
-    day_start: str = "08:00"
-    night_start: str = "22:00"
+    day_start: str = DEFAULT_DAY_START
+    night_start: str = DEFAULT_NIGHT_START
 
     def __post_init__(self):
         if self.day_pace not in PACES or self.night_pace not in PACES:
@@ -545,8 +547,8 @@ def main(*, stop=None):
     parser.add_argument("--accept-contributions", action="store_true")
     parser.add_argument("--day-pace", choices=PACES, default="medium")
     parser.add_argument("--night-pace", choices=PACES, default="max")
-    parser.add_argument("--day-start", default="08:00", help="Local 24-hour time (default: 08:00).")
-    parser.add_argument("--night-start", default="22:00", help="Local 24-hour time (default: 22:00).")
+    parser.add_argument("--day-start", default=DEFAULT_DAY_START, help="Local 24-hour time (default: 06:00).")
+    parser.add_argument("--night-start", default=DEFAULT_NIGHT_START, help="Local 24-hour time (default: 00:00).")
     parser.add_argument("--retry-minutes", type=int, default=30)
     parser.add_argument("--storage-limit-gb", type=int, default=0,
                         help="Private folder allowance in binary GB (0 disables; checked between batches, not a hard quota).")

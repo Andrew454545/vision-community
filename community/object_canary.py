@@ -30,7 +30,11 @@ MODELS = (
     'owlv2-vision-proposals.onnx', 'owlv2-vocab.json',
     'rfdetr-medium-576-b4.onnx', 'yoloe-26l-hot-prompts.npz', 'yoloe-26l-hot.onnx',
 )
-DLLS = ('DirectML.dll', 'msvcp140.dll', 'msvcp140_1.dll',
+# CPU-only Object builds do not require the Scene package's DirectML library.
+# Pin every adjacent DLL if present, including DirectML, but require only these
+# app-local C++ runtime dependencies. --cpu and the shared-pool receipt remain
+# mandatory; removing an unused provider does not approve a processing profile.
+DLLS = ('msvcp140.dll', 'msvcp140_1.dll',
         'vcruntime140.dll', 'vcruntime140_1.dll')
 THREAD_MARKER = '[vision-object] ONNX Runtime global threads: 1, spinning disabled'
 MAX_JSON = 8 * 1024**2

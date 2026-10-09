@@ -1,5 +1,20 @@
 # Production acceptance
 
+Updated **9 October 2026**. Start with the finite
+[five-gate launch plan](LAUNCH_PLAN.md). The detailed dated evidence below
+preserves historical results and limitations; completed reference trials do not
+require repeating merely because an older paragraph described them as pending.
+
+The [native Object auditing component](NATIVE_OBJECT_AUDIT.md) now reruns the
+pinned CPU program, requires two full native verifications and compares every
+feature lane against independently pinned assignment/quality authority. Its
+synthetic tests and actual Windows runtime contract check are component
+evidence, not hosted Object qualification, accepted work or release approval.
+Unattended Object CLI batches now default to one location, matching guided
+processing; CPU-only checks no longer demand an unused DirectML library.
+The direct worker and legacy Windows installer now match the guided defaults:
+medium 06:00–00:00, maximum 00:00–06:00. Saved custom times remain supported.
+
 GitHub Actions spending is on hold at the user's request (8 October 2026).
 Continue local checks without dispatching jobs or triggering paid workflows;
 see the repository's developer instructions. Earlier CI evidence remains valid
@@ -41,22 +56,24 @@ device qualification or search credits. All twelve executed public CI jobs pass
 at application source `7ba40c1` (640 Windows/Linux checks with platform skips and
 259 service checks without skips). Retired v1 authority remains refused; old
 rows require fresh trusted validation. Object admission stays closed.
-The private Ubuntu/Windows CI and newer Mac model build remain blocked before
-runner startup by that repository's Actions budget.
+Those older private CI attempts were blocked before runner startup. The newer
+Mac comparison was subsequently completed through a private local handoff;
+see [the 9 October cross-platform evidence](OBJECT_CROSS_PLATFORM_20261009.md).
+GitHub Actions spending remains on hold.
 
 The [offline Object reference checker](OBJECT_REFERENCE_CHECK.md) supports
 checksum-pinned saved faces and all three detector lanes without account or
 service access. It measures differences and keeps failures; it does not supply
 Object production qualification or open admission.
 
-An additional maintainer Mac workflow collects encrypted portable values from
-the published native program for CPU/CoreML-requested comparison. The original
-private Mac artifact omitted those values; its replacement build workflow is
-blocked before startup by GitHub's private Actions budget. Neither workflow
-supplies production qualification. The service now explicitly reports Object
-readiness false and recognizes the closed qualification endpoint.
+The original private Mac artifact omitted portable values, and its historical
+replacement workflow could not start. The completed 9 October local handoff
+now supplies full indexes, actual search replies, source identities and traces
+with independent file pins. These remain exploratory evidence. The service
+explicitly reports Object readiness false and recognizes the closed
+qualification endpoint.
 
-Updated 2026-10-06 UTC. **The project is not yet ready for production.**
+**The project is not yet ready for production.**
 This checklist describes the current state; check off a release gate only with
 recorded evidence. Earlier failures and exploratory results remain separate.
 The [guided work selection](GUIDED_WORK_SELECTION.md) and

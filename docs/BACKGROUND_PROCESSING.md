@@ -62,8 +62,9 @@ is kept throughout installation, including abrupt installer exit, and removed
 only after readback and saving settings. Mismatch preserves the stop and a
 failure report. The receipt explicitly does not claim actual start or endurance.
 
-The following commands remain available for maintainers. Their legacy defaults
-are 08:00 and 22:00; the control window passes its selected times explicitly.
+The following commands remain available for maintainers. Their defaults match
+the control window: medium 06:00–00:00 and max 00:00–06:00. Saved custom settings
+are passed explicitly and remain supported.
 
 Use the repository folder; setup downloads and verifies its own private Python:
 
@@ -71,8 +72,8 @@ Use the repository folder; setup downloads and verifies its own private Python:
 .\windows\Install-Background.ps1 -Source 'FULL_PATH_TO_REPOSITORY' -Root "$env:LOCALAPPDATA\vision-community-background" -AcceptContributions
 ```
 
-The default schedule uses **medium from 08:00 to 22:00**, then **max from 22:00
-to 08:00**, every day according to the PC's local clock.
+The default schedule uses **medium from 06:00 to 00:00**, then **max from 00:00
+to 06:00**, every day according to the PC's local clock.
 
 The consent covers private model downloads, live imagery, creation/reuse of an
 anonymous account, and ongoing verified contributions. The installer snapshots
