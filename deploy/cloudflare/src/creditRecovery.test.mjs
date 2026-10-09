@@ -6,6 +6,7 @@ import { readFileSync, writeFileSync, copyFileSync, mkdtempSync, rmSync, existsS
 import { tmpdir } from 'node:os';
 import { join, resolve, dirname, basename } from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { checkCreditRecovery, verifyCreditRecovery } from '../tools/credit-recovery.mjs';
 import { RESOURCE_PROFILES } from '../tools/account-restore.mjs';
 import { PRIVACY_TABLES, deleteAccount } from './accountPrivacy.js';
@@ -209,7 +210,7 @@ test('source snapshots without a stop-writers assertion cannot authorize account
 
 test('actual command-line entrypoint returns only a private aggregate report',async t=>{
   const f=await fixture(t),script=new URL('../tools/credit-recovery.mjs',import.meta.url);
-  const result=spawnSync(process.execPath,[script.pathname,'--backup',f.backup,'--current',f.current,
+  const result=spawnSync(process.execPath,[fileURLToPath(script),'--backup',f.backup,'--current',f.current,
     '--recovered',f.recovered,'--authority',f.authority,'--authority-sha256',f.options.authoritySha256,
     '--recovered-sha256',f.options.recoveredSha256,'--authority-not-before','150',
     '--environment','staging','--out',f.options.out],{encoding:'utf8'});
