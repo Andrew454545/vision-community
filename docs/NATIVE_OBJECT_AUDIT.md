@@ -15,7 +15,9 @@ or accept an uploader's coverage labels as trusted assignment data.
 2. Bind the exact source TSV to the trusted assignment: location IDs, poses,
    country, road flags and `official-gen4-historical-v2-exact-pano` evidence.
 3. Require the operator's protected quality authority and implementation
-   identity. Frozen diagnostic indexes cannot become contributions.
+   identity. Independently check its pinned MMA coordinate snapshot and reject
+   every assignment within the native queue's inclusive 25-metre radius before
+   running models. Frozen diagnostic indexes cannot become contributions.
 4. Check the native runtime contract, rerun all three Object model lanes with
    inline blur filtering, then fully verify the fresh native index.
 5. Compare every Common, Hot, semantic and quality record, fully verify again,
@@ -73,7 +75,20 @@ The assignment contains `version: 1`, `scope: "trusted-object-assignment"`,
 `sourceSha256` and `records`. Each record includes the complete assigned TSV
 fields, `locationId`, `coverageValidator` and `coverageEvidenceSha256`.
 The authority must come from the operator's real sealed protected import;
-do not construct a fake MMA database to get past the guard.
+do not construct a fake MMA database to get past the guard. Its `protectedSnapshot`
+must pin an absolute `path`, `bytes`, `sha256` and matching `generatedAt`. The
+snapshot must identify the same MMA database and exactly the two root-map and
+two folder selectors used by the native exporter. Its coordinates and source
+counts are validated; missing, changed, duplicate or stale snapshots fail closed.
+The native sealer's one-second timestamp allowance is preserved. The database
+fingerprints remain required and are not replaced by snapshot claims.
+
+The geographic comparison uses the native queue's earth radius of 6,371,008.8
+metres and inclusive squared-chord threshold with relative epsilon `1e-10`.
+It handles poles and the date line without rounding input coordinates. The
+snapshot is checked before and after native work, and its checksum is included
+in completed audit reports. This adds assignment protection; it does not certify
+snapshot provenance, current camera generation or tunnel visual evidence.
 
 Run from the project folder with the private runtime:
 
@@ -116,6 +131,15 @@ evidence. No model inference, imagery retrieval, account, publication or credit
 was created. The first attempt exposed an unnecessary DirectML requirement;
 its failed report remains preserved. The corrected checker requires app-local
 C++ dependencies and pins every adjacent DLL, including DirectML if present.
+
+The later protected-assignment guard matches Andrew's independently pinned real
+export on all **139 supplied positions: 121 protected and 18 unprotected**.
+This was an offline geographic check with no model execution or imagery. The
+earlier **765-test Windows regression** passes with 15 platform skips. The final
+guard regression runs **772 tests: 757 pass, 15 platform/permission skips, zero
+failures or errors**, with separate targeted and full-regression evidence in
+[the allocation handoff](ALLOCATION_HANDOFF_20261009.md). No native import seal,
+device qualification or server publication is inferred from these checks.
 
 The unattended Object command now defaults to one location per batch at every
 pace, matching the guided application. It continues through successive batches;

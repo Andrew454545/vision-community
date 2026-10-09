@@ -5,13 +5,23 @@ Updated **9 October 2026**. Start with the finite
 preserves historical results and limitations; completed reference trials do not
 require repeating merely because an older paragraph described them as pending.
 
-The [allocation integration and endurance checks](ALLOCATION_ENDURANCE_20261009.md)
-now cover retired catalog assignments, queued fallback, late holds and competing
-claims. Andrew's exact-exclusion/export tools are integrated; the complete
-replacement catalog handoff is still pending. A finite 24-round offline Windows
+The [verified allocation handoff](ALLOCATION_HANDOFF_20261009.md) closes the
+replacement-pool dependency: both private packets and all 55 contained file pins
+pass, and independent live D1 readback confirms 618 replacement shards per lane
+and no retired-family registrations. Actual local workerd verifies retirement,
+late holds and competing claims. The deployed schema's missing fields now have
+an exact-structure synthetic upgrade rehearsal; the full-data rehearsal and
+rollout remain open. A finite 24-round offline Windows
 supervisor was started independently of Codex, but its first native round timed
 out after 902.781 seconds and the failure receipt is preserved. It created no
 accepted work or credit and does not close the seven-day production workload gate.
+
+The final full Windows application regression runs **772 tests**, with 757
+passing, 15 explicit platform/permission skips and no failures or errors. The
+Object auditor's new pinned-snapshot exclusion matches all 139 supplied native
+decisions and refuses protected assignments before running models. The closed
+staging website is deployed and all 13 assets and privacy headers pass readback;
+both contribution lanes remain unavailable. See the handoff's redacted evidence.
 
 The [native Object auditing component](NATIVE_OBJECT_AUDIT.md) now reruns the
 pinned CPU program, requires two full native verifications and compares every
@@ -28,14 +38,14 @@ Continue local checks without dispatching jobs or triggering paid workflows;
 see the repository's developer instructions. Earlier CI evidence remains valid
 only for its recorded revisions. New local checks do not establish Mac execution.
 
-The complete local Cloudflare Worker suite currently runs **313 tests**: 306
+The complete local Cloudflare Worker suite currently runs **314 tests**: 307
 pass, with seven explicit skips for Windows directory/file-link cases that this
 machine cannot create without the OS link privilege, and zero failures. Those
 skips preserve the security checks for link-capable hosts; they do not assert
 that a link is safe. The same suite previously stopped with raw `EPERM` setup
 errors, so the test harness now records the platform limitation honestly.
-The Windows native guidance, packaging, signing-preflight and background-control
-checks add **48 passing tests** using the pinned PowerShell runtime. The one
+Windows native guidance, packaging, signing-preflight and background-control
+checks use the pinned PowerShell runtime. The one
 link-specific packaging branch is omitted when Windows denies junction creation;
 the ordinary package and revision checks still run.
 

@@ -39,6 +39,30 @@ test('legacy upgrade preserves credentials, balances, paid maps, publications, l
   assert.ok(!JSON.stringify(plan).includes('private café'));
   assert.deepEqual(readdirSync(out).sort(),['query-batch.private.json','upgrade-report.private.json','upgrade.private.sql','upgraded.sqlite']);
 });
+
+test('deployed legacy CHECK and foreign-key schema upgrades without changing synthetic history or active leases',async t=>{
+  const {input,out,open}=fixture(t);await legacyFixture(input,{deployedShape:true});
+  const original=open(input,{readOnly:true});
+  const tables=['accounts','leases','lease_items','ledger','searches','locations','published_index','pose_catalog','index_shards'];
+  const saved=tables.map(table=>rows(original,table));
+  assert.equal(original.prepare('PRAGMA table_info(accounts)').all().some(column=>column.name==='deleted_at'),false);
+  assert.equal(original.prepare('PRAGMA table_info(leases)').all().some(column=>column.name==='scene_qualification_id'),false);
+  const pin=checksum(input);
+  const report=await rehearseUpgrade({database:input,databaseSha256:pin,out});
+  assert.equal(checksum(input),pin);assert.equal(report.complete,true);assert.equal(report.liveReady,false);
+  const upgraded=open(join(out,'upgraded.sqlite'));upgraded.exec('PRAGMA foreign_keys=ON');
+  await requireSchema({DB:sqliteD1(upgraded)});
+  // Compare every original column: the two new nullable fields are additive.
+  for(let index=0;index<tables.length;index++) {
+    const columns=original.prepare(`PRAGMA table_info(${tables[index]})`).all().map(column=>column.name);
+    assert.deepEqual(upgraded.prepare(`SELECT ${columns.join(',')} FROM ${tables[index]}`).all(),saved[index]);
+    assert.deepEqual(upgraded.prepare(`PRAGMA foreign_key_list(${tables[index]})`).all(),original.prepare(`PRAGMA foreign_key_list(${tables[index]})`).all());
+  }
+  assert.throws(()=>upgraded.exec("INSERT INTO locations(asset_id,capture,lane,model) VALUES('bad','c','other','native')"),/CHECK constraint failed/);
+  assert.throws(()=>upgraded.exec("INSERT INTO lease_items(lease_id,location_id) VALUES('missing',22)"),/FOREIGN KEY constraint failed/);
+  assert.throws(()=>upgraded.exec("UPDATE leases SET state='unrecognized' WHERE id='unfinished'"),/CHECK constraint failed/);
+  assert.equal(rows(upgraded,'leases')[0].state,'active');
+});
 test('generated exact-schema plan applies atomically and mismatch/late failure preserves original rows and schema',async t=>{
   const {root,input,out,open}=fixture(t); await legacyFixture(input);
   await rehearseUpgrade({database:input,databaseSha256:checksum(input),out});

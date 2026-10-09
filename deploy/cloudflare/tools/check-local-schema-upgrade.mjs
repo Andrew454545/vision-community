@@ -11,11 +11,13 @@ import {rehearseUpgrade} from './upgrade-schema.mjs';
 import {requireSchema} from '../src/schemaRevision.js';
 
 const {Miniflare,convertV4MiniflareOptions}=await import(pathToFileURL(resolve(process.argv[2])));
+const deployedShape=process.argv[3]==='--deployed-shape';
+if(process.argv[3] && !deployedShape)throw Error('unknown_fixture_option');
 const parent=resolve(tmpdir()),root=mkdtempSync(join(parent,'vision-local-schema-upgrade-'));
 let mf,sql;
 try {
   const input=join(root,'legacy.sqlite'),out=join(root,'upgrade');
-  await legacyFixture(input);
+  await legacyFixture(input,{deployedShape});
   const pin=createHash('sha256').update(readFileSync(input)).digest('hex');
   await rehearseUpgrade({database:input,databaseSha256:pin,out});
   const batch=JSON.parse(readFileSync(join(out,'query-batch.private.json'))).batch;
@@ -23,7 +25,11 @@ try {
   const tables=sql.prepare("SELECT name,sql FROM sqlite_master WHERE type='table' AND name NOT GLOB 'sqlite_*' ORDER BY name").all();
   const indexes=sql.prepare("SELECT sql FROM sqlite_master WHERE type='index' AND sql IS NOT NULL ORDER BY name").all();
   const seed=tables.map(row=>row.sql);
-  for(const {name} of tables) {
+  // D1 enforces the deployed foreign keys. Seed parents before child rows,
+  // after creating every table; alphabetical insertion hid this in the older
+  // fixture, whose legacy tables lacked those constraints.
+  const order=['accounts','locations','leases','lease_items','published_index','ledger','searches','pose_catalog','index_shards'];
+  for(const {name} of [...tables].sort((a,b)=>order.indexOf(a.name)-order.indexOf(b.name))) {
     const columns=sql.prepare(`PRAGMA table_info(${name})`).all().map(row=>row.name);
     const values=columns.map(column=>`CASE WHEN typeof(${column})='text' THEN 'CAST(X'''||hex(CAST(${column} AS BLOB))||''' AS TEXT)' ELSE quote(${column}) END AS ${column}`);
     for(const row of sql.prepare(`SELECT ${values.join(',')} FROM ${name}`).all())seed.push(`INSERT INTO ${name} (${columns.join(',')}) VALUES (${columns.map(column=>row[column]).join(',')})`);
@@ -53,10 +59,15 @@ try {
   assert.equal(after.account.recovery_hash,before.account.recovery_hash);assert.deepEqual(after.paid,before.paid);
   assert.deepEqual(after.credit,before.credit);assert.equal(after.publication.embedding,before.publication.embedding);
   assert.deepEqual(after.sequence,before.sequence);
+  if(deployedShape) {
+    await assert.rejects(db.prepare("INSERT INTO locations(asset_id,capture,lane,model) VALUES('invalid','c','other','native')").run(),/CHECK constraint failed/);
+    await assert.rejects(db.prepare("INSERT INTO lease_items(lease_id,location_id) VALUES('missing',22)").run(),/FOREIGN KEY constraint failed/);
+  }
   await db.prepare("UPDATE accounts SET units=0,recovery_hash=NULL,deleted_at=10 WHERE id='saved'").run();
   await assert.rejects(db.prepare("UPDATE accounts SET deleted_at=NULL WHERE id='saved'").run(),/account_not_active/);
   await assert.rejects(db.prepare("INSERT INTO ledger(account_id,units,reason,reference) VALUES('saved',1,'late','duplicate-credit')").run(),/account_not_active/);
   console.log(JSON.stringify({status:'ACTUAL_WORKERD_LEGACY_SCHEMA_UPGRADE_PASSED',failedBatchRolledBack:true,schemaMismatchRefused:true,
+    fixture:deployedShape?'deployed-20261009-schema-synthetic-data':'synthetic-legacy',
     creditsCredentialsPaidMapsPublicationsPreserved:true,privacyFencesChecked:true,liveImport:false}));
 }finally{
   if(sql)sql.close();if(mf)await mf.dispose();
