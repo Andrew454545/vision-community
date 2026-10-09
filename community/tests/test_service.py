@@ -209,7 +209,8 @@ class PoseCatalogLeaseTest(unittest.TestCase):
                 )
             source.write_text("\n".join(lines) + "\n", encoding="utf-8")
             shards = root / "shards"
-            manifest = split_shards(source, shards, rows_per_shard=2, row_start=1000)
+            manifest = split_shards(source, shards, rows_per_shard=2, row_start=1000,
+                                    key_prefix='catalog/official-remaining-v1/offline-fixture')
             service = CommunityService(root / "db.sqlite", search_cost=4, artifacts=root / "artifacts")
             report = service.install_pose_catalog(manifest, source_dir=shards)
             self.assertEqual(report["rows"], 4)

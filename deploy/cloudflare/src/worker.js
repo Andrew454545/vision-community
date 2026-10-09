@@ -114,7 +114,7 @@ const FAMILY_LABELS = {
 };
 
 function catalogOrderSql() {
-  return 'shard_id';
+  return "CASE WHEN r2_key LIKE 'catalog/official-remaining-v1/%' THEN 0 ELSE 3 END, shard_id";
 }
 
 function familyForKey(key) {
@@ -158,8 +158,9 @@ async function partCount(env, lane) {
 async function partNumber(env, lane, shardId) {
   const row = await env.DB.prepare(
     `SELECT COUNT(*) AS n FROM pose_catalog
-     WHERE lane=? AND ${availableCatalogSql()} AND shard_id<=?`
-  ).bind(lane, shardId).first();
+     WHERE lane=? AND ${availableCatalogSql()} AND (${catalogOrderSql()}) <=
+       (SELECT ${catalogOrderSql()} FROM pose_catalog WHERE lane=? AND shard_id=?)`
+  ).bind(lane, lane, shardId).first();
   return row?.n || 0;
 }
 
