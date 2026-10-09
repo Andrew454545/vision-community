@@ -67,6 +67,15 @@ function fileLink(t, target, path) {
     throw error;
   }
 }
+function directoryLink(t, target, path) {
+  try { symlinkSync(target, path, process.platform === "win32" ? "junction" : "dir"); return true; }
+  catch (error) {
+    if (process.platform === "win32" && ["EPERM", "EACCES"].includes(error.code)) {
+      t.skip("Windows directory-link privilege is unavailable"); return false;
+    }
+    throw error;
+  }
+}
 for (const environment of ["production", "staging"]) test(`independently cached privacy bytes verify for ${environment} without live approval`, t => {
   const options = setup(t, undefined, environment), original = readFileSync(options.current), result = checkPrivacyStorage(options);
   assert.equal(result.complete, true); assert.equal(result.objectsVerified, true);
@@ -161,12 +170,12 @@ test("linked source fails before a successful report", t => {
 test("a linked database parent is refused without file-symlink privilege", t => {
   const options = fixture(t), source = join(options.root, "source"), alias = join(options.root, "source-alias");
   mkdirSync(source); writeFileSync(join(source, "current.sqlite"), readFileSync(options.current));
-  symlinkSync(source, alias, "junction");
+  if (!directoryLink(t, source, alias)) return;
   fails({ ...options, current: join(alias, "current.sqlite") }, planPrivacyStorage);
 });
 test("a linked cache directory is refused without file-symlink privilege", t => {
   const options = setup(t), alias = join(options.root, "cache-alias");
-  symlinkSync(options.cache, alias, "junction");
+  if (!directoryLink(t, options.cache, alias)) return;
   fails({ ...options, cache: alias });
 });
 test("closed WAL-mode export remains read-only and creates no sidecars", t => {

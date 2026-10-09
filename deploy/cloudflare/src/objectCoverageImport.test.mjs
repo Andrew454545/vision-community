@@ -86,7 +86,7 @@ test('guarded batch refuses drift, active uncertified rows, changed receipts and
     }finally{sql.close();}
   }
 });
-test('private preparation excludes source paths, saves a complete batch and refuses existing or linked output',()=>{
+test('private preparation excludes source paths, saves a complete batch and refuses existing or linked output',t=>{
   const root=mkdtempSync(join(tmpdir(),'coverage-')),validator=join(root,'validator'),fixture=coverageFixture();
   mkdirSync(validator);
   try {
@@ -99,7 +99,14 @@ test('private preparation excludes source paths, saves a complete batch and refu
     const report=JSON.parse(readFileSync(join(values.out,'report.private.json')));
     assert.equal(report.batchSha256,before);
     assert.throws(()=>saveCoveragePlan(values));assert.equal(digest(readFileSync(join(values.out,'import-batch.private.json'))),before);
-    const link=join(root,'redirect');symlinkSync(validator,link,process.platform==='win32'?'junction':'dir');
+    const link=join(root,'redirect');
+    try { symlinkSync(validator,link,process.platform==='win32'?'junction':'dir'); }
+    catch(error) {
+      if(process.platform==='win32' && ['EPERM','EACCES'].includes(error.code)) {
+        t.skip('Windows directory-link privilege is unavailable'); return;
+      }
+      throw error;
+    }
     assert.throws(()=>saveCoveragePlan({...values,validator:link,out:join(root,'unsafe')}));
     assert.throws(()=>saveCoveragePlan({...values,out:join(link,'unsafe')}));
     const failed=join(root,'bad-input');assert.throws(()=>saveCoveragePlan({...values,out:failed,'manifest-sha256':'0'.repeat(64)}));
