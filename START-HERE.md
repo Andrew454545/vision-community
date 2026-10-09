@@ -18,7 +18,9 @@ For Intel or AMD Windows PCs. No Python, Git or administrator password needed.
 1. **Set up this PC.** Click the setup button. The message tells you whether processing is open. Scene setup downloads about 1 GB.
 2. **Create account.** Save your private code, then choose **I have saved my code**. Returning? Use **I already have an account**.
 3. **Run the PC check.** Wait for **PC approved**.
-4. **Start helping.** Keep VISION open, your PC awake and the internet connected.
+4. **When contributions open:** choose **Start helping**. Keep VISION open, your PC awake and the internet connected.
+
+**This preview is closed.** Stop after the PC check for now. You have done everything needed; the app will say when contributions open.
 
 To stop, choose **Pause after this batch**. To return, open VISION and use your saved code.
 
@@ -28,7 +30,7 @@ turns. Both needs separate Scene and Object approvals.
 
 ## Automatic processing
 
-After setup, close VISION and open **Background VISION.cmd** (or **Background VISION**).
+When contributions are open, close VISION after setup and open **Background VISION.cmd** (or **Background VISION**).
 Paste your saved account code once, choose your schedule, tick the permission box and choose **Save and enable**.
 
 The default is **Medium during the day** and **Maximum from midnight to 6 am**. You can change both times and speeds. Close the controls when done; the worker continues. Reopen them to **Pause after batch**, **Resume** or **Check status**. Keep the extracted VISION folder so you can reopen the controls.

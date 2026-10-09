@@ -96,6 +96,14 @@ class NativeGuidanceTests(unittest.TestCase):
                           'spctl --master-disable', '--no-verify'):
             self.assertNotIn(forbidden, text)
 
+    def test_closed_preview_does_not_invite_processing(self):
+        sources = [ROOT / 'START-HERE.md', ROOT / 'START HERE.html',
+                   ROOT / 'community' / 'web' / 'getting-started.html']
+        for path in sources:
+            text = path.read_text(encoding='utf-8').lower()
+            self.assertIn('this preview is closed', text)
+            self.assertIn('when contributions open', text)
+
 
 if __name__ == '__main__':
     unittest.main()
