@@ -1,0 +1,22 @@
+{
+  "status": "HOST_BLOCKED_BEFORE_FIXTURE",
+  "check": "check-local-catalog-allocation.mjs",
+  "attempts": [
+    {
+      "runtime": "miniflare@5.20260926.1-alpha",
+      "result": "runtime_start_failed",
+      "reason": "Windows workerd SQLite path validation returned access denied"
+    },
+    {
+      "runtime": "miniflare@4.20260730.0",
+      "result": "runtime_start_failed",
+      "reason": "runtime supports compatibility dates only through 2026-08-06; fixture requires 2026-09-19"
+    }
+  ],
+  "fixtureExecuted": false,
+  "liveImageryRetrieved": false,
+  "cloudResourcesAccessed": false,
+  "creditsChanged": 0,
+  "productionQualified": false,
+  "nextAction": "Repeat on a host with the pinned runtime and SQLite path support; do not weaken security controls."
+}
