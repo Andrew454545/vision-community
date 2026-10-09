@@ -17,7 +17,9 @@ class BackgroundControlTests(unittest.TestCase):
     def command(self, code, *, expected=0):
         result = subprocess.run([str(POWERSHELL), '-NoProfile', '-STA', '-Command',
             "$ErrorActionPreference='Stop'; . " + ps_string(CONTROL) + '; ' + code],
-            capture_output=True, text=True, timeout=30)
+            capture_output=True, text=True, timeout=30,
+            # Keep unattended checks independent of an interactive console.
+            creationflags=subprocess.CREATE_NO_WINDOW)
         self.assertEqual(result.returncode, expected, result.stdout + result.stderr)
         return result.stdout.strip()
 

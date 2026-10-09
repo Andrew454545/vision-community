@@ -21,8 +21,19 @@ has passed an actual windowless preliminary cycle and started a new finite
 24-round Windows task. Its 130 recovery checks have no failures/errors and one
 existing permission skip; native index/search and both full verifications pass.
 CPU/peak-commit measurements and working-set coverage limits are retained.
-The new scheduled result is pending and does not replace the original failure.
+The scheduled diagnostic then completed three 1/2/4-thread native rounds and
+**failed during round 4 recovery** with Windows interrupt exit `0xC000013A`.
+Its verified task is disabled; the original terminal receipt/failure logs remain
+unchanged. The earlier claim that its task was missing is corrected in the
+[terminal report](WINDOWS_NATIVE_DIAGNOSTIC_20261009.md#terminal-result).
 Neither operating system's [accepted-work clock](ACCEPTED_WORK_SOAK.md) is running.
+
+The [pricing recovery walkthrough](SEARCH_PRICING_RECOVERY_20261009.md) passes
+actual browser cancellation/reload/explicit-price approval and once-only paid
+recovery, plus local workerd/D1 restart checks. These are synthetic component
+checks; the historical default price is unchanged. The complete recorded local
+Windows service suite passes 448/451 tests with three permission skips and no
+failures. Genuine earned-credit search and production recovery remain open.
 
 The final full Windows application regression runs **772 tests**, with 757
 passing, 15 explicit platform/permission skips and no failures or errors. The
