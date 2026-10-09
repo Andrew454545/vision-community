@@ -18,11 +18,11 @@ MAX_PENDING_SUBMISSIONS = 64
 LOST_LEASE_CODES = frozenset({"expired_lease", "lease_lost", "unknown_lease"})
 
 
-def submission_result_state(lease_id, result):
+def submission_result_state(lease_id, result, expected_count=None):
     """Only a coherent service acknowledgement may retire saved output."""
     if not isinstance(result, dict):
         raise ValueError("invalid_submission_result")
-    if any(key in result and type(result[key]) is not bool for key in ("pendingAudit", "rejected")):
+    if any(key in result and type(result[key]) is not bool for key in ("pendingAudit", "rejected", "replayed")):
         raise ValueError("invalid_submission_result")
     if any(key in result and (type(result[key]) is not int or not 0 <= result[key] <= 2**53 - 1)
            for key in ("accepted", "unitsEarned")):
@@ -35,6 +35,14 @@ def submission_result_state(lease_id, result):
         raise ValueError("invalid_submission_result")
     if not pending and not rejected and ("accepted" not in result or earned and not accepted):
         raise ValueError("invalid_submission_result")
+    if not pending and not rejected and expected_count is not None:
+        # Each submitted batch is atomic. A partial/empty fresh acknowledgement
+        # must never erase the only retryable copy of its remaining locations.
+        # Scene audits may report zero for an already published replay; retain
+        # that explicit protocol case without counting it as new earned work.
+        if (type(expected_count) is not int or expected_count < 1
+                or accepted != expected_count and not (accepted == 0 and result.get("replayed") is True)):
+            raise ValueError("invalid_submission_result")
     return "pending" if pending else "rejected" if rejected else "accepted"
 
 
@@ -137,8 +145,7 @@ class SubmissionOutbox:
                     raise ValueError("invalid_submission_result")
                 if state == "accepted":
                     outputs = payload["outputs"] if saved["lane"] == "object" else payload
-                    if result["accepted"] > len(outputs):
-                        raise ValueError("invalid_submission_result")
+                    submission_result_state(lease_id, result, len(outputs))
             connection.execute("""UPDATE deliveries SET state=?, result_json=?, updated_at=?,
                 payload_json=CASE WHEN ?='accepted' THEN NULL ELSE payload_json END
                 WHERE origin=? AND account_id=? AND lease_id=? AND state IN ('ready','pending')""",

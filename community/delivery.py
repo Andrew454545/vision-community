@@ -38,7 +38,7 @@ class DurableCommunityClient(CommunityClient):
         if self.outbox:
             self.outbox.remember(lease_id, outputs)
         result = super().submit(lease_id, outputs)
-        self.save_submission_result(lease_id, result)
+        self.save_submission_result(lease_id, result, expected_count=len(outputs))
         if result.get("rejected"):
             raise ContributeError("scene_submission_rejected", 422)
         return result
@@ -49,14 +49,14 @@ class DurableCommunityClient(CommunityClient):
         result = super().submit_object(lease_id, outputs, object_index)
         if isinstance(result, dict) and result.get("pendingAudit"):
             raise ContributeError("invalid_submission_result", 503)
-        self.save_submission_result(lease_id, result)
+        self.save_submission_result(lease_id, result, expected_count=len(outputs))
         if result.get("rejected"):
             raise ContributeError("object_submission_rejected", 422)
         return result
 
-    def save_submission_result(self, lease_id, result):
+    def save_submission_result(self, lease_id, result, expected_count=None):
         try:
-            submission_result_state(lease_id, result)
+            submission_result_state(lease_id, result, expected_count)
             if self.outbox:
                 self.outbox.result(lease_id, result)
         except ValueError as error:

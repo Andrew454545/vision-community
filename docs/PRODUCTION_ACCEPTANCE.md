@@ -520,6 +520,18 @@ Confirmed historical catalog/reference provenance limits are recorded in
 
 ## Continuing work
 
+The [complete-batch acknowledgement repair](DELIVERY_ACKNOWLEDGEMENTS_20261008.md)
+keeps saved Scene/Object payloads after partial or empty fresh success replies,
+while preserving explicit already-published replay. All 58 focused local Windows
+delivery/recovery checks pass without skips. This is delivery evidence; trusted
+Object admission and accepted-work endurance remain open.
+
+The account holder has prepared the protected `signing` GitHub environment;
+[its recorded settings](evidence/signing-environment-20261008.json) contain no
+secrets or variables. Actual signing enrollment and clean-device resources are
+still missing. [PR #16](https://github.com/Andrew454545/vision-community/pull/16)
+also corrects the stale installer migration note. No signing workflow was run.
+
 The [offline Object search comparator](OBJECT_SEARCH_COMPARISON.md) adds pinned
 query/filter and native-reply validation, with explicit rank/score/aim changes
 and empty-result counts. The private frozen replay can exercise blur filtering

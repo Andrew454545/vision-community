@@ -174,6 +174,89 @@ class OutboxTest(unittest.TestCase):
             self.assertEqual(client.outbox.pending()[0]['state'], 'ready')
             self.assertEqual(json.loads(client.outbox.pending()[0]['payload_json']), self.outputs)
 
+    def test_partial_and_empty_fresh_acknowledgements_keep_entire_batch_after_restart(self):
+        outputs = [*self.outputs, {"locationId": 2, "embedding": "second saved output"}]
+        for state in ('ready', 'pending'):
+            for result in ({'accepted': 0}, {'accepted': 1}, {'accepted': 1, 'replayed': True},
+                           {'accepted': 0, 'replayed': 'true'}, {'accepted': 2, 'replayed': None}):
+                with self.subTest(state=state, result=result), tempfile.TemporaryDirectory() as root:
+                    client = self.client(root)
+                    client.outbox.remember(self.lease, outputs)
+                    if state == 'pending':client.outbox.result(self.lease, {'pendingAudit': True})
+                    with closing(sqlite3.connect(Path(root)/'submissions.sqlite')) as connection:
+                        before = connection.execute('SELECT * FROM deliveries').fetchone()
+                    with self.assertRaisesRegex(ContributeError, 'invalid_submission_result'):
+                        client.save_submission_result(self.lease, result)
+                    restarted = self.client(root)
+                    self.assertEqual(json.loads(restarted.outbox.pending()[0]['payload_json']), outputs)
+                    with closing(sqlite3.connect(Path(root)/'submissions.sqlite')) as connection:
+                        self.assertEqual(connection.execute('SELECT * FROM deliveries').fetchone(), before)
+
+    def test_complete_and_explicit_already_published_replies_retire_saved_batch(self):
+        outputs = [*self.outputs, {"locationId": 2}]
+        for result in ({'accepted': 2, 'unitsEarned': 2}, {'accepted': 2, 'unitsEarned': 0, 'replayed': True},
+                       {'accepted': 0, 'unitsEarned': 0, 'replayed': True, 'pendingAudit': False}):
+            with self.subTest(result=result), tempfile.TemporaryDirectory() as root:
+                client = self.client(root)
+                client.outbox.remember(self.lease, outputs)
+                client.outbox.result(self.lease, {'pendingAudit': True})
+                client.save_submission_result(self.lease, result)
+                self.assertEqual(self.client(root).pending, 0)
+                with closing(sqlite3.connect(Path(root)/'submissions.sqlite')) as connection:
+                    state, payload = connection.execute('SELECT state,payload_json FROM deliveries').fetchone()
+                self.assertEqual((state, payload), ('accepted', None))
+
+    def test_submission_without_journal_also_refuses_partial_success(self):
+        client = DesktopClient(self.url)
+        with patch.object(CommunityClient, 'request', return_value=(200, {'accepted': 0}, None)):
+            with self.assertRaisesRegex(ContributeError, 'invalid_submission_result'):
+                client.submit(self.lease, self.outputs)
+
+    def test_real_http_partial_audit_preserves_two_locations_until_confirmed_replay(self):
+        calls, published = [], []
+        class Handler(BaseHTTPRequestHandler):
+            def log_message(self, *_args):pass
+            def do_POST(handler):
+                body = json.loads(handler.rfile.read(int(handler.headers['Content-Length'])))
+                calls.append((handler.path, body))
+                if handler.path == '/api/submissions':
+                    value = {'pendingAudit': True, 'submissionId': self.lease}
+                elif handler.path == '/api/scene-audits':
+                    if not published:
+                        published.extend([1, 2])
+                        value = {'accepted': 1, 'unitsEarned': 1}  # Broken reply after atomic publication.
+                    else:
+                        value = {'accepted': 0, 'unitsEarned': 0, 'replayed': True}
+                else:
+                    handler.send_error(404); return
+                raw = json.dumps(value).encode()
+                handler.send_response(200)
+                handler.send_header('Content-Type', 'application/json')
+                handler.send_header('Content-Length', str(len(raw)))
+                handler.end_headers(); handler.wfile.write(raw)
+        server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True); thread.start()
+        try:
+            url = 'http://127.0.0.1:' + str(server.server_port)
+            with tempfile.TemporaryDirectory() as root:
+                first = DesktopClient(url); first.enable_outbox(root, self.account)
+                outputs = [*self.outputs, {'locationId': 2, 'embedding': 'second saved output'}]
+                with self.assertRaisesRegex(ContributeError, 'invalid_submission_result'):
+                    first.submit(self.lease, outputs)
+                    first.audit_submission(self.lease)
+                saved = first.outbox.pending()[0]
+                self.assertEqual(saved['state'], 'pending')
+                self.assertEqual(json.loads(saved['payload_json']), outputs)
+                restarted = DesktopClient(url); restarted.enable_outbox(root, self.account)
+                self.assertEqual(restarted.resume_submissions(), {'accepted': 0, 'unitsEarned': 0})
+                self.assertEqual(restarted.pending, 0)
+                self.assertEqual(restarted.resume_submissions(), {'accepted': 0, 'unitsEarned': 0})
+                self.assertEqual(published, [1, 2])
+                self.assertEqual([path for path, _ in calls], ['/api/submissions', '/api/scene-audits', '/api/scene-audits'])
+                self.assertEqual(calls[0][1]['outputs'], outputs)
+        finally:
+            server.shutdown(); server.server_close(); thread.join(timeout=3)
+
     def test_guided_client_without_journal_still_refuses_malformed_success(self):
         client = DesktopClient(self.url)
         with patch.object(CommunityClient, 'request', return_value=(200, {'accepted': -1}, None)):

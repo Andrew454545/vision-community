@@ -145,6 +145,8 @@ class ObjectDeliveryTests(unittest.TestCase):
                             result = {}
                         elif owner.phase == 'overclaim':
                             result = {'accepted': 2, 'unitsEarned': 20}
+                        elif owner.phase == 'empty-success':
+                            result = {'accepted': 0, 'unitsEarned': 0}
                         elif owner.phase == 'pending-object':
                             result = {'pendingAudit': True, 'submissionId': body['leaseId']}
                         return self.send(200, result, partial=owner.phase == 'drop-reply')
@@ -200,7 +202,7 @@ class ObjectDeliveryTests(unittest.TestCase):
         self.assertNotIn(code.encode(), (self.root / 'indexes/submissions.sqlite').read_bytes())
 
     def test_malformed_acknowledgement_keeps_exact_bundle_and_does_not_release_the_lease(self):
-        for phase in ('empty-reply', 'overclaim', 'pending-object'):
+        for phase in ('empty-reply', 'overclaim', 'empty-success', 'pending-object'):
             with self.subTest(phase=phase):
                 self.phase = phase
                 self.assertEqual(self.child()['error'], 'invalid_submission_result')
