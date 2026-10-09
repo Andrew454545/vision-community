@@ -498,6 +498,12 @@ they do not satisfy the actual restart, accepted-work or endurance gates below.
 - [ ] Complete production backup/restore including R2 contribution files,
   permanent privacy markers, deletion archives, sealed native bundles, retired
   legacy segments and secrets. Rehearse credential rotation/service recovery.
+  The [offline privacy-storage check](PRIVACY_STORAGE_RECOVERY.md) now derives
+  archives and permanent fences from a separately trusted current export and
+  verifies actual cached bodies/metadata, preserving retained publications.
+  All 52 focused checks and 385 local service checks pass on Apple-silicon Mac;
+  the initial sandbox-only loopback refusal is preserved. This does not prove
+  live R2 restoration, contribution/native-bundle recovery or secret rotation.
 - [ ] Reconcile credits and searches earned/spent after backup without replay
   awards or duplicate debits. The offline financial comparison detects changed
   balances, earnings/debits, replay keys and saved responses against a separately
