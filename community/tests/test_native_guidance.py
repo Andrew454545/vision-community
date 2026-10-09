@@ -78,6 +78,16 @@ class NativeGuidanceTests(unittest.TestCase):
         self.assertIn('byId(`${platform}-background-native`).hidden = state.nativeApp !== true', script)
         self.assertIn('byId(`${platform}-background-folder`).hidden = state.nativeApp === true', script)
 
+    def test_public_download_links_use_one_pinned_preview(self):
+        sources = [ROOT / name for name in ('README.md', 'START-HERE.md', 'START HERE.html')]
+        sources += [ROOT / 'community' / 'web' / name for name in ('index.html', 'getting-started.html')]
+        links = set()
+        pattern = re.compile(r'https://github\.com/Andrew454545/vision-community/releases/download/[^)" ]+')
+        for path in sources:
+            links.update(pattern.findall(path.read_text(encoding='utf-8')))
+        self.assertEqual(len(links), 1)
+        self.assertIn('windows-starter-preview-20261004-recovery', next(iter(links)))
+
 
 if __name__ == '__main__':
     unittest.main()
