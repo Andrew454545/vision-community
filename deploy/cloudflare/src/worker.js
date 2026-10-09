@@ -11,6 +11,7 @@ import {
   QUERY_VIEW_CAP, renderLocationFaces, leaseCap, usesStreetViews,
 } from "./pano.js";
 import { requireSchema } from "./schemaRevision.js";
+import { availableCatalogSql, availableLocationSql, freshLeaseItemSql } from './catalogAllocation.js';
 import { ingressLimit, accountLimit, viewLimit, ApiLimitError } from './apiRateLimit.js';
 import { OBJECT_INDEX_MODEL, validateObjectIndex } from "./objectIndex.js";
 import { onlineSearch, onlineSearchConfigured, INDEX_DOWNLOAD_ROUTES } from "./onlineSearch.js";
@@ -113,11 +114,12 @@ const FAMILY_LABELS = {
 };
 
 function catalogOrderSql() {
-  return `CASE WHEN r2_key LIKE 'catalog/all-locations-tail-v1/%' THEN 0 WHEN r2_key LIKE 'catalog/all-locations-full-v1/%' THEN 1 WHEN r2_key LIKE 'catalog/vision-indexed-v1/%' THEN 2 ELSE 3 END, shard_id`;
+  return 'shard_id';
 }
 
 function familyForKey(key) {
   const value = key || "";
+  if (value.startsWith('catalog/official-remaining-v1/')) return 'new-places';
   if (value.startsWith("catalog/all-locations-tail-v1/")) return "new-places";
   if (value.startsWith("catalog/all-locations-full-v1/")) return "whole-map";
   if (value.startsWith("catalog/vision-indexed-v1/")) return "already-indexed";
@@ -149,23 +151,15 @@ function describePart(part, partCountValue, family, rowsLeft, lane = "scene") {
 }
 
 async function partCount(env, lane) {
-  const row = await env.DB.prepare("SELECT COUNT(*) AS n FROM pose_catalog WHERE lane=?").bind(lane).first();
+  const row = await env.DB.prepare(`SELECT COUNT(*) AS n FROM pose_catalog WHERE lane=? AND ${availableCatalogSql()}`).bind(lane).first();
   return row?.n || 0;
 }
 
 async function partNumber(env, lane, shardId) {
   const row = await env.DB.prepare(
     `SELECT COUNT(*) AS n FROM pose_catalog
-     WHERE lane=? AND (
-       CASE WHEN r2_key LIKE 'catalog/all-locations-tail-v1/%' THEN 0 WHEN r2_key LIKE 'catalog/all-locations-full-v1/%' THEN 1 WHEN r2_key LIKE 'catalog/vision-indexed-v1/%' THEN 2 ELSE 3 END
-       < (SELECT CASE WHEN r2_key LIKE 'catalog/all-locations-tail-v1/%' THEN 0 WHEN r2_key LIKE 'catalog/all-locations-full-v1/%' THEN 1 WHEN r2_key LIKE 'catalog/vision-indexed-v1/%' THEN 2 ELSE 3 END FROM pose_catalog WHERE lane=? AND shard_id=?)
-       OR (
-         CASE WHEN r2_key LIKE 'catalog/all-locations-tail-v1/%' THEN 0 WHEN r2_key LIKE 'catalog/all-locations-full-v1/%' THEN 1 WHEN r2_key LIKE 'catalog/vision-indexed-v1/%' THEN 2 ELSE 3 END
-         = (SELECT CASE WHEN r2_key LIKE 'catalog/all-locations-tail-v1/%' THEN 0 WHEN r2_key LIKE 'catalog/all-locations-full-v1/%' THEN 1 WHEN r2_key LIKE 'catalog/vision-indexed-v1/%' THEN 2 ELSE 3 END FROM pose_catalog WHERE lane=? AND shard_id=?)
-         AND shard_id <= ?
-       )
-     )`
-  ).bind(lane, lane, shardId, lane, shardId, shardId).first();
+     WHERE lane=? AND ${availableCatalogSql()} AND shard_id<=?`
+  ).bind(lane, shardId).first();
   return row?.n || 0;
 }
 
@@ -184,7 +178,7 @@ async function workFromShard(env, lane, shard) {
 
 async function workStatus(env, account, lane) {
   const shard = await env.DB.prepare(
-    `SELECT * FROM pose_catalog WHERE lane=? AND assignee=? AND next_row < row_count ORDER BY ${catalogOrderSql()} LIMIT 1`
+    `SELECT * FROM pose_catalog WHERE lane=? AND assignee=? AND next_row < row_count AND ${availableCatalogSql()} ORDER BY ${catalogOrderSql()} LIMIT 1`
   ).bind(lane, account).first();
   if (!shard) {
     const count = await partCount(env, lane);
@@ -212,14 +206,14 @@ async function status(env, account, options = {}) {
   const lite = Boolean(options.lite);
   const rows = await env.DB.prepare(
     `SELECT lane,
-            SUM(CASE WHEN state='published' THEN 0 ELSE 1 END) AS pending,
+            SUM(CASE WHEN state!='published' AND COALESCE(queue_state,'pending')='pending' AND ${availableLocationSql()} THEN 1 ELSE 0 END) AS pending,
             SUM(CASE WHEN state='published' THEN 1 ELSE 0 END) AS published
      FROM locations GROUP BY lane`
   ).all();
   const counts = {};
   for (const row of rows.results || []) counts[row.lane] = { pending: row.pending || 0, published: row.published || 0 };
   const catalog = await env.DB.prepare(
-    "SELECT lane, SUM(row_count - next_row) AS remaining FROM pose_catalog GROUP BY lane"
+    `SELECT lane, SUM(row_count - next_row) AS remaining FROM pose_catalog WHERE ${availableCatalogSql()} GROUP BY lane`
   ).all();
   for (const row of catalog.results || []) {
     const laneCounts = counts[row.lane] || (counts[row.lane] = { pending: 0, published: 0 });
@@ -299,7 +293,8 @@ async function r2Status(env) {
   const head = await env.INDEX.head("registry.json");
   status.registry = Boolean(head);
   status.registryBytes = head ? head.size : 0;
-  const catalog = await env.INDEX.head("catalog/all-locations-tail-v1/manifest.json");
+  const registered = await env.DB.prepare(`SELECT r2_key FROM pose_catalog WHERE ${availableCatalogSql()} ORDER BY shard_id LIMIT 1`).first();
+  const catalog = registered ? await env.INDEX.head(registered.r2_key) : null;
   status.poseCatalog = Boolean(catalog);
   status.poseCatalogBytes = catalog ? catalog.size : 0;
   return status;
@@ -355,7 +350,7 @@ async function claimShard(env, account, lane, shard, now) {
   const stale = now - STEAL_AFTER_SECONDS;
   const moved = await env.DB.prepare(
     `UPDATE pose_catalog SET assignee=?, assigned_at=?
-     WHERE lane=? AND shard_id=? AND next_row < row_count AND COALESCE(held, 0)=0
+     WHERE lane=? AND shard_id=? AND next_row < row_count AND ${availableCatalogSql()}
        AND (
          assignee IS NULL OR assignee=?
          OR (
@@ -378,7 +373,7 @@ async function claimShard(env, account, lane, shard, now) {
 async function assignCatalogShard(env, account, lane, now, part) {
   if (part != null) {
     const shard = await env.DB.prepare(
-      `SELECT * FROM pose_catalog WHERE lane=? ORDER BY ${catalogOrderSql()} LIMIT 1 OFFSET ?`
+      `SELECT * FROM pose_catalog WHERE lane=? AND ${availableCatalogSql()} ORDER BY ${catalogOrderSql()} LIMIT 1 OFFSET ?`
     ).bind(lane, part - 1).first();
     if (!shard) return { error: "invalid_part" };
     const claimed = await claimShard(env, account, lane, shard, now);
@@ -392,11 +387,11 @@ async function assignCatalogShard(env, account, lane, now, part) {
     return claimed;
   }
   const existing = await env.DB.prepare(
-    `SELECT * FROM pose_catalog WHERE lane=? AND assignee=? AND next_row < row_count AND COALESCE(held, 0)=0 ORDER BY ${catalogOrderSql()} LIMIT 1`
+    `SELECT * FROM pose_catalog WHERE lane=? AND assignee=? AND next_row < row_count AND ${availableCatalogSql()} ORDER BY ${catalogOrderSql()} LIMIT 1`
   ).bind(lane, account).first();
   if (existing) return existing;
   const candidates = (await env.DB.prepare(
-    `SELECT * FROM pose_catalog WHERE lane=? AND next_row < row_count AND COALESCE(held, 0)=0 ORDER BY ${catalogOrderSql()}`
+    `SELECT * FROM pose_catalog WHERE lane=? AND next_row < row_count AND ${availableCatalogSql()} ORDER BY ${catalogOrderSql()}`
   ).bind(lane).all()).results || [];
   for (const shard of candidates) {
     const claimed = await claimShard(env, account, lane, shard, now);
@@ -409,6 +404,7 @@ async function pendingForShard(env, lane, shardId, now, count) {
   return (await env.DB.prepare(
     `SELECT id, asset_id, capture, lane, model, generation, attribution, lat, lon, heading, pitch, zoom, country, camera_generation, catalog_shard, state, lease_until
      FROM locations WHERE lane=? AND catalog_shard=? AND COALESCE(queue_state,'pending')='pending'
+       AND ${availableLocationSql()}
        AND asset_id NOT LIKE 'Prototype%' AND asset_id NOT LIKE 'synthetic:%' AND asset_id NOT LIKE 'CommunityPano%'
        AND (state='pending' OR (state='leased' AND lease_until<=?))
        AND (lane!='object' OR (${officialGen4Coverage("locations")}))
@@ -420,6 +416,7 @@ async function pendingShared(env, lane, now, count) {
   return (await env.DB.prepare(
     `SELECT id, asset_id, capture, lane, model, generation, attribution, lat, lon, heading, pitch, zoom, country, camera_generation, catalog_shard, state, lease_until
      FROM locations WHERE lane=? AND COALESCE(queue_state,'pending')='pending'
+       AND ${availableLocationSql()}
        AND asset_id NOT LIKE 'Prototype%' AND asset_id NOT LIKE 'synthetic:%' AND asset_id NOT LIKE 'CommunityPano%'
        AND (state='pending' OR (state='leased' AND lease_until<=?))
        AND (lane!='object' OR (${officialGen4Coverage("locations")}))
@@ -432,20 +429,20 @@ async function materializeCatalog(env, lane, count, now, shard) {
   const shardId = shard.shard_id;
   for (let attempt = 0; attempt < 32 && claimed.length < count; attempt += 1) {
     const current = await env.DB.prepare(
-      "SELECT * FROM pose_catalog WHERE lane=? AND shard_id=?"
+      `SELECT * FROM pose_catalog WHERE lane=? AND shard_id=? AND ${availableCatalogSql()}`
     ).bind(lane, shardId).first();
     if (!current || current.next_row >= current.row_count) break;
     const needed = count - claimed.length;
     const slice = await readCatalogSlice(env, current, needed);
     if (!slice.consumed) {
       await env.DB.prepare(
-        "UPDATE pose_catalog SET next_row=row_count, next_byte=bytes WHERE lane=? AND shard_id=?"
+        `UPDATE pose_catalog SET next_row=row_count, next_byte=bytes WHERE lane=? AND shard_id=? AND ${availableCatalogSql()}`
       ).bind(lane, shardId).run();
       await releaseExhaustedShard(env, lane, shardId);
       break;
     }
     const moved = await env.DB.prepare(
-      "UPDATE pose_catalog SET next_byte=next_byte+?, next_row=next_row+? WHERE lane=? AND shard_id=? AND next_byte=?"
+      `UPDATE pose_catalog SET next_byte=next_byte+?, next_row=next_row+? WHERE lane=? AND shard_id=? AND next_byte=? AND ${availableCatalogSql()}`
     ).bind(slice.consumed, slice.jobs.length, lane, shardId, current.next_byte).run();
     if (!moved.meta || moved.meta.changes !== 1) continue;
     await releaseExhaustedShard(env, lane, shardId);
@@ -453,15 +450,17 @@ async function materializeCatalog(env, lane, count, now, shard) {
       await env.DB.prepare(
         `INSERT OR IGNORE INTO locations
           (asset_id, capture, lane, model, label, source, rights, attribution, lat, lon, heading, pitch, zoom, country, camera_generation, queue_state, catalog_shard)
-         VALUES (?, ?, ?, ?, '', 'street-metadata', 'metadata-only-no-imagery', 'Panorama metadata only. Imagery is not stored.', ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`
+         SELECT ?, ?, ?, ?, '', 'street-metadata', 'metadata-only-no-imagery', 'Panorama metadata only. Imagery is not stored.', ?, ?, ?, ?, ?, ?, ?, 'pending', ?
+         WHERE EXISTS (SELECT 1 FROM pose_catalog WHERE lane=? AND shard_id=? AND ${availableCatalogSql()})`
       ).bind(
         job.assetId, job.capture, job.lane, job.model,
-        job.lat, job.lon, job.heading, job.pitch, job.zoom, job.country, job.cameraGeneration, shardId
+        job.lat, job.lon, job.heading, job.pitch, job.zoom, job.country, job.cameraGeneration, shardId, lane, shardId
       ).run();
       await env.DB.prepare(
         `UPDATE locations SET catalog_shard=?
-         WHERE asset_id=? AND capture=? AND lane=? AND model=? AND catalog_shard IS NULL`
-      ).bind(shardId, job.assetId, job.capture, job.lane, job.model).run();
+         WHERE asset_id=? AND capture=? AND lane=? AND model=? AND catalog_shard IS NULL
+           AND EXISTS (SELECT 1 FROM pose_catalog WHERE lane=? AND shard_id=? AND ${availableCatalogSql()})`
+      ).bind(shardId, job.assetId, job.capture, job.lane, job.model, lane, shardId).run();
       const row = await env.DB.prepare(
         `SELECT id, asset_id, capture, lane, model, generation, attribution, lat, lon, heading, pitch, zoom, country, camera_generation, catalog_shard, state, lease_until, queue_state
          FROM locations WHERE asset_id=? AND capture=? AND lane=? AND model=?`
@@ -567,7 +566,7 @@ async function lease(env, account, body, objectPrototype = false) {
     });
   }
   const remaining = lane === "object" ? null : await env.DB.prepare(
-    "SELECT 1 AS ok FROM pose_catalog WHERE lane=? AND next_row < row_count LIMIT 1"
+    `SELECT 1 AS ok FROM pose_catalog WHERE lane=? AND next_row < row_count AND ${availableCatalogSql()} LIMIT 1`
   ).bind(lane).first();
   // Catalog materialization advances a cursor outside a transaction. Until a
   // trusted audit service exists, only an operator-prepared approved pool runs.
@@ -618,11 +617,16 @@ async function lease(env, account, body, objectPrototype = false) {
   const payload = [];
   for (const row of items) {
     const generation = (row.generation || 0) + 1;
-    statements.push(env.DB.prepare("INSERT INTO lease_items (lease_id, location_id) VALUES (?, ?)").bind(leaseId, row.id));
+    statements.push(env.DB.prepare(freshLeaseItemSql()).bind(leaseId, row.id, now));
     statements.push(env.DB.prepare("UPDATE locations SET state='leased', active_lease=?, lease_until=?, generation=? WHERE id=?").bind(leaseId, expires, generation, row.id));
     payload.push(await leaseItemFromRow(row, generation));
   }
-  await env.DB.batch(statements);
+  try {
+    await env.DB.batch(statements);
+  } catch (err) {
+    if (String(err?.message).includes('NOT NULL constraint failed: lease_items.location_id')) return error('no_available_work', 409);
+    throw err;
+  }
   const work = activeShard
     ? await workFromShard(env, lane, activeShard)
     : await workStatus(env, account, lane);
