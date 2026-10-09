@@ -34,6 +34,10 @@ machine cannot create without the OS link privilege, and zero failures. Those
 skips preserve the security checks for link-capable hosts; they do not assert
 that a link is safe. The same suite previously stopped with raw `EPERM` setup
 errors, so the test harness now records the platform limitation honestly.
+The Windows native guidance, packaging, signing-preflight and background-control
+checks add **45 passing tests** using the pinned PowerShell runtime. The one
+link-specific packaging branch is omitted when Windows denies junction creation;
+the ordinary package and revision checks still run.
 
 The [complete Object index comparator](OBJECT_INDEX_COMPARISON.md) adds bounded,
 pinned comparison of stored detection, quality and semantic features. This is
