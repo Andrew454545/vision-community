@@ -16,6 +16,14 @@ supervisor was started independently of Codex, but its first native round timed
 out after 902.781 seconds and the failure receipt is preserved. It created no
 accepted work or credit and does not close the seven-day production workload gate.
 
+The separate [one-location owned-resource diagnostic](WINDOWS_NATIVE_DIAGNOSTIC_20261009.md)
+has passed an actual windowless preliminary cycle and started a new finite
+24-round Windows task. Its 130 recovery checks have no failures/errors and one
+existing permission skip; native index/search and both full verifications pass.
+CPU/peak-commit measurements and working-set coverage limits are retained.
+The new scheduled result is pending and does not replace the original failure.
+Neither operating system's [accepted-work clock](ACCEPTED_WORK_SOAK.md) is running.
+
 The final full Windows application regression runs **772 tests**, with 757
 passing, 15 explicit platform/permission skips and no failures or errors. The
 Object auditor's new pinned-snapshot exclusion matches all 139 supplied native
