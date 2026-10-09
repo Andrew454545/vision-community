@@ -189,7 +189,7 @@ class WindowsLauncherTest(unittest.TestCase):
             action = json.loads(self.command(command))
             self.assertEqual(Path(action["execute"]), runtime / "pythonw.exe")
             self.assertIn('--root "' + str(root) + '"', action["arguments"])
-            self.assertIn('--day-pace medium --night-pace max --day-start 08:00 --night-start 22:00 --retry-minutes 30', action["arguments"])
+            self.assertIn('--day-pace medium --night-pace max --day-start 06:00 --night-start 00:00 --retry-minutes 30', action["arguments"])
             self.assertNotIn('--no-keep-awake', action["arguments"])
             self.assertIn('--work-type scene', action["arguments"])
             entry = Path(re.match(r'^-B "([^"]+)"', action["arguments"])[1])

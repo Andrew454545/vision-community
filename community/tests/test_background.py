@@ -97,13 +97,25 @@ class BackgroundTest(unittest.TestCase):
 
     def test_local_schedule_boundaries_midnight_and_custom_day_crossing_midnight(self):
         schedule = ProcessingSchedule()
-        for hour, minute, expected in ((0, 0, "max"), (7, 59, "max"), (8, 0, "medium"),
-                                       (21, 59, "medium"), (22, 0, "max"), (23, 59, "max")):
+        for hour, minute, expected in ((0, 0, "max"), (5, 59, "max"), (6, 0, "medium"),
+                                       (21, 59, "medium"), (22, 0, "medium"), (23, 59, "medium")):
             self.assertEqual(schedule.pace_at(datetime(2026, 9, 30, hour, minute)), expected)
         reversed_schedule = ProcessingSchedule(day_start="20:00", night_start="06:00")
         self.assertEqual(reversed_schedule.pace_at(datetime(2026, 9, 30, 23)), "medium")
         self.assertEqual(reversed_schedule.pace_at(datetime(2026, 10, 1, 5)), "medium")
         self.assertEqual(reversed_schedule.pace_at(datetime(2026, 10, 1, 6)), "max")
+
+    def test_direct_worker_defaults_match_guided_schedule_and_preserve_explicit_times(self):
+        for options, expected in (([], ('06:00', '00:00')),
+                (['--day-start', '08:00', '--night-start', '22:00'], ('08:00', '22:00'))):
+            with self.subTest(options=options), tempfile.TemporaryDirectory() as root:
+                worker = Mock(root=Path(root))
+                with patch('sys.argv', ['background', '--root', root, '--accept-contributions', '--once', *options]), \
+                        patch('community.background.BackgroundContributor', return_value=worker) as create:
+                    main()
+                schedule = create.call_args.kwargs['schedule']
+                self.assertEqual((schedule.day_start, schedule.night_start), expected)
+                worker.run.assert_called_once_with(once=True, stop=None)
 
     def test_schedule_rejects_invalid_times_before_setup(self):
         for bad in ("24:00", "08:60", "8:00", "aa:00", "-1:00", "+1:00", " 1:00", "０８:00"):
@@ -137,11 +149,11 @@ class BackgroundTest(unittest.TestCase):
 
     def test_period_change_during_batch_takes_effect_when_batch_finishes(self):
         with tempfile.TemporaryDirectory() as root:
-            clock = Mock(return_value=datetime(2026, 9, 30, 21, 59))
+            clock = Mock(return_value=datetime(2026, 9, 30, 23, 59))
             worker, app = self.worker(root, schedule=ProcessingSchedule(day_pace="medium", night_pace="pause"),
                                       clock=clock, elapsed_clock=Mock(side_effect=[100, 160]))
             def finish_batch(**kwargs):
-                clock.return_value = datetime(2026, 9, 30, 22, 1)
+                clock.return_value = datetime(2026, 10, 1, 0, 1)
                 return {"batches": 1, "accepted": 16}
             app.indexer.side_effect = finish_batch
             self.assertEqual(worker.step(), 60)
@@ -222,7 +234,7 @@ class BackgroundTest(unittest.TestCase):
 
     def test_wait_rechecks_schedule_and_releases_sleep_inhibition(self):
         with tempfile.TemporaryDirectory() as root:
-            clock = Mock(return_value=datetime(2026, 9, 30, 21, 59))
+            clock = Mock(return_value=datetime(2026, 9, 30, 23, 59))
             worker, _ = self.worker(root, clock=clock, schedule=ProcessingSchedule(),
                                     elapsed_clock=Mock(return_value=100))
             worker.paced_wait = True
@@ -230,7 +242,7 @@ class BackgroundTest(unittest.TestCase):
             stop.is_set.return_value = False
             def advance(seconds):
                 self.assertLessEqual(seconds, 5)
-                clock.return_value = datetime(2026, 9, 30, 22)
+                clock.return_value = datetime(2026, 10, 1, 0)
                 return False
             stop.wait.side_effect = advance
             with patch("community.background.keep_awake") as awake:

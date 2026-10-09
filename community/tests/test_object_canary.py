@@ -214,6 +214,20 @@ class ObjectCanaryTests(unittest.TestCase):
         self.assertEqual(len(dependencies), len(check.DLLS))
         self.assertTrue(all(key == key.lower() for key in dependencies))
 
+    def test_cpu_profile_does_not_require_directml_but_pins_it_if_present(self):
+        provider = self.binary.parent / 'DirectML.dll'
+        self.assertFalse(provider.exists())
+        with patch.object(check.sys, 'platform', 'win32'):
+            without = check.runtime_profile(self.binary, self.models)
+            provider.write_bytes(b'synthetic-optional-provider')
+            first = check.runtime_profile(self.binary, self.models)
+            provider.write_bytes(b'changed-optional-provider')
+            changed = check.runtime_profile(self.binary, self.models)
+        self.assertNotIn('bin/directml.dll', without['profile']['assets'])
+        self.assertIn('bin/directml.dll', first['profile']['assets'])
+        self.assertNotEqual(without['sha256'], first['sha256'])
+        self.assertNotEqual(first['sha256'], changed['sha256'])
+
     def test_changed_feature_validator_changes_profile_and_fails_mid_check(self):
         original=check.file_sha256
         marker=['a'*64]
