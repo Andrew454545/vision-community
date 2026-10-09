@@ -74,7 +74,7 @@ options.workers[0].serviceBindings.FIXTURE = { name: "local-idle-fixture", entry
 const instance = new Miniflare(convertV4MiniflareOptions(options));
 async function call(scenario, action = "inspect") {
   const response = await instance.dispatchFetch(`https://idle.invalid/${scenario}/${action}`);
-  assert.equal(response.status, 200);
+  if (response.status !== 200) assert.fail((await response.text()).slice(0,2048));
   return response.json();
 }
 async function delivered(scenario, count = 1) {

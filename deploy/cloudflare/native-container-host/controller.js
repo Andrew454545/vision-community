@@ -6,6 +6,7 @@ import { LAUNCH_CHECK, checkedLaunchReceipt, stderrClass } from "./launch-check.
 import { MAIN_CHECK, checkedMainReceipt, checkedMainFailureReceipt } from "./main-check.js";
 import { AUDIT_BUDGET_CHECK, checkedAuditBudgetReceipt } from "./audit-budget-check.js";
 import { REPEATABILITY_CHECK, checkedRepeatabilityReceipt, checkedRepeatabilityFailure } from "./repeatability-check.js";
+import { ComputeBudgetError, reserveCompute, computeBudgetStatus } from "./compute-budget.js";
 
 export const MAX_BUNDLE = 384 * 1024 * 1024;
 const HEX = /^[0-9a-f]{64}$/;
@@ -126,14 +127,31 @@ export class NativeController {
     catch { /* Failure to retain metadata never grants readiness. */ }
   }
 
-  async exclusive(operation) {
+  async reserveRequest() {
+    this.config();
+    await reserveCompute(this.ctx.storage,this.env,'request',this.now());
+    this.keepComputeAlive = true;
+  }
+
+  async exclusive(operation, { touchIdle = true } = {}) {
     if (this.busy) return failure("native_host_busy");
     this.busy = true;
+    this.keepComputeAlive = false;
     try { return await operation(); }
-    catch (error) { await this.recordFailure(safeStage(error)); return failure(); }
+    catch (error) {
+      if (error instanceof ComputeBudgetError) {
+        touchIdle = false;
+        this.hydratedDigest = undefined;
+        await this.recordFailure(error.message);
+        if (this.ctx.container?.running) await this.ctx.container.destroy();
+        return Response.json({error:error.message}, {status:503,
+          headers:{...jsonHeaders,'retry-after':String(error.retryAfter)}});
+      }
+      await this.recordFailure(safeStage(error)); return failure();
+    }
     finally {
       try {
-        if (this.ctx.container?.running) await this.armIdle();
+        if (this.ctx.container?.running) { if (touchIdle && this.keepComputeAlive) await this.armIdle(); }
         else await this.clearIdle();
       } catch {
         this.hydratedDigest = undefined;
@@ -263,6 +281,7 @@ export class NativeController {
     // activated. Reboot from the persisted pointer instead of trusting RAM or
     // potentially uncommitted container state. No external I/O under a DO lock.
     if (!container.running || this.hydratedDigest !== digest) {
+      await reserveCompute(this.ctx.storage,this.env,'start',this.now());
       this.hydratedDigest = undefined;
       if (container.running) await container.destroy();
       container.start({ image: this.env.NATIVE_IMAGE, instance: INSTANCE,
@@ -331,6 +350,7 @@ export class NativeController {
 
   health() {
     return this.exclusive(async () => {
+      await this.reserveRequest();
       const health = await this.ensure(await this.active());
       return Response.json({ ...health, productionQualified: false }, { headers: jsonHeaders });
     });
@@ -344,12 +364,14 @@ export class NativeController {
       lastLaunchFailure: await this.ctx.storage.get("lastLaunchFailure") ?? null,
       lastRepeatabilityFailure: await this.ctx.storage.get("lastRepeatabilityFailure") ?? null,
       lastSearchFailure: await this.ctx.storage.get("lastSearchFailure") ?? null,
-      productionQualified: false }, { headers: jsonHeaders }));
+      computeBudget: await computeBudgetStatus(this.ctx.storage,this.env,this.now()),
+      productionQualified: false }, { headers: jsonHeaders }), {touchIdle:false});
   }
 
   activate(value) {
     return this.exclusive(async () => {
       const candidate = descriptor(value), previous = await this.active();
+      await this.reserveRequest();
       if (candidate.sha256 === previous?.sha256 && candidate.bytes === previous.bytes) {
         await this.ensure(previous);
         return Response.json(await this.checkedHealth(), { headers: jsonHeaders });
@@ -390,6 +412,8 @@ export class NativeController {
       // Refuse any sealed workload before stopping or starting compute.
       if (await this.active()) return failure("sealed_bundle_already_active", 409);
       const container = this.config();
+      await this.reserveRequest();
+      await reserveCompute(this.ctx.storage,this.env,'start',this.now());
       this.hydratedDigest = undefined;
       let timer, accepting = true, stage = "container_launch", exitCode = null, errorClass = null;
       const code = value => Number.isInteger(value) && value >= 0 && value <= 255 ? value : null;
@@ -459,6 +483,7 @@ export class NativeController {
       // Diagnostics may never stop, hydrate or compete with sealed work.
       if (await this.active()) return failure("sealed_bundle_already_active", 409);
       if (this.env.NATIVE_IMAGERY_EGRESS !== "live-imagery") return failure("model_check_egress_disabled");
+      await this.reserveRequest();
       const diagnostic = kind === "audit" ? { program: AUDIT_BUDGET_CHECK, validate: checkedAuditBudgetReceipt,
         seconds: "60", deadline: this.auditBudgetCheckTimeoutMs, failed: "native_audit_budget_check_failed" }
         : kind === "repeatability" ? { program: REPEATABILITY_CHECK, validate: checkedRepeatabilityReceipt,
@@ -488,7 +513,8 @@ export class NativeController {
           timer = setTimeout(() => reject(Error(failed)), deadline);
         })]);
         return Response.json(receipt, { headers: jsonHeaders });
-      } catch {
+      } catch (error) {
+        if (error instanceof ComputeBudgetError) throw error;
         await this.recordFailure(failed);
         return failure(failed);
       } finally {
@@ -509,6 +535,7 @@ export class NativeController {
     return this.exclusive(async () => {
       const active = await this.active();
       if (!active) return failure("native_service_unavailable");
+      await this.reserveRequest();
       try {
         const health = await this.ensure(active);
         if (!(search ? health.searchReady : health.auditReady)) return failure("native_service_unavailable");

@@ -57,16 +57,24 @@ function fixture() {
     },
   };
   const ctx = { container, storage: {
+    async transaction(callback) {
+      const before = new Map(structuredClone([...values]));
+      try { return await callback(this); }
+      catch (error) { values.clear();for(const [key,value] of before)values.set(key,value);throw error; }
+    },
+    async sync() { if (control.failBudgetSync) throw Error('synthetic storage sync failure'); },
     async get(key) { return values.get(key); },
     async delete(key) { values.delete(key); },
     async setAlarm(deadline) { if (control.failAlarm) throw Error("synthetic alarm failure"); control.alarm = deadline; },
     async deleteAlarm() { control.alarm = null; },
     async put(key, value) {
+      if (key === 'nativeComputeBudgetV1' && control.failBudgetWrite) throw Error('synthetic budget write failure');
       if (key === "activeBundle" && control.failCommit) throw Error("synthetic storage failure");
       values.set(key, structuredClone(value));
     },
   }, waitUntil(promise) { pending.push(promise); } };
   const env = { VISION_HOST_SECRET: "a".repeat(64), VISION_HOST_OPERATOR_SECRET: "b".repeat(64),
+    NATIVE_DAILY_COMPUTE_REQUESTS:'10000',NATIVE_DAILY_CONTAINER_STARTS:'1000',
     NATIVE_IMAGE: image, NATIVE_RUNTIME_SHA256: runtime, OPERATOR_BUCKET_NAME: "vision-community-staging",
     OPERATOR_BUNDLES: { async get(key) {
       assert.equal(key, bundle.key);
@@ -81,6 +89,69 @@ function fixture() {
   const host = new NativeController(ctx, env, options);
   return { host, ctx, env, control, options, pending };
 }
+
+test('missing compute allowances block every compute entrypoint before native side effects',async()=>{
+  for(const operation of ['health','activate','launchCheck','mainCheck','modelCheck','auditBudgetCheck','repeatabilityCheck','service']){
+    const {host,env,control,ctx}=fixture();
+    delete env.NATIVE_DAILY_COMPUTE_REQUESTS;delete env.NATIVE_DAILY_CONTAINER_STARTS;
+    env.NATIVE_IMAGERY_EGRESS='live-imagery';
+    if(operation==='service')control.values.set('activeBundle',bundle);
+    const response=operation==='activate'?await host.activate(bundle):operation==='service'
+      ?await host.service('/search',new TextEncoder().encode('{}')):await host[operation]();
+    assert.equal(response.status,503,operation);
+    assert.deepEqual(await response.json(),{error:'native_compute_budget_unavailable'},operation);
+    assert.equal(control.starts.length,0);assert.equal(control.uploads,0);assert.equal(control.calls.length,0);
+    assert.equal((await host.status()).status,200);
+    assert.equal((await host.restart()).status,200);
+    assert.equal(ctx.container.running,false);
+  }
+});
+
+test('exhausted requests stop compute, preserve the seal and leave status and stop available',async()=>{
+  const {host,env,control,ctx,options}=fixture();env.NATIVE_DAILY_COMPUTE_REQUESTS='1';
+  assert.equal((await host.activate(bundle)).status,200);
+  const deadline=control.alarm,usage=structuredClone(control.values.get('nativeComputeBudgetV1'));
+  control.now+=10000;
+  const state=await (await host.status()).json();
+  assert.equal(state.computeBudget.requestsRemaining,0);
+  assert.equal(control.alarm,deadline);assert.deepEqual(control.values.get('nativeComputeBudgetV1'),usage);
+  const reopened=new NativeController(ctx,env,options);
+  const response=await reopened.health();
+  assert.equal(response.status,503);assert.ok(Number(response.headers.get('retry-after'))>0);
+  assert.deepEqual(await response.json(),{error:'native_compute_budget_exhausted'});
+  assert.equal(ctx.container.running,false);assert.equal(control.starts.length,1);
+  assert.deepEqual(control.values.get('activeBundle'),bundle);
+  assert.equal((await reopened.restart()).status,200);
+});
+
+test('failed reservation write or sync cannot start native compute',async()=>{
+  for(const mode of ['failBudgetWrite','failBudgetSync']){
+    const {host,control}=fixture();control[mode]=true;
+    const response=await host.health();
+    assert.equal(response.status,503);assert.deepEqual(await response.json(),{error:'native_compute_budget_unavailable'});
+    assert.equal(control.starts.length,0);assert.equal(control.calls.length,0);
+  }
+});
+
+test('invalid operator calls and status reads cannot keep unfunded compute alive',async()=>{
+  const {host,control}=fixture();assert.equal((await host.activate(bundle)).status,200);
+  const deadline=control.alarm,usage=structuredClone(control.values.get('nativeComputeBudgetV1'));
+  control.now+=30000;
+  assert.equal((await host.activate({})).status,503);
+  assert.equal((await host.status()).status,200);
+  assert.equal(control.alarm,deadline);
+  assert.deepEqual(control.values.get('nativeComputeBudgetV1'),usage);
+});
+
+test('a container-start ceiling persists across controller replacement',async()=>{
+  const {host,env,control,ctx,options}=fixture();env.NATIVE_DAILY_CONTAINER_STARTS='1';
+  assert.equal((await host.health()).status,200);
+  assert.equal((await host.restart()).status,200);
+  const reopened=new NativeController(ctx,env,options);
+  const response=await reopened.health();
+  assert.equal(response.status,503);assert.deepEqual(await response.json(),{error:'native_compute_budget_exhausted'});
+  assert.equal(control.starts.length,1);assert.equal(ctx.container.running,false);
+});
 
 test("durable idle alarm stops monitored compute and preserves the sealed pointer across eviction", async () => {
   const { host, ctx, env, control, options } = fixture();

@@ -56,6 +56,13 @@ The new [native Object auditor](NATIVE_OBJECT_AUDIT.md) supplies the previously
 missing full recomputation component. Its guard tests and real Windows runtime
 contract check do not close hosted qualification or accepted Object work.
 
+The [durable private native allowance](HOSTED_COMPUTE_ALLOWANCE_20261009.md)
+now limits operations and container starts across restart/redeploy. Actual
+workerd concurrency and disk-recovery checks, the 414-test local service suite
+and private staging readback pass. Status reads cannot prolong idle compute.
+Whole-account billing, realistic capacity and full production recovery remain
+part of the production-operations exit gate.
+
 ## External resources, not engineering approval
 
 No further owner-side engineering sign-off or Actions budget is requested.

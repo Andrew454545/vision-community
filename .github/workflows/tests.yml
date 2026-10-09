@@ -177,4 +177,5 @@ jobs:
           node tools/check-local-verifier.mjs node_modules/miniflare/dist/src/index.js
           node tools/check-local-native-host.mjs node_modules/miniflare/dist/src/index.js .local-native-host-build/worker.js
           node tools/check-local-native-idle.mjs node_modules/miniflare/dist/src/index.js .local-native-host-build/worker.js
+          node tools/check-local-native-budget.mjs node_modules/miniflare/dist/src/index.js .local-native-host-build/worker.js
           node tools/check-local-native-checker.mjs node_modules/miniflare/dist/src/index.js .local-private-check-build/private-native-host-check.js
