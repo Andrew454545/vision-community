@@ -17,10 +17,12 @@ identical-pixel comparison. All approval, pixel-attestation and native-search
 parity flags remain false.
 
 The affected Python comparison, embedding, feature and snapshot tests pass all
-141 checks without skips. Focused service tests pass 74 checks. A wider local service run passes 243 of
-246 checks; three existing file-link fixtures fail with Windows `EPERM` before
-they can exercise their link-refusal assertion. The original failure report is
-preserved. No security settings or production protections were weakened.
+141 checks without skips. The full local service suite passes all 246 checks
+without skips. Its initial sandbox run passed 243; three existing Windows
+junction fixtures could not be created there. Repeating the same suite with
+normal filesystem permissions in a dedicated workspace test folder passes
+those checks too. The original failure report is preserved. No security
+settings or production protections were weakened.
 
 The private handoff asks for Mac runs on the same sealed fixture, a documented
 relationship to the actual production source/reference, and legitimate signing
