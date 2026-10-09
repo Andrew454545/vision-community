@@ -92,6 +92,7 @@ def run_owned(argv, *, env, cwd, stdout, stderr, timeout, creationflags=0, on_ow
 
     Retain stdin until completion: its EOF is the POSIX parent-death signal.
     The wrapper receives the original argv, environment and working directory.
+    Windows console work is windowless, including when a caller omits flags.
     """
     job, process = _make_job(), None
     group_stop_attempted = False
@@ -110,6 +111,9 @@ def run_owned(argv, *, env, cwd, stdout, stderr, timeout, creationflags=0, on_ow
                 pass
 
     try:
+        if os.name == "nt":
+            # A new-console request would override NO_WINDOW. Work has file logs.
+            creationflags = (creationflags & ~subprocess.CREATE_NEW_CONSOLE) | subprocess.CREATE_NO_WINDOW
         options = {"creationflags": creationflags} if os.name == "nt" else {"start_new_session": True}
         process = subprocess.Popen(
             [_wrapper_python(), "-I", "-B", str(Path(__file__).resolve()), str(creationflags), "--", *argv],

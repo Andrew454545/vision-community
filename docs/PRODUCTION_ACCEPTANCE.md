@@ -35,6 +35,13 @@ checks; the historical default price is unchanged. The complete recorded local
 Windows service suite passes 448/451 tests with three permission skips and no
 failures. Genuine earned-credit search and production recovery remain open.
 
+The [Windows windowless-process follow-up](WINDOWS_CONSOLE_RECOVERY_20261009.md)
+passes 157 affected local checks, including an actual GUI-parent/no-console
+probe, and retires four terminal legacy Scene test tasks with reports preserved.
+The contributor's recovery registration is unchanged. The user's exact random
+pop-up remains unattributed; this is process reliability evidence, not native
+qualification or signed clean-device acceptance.
+
 The final full Windows application regression runs **772 tests**, with 757
 passing, 15 explicit platform/permission skips and no failures or errors. The
 Object auditor's new pinned-snapshot exclusion matches all 139 supplied native

@@ -61,6 +61,7 @@ class WindowsLauncherTest(unittest.TestCase):
             [str(POWERSHELL), "-NoProfile", "-Command",
              "$ErrorActionPreference='Stop'; . " + ps_string(LAUNCHER) + "; " + code],
             capture_output=True, text=True, timeout=60,
+            creationflags=subprocess.CREATE_NO_WINDOW,
         )
         self.assertEqual(result.returncode, expected, result.stdout + result.stderr)
         return result.stdout.strip()

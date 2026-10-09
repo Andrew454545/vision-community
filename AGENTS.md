@@ -13,6 +13,14 @@ Until that restriction is explicitly lifted:
 - Preserve required checks and release gates. Skipped Actions checks can remain
   pending; do not fabricate successful statuses or weaken branch protections.
 
+Windows local checks must not open console windows on the user's desktop. Use
+windowless subprocesses, or a hidden test console when fixtures need inherited
+console handles, and capture output in private logs. Set per-run `TEMP`, `TMP`
+and `TMPDIR` under the workspace; the restricted host temporary folder may deny
+test file creation. Retire terminal finite test tasks only after verifying their
+exact action, current-user ownership and preserved result; keep the contributor's
+recovery task enabled. Do not close unrelated terminals.
+
 Continue from `docs/PRODUCTION_ACCEPTANCE.md`. Keep failure evidence and existing
 work. Never access the `geonections-images` R2 bucket. Use only confirmed
 VISION Community resources. Keep local indexing independent of Codex.

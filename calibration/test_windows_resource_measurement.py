@@ -12,6 +12,17 @@ from community import process_owner as owner
 
 
 class MeasurementTest(unittest.TestCase):
+    def assert_exited_work_and_verified_cleanup(self, receipt):
+        # Windows may retain its headless console host until the owned job closes.
+        # Preserve that distinction instead of asserting it exited with the work.
+        active = receipt['activeProcessesAtMeasurement']
+        self.assertEqual(receipt['completeAfterExit'], active == 0)
+        if active:
+            self.assertEqual(len(receipt['activeProcessNamesAtMeasurement']), active)
+            self.assertEqual(set(receipt['activeProcessNamesAtMeasurement']), {'conhost.exe'})
+        self.assertTrue(receipt['remainingDescendantsStopped'])
+        self.assertTrue(receipt['completeAfterOwnedCleanup'])
+
     def measured_descendant(self,configure,receipt,seconds=60):
         with tempfile.TemporaryDirectory() as temp:
             root=Path(temp)
@@ -217,7 +228,7 @@ class MeasurementTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             child = 'import time; data=bytearray(24*1024**2); end=time.process_time()+0.15\nwhile time.process_time()<end: pass'
-            source = 'import subprocess,sys; subprocess.run([sys.executable,"-I","-c",' + repr(child) + '],check=True)'
+            source = 'import subprocess,sys; subprocess.run([sys.executable,"-I","-c",' + repr(child) + '],check=True,creationflags=subprocess.CREATE_NO_WINDOW)'
             receipt = {}
             original = owner._make_job
             with (root / 'out.log').open('wb') as output:
@@ -228,8 +239,7 @@ class MeasurementTest(unittest.TestCase):
             self.assertGreaterEqual(receipt['totalProcesses'], 3)
             self.assertGreater(receipt['cpuSeconds'], 0.10)
             self.assertGreaterEqual(receipt['peakJobCommittedBytes'], 24 * 1024**2)
-            self.assertEqual(receipt['activeProcessesAtMeasurement'], 0)
-            self.assertTrue(receipt['completeAfterExit'])
+            self.assert_exited_work_and_verified_cleanup(receipt)
             self.assertFalse(receipt['productionQualified'])
             self.assertIs(owner._make_job, original)
 
@@ -238,7 +248,7 @@ class MeasurementTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             child = 'import time; data=bytearray(24*1024**2); time.sleep(1.0)'
-            source = 'import subprocess,sys; subprocess.run([sys.executable,"-I","-c",'+repr(child)+'],check=True)'
+            source = 'import subprocess,sys; subprocess.run([sys.executable,"-I","-c",'+repr(child)+'],check=True,creationflags=subprocess.CREATE_NO_WINDOW)'
             receipt = {}
             with (root/'out.log').open('wb') as output:
                 result = measure_owned([sys.executable,'-I','-c',source],receipt=receipt,sample_working_set=True,
@@ -354,7 +364,7 @@ class MeasurementTest(unittest.TestCase):
                     env=dict(os.environ), cwd=temp, stdout=output, stderr=output, timeout=10)
             self.assertEqual((result.returncode, receipt['nativeExitCode']), (5, 5))
             self.assertEqual(receipt['status'], 'MEASURED')
-            self.assertTrue(receipt['completeAfterExit'])
+            self.assert_exited_work_and_verified_cleanup(receipt)
 
     @unittest.skipUnless(os.name == 'nt', 'Windows job accounting')
     def test_actual_timeout_keeps_partial_accounting_and_restores_ownership(self):
