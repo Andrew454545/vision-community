@@ -88,6 +88,14 @@ class NativeGuidanceTests(unittest.TestCase):
         self.assertEqual(len(links), 1)
         self.assertIn('windows-starter-preview-20261004-recovery', next(iter(links)))
 
+    def test_public_instructions_do_not_request_global_installs_or_security_bypasses(self):
+        sources = [ROOT / name for name in ('README.md', 'START-HERE.md', 'START HERE.html')]
+        sources += [ROOT / 'community' / 'web' / name for name in ('index.html', 'getting-started.html')]
+        text = '\n'.join(path.read_text(encoding='utf-8').lower() for path in sources)
+        for forbidden in ('sudo', 'pip install', 'set-executionpolicy', 'executionpolicy bypass',
+                          'spctl --master-disable', '--no-verify'):
+            self.assertNotIn(forbidden, text)
+
 
 if __name__ == '__main__':
     unittest.main()
