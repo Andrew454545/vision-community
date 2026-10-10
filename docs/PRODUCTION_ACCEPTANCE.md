@@ -5,18 +5,29 @@ Updated **10 October 2026**. Start with the finite
 preserves historical results and limitations; completed reference trials do not
 require repeating merely because an older paragraph described them as pending.
 
+The [native Community Scene bridge](NATIVE_COMMUNITY_SCENE_BRIDGE_20261010.md)
+now consumes the audited catalog with a separately pinned road-label conversion
+and explicit operator-only build/seal/scheduler scope. Private VISION PR #17 is
+pushed and remote-verified. Windows passes 76/77 cases with one existing POSIX
+fixture skip. The actual repository input-preparation command passes native v7
+validation on all eight real Scene completions, then the real builder admits all
+eight. The first ID-mismatch failure is preserved; no identity guard was relaxed.
+Final import remains correctly refused without matching protected Main/WAL
+authority. Fresh portable authority and real hosted Object acceptance are next;
+no public gate or frozen Scene test changed.
+
 The [audited Community Scene source exporter](COMMUNITY_SCENE_SOURCE_20261010.md)
 now matches the eight genuine credited completions to the authentic original
 100-row source, preserving exact row bytes and explicitly identifying its
 Community road-label dialect. Publication/export and Scene/Object policy checks
-pass. This completes the private source producer, not the native consumer:
-explicit catalog import, a pinned road-label transformation, fresh protected
-authority and authentic Object admission remain required. No live source changed.
+pass. The later native consumer above completes explicit catalog import and
+pinned road-label transformation. Fresh protected authority and authentic Object
+admission remain required. No live source changed.
 
 The [authentic native Object source handoff](NATIVE_OBJECT_SOURCE_HANDOFF_20261010.md)
 is verified: all 76 file pins match. Exact scans found no supplied candidate in
 the owner's completed Scene sources, as expected outside the protected union.
-Community Scene authority is an engineering task; owner MMA membership is not
+Community Scene authority is implemented above; owner MMA membership is not
 the appropriate prerequisite for this cohort. Private VISION PR #16 supports
 native v7 proofs and fixes Windows storage flushes (39/40 checks pass; one
 POSIX-only fixture skip). The original candidate and stale protected seal still
@@ -94,8 +105,8 @@ R2 locations across 22 countries. Fresh native validation and saved raw Google
 metadata agree; all are outside the real protected snapshot. Ten now have
 genuine Community Scene completion. The later authentic handoff above establishes
 that owner MMA membership is absent and inappropriate for this cohort. A distinct
-audited Community Scene authority route and current portable protected/runtime
-import authority remain required for Object admission.
+audited Community Scene authority route is now implemented above; current portable
+protected/runtime import authority remains required for Object admission.
 
 The [saved Object audit jobs](NATIVE_OBJECT_AUDIT_JOBS.md) add short private
 acknowledgements, durable attempt/decision recovery and bounded retry/cancellation

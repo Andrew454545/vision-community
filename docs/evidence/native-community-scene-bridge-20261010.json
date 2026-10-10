@@ -1,0 +1,179 @@
+{
+  "version": 1,
+  "date": "2026-10-10",
+  "scope": "native-community-scene-authority-and-exact-validator-input",
+  "parentCommunityCommit": "52a5d1b4393adf04c0e71459ccad08e43eed7738",
+  "platform": "Windows x64",
+  "node": "24.19.0",
+  "nativeRepository": "Andrew454545/VISION",
+  "nativePullRequest": 17,
+  "nativeHead": "cf64635a88dcf44ee069e67910a162b9eb478e4b",
+  "nativeBase": "47c99c8663bf93c6db9c5f97f06fa349309155f4",
+  "remoteVerified": true,
+  "nativeSourceFiles": {
+    "automation/runtime-source/docs/community-scene-authority.md": {
+      "bytes": 6583,
+      "sha256": "433137ad32dde4e9e9fa2a26d78e97682338c5e44f711e3dabe4a002d0b9b4f1"
+    },
+    "automation/runtime-source/scripts/build-vision-gen4-object-pool.mjs": {
+      "bytes": 67685,
+      "sha256": "a4e1942f5aa85c2ae684de81cfa994389a669231cb176c493de69d0a3500d4cd"
+    },
+    "automation/runtime-source/scripts/build-vision-gen4-object-pool.test.mjs": {
+      "bytes": 39920,
+      "sha256": "501e7f7288cf5efcab8c6029cc212aae708259205d9c26b90d6a3792ee19e881"
+    },
+    "automation/runtime-source/scripts/community-scene-catalog.fixtures.mjs": {
+      "bytes": 4816,
+      "sha256": "586974075ec39d27fd7d60524a47f11e833d665792ccca3794729f052280436e"
+    },
+    "automation/runtime-source/scripts/community-scene-catalog.mjs": {
+      "bytes": 13246,
+      "sha256": "1d97d2c8d62a099ead009f276061f09fe9fd3cfb076204fe54f43a07e44039f6"
+    },
+    "automation/runtime-source/scripts/community-scene-catalog.test.mjs": {
+      "bytes": 8411,
+      "sha256": "9f3590ff6abae380b0cd951dbc9a4d8c0c069a65d847c59c5af1563967f805bc"
+    },
+    "automation/runtime-source/scripts/prepare-community-scene-official-input.mjs": {
+      "bytes": 5308,
+      "sha256": "b455eb885b27242b62f7462fe1e3ac0cba2627d903e833fe24a0965e14c3d837"
+    },
+    "automation/runtime-source/scripts/prepare-community-scene-official-input.test.mjs": {
+      "bytes": 4491,
+      "sha256": "141bde0b7828d64d275a8eff26fc18395bd88e37c81f559dfae0777bf967ddd0"
+    },
+    "automation/runtime-source/scripts/run-vision-object-indexer.mjs": {
+      "bytes": 80406,
+      "sha256": "9fa160277338cfd242615d1c765f2294158d25ad46e922e07662042fb3150672"
+    },
+    "automation/runtime-source/scripts/seal-vision-gen4-inline-pool.mjs": {
+      "bytes": 32145,
+      "sha256": "e25dd6b43216219289f324ea562e107c796615e3cd4b2d325f2c2f4d95a1265f"
+    }
+  },
+  "regression": {
+    "tests": 77,
+    "passed": 76,
+    "failed": 0,
+    "skipped": 1,
+    "skipReason": "existing POSIX executable fixture on Windows",
+    "wallSeconds": 2.719,
+    "receipt": {
+      "bytes": 1134,
+      "sha256": "deb5c8ae76f793d6003cd9c3cf8addcaa9f2359ae3355df09df2a8376947836a"
+    },
+    "stdout": {
+      "bytes": 7009,
+      "sha256": "cc8db52aec9080708af3a742145c2cfed70fbd79dcbed7305dacad4245a26302"
+    },
+    "stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "syntheticInference": true,
+    "nativeInferenceExecuted": false,
+    "hiddenCLIIntegration": true
+  },
+  "authenticSceneBridge": {
+    "locations": 8,
+    "catalogSha256": "05598f77f40642ea1482c0c9a0414a07d6465c8748883bb2c971d31fae403aef",
+    "sourceSha256": "dc764d58895e03b2dec7a54a7b78072e83790c270e4a9db37ec7ed0d00946e54",
+    "snapshotSha256": "b0b7b8a298209fc16d61a4373dc92e5e5bbc5e29ae4b556a57641c189e3bbf59",
+    "roadPolicySha256": "dbd8a75155f5593df91fe9bc62fede37cb970fa41121cdd069a13018d77ff12f",
+    "transformedSourceSha256": "3d37909e1afc959e34cfbe2ccd439e7afcf44361e5bf99e07696a0a8af1a1c7a",
+    "originalPacketFilesVerified": 76,
+    "originalSourceUnchanged": true,
+    "ownerMmaMembershipAsserted": false,
+    "receipt": {
+      "bytes": 1483,
+      "sha256": "fa644a7ba877b0a747dec256b322e162adc2c709b6f03461c09e21395e585626"
+    }
+  },
+  "actualNativeValidation": {
+    "binarySha256": "12457f707865f1fd3464311b60488f5e4cff1a9cd0e7397bfe841ccb2602eb89",
+    "inputSha256": "56be5077bf2be31ea9d4b00af21ad34f511530e2639f83c21322d16a4a1a7d08",
+    "manifestSha256": "20b326b7b57980c0a554dba5291df9edf5866766ddcc185c80183230c6123b3c",
+    "completedAt": "2026-10-10T21:02:18.862002800+00:00",
+    "counts": {
+      "inputRows": 8,
+      "officialRows": 8,
+      "rejectedRows": 0,
+      "cacheHits": 8,
+      "cacheMisses": 0,
+      "metadataRequests": 0,
+      "metadataRetries": 0
+    },
+    "metadataReusedFromCompletedAt": "2026-10-10T04:25:31.870267200+00:00",
+    "originalCacheUnchanged": true,
+    "preparationReceipt": {
+      "bytes": 1130,
+      "sha256": "d6dd27ecaf497f82069f5d330f9548c7b466203993f1429fea575e8c33a85ad2"
+    },
+    "receipt": {
+      "bytes": 800,
+      "sha256": "5a531e40f78acc0c57dbc5d029791b579cbdf7e639143d416cc4706d009c580b"
+    }
+  },
+  "actualCandidate": {
+    "rows": 8,
+    "officialMatchedRows": 8,
+    "protectedRowsAtSuppliedSnapshot": 0,
+    "protectedSnapshotSha256": "a058b89012fa36836138ca88943770ca0a4497dda9476eb63c3a6f45b1d1b932",
+    "candidateManifestSha256": "f78da18af2c9e3fae003b9ec271277017760e0803902cb6b60592e8e31704152",
+    "candidateSha256": "183c8782a2e6e660462befad438e269f3c40013c02a89a51590e7190547ab584",
+    "currentProtectedMainWalVerified": false,
+    "nativeImportSealed": false,
+    "productionReady": false,
+    "receipt": {
+      "bytes": 1107,
+      "sha256": "f86ecae9c772e0e15d8b5e3303c162313fa5c2e2ff3e1b20d814f74046f7a358"
+    },
+    "expectedImportFailure": {
+      "bytes": 94,
+      "sha256": "a2332d7d7ce472cb2040b6fe8d14c40739da3ed294143b029203bb2b495ef6ac"
+    }
+  },
+  "preservedFailures": {
+    "restrictedRegression": {
+      "bytes": 980,
+      "sha256": "0ae2a3b274eeb90b9ac4e8baec099c0e229ccff2dfddbeca029514822ca2499f"
+    },
+    "firstRealBuild": {
+      "reason": "all eight native location IDs differ from prior validator catalog IDs",
+      "matchedRows": 0,
+      "receipt": {
+        "bytes": 981,
+        "sha256": "9bd7129e2165ef11ed15ccb9fc650d70db59464bd31f7232e5127b3747208f10"
+      },
+      "stderr": {
+        "bytes": 463,
+        "sha256": "c24a989539ee9b653d536bfbc795a8154fb462dfec02f89f4d0e6e383123b6f9"
+      }
+    },
+    "identityPreparation": {
+      "bytes": 332,
+      "sha256": "0d957075e56c2a811fb986e958d8e971c6116878b7487a563fb2da4a5ba3975c"
+    },
+    "cachePreparation": {
+      "bytes": 247,
+      "sha256": "09dd36ea9708b5fbb37db5a94eb724694ab9f46dbc493dbc5ba977f81a9d09bb"
+    },
+    "historicalCandidateStillRefused": true
+  },
+  "nativeInferenceExecuted": false,
+  "newMetadataRequests": 0,
+  "providerWrites": 0,
+  "newCreditGranted": 0,
+  "privateArtifactsUploaded": false,
+  "publicObjectAdmissionEnabled": false,
+  "frozenScenePilotChanged": false,
+  "productionQualified": false,
+  "fullAcceptedWorkGateSatisfied": false,
+  "remaining": [
+    "fresh matching portable protected/runtime import authority",
+    "current hosted membership and authentic Object qualification/quarantine/publication/credit/search",
+    "actual Mac and signed clean-device acceptance",
+    "full accepted-work endurance and complete provider/secret recovery"
+  ]
+}

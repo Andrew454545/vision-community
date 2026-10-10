@@ -46,11 +46,13 @@ the separate packet, regression and remote-branch verification.
 
 The [Community source producer](COMMUNITY_SCENE_SOURCE_20261010.md) now exports
 the eight genuine credited completions with exact original rows and an explicit
-road-label dialect. The native catalog consumer and pinned transformation remain
-to be implemented; this new catalog is not an Object import seal.
+road-label dialect. The later [native Community bridge](NATIVE_COMMUNITY_SCENE_BRIDGE_20261010.md)
+implements the consumer and pinned transformation in private PR #17. The exact
+eight-row source now passes native validation/candidate building; it still lacks
+matching current protected Main/WAL authority and is not an Object import seal.
 
-Build and test a distinct Community Scene authority route with genuine audited
-membership, exact source/runtime/model/quality pins and a freshly obtained,
+Use this distinct Community Scene route with genuine audited membership,
+exact source/runtime/model/quality pins and a freshly obtained,
 matching protected-database authority. Revalidate coverage at import time.
 Then connect the saved Object jobs to hosted qualification, owned quarantine,
 publication, search and once-only credit. These are implementation tasks, not a
