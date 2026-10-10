@@ -6,6 +6,13 @@ This is the single operational dependency list for the
 choices belong to Geonections; a missing resource is not a request for another
 general design approval. Keep private exports and location evidence private.
 
+The [Community Scene source producer](COMMUNITY_SCENE_SOURCE_20261010.md) now
+exports all eight genuine credited completions from the authentic 100-row source
+without claiming owner MMA membership. Exact rows and road-label dialect are
+preserved. Continue with the independently pinned native catalog consumer and
+explicit road-label conversion, then fresh protected authority and Object
+qualification/settlement; the producer does not open admission.
+
 The [authentic Object source handoff](NATIVE_OBJECT_SOURCE_HANDOFF_20261010.md)
 and all 76 contained file pins are verified. Owner Scene membership is absent
 for the exact contributor cohort; implement explicit Community Scene authority
