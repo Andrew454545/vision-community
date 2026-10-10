@@ -48,13 +48,21 @@ resources do not suspend independent engineering work.
 
 ## What is already established
 
+The restricted [Windows Scene seven-day pilot](WINDOWS_SCENE_WEEK_PILOT_20261010.md)
+started at **10 October 07:27:14 UTC**, targeting **17 October 07:27:14 UTC**.
+Its real scheduled CPU1 batch published two locations, earned two units once and
+passed a ten-contribution native earned-credit search with exact paid recovery.
+Its finite hidden recovery task runs without Codex. This is partial Scene-only
+reliability evidence; actual interruptions, final reconciliation, Mac/Objects,
+verified parallel Maximum and the full unattended-operation gate remain open.
+
 The [finite Windows Scene trial](WINDOWS_SCENE_COHORT_20261010.md) now publishes
 eight fresh replacement-pool locations across eight countries, earns eight units
 and searches only those new contributions using eight genuinely earned units.
 Fresh-process account recovery returns the exact paid result after admission
 closes without another debit; eight units remain banked. No synthetic credit
 funded this test. Current CPU1 fixed-input qualification and 92 affected checks
-pass. The trial is closed and compute stopped. Automatic snapshot refresh,
+pass. That finite trial closed before the separate pilot above. Automatic snapshot refresh,
 equivalent Mac/Object work and sustainable public pricing remain open.
 
 The full identical-input Scene matrices are complete on Windows and Mac.

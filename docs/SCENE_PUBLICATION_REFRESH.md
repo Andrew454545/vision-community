@@ -46,6 +46,12 @@ earned-credit search. The affected Windows selection passes **152 checks**,
 with no skips or failures in the authorized run; the earlier restricted socket
 and filesystem failures are preserved. This does not replace Mac checks.
 
+The later [scheduled Windows pilot](WINDOWS_SCENE_WEEK_PILOT_20261010.md) appended
+two genuine background contributions using fresh primary D1 exports and actual
+published R2 bytes. All eight previous record bytes and ordinals were preserved;
+native earned-credit search returned the complete ten-location snapshot and
+exact paid recovery passed. Collection and activation were operator steps.
+
 Scheduled collection, guarded hosted activation, deletion-driven removal and
 concurrent refresh/recovery remain integration work. Before activation, recheck
 current publication/deletion authority; an old audit cannot restore deleted work.

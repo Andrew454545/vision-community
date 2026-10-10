@@ -5,6 +5,18 @@ Updated **10 October 2026**. Start with the finite
 preserves historical results and limitations; completed reference trials do not
 require repeating merely because an older paragraph described them as pending.
 
+The [Windows Scene seven-day pilot](WINDOWS_SCENE_WEEK_PILOT_20261010.md) started
+at **10 October 07:27:14 UTC / 02:27:14 CDT**, targeting **17 October at the same
+time**. Its real scheduled background batch published two fresh locations and
+earned two units once. A sealed ten-contribution snapshot returned all ten in a
+native search, debited two earned units once and recovered the identical paid
+reply across processes; eight units remain banked. Primary D1 reconciles the
+account. Its finite windowless recovery task runs independently of Codex.
+This is a restricted **Windows Scene-only CPU1 reliability pilot**, not completed
+acceptance or the full Windows/Mac Scenes/Objects/Both workload gate. Original
+failed attempts are preserved. Physical interruptions and final reconciliation
+remain pending, along with the other launch gates below.
+
 The [real Windows Scene trial](WINDOWS_SCENE_COHORT_20261010.md) now closes a
 contribution-to-earned-search milestone: eight fresh replacement-pool locations
 across eight countries passed native audit, earned eight units and formed the
@@ -13,8 +25,8 @@ once; fresh-process account recovery returned the exact paid result after
 admission closed, without another debit. Eight units remain banked. The current
 CPU1 profile passed fixed-input qualification under unchanged bounds; 92 affected
 component checks pass with no skips. The original live-input mismatch and failed
-client recovery reports remain preserved. The trial is closed and compute is
-stopped. Automatic snapshot refresh, Mac/Object acceptance, sustainable pricing,
+client recovery reports remain preserved. That earlier finite trial closed
+before the separate pilot above. Automatic snapshot refresh, Mac/Object acceptance, sustainable pricing,
 both seven-day workloads, signed downloads and complete provider recovery remain
 open. Earlier dated reports below describe their recorded states.
 
@@ -25,11 +37,12 @@ produces the same records and members as the paid trial. The affected Windows
 selection passes 152 checks with no skips/failures; earlier restricted failures
 remain preserved. Guided recovery now works after admission closes, and saved
 background identities authenticate before invitation checks. Remote scheduled
-refresh/activation and the accepted-work pilot's actual start remain separate.
+refresh/activation remain separate; the Scene-only background pilot above has
+now actually started.
 
 The [verified positive Gen4 cohort](GEN4_COHORT_20261009.md) contains 100 original
 R2 locations across 22 countries. Fresh native validation and saved raw Google
-metadata agree; all are outside the real protected snapshot. Eight now have
+metadata agree; all are outside the real protected snapshot. Ten now have
 genuine Community Scene completion. Andrew's local MMA Scene membership and
 portable protected/runtime import authority remain required for Object admission.
 
@@ -45,7 +58,8 @@ passes 55 checks for durable revocation, interrupted cleanup, restart, replay
 prevention, Windows junction refusal and private transport. It does not connect
 live account deletion or open admission. The [actual seven-day start check](evidence/accepted-work-start-preflight-20261010.json)
 recorded both staging lanes unavailable before the finite Scene trial above;
-neither accepted-work clock started. Admission is closed again after the trial.
+neither full accepted-work clock started then. The later Scene-only pilot opens
+only finite invited staging admission; public and Object admission stay closed.
 The original fixture failure and earlier reports remain preserved.
 
 The [full production-data rehearsal](PRODUCTION_DATA_REHEARSAL_20261009.md) now
@@ -75,7 +89,9 @@ The scheduled diagnostic then completed three 1/2/4-thread native rounds and
 Its verified task is disabled; the original terminal receipt/failure logs remain
 unchanged. The earlier claim that its task was missing is corrected in the
 [terminal report](WINDOWS_NATIVE_DIAGNOSTIC_20261009.md#terminal-result).
-Neither operating system's [accepted-work clock](ACCEPTED_WORK_SOAK.md) is running.
+Neither operating system's full Scenes/Objects/Both
+[accepted-work clock](ACCEPTED_WORK_SOAK.md) is running; the later Scene-only
+pilot is separate evidence.
 
 The [pricing recovery walkthrough](SEARCH_PRICING_RECOVERY_20261009.md) passes
 actual browser cancellation/reload/explicit-price approval and once-only paid
