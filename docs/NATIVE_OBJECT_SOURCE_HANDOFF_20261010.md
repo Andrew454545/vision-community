@@ -44,6 +44,11 @@ the separate packet, regression and remote-branch verification.
 
 ## Next engineering work
 
+The [Community source producer](COMMUNITY_SCENE_SOURCE_20261010.md) now exports
+the eight genuine credited completions with exact original rows and an explicit
+road-label dialect. The native catalog consumer and pinned transformation remain
+to be implemented; this new catalog is not an Object import seal.
+
 Build and test a distinct Community Scene authority route with genuine audited
 membership, exact source/runtime/model/quality pins and a freshly obtained,
 matching protected-database authority. Revalidate coverage at import time.

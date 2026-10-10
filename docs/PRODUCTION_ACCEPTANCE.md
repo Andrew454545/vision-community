@@ -5,6 +5,14 @@ Updated **10 October 2026**. Start with the finite
 preserves historical results and limitations; completed reference trials do not
 require repeating merely because an older paragraph described them as pending.
 
+The [audited Community Scene source exporter](COMMUNITY_SCENE_SOURCE_20261010.md)
+now matches the eight genuine credited completions to the authentic original
+100-row source, preserving exact row bytes and explicitly identifying its
+Community road-label dialect. Publication/export and Scene/Object policy checks
+pass. This completes the private source producer, not the native consumer:
+explicit catalog import, a pinned road-label transformation, fresh protected
+authority and authentic Object admission remain required. No live source changed.
+
 The [authentic native Object source handoff](NATIVE_OBJECT_SOURCE_HANDOFF_20261010.md)
 is verified: all 76 file pins match. Exact scans found no supplied candidate in
 the owner's completed Scene sources, as expected outside the protected union.
