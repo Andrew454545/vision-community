@@ -76,13 +76,18 @@ backup/recovery and capacity checks in [the launch plan](LAUNCH_PLAN.md).
 
 ## Current state — 10 October 2026
 
-The Windows accepted-work run has **not started**. The current application has
-closed contribution capabilities; the earlier finite staging experiment does
-not qualify this background workload. Mac's accepted-work run has not started.
-No seven-day clock should be reported as running yet.
+The Windows accepted-work run has **not started**. The new
+[finite Windows Scene trial](WINDOWS_SCENE_COHORT_20261010.md) passes current CPU1
+qualification, eight fresh native-audited publications and genuine earned-credit
+search/recovery. It ran a finite foreground batch with an operator-sealed snapshot;
+it does not qualify the normal background workload, Objects/Both or Maximum's
+parallel profile. Admission is closed again and the trial's compute stopped.
+Automatic snapshot refresh, background interruption/resource checks and authentic
+Object admission remain prerequisites. Mac's accepted-work run has not started.
+No full seven-day clock should be reported as running yet.
 
 The [actual start preflight](evidence/accepted-work-start-preflight-20261010.json)
-at 05:12 UTC / 00:12 CDT confirms both staging contribution capabilities are
+at 05:12 UTC / 00:12 CDT recorded both staging contribution capabilities
 unavailable. The installed contributor's saved status is `waiting_for_service`
 with zero accepted work in that run. The default production capability URL
 returns 404; this does not describe all legacy production activity. These are

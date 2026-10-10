@@ -67,6 +67,7 @@ SERVICE_ERROR_CODES = frozenset({
     "scene_submission_rejected", "scene_verification_unavailable", "scene_verifier_unavailable",
     "schema_update_required", "service_maintenance", "unauthorized", "unknown_lease",
     "unknown_search", "unknown_submission", "unsupported_model", "view_unavailable",
+    "invalid_search_quote", "search_price_changed", "search_unavailable",
 })
 
 

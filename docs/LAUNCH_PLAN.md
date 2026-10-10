@@ -1,4 +1,4 @@
-# Launch plan — 9 October 2026
+# Launch plan — 10 October 2026
 
 **Not ready for public contributions yet.** These five exit gates define the
 required first release: Windows and Mac, Scenes, Objects and Both, online
@@ -48,10 +48,14 @@ resources do not suspend independent engineering work.
 
 ## What is already established
 
-Scene integration has eight genuine staging publications and eight earned units,
-with replay protection. Hosted native Scene search and one-time payment were
-also tested using a separate labeled disposable balance. That does **not** yet
-prove payment from a full genuinely earned search balance.
+The [finite Windows Scene trial](WINDOWS_SCENE_COHORT_20261010.md) now publishes
+eight fresh replacement-pool locations across eight countries, earns eight units
+and searches only those new contributions using eight genuinely earned units.
+Fresh-process account recovery returns the exact paid result after admission
+closes without another debit; eight units remain banked. No synthetic credit
+funded this test. Current CPU1 fixed-input qualification and 92 affected checks
+pass. The trial is closed and compute stopped. Automatic snapshot refresh,
+equivalent Mac/Object work and sustainable public pricing remain open.
 
 The full identical-input Scene matrices are complete on Windows and Mac.
 The recent Object packet contains three distinct cross-platform locations with

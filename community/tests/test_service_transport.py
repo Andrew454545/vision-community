@@ -123,6 +123,15 @@ class ServiceTransportTests(unittest.TestCase):
         self.assertEqual([c[2]['Authorization'] for c in self.calls],
                          ['Bearer fixture-private-token','Bearer other-fixture-token'])
 
+    def test_search_quote_and_outage_reasons_survive_real_http_without_private_details(self):
+        for status,code in ((409,'search_price_changed'),(400,'invalid_search_quote'),(503,'search_unavailable')):
+            with self.subTest(code=code):
+                self.response=(status,json.dumps({'error':code,'detail':'fixture-private-account-code'}).encode(),'length')
+                with self.assertRaises(ContributeError) as caught:
+                    self.client.request('POST','/api/searches',{'idempotencyKey':'saved-search-key'})
+                self.assertEqual((caught.exception.status,caught.exception.code),(status,code))
+                self.assertNotIn('fixture-private-account-code',str(caught.exception))
+
     def test_fragment_reader_accepts_exact_limit_without_trusting_length(self):
         for declared in (None, 8):
             reply = FragmentedReply(b'12345678', declared)

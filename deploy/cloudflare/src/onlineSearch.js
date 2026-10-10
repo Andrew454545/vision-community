@@ -3,6 +3,7 @@ import { replaySearch, settleSearch, SearchError } from "./searchLedger.js";
 import { SEARCH_CONTRACT_VERSION, querySemantics, validHitObject, exportSearchMap } from "./searchExport.js";
 import { officialGen4Coverage } from "./objectCoverage.js";
 import { searchCost, validSearchQuote } from "./searchPricing.js";
+import { sceneCohortAllows } from "./sceneCohort.js";
 
 const HEX = /^[0-9a-f]{64}$/;
 const RESPONSE_LIMIT = 4 * 1024 * 1024;
@@ -136,6 +137,9 @@ export async function onlineSearch(env, account, key, query, { allowNew = true, 
   const digest = await searchDigest(query);
   const replay = await replaySearch(env.DB, account, key, digest);
   if (replay) return replay;
+  // Expired/removed invitations cannot incur new work or debit, but must not
+  // hide a reply that this account already paid for.
+  if (!await sceneCohortAllows(env, account)) throw new SearchError("search_unavailable");
   // Closing an unqualified lane must not hide an already paid saved result.
   // New execution/debits remain forbidden, before checking engine availability.
   if (!allowNew) throw new SearchError("object_verification_unavailable");
