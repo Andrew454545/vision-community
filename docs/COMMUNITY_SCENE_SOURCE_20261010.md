@@ -47,11 +47,12 @@ exit, the final receipt and matching pins. This is not a contributor setup step.
 
 ## Import boundary
 
-The producer is complete and exercised on real accepted Scene data. The consumer
-is still required: an explicit native Community catalog adapter must verify the
-independently trusted catalog and publication proof, preserve exact source/pose
-mapping and define any road-label conversion as a separate, pinned transformation.
-It must not turn this catalog into an owner MMA catalog.
+The producer is complete and exercised on real accepted Scene data. The later
+[native Community bridge](NATIVE_COMMUNITY_SCENE_BRIDGE_20261010.md) now verifies
+the independently trusted catalog/publication proof and exact source/pose mapping,
+and defines road-label conversion as a separate pinned transformation. It keeps
+the distinct Community scope and passes all eight real rows through native
+validation and candidate building; it does not turn this into an owner MMA catalog.
 
 Current official Gen4 validation, protected-location authority, runtime/model
 qualification, native per-view Object quality and current hosted membership

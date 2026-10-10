@@ -6,16 +6,24 @@ This is the single operational dependency list for the
 choices belong to Geonections; a missing resource is not a request for another
 general design approval. Keep private exports and location evidence private.
 
+The [native Community Scene bridge](NATIVE_COMMUNITY_SCENE_BRIDGE_20261010.md)
+is pushed as private VISION PR #17. The exact real eight-location path passes
+catalog verification, repository input preparation, native v7 validation and
+candidate building. The initial ID mismatch is preserved; final import remains
+refused without matching protected Main/WAL authority. Windows passes 76/77
+component cases with one POSIX-only skip. Complete fresh portable protection and
+real Object settlement next; this source work does not open public admission.
+
 The [Community Scene source producer](COMMUNITY_SCENE_SOURCE_20261010.md) now
 exports all eight genuine credited completions from the authentic 100-row source
 without claiming owner MMA membership. Exact rows and road-label dialect are
-preserved. Continue with the independently pinned native catalog consumer and
-explicit road-label conversion, then fresh protected authority and Object
+preserved. The independently pinned native consumer and explicit road-label
+conversion now pass above. Continue with fresh protected authority and Object
 qualification/settlement; the producer does not open admission.
 
 The [authentic Object source handoff](NATIVE_OBJECT_SOURCE_HANDOFF_20261010.md)
 and all 76 contained file pins are verified. Owner Scene membership is absent
-for the exact contributor cohort; implement explicit Community Scene authority
+for the exact contributor cohort; use the explicit Community Scene authority
 instead of requesting owner-only membership again. Native v7/Windows fixes are
 pushed in private VISION PR #16; the historical invalid candidate and changed
 protected database remain correctly refused.
@@ -75,7 +83,7 @@ next executable engineering work; no public Object gate was opened.
 | Work / owner | Next executable action | Prerequisite | Completion check | Evidence |
 |---|---|---|---|---|
 | Repeatable Scene contributions / Geonections | Observe the first future real append from the installed hourly refresher; qualify the exact Mac profile and repeat genuine publication/search there. Connect normal background operation and verified parallel profiles. | Current Windows CPU1 qualification, eight fresh native-audited publications and earned-search recovery now pass. Dynamic search and the real scheduled no-change baseline now pass; the next fresh real append remains to be observed. Public admission remains closed. | New accepted work becomes searchable without manual snapshot preparation; recovery preserves prior publications, credits and paid replies; equivalent Mac evidence exists. | [Real Windows trial](WINDOWS_SCENE_COHORT_20261010.md) and its pinned receipt. |
-| Genuine Objects / Geonections | Implement explicit audited Community Scene authority and obtain fresh matching protected/runtime/quality import authority; then connect qualification, quarantine, native audit, publication and once-only credit. | The 100-location/22-country cohort and native source/failure packet are verified. Ten locations have genuine Community Scene completion. Owner Scene membership is absent, as expected outside the indexed union. Historical strict-proof and protected-Main failures remain valid; refresh coverage before import. | Windows and Mac each publish fresh qualified Object/Both work; altered, protected, wrong-runtime and duplicate submissions fail safely. | [Verified cohort](GEN4_COHORT_20261009.md), [authentic source handoff](NATIVE_OBJECT_SOURCE_HANDOFF_20261010.md), [Object auditor](NATIVE_OBJECT_AUDIT.md), private VISION PR #16 and future fresh receipts. |
+| Genuine Objects / Geonections | Finish fresh matching portable protected/runtime/quality import authority, then connect qualification, quarantine, native audit, publication and once-only credit. | The explicit audited Community Scene bridge, exact validator input and actual eight-row candidate build pass. Matching protected Main/WAL authority is absent; no real import seal exists. Owner Scene membership is unnecessary for this separate route. Preserve original failures and refresh metadata within its underlying age limit. | Windows and Mac each publish fresh qualified Object/Both work; altered, protected, wrong-runtime and duplicate submissions fail safely. | [Native Community bridge](NATIVE_COMMUNITY_SCENE_BRIDGE_20261010.md), [verified cohort](GEN4_COHORT_20261009.md), [Object auditor](NATIVE_OBJECT_AUDIT.md), private VISION PRs #16–17 and future fresh receipts. |
 | Sustainable pricing and both search modes / Geonections | Measure representative effort and hosted cost within the existing allowance; choose an initial price without rewriting historic debits, saved replies or balances. Exercise native Object search after admission is authentic. | Real Windows Scene earned-credit search and fresh-process exact paid recovery now pass. The finite eight-unit trial price does not establish public capacity or sustainable economics. | New contributors can earn and spend real credit in both modes; lost replies, concurrent retries and recovery return the same paid result once within measured resource bounds. | [Real Windows trial](WINDOWS_SCENE_COHORT_20261010.md), [launch plan](LAUNCH_PLAN.md), [accounting recovery](CREDIT_RECOVERY.md) and future capacity receipts. |
 | Full-data schema rehearsal / Geonections | Complete: approved full export, guarded conversion, actual 364,056-row upgrade, independent generated-batch replay and injected final-statement rollback. Prepare the controlled live migration within complete recovery work below. | Specific transfer consent was granted. Independent live schema readback and all 18 balance/ledger checks pass. The historical copy has zero paid-search rows and is not a fresh rollout cutoff. | Credentials, balances, publications, active leases and high-water marks survived. Full provider/paid-reply recovery and a new drained-writer cutoff remain open. | [Actual production-data rehearsal](PRODUCTION_DATA_REHEARSAL_20261009.md) and private pinned evidence. |
 | Seven-day accepted workload / Geonections and platform operators | Retain the running Windows Scene-only pilot; finish actual interruptions and final reconciliation. Start each full OS workload once all required lanes qualify. | Current qualified profiles, genuine accepted work in both lanes, required environment/schema ready, fixed resource/retention budgets. Public admission can remain closed to a restricted cohort. | At least seven calendar days with useful accepted work, actual interruptions, day/night transitions and independently reconciled publication/credit. | [Start protocol](ACCEPTED_WORK_SOAK.md) and [running Scene-only pilot](WINDOWS_SCENE_WEEK_PILOT_20261010.md). **Full Windows/Mac Scenes/Objects/Both clocks remain unstarted.** |
