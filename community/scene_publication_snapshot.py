@@ -82,6 +82,10 @@ def approval_from_control(inventory, control, authority, cache, environment):
     accounts = indexed(control.get("accounts"), "id")
     credits = indexed(control.get("ledger"), "reference")
     candidates = indexed(control.get("candidates"), "lease_id")
+    retained = control.get('deletions', [])
+    if not isinstance(retained, list):
+        raise PublicationSnapshotError('invalid_publication_control_rows')
+    deletions = indexed(retained, 'account_id') if retained else {}
     approved = {}
     selected = {row["id"]: row for row in rows}
     for candidate in candidates.values():
@@ -91,15 +95,25 @@ def approval_from_control(inventory, control, authority, cache, environment):
         account = accounts.get(owner)
         credit = credits.get("lease:" + lease)
         created = candidate.get("created_at")
+        active = account is not None and account.get('deleted_at') is None and 'deleted_at' in account
+        deletion = deletions.get(owner)
+        retained_publication = (authority.get('accountDeletionRetention') == 'retain-verified-anonymous-contributions'
+            and account is not None and type(account.get('deleted_at')) is int
+            and type(created) is int and 0 <= created <= account['deleted_at']
+            and deletion is not None and deletion.get('deleted_at') == account['deleted_at']
+            and type(deletion.get('deleted_at')) is int
+            and qualification is not None and type(qualification.get('expires_at')) is int
+            and qualification['expires_at'] == 0)
         if (candidate.get("state") != "published" or not policy or not qualification or not account
-                or account.get("deleted_at") is not None or "deleted_at" not in account
+                or not (active or retained_publication)
                 or qualification.get("account_id") != owner
                 or qualification.get("policy_id") != candidate.get("policy_id")
                 or qualification.get("profile_id") not in policy["profileIds"]
                 or type(created) is not int or created < 0
                 or type(qualification.get("created_at")) is not int
                 or type(qualification.get("expires_at")) is not int
-                or not qualification["created_at"] <= created < qualification["expires_at"]
+                or not qualification['created_at'] <= created
+                or not (retained_publication or created < qualification["expires_at"])
                 or not credit or credit.get("reason") != "verified_work" or credit.get("account_id") != owner
                 or not isinstance(candidate.get("records_json"), str)):
             raise PublicationSnapshotError("publication_audit_not_authoritative")

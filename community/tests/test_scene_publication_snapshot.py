@@ -105,6 +105,35 @@ class PublicationSnapshotTests(unittest.TestCase):
         self.control['accounts'][0]['deleted_at'] = 102
         self.fails('publication_audit_not_authoritative')
 
+    def test_explicit_retention_preserves_already_published_anonymous_work_after_account_deletion(self):
+        self.authority['accountDeletionRetention'] = 'retain-verified-anonymous-contributions'
+        self.control['accounts'][0]['deleted_at'] = 102
+        self.control['qualifications'][0]['expires_at'] = 0
+        self.control['deletions'] = [{'account_id': self.owner, 'deleted_at': 102}]
+        report = self.seal()
+        self.assertEqual(report['locations'], 1)
+        self.assertNotIn(self.owner, (self.root / 'result/snapshot/members.json').read_text())
+
+    def test_retained_publication_requires_exact_irreversible_deletion_authority(self):
+        self.authority['accountDeletionRetention'] = 'retain-verified-anonymous-contributions'
+        self.control['accounts'][0]['deleted_at'] = 102
+        self.control['qualifications'][0]['expires_at'] = 0
+        original = copy.deepcopy(self.control)
+        for index, proof in enumerate([[], [{'account_id': 'another', 'deleted_at': 102}],
+            [{'account_id': self.owner, 'deleted_at': 103}], [{'account_id': self.owner, 'deleted_at': True}]]):
+            self.control = copy.deepcopy(original)
+            self.control['deletions'] = proof
+            with self.subTest(proof=proof), self.assertRaises(PublicationSnapshotError):
+                self.seal('bad-retention-' + str(index))
+
+    def test_retention_does_not_approve_new_late_or_prequalification_publications(self):
+        self.authority['accountDeletionRetention'] = 'retain-verified-anonymous-contributions'
+        self.control['accounts'][0]['deleted_at'] = 102
+        self.control['qualifications'][0]['expires_at'] = 0
+        self.control['deletions'] = [{'account_id': self.owner, 'deleted_at': 102}]
+        self.control['candidates'][0]['created_at'] = 103
+        self.fails('publication_audit_not_authoritative')
+
     def test_credit_must_be_once_only_earned_for_this_exact_lease_and_owner(self):
         original = copy.deepcopy(self.control)
         for index, patch in enumerate([{'reason': 'fixture_funding'}, {'account_id': 'another'},
@@ -117,6 +146,10 @@ class PublicationSnapshotTests(unittest.TestCase):
     def test_duplicate_credits_are_not_resolved_by_selecting_one(self):
         self.control['ledger'].append(dict(self.control['ledger'][0]))
         self.fails('ambiguous_publication_control')
+
+    def test_falsy_nonlist_deletion_authority_is_not_silently_ignored(self):
+        self.control['deletions'] = None
+        self.fails('invalid_publication_control_rows')
 
     def test_mixed_or_unconfirmed_resources_cannot_be_sealed(self):
         self.control['resource'] = {**CONFIRMED_STAGING_RESOURCE, 'databaseId': 'wrong'}

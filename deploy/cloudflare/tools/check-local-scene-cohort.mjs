@@ -8,6 +8,8 @@ import {pathToFileURL} from 'node:url';
 import {prepareDatabase} from './initialize-schema.mjs';
 import {localRateLimits} from './local-api-bindings.mjs';
 const [runtime,bundle]=process.argv.slice(2);
+const dynamic=process.argv[4]==='dynamic';
+let snapshot='c'.repeat(64),headAvailable=true;
 const {Miniflare,convertV4MiniflareOptions}=await import(pathToFileURL(resolve(runtime)).href);
 const root=mkdtempSync(join(tmpdir(),'vision-cohort-'));
 const hash=value=>createHash('sha256').update(value).digest('hex');
@@ -22,11 +24,14 @@ async function start(deadline) {
       INDEX_BUCKET_NAME:'vision-community-staging',DELETION_ARCHIVE_DB_ID:'17043cb7-5dab-4a6f-84ca-19ae1c14cc05',
       SCENE_POLICY_ID:'staging.synthetic-cohort',SCENE_COHORT_ACCOUNTS:JSON.stringify([hash(account)]),
       SCENE_COHORT_UNTIL:String(deadline),SEARCH_COST_UNITS:'8',SEARCH_POLICY_ID:'synthetic',
-      SEARCH_RUNTIME_SHA256:'b'.repeat(64),SEARCH_SNAPSHOT_SHA256:'c'.repeat(64)},
+      SEARCH_RUNTIME_SHA256:'b'.repeat(64),SEARCH_SNAPSHOT_SHA256:'c'.repeat(64),...(dynamic?{SEARCH_DYNAMIC_SNAPSHOT:'1'}:{})},
     serviceBindings:{ASSETS:()=>new Response('offline fixture'),
       SCENE_VERIFIER:()=>{throw Error('unexpected verifier work');},
       SEARCH_ENGINE:async request=>{
-        calls++;return Response.json({...await request.json(),processedLocations:1,
+        if(new URL(request.url).pathname==='/snapshot')return headAvailable?Response.json({policyId:'synthetic',
+          runtimeSha256:'b'.repeat(64),snapshotSha256:snapshot,bundleSha256:'f'.repeat(64)}):Response.json({error:'unavailable'},{status:503});
+        calls++;const body=await request.json();assert.equal(body.snapshotSha256,dynamic?snapshot:'c'.repeat(64));
+        return Response.json({...body,processedLocations:1,
           hits:[{locationId:1,outputSha256:'a'.repeat(64),sourceIndex:0,score:.8,viewOffset:1}]});
       }}};
   mf=new Miniflare(convertV4MiniflareOptions?convertV4MiniflareOptions(options):options);
@@ -62,15 +67,28 @@ try {
   const paidResponse=await call('searches',token,body);assert.equal(paidResponse.status,200);
   const paid=await paidResponse.json();assert.equal(paid.costUnits,8);assert.equal(await balance(),8);
   assert.equal(calls,1);cases++;
+  let expectedBalance=8,expectedCalls=1;
+  if(dynamic){
+    headAvailable=false;
+    const saved=await call('searches',token,body);assert.equal(saved.status,200);assert.deepEqual(await saved.json(),paid);
+    assert.equal(await balance(),8);assert.equal(calls,1);cases++;
+    const missing=await call('searches',token,{...body,idempotencyKey:'new-without-head'});
+    assert.equal(missing.status,503);assert.equal(await balance(),8);assert.equal(calls,1);cases++;
+    headAvailable=true;snapshot='e'.repeat(64);
+    const refreshed=await call('searches',token,{...body,idempotencyKey:'paid-after-refresh'});
+    assert.equal(refreshed.status,200);assert.equal((await refreshed.json()).costUnits,8);
+    assert.equal(await balance(),0);assert.equal(calls,2);expectedBalance=0;expectedCalls=2;cases++;
+    headAvailable=false;
+  }
   await start(Date.now()-1000);
   const replay=await call('searches',token,body);assert.equal(replay.status,200);
-  assert.deepEqual(await replay.json(),paid);assert.equal(await balance(),8);assert.equal(calls,1);cases++;
+  assert.deepEqual(await replay.json(),paid);assert.equal(await balance(),expectedBalance);assert.equal(calls,expectedCalls);cases++;
   const refused=await call('searches',token,{...body,idempotencyKey:'new-after-cohort-expiry'});
   assert.equal(refused.status,503);assert.equal((await refused.json()).error,'search_unavailable');
-  assert.equal(await balance(),8);assert.equal(calls,1);cases++;
+  assert.equal(await balance(),expectedBalance);assert.equal(calls,expectedCalls);cases++;
   const expired=await call('capabilities',token);assert.equal((await expired.json()).sceneContributions.ready,false);cases++;
   const deleted=await call('account/delete',token,{accountId:account,confirmation:'DELETE',idempotencyKey:hash('delete-expired-cohort-account')});assert.equal(deleted.status,200);
   assert.equal((await deleted.json()).deleted,true);cases++;
   console.log(JSON.stringify({status:'ACTUAL_WORKERD_FINITE_SCENE_COHORT_PASSED',cases,
-    syntheticFixture:true,realContributions:0,realCredits:0,privateNativeCalls:0,syntheticSearchCalls:calls}));
+    syntheticFixture:true,dynamicSnapshot:dynamic,realContributions:0,realCredits:0,privateNativeCalls:0,syntheticSearchCalls:calls}));
 } finally {await mf?.dispose();}

@@ -88,13 +88,19 @@ boundaries and final reconciliation remain pending. This does not start or
 complete the full Windows/Mac Scenes/Objects/Both workload gate, and does not
 approve Maximum parallel processing.
 
+The [automatic refresh follow-up](SCENE_AUTOMATIC_REFRESH_20261010.md) installs a
+separate finite hourly task and passes real dynamic-snapshot paid recovery. Its
+first scheduled baseline found no change among ten locations; the first future
+real append remains to be observed. The backend update preserves the original
+pilot client/image/start pins. It does not restart or complete the seven-day clock.
+
 The earlier
 [finite Windows Scene trial](WINDOWS_SCENE_COHORT_20261010.md) passes current CPU1
 qualification, eight fresh native-audited publications and genuine earned-credit
 search/recovery. It ran a finite foreground batch with an operator-sealed snapshot;
 it did not qualify the normal background workload, Objects/Both or Maximum's
 parallel profile. That finite trial closed before the later pilot above.
-Automatic snapshot refresh, background interruption checks and authentic Object
+Future real automatic append, background interruption checks and authentic Object
 admission remain prerequisites for the full gate. Mac's accepted-work run has
 not started. No full Scenes/Objects/Both clock should be reported as running.
 

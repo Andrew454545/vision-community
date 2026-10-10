@@ -12,7 +12,9 @@ delivery replay confirm one award. The publication sealer appended those two
 locations to the eight earlier contributions, preserving all previous record
 bytes and ordinals. A native search returned all ten, charged two genuinely
 earned units once, and recovered the identical paid result in a fresh process.
-Eight units remain banked; no synthetic funding was added.
+Eight units remained banked at clock start; no synthetic funding was added.
+The later [automatic refresh service check](SCENE_AUTOMATIC_REFRESH_20261010.md)
+spent two more earned units and independently reconciled the balance at six.
 
 ## Operation and limits
 
@@ -69,9 +71,13 @@ retry handling. Later telemetry labels cached balance observations; independent
 primary D1 reconciliation remains the financial authority. Harness/source pins,
 raw logs and original failures stay in the private pilot folder.
 
-Future accepted batches are not automatically added to search yet. This start
-used the offline sealer and guarded operator activation; scheduled remote
-refresh, deletion handling and concurrent recovery remain open. Reconcile all
+This start used the offline sealer and guarded operator activation. The later
+[automatic refresh follow-up](SCENE_AUTOMATIC_REFRESH_20261010.md) installed a
+separately frozen hourly task and enabled guarded dynamic snapshot search. Its
+actual first run confirmed the existing ten locations without activation; the
+first future real append remains to be observed. Native-allowance deferral can
+delay publication while preserving accepted work and credits. This backend update
+did not change the pilot client, image or original start pins. Reconcile all
 publications, credits, paid replies, interruptions and retained resource records
 at the end. Equivalent Mac and authentic Object work, signing, clean-device
 acceptance and complete provider recovery remain separate launch gates.

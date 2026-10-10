@@ -68,6 +68,7 @@ function fixture() {
     async setAlarm(deadline) { if (control.failAlarm) throw Error("synthetic alarm failure"); control.alarm = deadline; },
     async deleteAlarm() { control.alarm = null; },
     async put(key, value) {
+      if (key === 'searchHead' && control.failHeadCommit) throw Error('synthetic head commit failure');
       if (key === 'nativeComputeBudgetV1' && control.failBudgetWrite) throw Error('synthetic budget write failure');
       if (key === "activeBundle" && control.failCommit) throw Error("synthetic storage failure");
       values.set(key, structuredClone(value));
@@ -89,6 +90,71 @@ function fixture() {
   const host = new NativeController(ctx, env, options);
   return { host, ctx, env, control, options, pending };
 }
+
+const refresh = (expected = 'e'.repeat(64)) => ({ bundle, expectedBundleSha256: expected,
+  search: { policyId: 'staging.refresh-fixture', runtimeSha256: runtime, snapshotSha256: 'f'.repeat(64) } });
+
+test('stale refresh cannot overwrite a newer operator bundle or spend compute', async()=>{
+  const {host,control}=fixture();control.values.set('activeBundle',bundle);
+  const response=await host.refresh(refresh());
+  assert.equal(response.status,409);assert.deepEqual(await response.json(),{error:'operator_bundle_changed'});
+  assert.equal(control.starts.length,0);assert.equal(control.uploads,0);
+  assert.equal(control.values.has('nativeComputeBudgetV1'),false);
+});
+
+test('search head and native bundle commit together and recover without compute',async()=>{
+  const {host,ctx,env,control,options}=fixture();control.searchReady=true;
+  const prior={...bundle,sha256:'e'.repeat(64),key:'native-host/bundles/'+ 'e'.repeat(64)+'.zip'};
+  control.values.set('activeBundle',prior);
+  const response=await host.refresh(refresh());assert.equal(response.status,200);
+  const head=await response.json();assert.equal(head.refreshed,true);assert.equal(head.replay,false);
+  const deadline=control.alarm,usage=structuredClone(control.values.get('nativeComputeBudgetV1'));
+  const reopened=new NativeController(ctx,env,options);control.now+=50000;
+  assert.deepEqual(await (await reopened.searchSnapshot()).json(),{...refresh().search,bundleSha256:bundle.sha256});
+  const replay=await (await reopened.refresh(refresh())).json();assert.equal(replay.replay,true);
+  assert.equal(control.starts.length,1);assert.equal(control.uploads,1);
+  assert.equal(control.alarm,deadline);assert.deepEqual(control.values.get('nativeComputeBudgetV1'),usage);
+});
+
+test('refresh can bind an already active seal once and replay without another charge',async()=>{
+  const {host,control}=fixture();control.searchReady=true;
+  assert.equal((await host.activate(bundle)).status,200);
+  assert.equal((await host.refresh(refresh(bundle.sha256))).status,200);
+  const starts=control.starts.length,usage=structuredClone(control.values.get('nativeComputeBudgetV1'));
+  assert.equal((await (await host.refresh(refresh(bundle.sha256))).json()).replay,true);
+  assert.equal(control.starts.length,starts);assert.deepEqual(control.values.get('nativeComputeBudgetV1'),usage);
+});
+
+test('failed head commit rolls back the durable pointer and destroys uncommitted native state',async()=>{
+  const {host,ctx,control}=fixture();control.searchReady=true;
+  const prior={...bundle,sha256:'e'.repeat(64),key:'native-host/bundles/'+ 'e'.repeat(64)+'.zip'};
+  const oldHead={...refresh().search,bundleSha256:prior.sha256};
+  control.values.set('activeBundle',prior);control.values.set('searchHead',oldHead);control.failHeadCommit=true;
+  const response=await host.refresh(refresh());assert.equal(response.status,503);
+  assert.deepEqual(control.values.get('activeBundle'),prior);assert.deepEqual(control.values.get('searchHead'),oldHead);
+  assert.equal(ctx.container.running,false);
+});
+
+test('identity-only bundles cannot become dynamic searchable heads',async()=>{
+  const {host,control}=fixture();control.values.set('activeBundle',bundle);
+  const response=await host.refresh(refresh(bundle.sha256));assert.equal(response.status,503);
+  assert.equal(control.values.has('searchHead'),false);
+});
+
+test('malformed refresh identity is rejected before native side effects',async()=>{
+  for(const patch of [{expectedBundleSha256:null},{search:{...refresh().search,runtimeSha256:'a'.repeat(64)}},
+    {search:{...refresh().search,policyId:''}},{extra:'private'}]){
+    const {host,control}=fixture();const response=await host.refresh({...refresh(),...patch});
+    assert.equal(response.status,400);assert.equal(control.starts.length,0);assert.equal(control.uploads,0);
+  }
+});
+
+test('legacy replacement clears a prior head rather than advertising stale search identity',async()=>{
+  const {host,control}=fixture();control.searchReady=true;control.values.set('activeBundle',bundle);
+  assert.equal((await host.refresh(refresh(bundle.sha256))).status,200);
+  assert.equal((await host.activate(bundle)).status,200);
+  assert.equal((await host.searchSnapshot()).status,503);assert.equal(control.values.has('searchHead'),false);
+});
 
 test('missing compute allowances block every compute entrypoint before native side effects',async()=>{
   for(const operation of ['health','activate','launchCheck','mainCheck','modelCheck','auditBudgetCheck','repeatabilityCheck','service']){

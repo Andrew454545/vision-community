@@ -45,6 +45,48 @@ function fixture(t, units = 200000) {
 function balance(sql) { return sql.prepare("SELECT units FROM accounts WHERE id='anonymous'").get().units; }
 function count(sql, table) { return sql.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get().n; }
 
+test('dynamic search uses the private current head and paid replay needs no head or inference',async t=>{
+  const {sql,env,query}=fixture(t);env.SEARCH_DYNAMIC_SNAPSHOT='1';let calls=0;
+  env.SEARCH_ENGINE.fetch=async request=>{
+    calls++;
+    if(new URL(request.url).pathname==='/snapshot')return Response.json({policyId:env.SEARCH_POLICY_ID,
+      runtimeSha256:env.SEARCH_RUNTIME_SHA256,snapshotSha256:'d'.repeat(64),bundleSha256:'e'.repeat(64)});
+    const body=await request.json();assert.equal(body.snapshotSha256,'d'.repeat(64));
+    return Response.json({...body,processedLocations:1,hits:[{locationId:1,outputSha256:'a'.repeat(64),sourceIndex:0,score:0.8,viewOffset:1}]});
+  };
+  const paid=await onlineSearch(env,'anonymous','dynamic-saved-reply',query);assert.equal(calls,2);
+  const units=balance(sql);env.SEARCH_ENGINE.fetch=()=>{throw Error('No replay compute');};
+  assert.deepEqual(await onlineSearch(env,'anonymous','dynamic-saved-reply',query),paid);
+  assert.equal(balance(sql),units);assert.equal(count(sql,'ledger'),1);
+});
+
+test('missing, mismatched and oversized dynamic heads cannot fall back or debit',async t=>{
+  const {sql,env,query}=fixture(t);env.SEARCH_DYNAMIC_SNAPSHOT='1';let inference=0;
+  const head={policyId:env.SEARCH_POLICY_ID,runtimeSha256:env.SEARCH_RUNTIME_SHA256,snapshotSha256:'d'.repeat(64),bundleSha256:'e'.repeat(64)};
+  for(const response of [new Response('',{status:503}),Response.json({...head,policyId:'wrong'}),
+    Response.json({...head,runtimeSha256:'f'.repeat(64)}),Response.json({...head,extra:'x'}),Response.json({...head,snapshotSha256:null}),
+    new Response('x'.repeat(4097)),Response.json({...head,bundleSha256:'bad'})]){
+    env.SEARCH_ENGINE.fetch=async request=>{
+      if(new URL(request.url).pathname!=='/snapshot'){inference++;throw Error('unexpected inference');}
+      return response;
+    };
+    await assert.rejects(onlineSearch(env,'anonymous','dynamic-unavailable',query),e=>e.code==='search_unavailable');
+  }
+  assert.equal(inference,0);assert.equal(balance(sql),200000);assert.equal(count(sql,'ledger'),0);
+  env.SEARCH_DYNAMIC_SNAPSHOT='true';assert.equal(onlineSearchConfigured(env),false);
+});
+
+test('a refresh race cannot settle results from another snapshot',async t=>{
+  const {sql,env,query}=fixture(t);env.SEARCH_DYNAMIC_SNAPSHOT='1';
+  env.SEARCH_ENGINE.fetch=async request=>{
+    if(new URL(request.url).pathname==='/snapshot')return Response.json({policyId:env.SEARCH_POLICY_ID,
+      runtimeSha256:env.SEARCH_RUNTIME_SHA256,snapshotSha256:'d'.repeat(64),bundleSha256:'e'.repeat(64)});
+    return Response.json({...await request.json(),snapshotSha256:'f'.repeat(64),processedLocations:1,hits:[]});
+  };
+  await assert.rejects(onlineSearch(env,'anonymous','dynamic-refresh-race',query),e=>e.code==='search_unavailable');
+  assert.equal(balance(sql),200000);assert.equal(count(sql,'ledger'),0);assert.equal(count(sql,'searches'),0);
+});
+
 test('cohort expiry blocks new inference and debit while preserving an actually paid replay',async t=>{
   const {sql,env,query}=fixture(t);
   const paid=await onlineSearch(env,'anonymous','before-invitation-expiry',query);
