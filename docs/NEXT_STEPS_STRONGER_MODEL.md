@@ -13,10 +13,19 @@ Updated 2026-10-09 after browser recovery and terminal diagnostic readback.
 
 The [windowless process follow-up](WINDOWS_CONSOLE_RECOVERY_20261009.md) passes
 157 affected local checks and retires four terminal legacy Scene test tasks.
-The exact reported pop-up is not yet attributed. A private 20-minute trace runs
-independently of Codex; on a later session inspect its final
-`work/console-audit-20261009/visibility-trace.private.json` once, without polling.
+The exact reported pop-up is not yet attributed. The private 20-minute trace
+finished at 23:51:38 UTC with no detected terminal show/foreground events and
+both hooks released. Its final private receipt is pinned in the
+[completion evidence](evidence/windows-console-visibility-completion-20261009.json);
+the limited negative observation does not prove the earlier issue is fixed.
 Keep unrelated terminals and the contributor's recovery task unchanged.
+
+The separate [fresh windowless diagnostic](WINDOWS_WINDOWLESS_ENDURANCE_20261009.md)
+actually started at 23:59:18 UTC after a passing 131-case preliminary cycle and
+fresh saved-input native replay. It targets 24 hourly 1/2/4-thread rounds and
+has a fixed 11 October 01:59:18 UTC deadline. Inspect its final private receipt
+once after that deadline; do not poll it during ordinary check-ins. This does
+not replace earlier failures or start the accepted-work clock.
 
 1. **Complete:** actual browser price review, cancellation, reload, approval of the displayed amount and free paid replay. All four deliveries retained the original query/key and incurred one synthetic debit. See [pricing recovery](SEARCH_PRICING_RECOVERY_20261009.md).
 2. **Complete:** push `e99332b` and verify the remote. Keep the historical default price until real accepted-work cost and capacity evidence supports a change. Use `[skip ci]` for the follow-up fixes/evidence too.

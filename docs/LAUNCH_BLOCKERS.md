@@ -28,6 +28,12 @@ and include the actual browser walkthrough and local workerd/D1 paid replay. The
 default price is unchanged; representative cost and genuinely earned-credit
 search remain prerequisites for the pricing gate.
 
+The [fresh windowless offline diagnostic](WINDOWS_WINDOWLESS_ENDURANCE_20261009.md)
+started at 23:59:18 UTC after its preliminary recovery/native cycle passed.
+It has a fixed 11 October 01:59:18 UTC deadline and does not start the accepted-work
+soak or reclassify either failed diagnostic. Read its final receipt once after
+that deadline instead of repeatedly polling it.
+
 The first accepted cohort is the next engineering milestone. The checklist's
 24–48-hour target starts after its necessary source/access is available; it is
 not a completion promise. The seven-day test itself needs at least seven days

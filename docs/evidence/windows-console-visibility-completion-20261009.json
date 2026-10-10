@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "scope": "finite-terminal-visibility-completion",
+  "startedAt": "2026-10-09T23:31:38.151905+00:00",
+  "finishedAt": "2026-10-09T23:51:38.160092+00:00",
+  "maximumSeconds": 1200,
+  "status": "COMPLETE",
+  "terminalShowOrForegroundEvents": 0,
+  "hooksReleased": true,
+  "windowTitlesCollected": false,
+  "processArgumentsCollected": false,
+  "windowsClosedOrHidden": 0,
+  "popUpSourceAttributed": false,
+  "productionQualified": false,
+  "observationClasses": [
+    "ConsoleWindowClass",
+    "CASCADIA_HOSTING_WINDOW_CLASS"
+  ],
+  "privateReceipt": {
+    "bytes": 401,
+    "sha256": "18faf6e58ed8d17e524d120b137bda27f68566efaaeba060e52162936fd4415c"
+  },
+  "stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "limitations": [
+    "No captured event does not establish the earlier pop-up source or prove it is fixed",
+    "Only the named window classes during this finite observation were monitored"
+  ]
+}

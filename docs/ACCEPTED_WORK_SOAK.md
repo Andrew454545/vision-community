@@ -84,6 +84,12 @@ No seven-day clock should be reported as running yet.
 The separate one-location Windows native/resource diagnostic uses already saved
 private imagery and fixed command deadlines. It creates no contributions or
 credit and cannot satisfy this protocol. Its preliminary cycle completed and
-its finite scheduled task actually started; see the separately dated
-[launch evidence and limits](WINDOWS_NATIVE_DIAGNOSTIC_20261009.md). The scheduled
-run's completion remains pending.
+its finite scheduled task actually started, then failed during round 4 recovery
+after three completed 1/2/4-thread rounds. Its task is disabled and the original
+failure remains preserved; see the
+[terminal evidence and limits](WINDOWS_NATIVE_DIAGNOSTIC_20261009.md#terminal-result).
+
+A [separately identified windowless diagnostic](WINDOWS_WINDOWLESS_ENDURANCE_20261009.md)
+started at 23:59:18 UTC after its preliminary cycle passed. It targets 24 hourly
+rounds with a fixed 26-hour deadline. Its saved-image work creates no accepted
+contributions or credit, and cannot start either seven-day clock.

@@ -44,8 +44,12 @@ The initial visible-console inspection found none. A separate, read-only,
 windowless visibility trace was started with a fixed **20-minute** lifetime.
 It records only terminal show/foreground events and process names/parent IDs;
 it collects no titles, command arguments or typed text and closes/hides no
-windows. Its result stays private and is not polled by Codex. Inspect its one
-final receipt on a later work session if further attribution is needed.
+windows. Its result stays private. It finished at **23:51:38 UTC**, detected
+zero show/foreground events for the two monitored terminal classes, released
+both hooks and retained an empty error log. The
+[completion receipt](evidence/windows-console-visibility-completion-20261009.json)
+pins that final result. This limited observation does not identify the earlier
+pop-up or prove it cannot recur; no further visibility observer is running.
 
 These fixes do not repair the preserved round-4 diagnostic failure, start an
 accepted-work soak, qualify model output or open public admission. No GitHub
