@@ -1,3 +1,6 @@
 # These files are sealed by byte-level SHA-256; Windows checkout must not rewrite LF.
 calibration/gen4-v1/* -text
 community/runtime_manifest.json -text
+calibration/synthetic_canary.py text eol=lf
+*.command text eol=lf
+macos/* text eol=lf

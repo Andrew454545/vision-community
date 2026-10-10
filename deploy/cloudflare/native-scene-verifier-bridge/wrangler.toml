@@ -1,0 +1,9 @@
+name = "vision-community-native-scene-verifier"
+main = "worker.js"
+compatibility_date = "2026-09-19"
+workers_dev = false
+preview_urls = false
+
+# Operator secrets: NATIVE_VERIFIER_ORIGIN (HTTPS origin only) and
+# NATIVE_VERIFIER_SECRET, matching the native service's private credential.
+# No public route, D1, R2, reference allow-list or client approval mechanism.

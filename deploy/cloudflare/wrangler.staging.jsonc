@@ -1,0 +1,27 @@
+{
+  "name": "vision-community-staging",
+  "account_id": "272760294910ef0b246980278aeb36e2",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-09-19",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "preview_urls": false,
+  "observability": {"enabled": false},
+  "triggers": {"crons": ["0 * * * *"]},
+  "d1_databases": [{"binding":"DB", "database_name":"vision-community-staging",
+                    "database_id":"17043cb7-5dab-4a6f-84ca-19ae1c14cc05"}],
+  "r2_buckets": [{"binding":"INDEX", "bucket_name":"vision-community-staging"}],
+  "ratelimits": [{"name":"API_RATE_LIMITER", "namespace_id":"1586479201", "simple":{"limit":120,"period":60}},
+                 {"name":"API_INGRESS_LIMITER", "namespace_id":"1586479203", "simple":{"limit":600,"period":60}},
+                 {"name":"API_VIEW_LIMITER", "namespace_id":"1586479205", "simple":{"limit":12,"period":60}}],
+  "services": [{"binding":"SCENE_VERIFIER", "service":"vision-community-native-host-staging",
+                "entrypoint":"NativeSceneVerification"}],
+  "vars": {
+    "DEPLOYMENT_ENVIRONMENT":"staging", "INDEX_BUCKET_NAME":"vision-community-staging", "RATE_LIMITS_REQUIRED":"1",
+    "DELETION_ARCHIVE_REQUIRED":"1", "DELETION_ARCHIVE_ENVIRONMENT":"staging",
+    "DELETION_ARCHIVE_DB_ID":"17043cb7-5dab-4a6f-84ca-19ae1c14cc05", "RESTORE_MAINTENANCE":"0",
+    "SCENE_POLICY_ID":"", "SCENE_AUDIT_MAX_LOCATIONS":"8"
+  },
+  "assets": {"directory":"../../community/web", "binding":"ASSETS",
+             "html_handling":"auto-trailing-slash", "not_found_handling":"404-page", "run_worker_first":true}
+}

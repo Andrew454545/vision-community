@@ -1,65 +1,31 @@
 import {
-  MODEL_ID, SEARCH_COST, SITE_SEARCH_CAP, UNITS, LEASE_SECONDS, MAX_LEASE, RECOVERY_PEPPER, SCENE_DIM,
+  MODEL_ID, UNITS, LEASE_SECONDS, MAX_LEASE, RECOVERY_PEPPER, SCENE_DIM,
   OBJECT_PROPOSALS, OBJECT_DIM,
   sha256Hex, encodeUtf8, equalHex, seedBytes, renderFacesFromSeed, embeddingFor,
-  outputDigest, maxRegionCosine, meanEmbeddings, descriptionEmbedding, mixEmbeddings,
+  outputDigest,
   parsePrompt, snapDescriptionWeight,
   base64ToBytes, bytesToHex,
-  bytesToBase64, randomHex, randomToken, bestSceneView, normalizeViewDirection,
-  viewOffsetsFor, wrapHeading,
+  bytesToBase64, randomHex, randomToken, normalizeViewDirection,
 } from "./model.js";
 import {
   QUERY_VIEW_CAP, renderLocationFaces, leaseCap, usesStreetViews,
 } from "./pano.js";
-import { SEED_LOCATIONS } from "./seed.js";
+import { requireSchema } from "./schemaRevision.js";
+import { availableCatalogSql, availableLocationSql, freshLeaseItemSql } from './catalogAllocation.js';
+import { ingressLimit, accountLimit, viewLimit, ApiLimitError } from './apiRateLimit.js';
 import { OBJECT_INDEX_MODEL, validateObjectIndex } from "./objectIndex.js";
+import { onlineSearch, onlineSearchConfigured, INDEX_DOWNLOAD_ROUTES } from "./onlineSearch.js";
+import { SearchError } from "./searchLedger.js";
+import { searchCost } from "./searchPricing.js";
+import { sceneCohortAllows } from "./sceneCohort.js";
+import { deleteAccount, cleanupAccountArtifacts, archiveAccountDeletionReceipts } from "./accountPrivacy.js";
+import { writeSceneArtifact } from "./artifactWrites.js";
+import { officialGen4Coverage, objectCoverageComplete } from "./objectCoverage.js";
+import { readRequestJson } from "./requestBody.js";
+import { localObjectPrototype, objectCapabilities } from "./objectAdmission.js";
+import { loadSceneReferences, sceneCapabilities } from "./sceneQuality.js";
+import { verifierConfigured, auditBatchLimit, pipelineCapabilities, activeQualification, qualificationStatus, qualifyDevice, auditScene, stageScene } from "./scenePipeline.js";
 
-const SCHEMA = `
-CREATE TABLE IF NOT EXISTS accounts (
-  id TEXT PRIMARY KEY, token_hash TEXT NOT NULL UNIQUE,
-  units INTEGER NOT NULL DEFAULT 0 CHECK (units >= 0), recovery_hash TEXT UNIQUE
-);
-CREATE TABLE IF NOT EXISTS locations (
-  id INTEGER PRIMARY KEY AUTOINCREMENT, asset_id TEXT NOT NULL, capture TEXT NOT NULL,
-  lane TEXT NOT NULL, model TEXT NOT NULL, label TEXT NOT NULL DEFAULT '',
-  state TEXT NOT NULL DEFAULT 'pending', active_lease TEXT, lease_until INTEGER,
-  output_sha256 TEXT, contributor_id TEXT, source TEXT, rights TEXT, attribution TEXT,
-  lat REAL, lon REAL, heading REAL NOT NULL DEFAULT 0, pitch REAL NOT NULL DEFAULT 0,
-  zoom REAL NOT NULL DEFAULT 0, country TEXT, camera_generation TEXT,
-  generation INTEGER NOT NULL DEFAULT 0, queue_state TEXT NOT NULL DEFAULT 'pending',
-  UNIQUE (asset_id, capture, lane, model)
-);
-CREATE INDEX IF NOT EXISTS locations_queue ON locations (lane, state, lease_until, id);
-CREATE TABLE IF NOT EXISTS leases (
-  id TEXT PRIMARY KEY, account_id TEXT NOT NULL, lane TEXT NOT NULL,
-  expires_at INTEGER NOT NULL, state TEXT NOT NULL, generation INTEGER, pace TEXT
-);
-CREATE TABLE IF NOT EXISTS lease_items (
-  lease_id TEXT NOT NULL, location_id INTEGER NOT NULL, PRIMARY KEY (lease_id, location_id)
-);
-CREATE TABLE IF NOT EXISTS published_index (
-  location_id INTEGER PRIMARY KEY, index_text TEXT NOT NULL, output_sha256 TEXT NOT NULL,
-  published_at INTEGER NOT NULL, embedding TEXT, segment_id TEXT
-);
-CREATE TABLE IF NOT EXISTS ledger (
-  id INTEGER PRIMARY KEY AUTOINCREMENT, account_id TEXT NOT NULL, units INTEGER NOT NULL,
-  reason TEXT NOT NULL, reference TEXT NOT NULL UNIQUE
-);
-CREATE TABLE IF NOT EXISTS searches (
-  id TEXT PRIMARY KEY, account_id TEXT NOT NULL, idempotency_key TEXT NOT NULL,
-  query TEXT NOT NULL, result_json TEXT NOT NULL, UNIQUE (account_id, idempotency_key)
-);
-CREATE TABLE IF NOT EXISTS pose_catalog (
-  lane TEXT NOT NULL, shard_id INTEGER NOT NULL, r2_key TEXT NOT NULL,
-  row_start INTEGER NOT NULL, row_count INTEGER NOT NULL, bytes INTEGER NOT NULL,
-  sha256 TEXT NOT NULL, next_byte INTEGER NOT NULL DEFAULT 0, next_row INTEGER NOT NULL DEFAULT 0,
-  PRIMARY KEY (lane, shard_id)
-);
-CREATE TABLE IF NOT EXISTS index_shards (
-  r2_key TEXT PRIMARY KEY, lane TEXT NOT NULL, location_count INTEGER NOT NULL,
-  bytes INTEGER NOT NULL, sha256 TEXT NOT NULL, created_at INTEGER NOT NULL
-);
-`;
 
 const HEADERS = {
   "content-type": "application/json",
@@ -83,12 +49,14 @@ function json(value, status = 200, extra = {}) {
   return new Response(JSON.stringify(value), { status, headers: { ...HEADERS, ...extra } });
 }
 
-function error(code, status = 400) {
-  return json({ error: code }, status);
+function error(code, status = 400, extra = {}) {
+  return json({ error: code }, status, extra);
 }
 
 function viewFailure(err) {
   const code = err && err.message;
+  if (typeof code === "string" && code.includes("account_not_active")) return error("unauthorized", 401);
+  if (err && Number.isInteger(err.status) && code) return error(code, err.status);
   if (code === "view_unavailable" || code === "invalid_thumbnail") return error("view_unavailable", 422);
   if (code === "not_a_street_pano" || code === "invalid_pano_id") return error("invalid_pano_id");
   return null;
@@ -116,58 +84,6 @@ function sameOrigin(request) {
   }
 }
 
-async function ready(env) {
-  for (const statement of SCHEMA.split(";").map((item) => item.trim()).filter(Boolean)) {
-    await env.DB.prepare(statement).run();
-  }
-  await migratePoseCatalog(env);
-  await migrateWorkParts(env);
-  await migrateFourView(env);
-  const count = await env.DB.prepare("SELECT COUNT(*) AS n FROM locations").first();
-  if (!count || count.n > 0) return;
-  const statements = SEED_LOCATIONS.map((row) =>
-    env.DB.prepare(
-      `INSERT OR IGNORE INTO locations
-        (asset_id, capture, lane, model, label, source, rights, attribution, lat, lon, heading, pitch, zoom, country, camera_generation, queue_state)
-       VALUES (?, ?, ?, ?, '', 'street-metadata', 'metadata-only-no-imagery', 'Panorama metadata only. Imagery is not stored.', ?, ?, ?, ?, ?, ?, ?, 'pending')`
-    ).bind(row.panoId, row.capture, row.lane, MODEL_ID, row.lat, row.lng, row.heading, row.pitch, row.zoom, row.country, row.cameraGeneration)
-  );
-  await env.DB.batch(statements);
-}
-
-async function migratePoseCatalog(env) {
-  const row = await env.DB.prepare("SELECT sql FROM sqlite_master WHERE name='pose_catalog'").first();
-  if (!row?.sql || !row.sql.includes("r2_key TEXT NOT NULL UNIQUE")) return;
-  await env.DB.prepare(`CREATE TABLE pose_catalog_v2 (
-    lane TEXT NOT NULL, shard_id INTEGER NOT NULL, r2_key TEXT NOT NULL,
-    row_start INTEGER NOT NULL, row_count INTEGER NOT NULL, bytes INTEGER NOT NULL,
-    sha256 TEXT NOT NULL, next_byte INTEGER NOT NULL DEFAULT 0, next_row INTEGER NOT NULL DEFAULT 0,
-    PRIMARY KEY (lane, shard_id)
-  )`).run();
-  await env.DB.prepare("INSERT OR IGNORE INTO pose_catalog_v2 SELECT * FROM pose_catalog").run();
-  await env.DB.prepare("DROP TABLE pose_catalog").run();
-  await env.DB.prepare("ALTER TABLE pose_catalog_v2 RENAME TO pose_catalog").run();
-}
-
-async function tableColumns(env, table) {
-  return ((await env.DB.prepare(`PRAGMA table_info(${table})`).all()).results || []).map((row) => row.name);
-}
-
-async function migrateFourView(env) {
-  const cols = await tableColumns(env, "published_index");
-  if (!cols.includes("four_view_sha256")) {
-    await env.DB.prepare("ALTER TABLE published_index ADD COLUMN four_view_sha256 TEXT").run();
-  }
-  if (!cols.includes("four_view_key")) {
-    await env.DB.prepare("ALTER TABLE published_index ADD COLUMN four_view_key TEXT").run();
-  }
-  if (!cols.includes("object_index_sha256")) {
-    await env.DB.prepare("ALTER TABLE published_index ADD COLUMN object_index_sha256 TEXT").run();
-  }
-  if (!cols.includes("object_index_key")) {
-    await env.DB.prepare("ALTER TABLE published_index ADD COLUMN object_index_key TEXT").run();
-  }
-}
 
 const FOUR_VIEW_MODEL = "vision-four-view-v4";
 const FOUR_VIEW_BYTES = 3080;
@@ -190,44 +106,6 @@ function validFourViewRecord(bytes) {
   return true;
 }
 
-async function migrateWorkParts(env) {
-  const locationCols = await tableColumns(env, "locations");
-  const addedShard = !locationCols.includes("catalog_shard");
-  if (addedShard) {
-    await env.DB.prepare("ALTER TABLE locations ADD COLUMN catalog_shard INTEGER").run();
-  }
-  const catalogCols = await tableColumns(env, "pose_catalog");
-  if (!catalogCols.includes("assignee")) {
-    await env.DB.prepare("ALTER TABLE pose_catalog ADD COLUMN assignee TEXT").run();
-  }
-  if (!catalogCols.includes("assigned_at")) {
-    await env.DB.prepare("ALTER TABLE pose_catalog ADD COLUMN assigned_at INTEGER").run();
-  }
-  if (!catalogCols.includes("held")) {
-    await env.DB.prepare("ALTER TABLE pose_catalog ADD COLUMN held INTEGER NOT NULL DEFAULT 0").run();
-  }
-  await env.DB.prepare(
-    "CREATE INDEX IF NOT EXISTS locations_part_queue ON locations (lane, catalog_shard, state, lease_until, id)"
-  ).run();
-  if (addedShard) {
-    await env.DB.prepare(
-      `UPDATE locations SET catalog_shard = (
-          SELECT p.shard_id FROM pose_catalog p
-          WHERE p.lane = locations.lane AND p.r2_key LIKE 'catalog/all-locations-tail-v1/%'
-          ORDER BY p.shard_id LIMIT 1
-       )
-       WHERE catalog_shard IS NULL
-         AND COALESCE(source, '') = 'street-metadata'
-         AND asset_id NOT LIKE 'Prototype%'
-         AND asset_id NOT LIKE 'synthetic:%'
-         AND asset_id NOT LIKE 'CommunityPano%'
-         AND EXISTS (
-           SELECT 1 FROM pose_catalog p
-           WHERE p.lane = locations.lane AND p.r2_key LIKE 'catalog/all-locations-tail-v1/%'
-         )`
-    ).run();
-  }
-}
 
 const STEAL_AFTER_SECONDS = 6 * 60 * 60;
 const FAMILY_LABELS = {
@@ -238,11 +116,12 @@ const FAMILY_LABELS = {
 };
 
 function catalogOrderSql() {
-  return `CASE WHEN r2_key LIKE 'catalog/all-locations-tail-v1/%' THEN 0 WHEN r2_key LIKE 'catalog/all-locations-full-v1/%' THEN 1 WHEN r2_key LIKE 'catalog/vision-indexed-v1/%' THEN 2 ELSE 3 END, shard_id`;
+  return "CASE WHEN r2_key LIKE 'catalog/official-remaining-v1/%' THEN 0 ELSE 3 END, shard_id";
 }
 
 function familyForKey(key) {
   const value = key || "";
+  if (value.startsWith('catalog/official-remaining-v1/')) return 'new-places';
   if (value.startsWith("catalog/all-locations-tail-v1/")) return "new-places";
   if (value.startsWith("catalog/all-locations-full-v1/")) return "whole-map";
   if (value.startsWith("catalog/vision-indexed-v1/")) return "already-indexed";
@@ -274,23 +153,16 @@ function describePart(part, partCountValue, family, rowsLeft, lane = "scene") {
 }
 
 async function partCount(env, lane) {
-  const row = await env.DB.prepare("SELECT COUNT(*) AS n FROM pose_catalog WHERE lane=?").bind(lane).first();
+  const row = await env.DB.prepare(`SELECT COUNT(*) AS n FROM pose_catalog WHERE lane=? AND ${availableCatalogSql()}`).bind(lane).first();
   return row?.n || 0;
 }
 
 async function partNumber(env, lane, shardId) {
   const row = await env.DB.prepare(
     `SELECT COUNT(*) AS n FROM pose_catalog
-     WHERE lane=? AND (
-       CASE WHEN r2_key LIKE 'catalog/all-locations-tail-v1/%' THEN 0 WHEN r2_key LIKE 'catalog/all-locations-full-v1/%' THEN 1 WHEN r2_key LIKE 'catalog/vision-indexed-v1/%' THEN 2 ELSE 3 END
-       < (SELECT CASE WHEN r2_key LIKE 'catalog/all-locations-tail-v1/%' THEN 0 WHEN r2_key LIKE 'catalog/all-locations-full-v1/%' THEN 1 WHEN r2_key LIKE 'catalog/vision-indexed-v1/%' THEN 2 ELSE 3 END FROM pose_catalog WHERE lane=? AND shard_id=?)
-       OR (
-         CASE WHEN r2_key LIKE 'catalog/all-locations-tail-v1/%' THEN 0 WHEN r2_key LIKE 'catalog/all-locations-full-v1/%' THEN 1 WHEN r2_key LIKE 'catalog/vision-indexed-v1/%' THEN 2 ELSE 3 END
-         = (SELECT CASE WHEN r2_key LIKE 'catalog/all-locations-tail-v1/%' THEN 0 WHEN r2_key LIKE 'catalog/all-locations-full-v1/%' THEN 1 WHEN r2_key LIKE 'catalog/vision-indexed-v1/%' THEN 2 ELSE 3 END FROM pose_catalog WHERE lane=? AND shard_id=?)
-         AND shard_id <= ?
-       )
-     )`
-  ).bind(lane, lane, shardId, lane, shardId, shardId).first();
+     WHERE lane=? AND ${availableCatalogSql()} AND (${catalogOrderSql()}) <=
+       (SELECT ${catalogOrderSql()} FROM pose_catalog WHERE lane=? AND shard_id=?)`
+  ).bind(lane, lane, shardId).first();
   return row?.n || 0;
 }
 
@@ -309,7 +181,7 @@ async function workFromShard(env, lane, shard) {
 
 async function workStatus(env, account, lane) {
   const shard = await env.DB.prepare(
-    `SELECT * FROM pose_catalog WHERE lane=? AND assignee=? AND next_row < row_count ORDER BY ${catalogOrderSql()} LIMIT 1`
+    `SELECT * FROM pose_catalog WHERE lane=? AND assignee=? AND next_row < row_count AND ${availableCatalogSql()} ORDER BY ${catalogOrderSql()} LIMIT 1`
   ).bind(lane, account).first();
   if (!shard) {
     const count = await partCount(env, lane);
@@ -328,23 +200,25 @@ async function accountId(env, request) {
   const token = tokenFrom(request);
   if (!token || token.length > 100) return null;
   const tokenHash = await sha256Hex(encodeUtf8(token));
-  const row = await env.DB.prepare("SELECT id, token_hash FROM accounts WHERE token_hash=?").bind(tokenHash).first();
+  const row = await env.DB.prepare("SELECT id, token_hash FROM accounts WHERE token_hash=? AND deleted_at IS NULL").bind(tokenHash).first();
   if (!row || !equalHex(row.token_hash, tokenHash)) return null;
   return row.id;
 }
 
 async function status(env, account, options = {}) {
+  const cost = searchCost(env);
+  const cohortAllowed = await sceneCohortAllows(env, account);
   const lite = Boolean(options.lite);
   const rows = await env.DB.prepare(
     `SELECT lane,
-            SUM(CASE WHEN state='published' THEN 0 ELSE 1 END) AS pending,
+            SUM(CASE WHEN state!='published' AND COALESCE(queue_state,'pending')='pending' AND ${availableLocationSql()} THEN 1 ELSE 0 END) AS pending,
             SUM(CASE WHEN state='published' THEN 1 ELSE 0 END) AS published
      FROM locations GROUP BY lane`
   ).all();
   const counts = {};
   for (const row of rows.results || []) counts[row.lane] = { pending: row.pending || 0, published: row.published || 0 };
   const catalog = await env.DB.prepare(
-    "SELECT lane, SUM(row_count - next_row) AS remaining FROM pose_catalog GROUP BY lane"
+    `SELECT lane, SUM(row_count - next_row) AS remaining FROM pose_catalog WHERE ${availableCatalogSql()} GROUP BY lane`
   ).all();
   for (const row of catalog.results || []) {
     const laneCounts = counts[row.lane] || (counts[row.lane] = { pending: 0, published: 0 });
@@ -361,16 +235,20 @@ async function status(env, account, options = {}) {
   ).first();
   const result = {
     operational: true,
+    environment: env.DEPLOYMENT_ENVIRONMENT === "staging" ? "staging" : "preview",
     demo: false,
     publicCorpus: false,
     ownerBypass: false,
     persistImagery: false,
     r2: lite
-      ? { provisioned: Boolean(env.INDEX), bucket: env.INDEX ? "vision-community" : null, binding: "INDEX", publicAccess: false, role: "sealed-segments" }
+      ? { provisioned: Boolean(env.INDEX), bucket: env.INDEX ? env.INDEX_BUCKET_NAME || "vision-community" : null, binding: "INDEX", publicAccess: false, role: "sealed-segments" }
       : await r2Status(env),
-    searchCost: SEARCH_COST,
-    searchBackend: (visual?.n || 0) <= SITE_SEARCH_CAP ? "d1-prototype" : "local",
-    searchOnSite: (visual?.n || 0) <= SITE_SEARCH_CAP,
+    searchCost: cost,
+    searchBackend: "online",
+    searchOnSite: cohortAllowed && cost !== null && onlineSearchConfigured(env),
+    searchReady: cohortAllowed && cost !== null && onlineSearchConfigured(env),
+    indexDownloads: false,
+    accountDeletionAvailable: true,
     model: MODEL_ID,
     visualPublished: visual?.n || 0,
     objectIndexes: objectIndexes?.n || 0,
@@ -395,7 +273,7 @@ async function status(env, account, options = {}) {
     const row = await env.DB.prepare("SELECT units FROM accounts WHERE id=?").bind(account).first();
     result.accountId = account;
     result.units = row?.units || 0;
-    result.searchesAvailable = Math.floor(result.units / SEARCH_COST);
+    result.searchesAvailable = cost === null ? 0 : Math.floor(result.units / cost);
     if (!lite) {
       const sceneWork = await workStatus(env, account, "scene");
       const objectWork = await workStatus(env, account, "object");
@@ -409,7 +287,7 @@ async function status(env, account, options = {}) {
 async function r2Status(env) {
   const status = {
     provisioned: Boolean(env.INDEX),
-    bucket: env.INDEX ? "vision-community" : null,
+    bucket: env.INDEX ? env.INDEX_BUCKET_NAME || "vision-community" : null,
     binding: "INDEX",
     publicAccess: false,
     role: "sealed-segments",
@@ -420,7 +298,8 @@ async function r2Status(env) {
   const head = await env.INDEX.head("registry.json");
   status.registry = Boolean(head);
   status.registryBytes = head ? head.size : 0;
-  const catalog = await env.INDEX.head("catalog/all-locations-tail-v1/manifest.json");
+  const registered = await env.DB.prepare(`SELECT r2_key FROM pose_catalog WHERE ${availableCatalogSql()} ORDER BY shard_id LIMIT 1`).first();
+  const catalog = registered ? await env.INDEX.head(registered.r2_key) : null;
   status.poseCatalog = Boolean(catalog);
   status.poseCatalogBytes = catalog ? catalog.size : 0;
   return status;
@@ -476,7 +355,7 @@ async function claimShard(env, account, lane, shard, now) {
   const stale = now - STEAL_AFTER_SECONDS;
   const moved = await env.DB.prepare(
     `UPDATE pose_catalog SET assignee=?, assigned_at=?
-     WHERE lane=? AND shard_id=? AND next_row < row_count AND COALESCE(held, 0)=0
+     WHERE lane=? AND shard_id=? AND next_row < row_count AND ${availableCatalogSql()}
        AND (
          assignee IS NULL OR assignee=?
          OR (
@@ -499,7 +378,7 @@ async function claimShard(env, account, lane, shard, now) {
 async function assignCatalogShard(env, account, lane, now, part) {
   if (part != null) {
     const shard = await env.DB.prepare(
-      `SELECT * FROM pose_catalog WHERE lane=? ORDER BY ${catalogOrderSql()} LIMIT 1 OFFSET ?`
+      `SELECT * FROM pose_catalog WHERE lane=? AND ${availableCatalogSql()} ORDER BY ${catalogOrderSql()} LIMIT 1 OFFSET ?`
     ).bind(lane, part - 1).first();
     if (!shard) return { error: "invalid_part" };
     const claimed = await claimShard(env, account, lane, shard, now);
@@ -513,11 +392,11 @@ async function assignCatalogShard(env, account, lane, now, part) {
     return claimed;
   }
   const existing = await env.DB.prepare(
-    `SELECT * FROM pose_catalog WHERE lane=? AND assignee=? AND next_row < row_count AND COALESCE(held, 0)=0 ORDER BY ${catalogOrderSql()} LIMIT 1`
+    `SELECT * FROM pose_catalog WHERE lane=? AND assignee=? AND next_row < row_count AND ${availableCatalogSql()} ORDER BY ${catalogOrderSql()} LIMIT 1`
   ).bind(lane, account).first();
   if (existing) return existing;
   const candidates = (await env.DB.prepare(
-    `SELECT * FROM pose_catalog WHERE lane=? AND next_row < row_count AND COALESCE(held, 0)=0 ORDER BY ${catalogOrderSql()}`
+    `SELECT * FROM pose_catalog WHERE lane=? AND next_row < row_count AND ${availableCatalogSql()} ORDER BY ${catalogOrderSql()}`
   ).bind(lane).all()).results || [];
   for (const shard of candidates) {
     const claimed = await claimShard(env, account, lane, shard, now);
@@ -530,8 +409,10 @@ async function pendingForShard(env, lane, shardId, now, count) {
   return (await env.DB.prepare(
     `SELECT id, asset_id, capture, lane, model, generation, attribution, lat, lon, heading, pitch, zoom, country, camera_generation, catalog_shard, state, lease_until
      FROM locations WHERE lane=? AND catalog_shard=? AND COALESCE(queue_state,'pending')='pending'
+       AND ${availableLocationSql()}
        AND asset_id NOT LIKE 'Prototype%' AND asset_id NOT LIKE 'synthetic:%' AND asset_id NOT LIKE 'CommunityPano%'
        AND (state='pending' OR (state='leased' AND lease_until<=?))
+       AND (lane!='object' OR (${officialGen4Coverage("locations")}))
      ORDER BY id LIMIT ?`
   ).bind(lane, shardId, now, count).all()).results || [];
 }
@@ -540,8 +421,10 @@ async function pendingShared(env, lane, now, count) {
   return (await env.DB.prepare(
     `SELECT id, asset_id, capture, lane, model, generation, attribution, lat, lon, heading, pitch, zoom, country, camera_generation, catalog_shard, state, lease_until
      FROM locations WHERE lane=? AND COALESCE(queue_state,'pending')='pending'
+       AND ${availableLocationSql()}
        AND asset_id NOT LIKE 'Prototype%' AND asset_id NOT LIKE 'synthetic:%' AND asset_id NOT LIKE 'CommunityPano%'
        AND (state='pending' OR (state='leased' AND lease_until<=?))
+       AND (lane!='object' OR (${officialGen4Coverage("locations")}))
      ORDER BY id LIMIT ?`
   ).bind(lane, now, count).all()).results || [];
 }
@@ -551,20 +434,20 @@ async function materializeCatalog(env, lane, count, now, shard) {
   const shardId = shard.shard_id;
   for (let attempt = 0; attempt < 32 && claimed.length < count; attempt += 1) {
     const current = await env.DB.prepare(
-      "SELECT * FROM pose_catalog WHERE lane=? AND shard_id=?"
+      `SELECT * FROM pose_catalog WHERE lane=? AND shard_id=? AND ${availableCatalogSql()}`
     ).bind(lane, shardId).first();
     if (!current || current.next_row >= current.row_count) break;
     const needed = count - claimed.length;
     const slice = await readCatalogSlice(env, current, needed);
     if (!slice.consumed) {
       await env.DB.prepare(
-        "UPDATE pose_catalog SET next_row=row_count, next_byte=bytes WHERE lane=? AND shard_id=?"
+        `UPDATE pose_catalog SET next_row=row_count, next_byte=bytes WHERE lane=? AND shard_id=? AND ${availableCatalogSql()}`
       ).bind(lane, shardId).run();
       await releaseExhaustedShard(env, lane, shardId);
       break;
     }
     const moved = await env.DB.prepare(
-      "UPDATE pose_catalog SET next_byte=next_byte+?, next_row=next_row+? WHERE lane=? AND shard_id=? AND next_byte=?"
+      `UPDATE pose_catalog SET next_byte=next_byte+?, next_row=next_row+? WHERE lane=? AND shard_id=? AND next_byte=? AND ${availableCatalogSql()}`
     ).bind(slice.consumed, slice.jobs.length, lane, shardId, current.next_byte).run();
     if (!moved.meta || moved.meta.changes !== 1) continue;
     await releaseExhaustedShard(env, lane, shardId);
@@ -572,15 +455,17 @@ async function materializeCatalog(env, lane, count, now, shard) {
       await env.DB.prepare(
         `INSERT OR IGNORE INTO locations
           (asset_id, capture, lane, model, label, source, rights, attribution, lat, lon, heading, pitch, zoom, country, camera_generation, queue_state, catalog_shard)
-         VALUES (?, ?, ?, ?, '', 'street-metadata', 'metadata-only-no-imagery', 'Panorama metadata only. Imagery is not stored.', ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`
+         SELECT ?, ?, ?, ?, '', 'street-metadata', 'metadata-only-no-imagery', 'Panorama metadata only. Imagery is not stored.', ?, ?, ?, ?, ?, ?, ?, 'pending', ?
+         WHERE EXISTS (SELECT 1 FROM pose_catalog WHERE lane=? AND shard_id=? AND ${availableCatalogSql()})`
       ).bind(
         job.assetId, job.capture, job.lane, job.model,
-        job.lat, job.lon, job.heading, job.pitch, job.zoom, job.country, job.cameraGeneration, shardId
+        job.lat, job.lon, job.heading, job.pitch, job.zoom, job.country, job.cameraGeneration, shardId, lane, shardId
       ).run();
       await env.DB.prepare(
         `UPDATE locations SET catalog_shard=?
-         WHERE asset_id=? AND capture=? AND lane=? AND model=? AND catalog_shard IS NULL`
-      ).bind(shardId, job.assetId, job.capture, job.lane, job.model).run();
+         WHERE asset_id=? AND capture=? AND lane=? AND model=? AND catalog_shard IS NULL
+           AND EXISTS (SELECT 1 FROM pose_catalog WHERE lane=? AND shard_id=? AND ${availableCatalogSql()})`
+      ).bind(shardId, job.assetId, job.capture, job.lane, job.model, lane, shardId).run();
       const row = await env.DB.prepare(
         `SELECT id, asset_id, capture, lane, model, generation, attribution, lat, lon, heading, pitch, zoom, country, camera_generation, catalog_shard, state, lease_until, queue_state
          FROM locations WHERE asset_id=? AND capture=? AND lane=? AND model=?`
@@ -608,11 +493,13 @@ async function recover(env, request, body) {
   const code = body.recoveryCode;
   if (typeof code !== "string" || code.length < 16 || code.length > 80) return error("invalid_recovery", 401);
   const recoveryHash = await sha256Hex(encodeUtf8(`${RECOVERY_PEPPER}\n${code}`));
-  const row = await env.DB.prepare("SELECT id FROM accounts WHERE recovery_hash=?").bind(recoveryHash).first();
+  const row = await env.DB.prepare("SELECT id FROM accounts WHERE recovery_hash=? AND deleted_at IS NULL").bind(recoveryHash).first();
   if (!row) return error("invalid_recovery", 401);
   const token = randomToken(32);
   const tokenHash = await sha256Hex(encodeUtf8(token));
-  await env.DB.prepare("UPDATE accounts SET token_hash=? WHERE id=?").bind(tokenHash, row.id).run();
+  const recovered = await env.DB.prepare("UPDATE accounts SET token_hash=? WHERE id=? AND recovery_hash=? AND deleted_at IS NULL")
+    .bind(tokenHash, row.id, recoveryHash).run();
+  if (recovered.meta?.changes !== 1) return error("invalid_recovery", 401);
   return json({ accountId: row.id }, 200, { "set-cookie": cookie(token, request) });
 }
 
@@ -643,15 +530,21 @@ async function leaseItemFromRow(row, generation) {
   return item;
 }
 
-async function lease(env, account, body) {
+async function lease(env, account, body, objectPrototype = false) {
   const lane = body.lane;
+  if (lane === "object" && !objectPrototype) return error("object_verification_unavailable", 503);
   const pace = body.pace || "medium";
   if (!UNITS[lane] || typeof body.count !== "number" || body.count < 1 || body.count > MAX_LEASE) return error("invalid_lease_request");
+  const references = lane === "scene" ? await loadSceneReferences(env) : null;
+  if (lane === "scene" && !references && !verifierConfigured(env)) return error("scene_verification_unavailable", 503);
+  const qualification = lane === "scene" && verifierConfigured(env)
+    ? await activeQualification(env, account, Math.floor(Date.now() / 1000), null, body.profileId || null)
+    : null;
   if (!["slow", "medium", "max"].includes(pace)) return error("invalid_pace");
   const requestedPart = parsePart(body.part);
   if (requestedPart === undefined) return error("invalid_part");
   const client = body.client === "cli" ? "cli" : "browser";
-  const count = Math.min(body.count, leaseCap(lane, pace, client));
+  const count = Math.min(body.count, leaseCap(lane, pace, client), qualification ? auditBatchLimit(env) : MAX_LEASE);
   const now = Math.floor(Date.now() / 1000);
   await env.DB.prepare("UPDATE leases SET state='expired' WHERE state='active' AND expires_at<=?").bind(now).run();
   const existing = await env.DB.prepare(
@@ -661,6 +554,9 @@ async function lease(env, account, body) {
     const held = (await env.DB.prepare(
       `SELECT l.* FROM locations l JOIN lease_items i ON i.location_id=l.id WHERE i.lease_id=? ORDER BY l.id`
     ).bind(existing.id).all()).results || [];
+    if (lane === "object" && !await objectCoverageComplete(env.DB, held)) return error("object_coverage_required", 409);
+    if (references && held.some((row) => !references.covers(row))) return error("scene_reference_not_approved", 409);
+    if (qualification && existing.scene_qualification_id !== qualification.id) return error("scene_qualification_changed", 409);
     const payload = [];
     for (const row of held) payload.push(await leaseItemFromRow(row, row.generation || 1));
     const work = await workStatus(env, account, lane);
@@ -668,15 +564,18 @@ async function lease(env, account, body) {
       leaseId: existing.id,
       expiresAt: existing.expires_at,
       pace: existing.pace || pace,
-      resourceBudget: { slow: 1, medium: "cpu/2", max: "all-cores" }[existing.pace || pace],
+      resourceBudget: qualification ? "qualified-runtime" : { slow: 1, medium: "cpu/2", max: "all-cores" }[existing.pace || pace],
       items: payload,
       resumed: true,
       work,
     });
   }
-  const remaining = await env.DB.prepare(
-    "SELECT 1 AS ok FROM pose_catalog WHERE lane=? AND next_row < row_count LIMIT 1"
+  const remaining = lane === "object" ? null : await env.DB.prepare(
+    `SELECT 1 AS ok FROM pose_catalog WHERE lane=? AND next_row < row_count AND ${availableCatalogSql()} LIMIT 1`
   ).bind(lane).first();
+  // Catalog materialization advances a cursor outside a transaction. Until a
+  // trusted audit service exists, only an operator-prepared approved pool runs.
+  if (references && remaining) return error("scene_reference_pool_unprepared", 409);
   let items = [];
   let activeShard = null;
   if (remaining) {
@@ -712,21 +611,27 @@ async function lease(env, account, body) {
     items = await pendingShared(env, lane, now, count);
   }
   if (!items.length) return error("no_available_work", 409);
+  if (references && items.some((row) => !references.covers(row))) return error("scene_reference_not_approved", 409);
   const leaseId = randomHex(16);
   const expires = now + (client === "cli" ? 6 * 60 * 60 : LEASE_SECONDS);
   const statements = [
-    env.DB.prepare("INSERT INTO leases (id, account_id, lane, expires_at, state, generation, pace) VALUES (?, ?, ?, ?, 'active', ?, ?)").bind(
-      leaseId, account, lane, expires, (items[0].generation || 0) + 1, pace
+    env.DB.prepare("INSERT INTO leases (id, account_id, lane, expires_at, state, generation, pace, scene_qualification_id) VALUES (?, ?, ?, ?, 'active', ?, ?, ?)").bind(
+      leaseId, account, lane, expires, (items[0].generation || 0) + 1, pace, qualification?.id || null
     ),
   ];
   const payload = [];
   for (const row of items) {
     const generation = (row.generation || 0) + 1;
-    statements.push(env.DB.prepare("INSERT INTO lease_items (lease_id, location_id) VALUES (?, ?)").bind(leaseId, row.id));
+    statements.push(env.DB.prepare(freshLeaseItemSql()).bind(leaseId, row.id, now));
     statements.push(env.DB.prepare("UPDATE locations SET state='leased', active_lease=?, lease_until=?, generation=? WHERE id=?").bind(leaseId, expires, generation, row.id));
     payload.push(await leaseItemFromRow(row, generation));
   }
-  await env.DB.batch(statements);
+  try {
+    await env.DB.batch(statements);
+  } catch (err) {
+    if (String(err?.message).includes('NOT NULL constraint failed: lease_items.location_id')) return error('no_available_work', 409);
+    throw err;
+  }
   const work = activeShard
     ? await workFromShard(env, lane, activeShard)
     : await workStatus(env, account, lane);
@@ -734,7 +639,7 @@ async function lease(env, account, body) {
     leaseId,
     expiresAt: expires,
     pace,
-    resourceBudget: { slow: 1, medium: "cpu/2", max: "all-cores" }[pace],
+    resourceBudget: qualification ? "qualified-runtime" : { slow: 1, medium: "cpu/2", max: "all-cores" }[pace],
     items: payload,
     work,
   });
@@ -794,6 +699,20 @@ async function renewLease(env, account, body) {
 }
 
 async function submitFourView(env, account, leaseId, items, supplied, now) {
+  if (verifierConfigured(env)) {
+    const verified = [];
+    for (const row of items) {
+      if (row.lane !== "scene" || row.state !== "leased" || row.active_lease !== leaseId) return error("lease_lost", 409);
+      const payload = supplied.get(row.id);
+      if (!payload || !validFourViewRecord(payload.embedding)) return error("verification_failed", 422);
+      const digest = await sha256Hex(payload.embedding);
+      if (!equalHex(payload.digest, digest)) return error("verification_failed", 422);
+      verified.push({ row, embedding: payload.embedding, digest });
+    }
+    return json(await stageScene(env, account, leaseId, verified, now));
+  }
+  const references = await loadSceneReferences(env);
+  if (!references) return error("scene_verification_unavailable", 503);
   if (!env.INDEX) return error("index_unavailable", 503);
   const verified = [];
   for (const row of items) {
@@ -804,13 +723,14 @@ async function submitFourView(env, account, leaseId, items, supplied, now) {
     if (!validFourViewRecord(embedding)) return error("verification_failed", 422);
     const digest = await sha256Hex(embedding);
     if (!equalHex(payload.digest, digest)) return error("verification_failed", 422);
+    if (!references.verify(row, digest)) return error("scene_reference_not_approved", 422);
     if (payload.embeddingSha256 && !equalHex(payload.embeddingSha256, digest)) return error("verification_failed", 422);
     verified.push({ row, embedding, digest });
   }
   const blob = new Uint8Array(verified.length * FOUR_VIEW_BYTES);
   verified.forEach((item, index) => blob.set(item.embedding, index * FOUR_VIEW_BYTES));
   const key = `four-view-v4/${leaseId}.i8`;
-  await env.INDEX.put(key, blob);
+  await writeSceneArtifact(env, account, leaseId, key, blob, now);
   const earned = items.reduce((sum, row) => sum + UNITS[row.lane], 0);
   const statements = [
     env.DB.prepare("UPDATE leases SET state='submitted' WHERE id=?").bind(leaseId),
@@ -831,12 +751,14 @@ async function submitFourView(env, account, leaseId, items, supplied, now) {
   return json({ accepted: items.length, unitsEarned: earned, replayed: false, segments: [] });
 }
 
-async function submitObjectIndex(env, account, leaseId, items, supplied, objectIndex, now) {
+async function submitObjectIndex(env, account, leaseId, items, supplied, objectIndex, now, objectPrototype = false) {
+  if (!objectPrototype) return error("object_verification_unavailable", 503);
   if (!env.INDEX) return error("index_unavailable", 503);
   if (!objectIndex || typeof objectIndex !== "object") return error("object_index_required", 422);
   if (items.some((row) => row.lane !== "object" || row.state !== "leased" || row.active_lease !== leaseId)) {
     return error("lease_lost", 409);
   }
+  if (!await objectCoverageComplete(env.DB, items)) return error("object_coverage_required", 409);
   let sourceTsv;
   try {
     sourceTsv = base64ToBytes(objectIndex.sourceTsv);
@@ -878,7 +800,7 @@ async function submitObjectIndex(env, account, leaseId, items, supplied, objectI
     }
   }
   const prefix = `object-index-v4/${leaseId}/`;
-  await env.INDEX.put(`${prefix}manifest.json`, JSON.stringify(objectIndex.manifest));
+  await env.INDEX.put(`${prefix}manifest.json`, JSON.stringify({ ...objectIndex.manifest, sourceTsv: "locations.tsv" }));
   await env.INDEX.put(`${prefix}locations.tsv`, sourceTsv);
   for (const [name, bytes] of Object.entries(files)) {
     await env.INDEX.put(`${prefix}${name}`, bytes);
@@ -903,7 +825,7 @@ async function submitObjectIndex(env, account, leaseId, items, supplied, objectI
   return json({ accepted: items.length, unitsEarned: earned, replayed: false, segments: [] });
 }
 
-async function submit(env, account, body) {
+async function submit(env, account, body, objectPrototype = false) {
   const leaseId = body.leaseId;
   const outputs = body.outputs;
   if (typeof leaseId !== "string" || !Array.isArray(outputs) || outputs.length > MAX_LEASE) return error("invalid_submission");
@@ -929,13 +851,16 @@ async function submit(env, account, body) {
   }
   if (supplied.size !== items.length || items.some((row) => !supplied.has(row.id))) return error("incomplete_submission");
   if (leaseRow.lane === "object" || items.some((row) => row.lane === "object")) {
-    return submitObjectIndex(env, account, leaseId, items, supplied, body.objectIndex, now);
+    return submitObjectIndex(env, account, leaseId, items, supplied, body.objectIndex, now, objectPrototype);
   }
   const suppliedModels = [...supplied.values()].map((item) => item.model);
   if (suppliedModels.includes(FOUR_VIEW_MODEL)) {
     if (!suppliedModels.every((model) => model === FOUR_VIEW_MODEL)) return error("invalid_submission");
     return submitFourView(env, account, leaseId, items, supplied, now);
   }
+  // Public scene work cannot downgrade to the prototype extractor to bypass
+  // independently approved reference verification.
+  if (items.some((row) => row.lane === "scene")) return error("unsupported_model", 422);
   const audit = locationsToRecompute(items);
   const verified = [];
   for (const row of items) {
@@ -1042,156 +967,6 @@ async function sealSearchShard(env, leaseId, lane, verified) {
   ).bind(key, lane, verified.length, bytes.length, await sha256Hex(bytes), Math.floor(Date.now() / 1000)).run();
 }
 
-async function requirePaidSearch(env, account, searchId) {
-  if (typeof searchId !== "string" || !searchId) return null;
-  return env.DB.prepare(
-    `SELECT s.id FROM searches s
-     WHERE s.id=? AND s.account_id=?
-       AND EXISTS (
-         SELECT 1 FROM ledger
-         WHERE reference=? AND account_id=? AND reason='search' AND units<0
-       )`
-  ).bind(searchId, account, `search:${searchId}`, account).first();
-}
-
-async function publishedSnapshot(env, account, url) {
-  const paid = await requirePaidSearch(env, account, url.searchParams.get("searchId") || "");
-  if (!paid) return error("unknown_search", 404);
-  const lane = url.searchParams.get("lane") === "object" ? "object" : "scene";
-  const after = Math.max(0, Number(url.searchParams.get("after") || 0) || 0);
-  const limit = Math.min(500, Math.max(1, Number(url.searchParams.get("limit") || 250) || 250));
-  const rows = (await env.DB.prepare(
-    `SELECT i.location_id, i.embedding, l.asset_id, l.lat, l.lon, l.heading, l.pitch, l.zoom, l.country, l.camera_generation
-     FROM published_index i JOIN locations l ON l.id=i.location_id
-     WHERE i.embedding IS NOT NULL AND l.lane=? AND i.location_id>?
-     ORDER BY i.location_id LIMIT ?`
-  ).bind(lane, after, limit + 1).all()).results || [];
-  const page = rows.slice(0, limit);
-  return json({
-    lane,
-    locations: page.map((row) => ({
-      locationId: row.location_id,
-      panoId: row.asset_id,
-      lat: row.lat || 0,
-      lng: row.lon || 0,
-      heading: row.heading || 0,
-      pitch: row.pitch || 0,
-      zoom: row.zoom || 0,
-      country: canonicalizeCountry(row.country || ""),
-      cameraGeneration: row.camera_generation || "",
-      embedding: row.embedding,
-    })),
-    nextAfter: rows.length > limit ? page[page.length - 1].location_id : null,
-  });
-}
-
-async function indexManifest(env, account, url) {
-  const paid = await requirePaidSearch(env, account, url.searchParams.get("searchId") || "");
-  if (!paid) return error("unknown_search", 404);
-  const lane = url.searchParams.get("lane") === "object" ? "object" : "scene";
-  const rows = (await env.DB.prepare(
-    "SELECT r2_key, location_count, bytes, sha256 FROM index_shards WHERE lane=? ORDER BY r2_key"
-  ).bind(lane).all()).results || [];
-  return json({
-    shards: rows.map((row) => ({
-      key: row.r2_key,
-      locationCount: row.location_count,
-      bytes: row.bytes,
-      sha256: row.sha256,
-    })),
-  });
-}
-
-async function indexShard(env, account, url) {
-  const paid = await requirePaidSearch(env, account, url.searchParams.get("searchId") || "");
-  if (!paid) return error("unknown_search", 404);
-  const key = url.searchParams.get("key") || "";
-  if (!key.startsWith("search-index/") || key.includes("..")) return error("unknown_search", 404);
-  const row = await env.DB.prepare("SELECT r2_key FROM index_shards WHERE r2_key=?").bind(key).first();
-  if (!row || !env.INDEX) return error("unknown_search", 404);
-  const object = await env.INDEX.get(key);
-  if (!object) return error("unknown_search", 404);
-  return new Response(object.body, {
-    headers: { ...HEADERS, "content-type": "application/octet-stream" },
-  });
-}
-
-const OBJECT_INDEX_KEY = /^object-index-v4\/[0-9a-f]{32}\/[A-Za-z0-9._-]{1,80}$/;
-
-async function objectIndexCatalog(env, account, url) {
-  const paid = await requirePaidSearch(env, account, url.searchParams.get("searchId") || "");
-  if (!paid || !env.INDEX) return error("unknown_search", 404);
-  const groups = new Map();
-  let cursor;
-  for (let page = 0; page < 20; page += 1) {
-    const listed = await env.INDEX.list({ prefix: "object-index-v4/", cursor, limit: 500 });
-    for (const object of listed.objects || []) {
-      const match = OBJECT_INDEX_KEY.exec(object.key);
-      if (!match) continue;
-      const prefix = object.key.slice(0, object.key.lastIndexOf("/") + 1);
-      const group = groups.get(prefix) || { prefix, files: [] };
-      group.files.push({ key: object.key, size: object.size || 0 });
-      groups.set(prefix, group);
-    }
-    if (!listed.truncated) break;
-    cursor = listed.cursor;
-  }
-  return json({ indexes: [...groups.values()] });
-}
-
-async function objectIndexFile(env, account, url) {
-  const paid = await requirePaidSearch(env, account, url.searchParams.get("searchId") || "");
-  if (!paid || !env.INDEX) return error("unknown_search", 404);
-  const key = url.searchParams.get("key") || "";
-  if (!OBJECT_INDEX_KEY.test(key)) return error("invalid_index", 400);
-  const object = await env.INDEX.get(key);
-  if (!object) return error("not_found", 404);
-  return new Response(object.body, {
-    headers: { ...HEADERS, "content-type": "application/octet-stream" },
-  });
-}
-
-const SCENE_INDEX_KEY = /^four-view-v4\/[0-9a-f]{32}\.i8$/;
-
-async function sceneIndexCatalog(env, account, url) {
-  const paid = await requirePaidSearch(env, account, url.searchParams.get("searchId") || "");
-  if (!paid) return error("unknown_search", 404);
-  const rows = (await env.DB.prepare(
-    `SELECT i.four_view_key, l.id, l.asset_id, l.lat, l.lon, l.heading, l.pitch, l.zoom, l.country, l.camera_generation
-     FROM published_index i JOIN locations l ON l.id=i.location_id
-     WHERE i.four_view_key IS NOT NULL AND l.lane='scene'
-     ORDER BY i.four_view_key, l.id`
-  ).all()).results || [];
-  const groups = new Map();
-  for (const row of rows) {
-    const group = groups.get(row.four_view_key) || { key: row.four_view_key, locations: [] };
-    group.locations.push({
-      locationId: row.id,
-      lat: row.lat || 0,
-      lng: row.lon || 0,
-      heading: row.heading || 0,
-      pitch: row.pitch || 0,
-      zoom: row.zoom || 0,
-      panoId: row.asset_id,
-      country: row.country || "",
-      cameraGeneration: row.camera_generation || "",
-    });
-    groups.set(row.four_view_key, group);
-  }
-  return json({ indexes: [...groups.values()] });
-}
-
-async function sceneIndexFile(env, account, url) {
-  const paid = await requirePaidSearch(env, account, url.searchParams.get("searchId") || "");
-  if (!paid || !env.INDEX) return error("unknown_search", 404);
-  const key = url.searchParams.get("key") || "";
-  if (!SCENE_INDEX_KEY.test(key)) return error("invalid_index", 400);
-  const object = await env.INDEX.get(key);
-  if (!object) return error("not_found", 404);
-  return new Response(object.body, {
-    headers: { ...HEADERS, "content-type": "application/octet-stream" },
-  });
-}
 
 function normalizeFilters(body) {
   const allGenerations = ["badcam", "gen1", "gen2", "gen3", "gen4", "trekker"];
@@ -1209,37 +984,6 @@ function normalizeFilters(body) {
   return { mode, countries, generations };
 }
 
-function acceptsHit(hit, filters) {
-  if (filters.generations.length && !filters.generations.includes(hit.cameraGeneration)) return false;
-  if (filters.mode === "include") return filters.countries.includes(hit.country);
-  if (filters.mode === "exclude") return !filters.countries.includes(hit.country);
-  return true;
-}
-
-function pruneNearby(hits) {
-  const out = [];
-  const seen = new Set();
-  for (const hit of hits) {
-    const pano = hit.panoId || "";
-    if (pano && seen.has(pano)) continue;
-    const tooClose = out.some((prior) => haversineMeters(hit.lat, hit.lng, prior.lat, prior.lng) < 100);
-    if (tooClose) continue;
-    if (pano) seen.add(pano);
-    out.push(hit);
-  }
-  return out;
-}
-
-function excludeUsed(hits, excluded) {
-  if (!excluded.length) return hits;
-  return hits.filter((hit) => {
-    const pano = hit.panoId || "";
-    return !excluded.some((prior) => (
-      (pano && pano === prior.panoId)
-      || haversineMeters(hit.lat, hit.lng, prior.lat, prior.lng) < 25
-    ));
-  });
-}
 
 function parseExcludeMap(map) {
   if (map == null) return [];
@@ -1326,18 +1070,6 @@ function parseQueryMap(map) {
   return sampled;
 }
 
-function capCountries(hits, resultCount, maxPerCountry) {
-  const counts = {};
-  const out = [];
-  for (const hit of hits) {
-    const country = hit.country || "";
-    if ((counts[country] || 0) >= maxPerCountry) continue;
-    counts[country] = (counts[country] || 0) + 1;
-    out.push(hit);
-    if (out.length >= resultCount) break;
-  }
-  return out;
-}
 
 async function views(request) {
   const url = new URL(request.url);
@@ -1372,212 +1104,78 @@ async function views(request) {
   }
 }
 
-function locationRecord(hit, rank, queryName, lane, processed, minScore) {
-  const extra = {
-    tags: [canonicalizeCountry(hit.country || "")],
-    visionCameraGeneration: hit.cameraGeneration || "unknown",
-    visionScore: Number(hit.score.toFixed(7)),
-    visionMinScore: Number(minScore.toFixed(7)),
-    visionRank: rank,
-    visionQuery: queryName,
-    visionQueryMode: lane === "object" ? "objects" : "scene",
-    visionHeadingOffset: hit.headingOffset || 0,
-    visionSourceIndex: 0,
-    visionProcessedLocations: processed,
-    visionModel: MODEL_ID,
-    visionPruneMeters: 100,
-  };
-  if (lane === "object") {
-    extra.visionObjectLane = "object";
-    extra.visionObjectConfidence = Number(hit.score.toFixed(7));
-  }
-  return {
-    lat: hit.lat,
-    lng: hit.lng,
-    heading: hit.heading,
-    pitch: hit.pitch,
-    zoom: hit.zoom,
-    panoId: hit.panoId,
-    extra,
-  };
-}
 
-async function search(env, account, body) {
-  const key = body.idempotencyKey;
-  if (typeof key !== "string" || key.length < 8 || key.length > 100) return error("invalid_idempotency_key");
-  const lane = body.lane === "object" ? "object" : "scene";
-  const viewDirection = normalizeViewDirection(body.viewDirection, lane);
-  const offsets = viewOffsetsFor(viewDirection, lane);
-  const excluded = parseExcludeMap(body.excludeMap);
-  if (excluded?.error) return error(excluded.error);
-  const resultCount = Math.min(10000, Math.max(1, Number.isInteger(body.resultCount) ? body.resultCount : 200));
-  const maxPerCountry = Math.min(10000, Math.max(1, Number.isInteger(body.maxPerCountry) ? body.maxPerCountry : 25));
-  const filters = normalizeFilters(body);
-  if (filters.mode === "include" && !filters.countries.length) return error("invalid_country_filter");
+async function search(env, account, body, objectPrototype = false) {
+  if (body.accountId !== account) return error("account_changed", 409);
+  if (body.execute === "local") return error("online_search_required", 410);
+  if (body.lane !== undefined && !["scene", "object"].includes(body.lane)) return error("invalid_query");
+  const lane = body.lane || "scene";
   const prompt = parsePrompt(body.prompt);
   if (prompt === null) return error("invalid_query");
-  const map = body.queryMap;
-  const parsed = map == null ? null : parseQueryMap(map);
+  const parsed = body.queryMap == null ? null : parseQueryMap(body.queryMap);
   if (parsed?.error) return error(parsed.error);
   const examples = Array.isArray(parsed) ? parsed : [];
-  const hasJson = examples.length > 0;
-  const hasPrompt = Boolean(prompt);
-  if (!hasJson && !hasPrompt) return error("invalid_query");
-  const weight = snapDescriptionWeight(body.descriptionWeight, hasJson, hasPrompt);
+  if ((!examples.length && !prompt) || (lane === "object" && examples.length)) return error("invalid_query");
+  if (examples.some(item => !usesStreetViews(item.panoId)
+      || ![item.lat, item.lng, item.heading, item.pitch, item.zoom].every(Number.isFinite)
+      || Math.abs(item.lat) > 90 || Math.abs(item.lng) > 180 || Math.abs(item.pitch) > 90
+      || item.zoom < 0 || item.zoom > 5)) return error("invalid_query");
+  const excluded = parseExcludeMap(body.excludeMap);
+  if (excluded?.error) return error(excluded.error);
+  if (excluded.some(item => Math.abs(item.lat) > 90 || Math.abs(item.lng) > 180)) return error("invalid_query");
+  const filters = normalizeFilters(body);
+  filters.generations.sort();
+  if (filters.mode === "all") filters.countries = [];
+  if (filters.mode === "include" && !filters.countries.length) return error("invalid_country_filter");
+  if (lane === "object") {
+    if (filters.generations.length && !filters.generations.includes("gen4")) return error("invalid_camera_filter");
+    filters.generations = ["gen4"];
+  }
+  if (body.minimumGlobalLocation != null
+      && (!Number.isSafeInteger(body.minimumGlobalLocation) || body.minimumGlobalLocation < 0))
+    return error("invalid_query");
   const queryName = typeof body.outputName === "string" && body.outputName.trim()
-    ? body.outputName.trim()
-    : (typeof map?.name === "string" && map.name.trim() ? map.name.trim() : (prompt || "VISION Community"));
-  const excludeKey = excluded.length ? `:exclude:${excluded.length}:${excluded[0].panoId}` : "";
-  const jsonKey = hasJson ? examples.map((item) => item.panoId).join(",") : "";
-  const promptKey = hasPrompt ? `:prompt:${prompt}:w${weight}` : "";
-  const queryKey = `mix:${queryName}:${lane}:${viewDirection}:${jsonKey}${promptKey}${excludeKey}`;
-  const existing = await env.DB.prepare(
-    "SELECT query, result_json FROM searches WHERE account_id=? AND idempotency_key=?"
-  ).bind(account, key).first();
-  if (existing) {
-    if (existing.query !== queryKey) return error("idempotency_conflict", 409);
-    return json(JSON.parse(existing.result_json));
-  }
-  const accountRow = await env.DB.prepare("SELECT units FROM accounts WHERE id=?").bind(account).first();
-  if (!accountRow) return error("unauthorized", 401);
-  if (accountRow.units < SEARCH_COST) return error("insufficient_credit", 402);
-  if (body.execute === "local") {
-    const debit = await env.DB.prepare("UPDATE accounts SET units=units-? WHERE id=? AND units>=?").bind(SEARCH_COST, account, SEARCH_COST).run();
-    if (!debit.meta || debit.meta.changes !== 1) return error("insufficient_credit", 402);
-    const published = await env.DB.prepare(
-      "SELECT COUNT(*) AS n FROM published_index i JOIN locations l ON l.id=i.location_id WHERE i.embedding IS NOT NULL AND l.lane=?"
-    ).bind(lane).first();
-    const searchId = randomHex(16);
-    const result = {
-      searchId,
-      query: queryName,
-      local: true,
-      lane,
-      results: [],
-      demo: false,
-      persistImagery: false,
-      map: null,
-      published: published?.n || 0,
-    };
-    await env.DB.batch([
-      env.DB.prepare("INSERT INTO searches (id, account_id, idempotency_key, query, result_json) VALUES (?, ?, ?, ?, ?)").bind(
-        searchId, account, key, queryKey, JSON.stringify(result)
-      ),
-      env.DB.prepare("INSERT INTO ledger (account_id, units, reason, reference) VALUES (?, ?, 'search', ?)").bind(
-        account, -SEARCH_COST, `search:${searchId}`
-      ),
-    ]);
-    return json(result);
-  }
-  const publishedCount = await env.DB.prepare(
-    "SELECT COUNT(*) AS n FROM published_index i JOIN locations l ON l.id=i.location_id WHERE i.embedding IS NOT NULL AND l.lane=?"
-  ).bind(lane).first();
-  if ((publishedCount?.n || 0) > SITE_SEARCH_CAP) return error("search_on_computer", 413);
-  let query = null;
-  if (hasJson) {
-    const vectors = [];
-    const queryExamples = examples.some((item) => usesStreetViews(item.panoId))
-      ? examples.slice(0, QUERY_VIEW_CAP)
-      : examples;
-    for (const example of queryExamples) {
-      const indexed = await env.DB.prepare(
-        `SELECT capture FROM locations WHERE asset_id=? AND lane=?
-         ORDER BY CASE WHEN state='published' THEN 0 ELSE 1 END, id LIMIT 1`
-      ).bind(example.panoId, lane).first();
-      const capture = indexed?.capture || example.capture;
-      let faces;
-      try {
-        faces = await locationFaces({
-          panoId: example.panoId,
-          assetId: example.panoId,
-          capture,
-          lane,
-          model: MODEL_ID,
-          heading: example.heading || 0,
-          pitch: example.pitch || 0,
-          zoom: example.zoom || 0,
-        });
-      } catch (err) {
-        return viewFailure(err) || error("view_unavailable", 422);
-      }
-      vectors.push(embeddingFor(lane, faces));
-    }
-    query = meanEmbeddings(vectors);
-  }
-  if (hasPrompt) {
-    let textQuery;
-    try {
-      textQuery = await descriptionEmbedding(prompt, lane);
-    } catch {
-      return error("invalid_query");
-    }
-    query = query ? mixEmbeddings(query, textQuery, weight) : textQuery;
-  }
-  const debit = await env.DB.prepare("UPDATE accounts SET units=units-? WHERE id=? AND units>=?").bind(SEARCH_COST, account, SEARCH_COST).run();
-  if (!debit.meta || debit.meta.changes !== 1) return error("insufficient_credit", 402);
-  const published = (await env.DB.prepare(
-    `SELECT i.location_id, i.embedding, l.asset_id, l.lat, l.lon, l.heading, l.pitch, l.zoom, l.country, l.camera_generation
-     FROM published_index i JOIN locations l ON l.id=i.location_id
-     WHERE i.embedding IS NOT NULL AND l.lane=?`
-  ).bind(lane).all()).results || [];
-  const scored = published.map((row) => {
-    const embedding = hexToQuery(row.embedding);
-    let score;
-    let viewOffset = 0;
-    if (lane === "object") {
-      score = maxRegionCosine(query, embedding);
-    } else {
-      const ranked = bestSceneView(query, embedding, offsets);
-      score = ranked.score;
-      viewOffset = ranked.offset;
-    }
-    return {
-      locationId: row.location_id,
-      score,
-      panoId: row.asset_id,
-      lat: row.lat || 0,
-      lng: row.lon || 0,
-      heading: wrapHeading((row.heading || 0) + viewOffset * 90),
-      headingOffset: viewOffset * 90,
-      viewOffset,
-      pitch: row.pitch || 0,
-      zoom: row.zoom || 0,
-      country: canonicalizeCountry(row.country || ""),
-      cameraGeneration: row.camera_generation || "",
-    };
-  }).filter((hit) => usesStreetViews(hit.panoId) && acceptsHit(hit, filters)).sort((a, b) => b.score - a.score || a.locationId - b.locationId);
-  const capped = capCountries(pruneNearby(excludeUsed(scored, excluded)), resultCount, maxPerCountry);
-  const minScore = capped.length ? capped[capped.length - 1].score : 0;
-  const coordinates = capped.map((hit, index) => locationRecord(hit, index + 1, queryName, lane, published.length, minScore));
-  const searchId = randomHex(16);
-  const result = {
-    searchId,
-    query: queryName,
-    results: capped.map((hit) => ({ locationId: hit.locationId, lane, score: Number(hit.score.toFixed(6)), pose: hit })),
-    demo: false,
-    persistImagery: false,
-    map: { name: queryName, customCoordinates: coordinates },
+    ? body.outputName.trim() : (typeof body.queryMap?.name === "string" && body.queryMap.name.trim()
+      ? body.queryMap.name.trim() : prompt || "VISION Community");
+  if (queryName.length > 200) return error("invalid_query");
+  const query = {
+    lane, prompt, examples, excluded, queryName,
+    descriptionWeight: snapDescriptionWeight(body.descriptionWeight, examples.length > 0, Boolean(prompt)),
+    viewDirection: normalizeViewDirection(body.viewDirection, lane),
+    resultCount: Math.min(10000, Math.max(1, Number.isInteger(body.resultCount) ? body.resultCount : 200)),
+    maxPerCountry: Math.min(10000, Math.max(1, Number.isInteger(body.maxPerCountry) ? body.maxPerCountry : 25)),
+    filters, objectConfidence: ["balanced", "precise", "highRecall"].includes(body.objectConfidence) ? body.objectConfidence : "balanced",
+    rejectRoadNames: body.rejectRoadNames === true, minimumGlobalLocation: body.minimumGlobalLocation ?? null,
   };
-  await env.DB.batch([
-    env.DB.prepare("INSERT INTO searches (id, account_id, idempotency_key, query, result_json) VALUES (?, ?, ?, ?, ?)").bind(
-      searchId, account, key, queryKey, JSON.stringify(result)
-    ),
-    env.DB.prepare("INSERT INTO ledger (account_id, units, reason, reference) VALUES (?, ?, 'search', ?)").bind(
-      account, -SEARCH_COST, `search:${searchId}`
-    ),
-  ]);
-  return json(result);
+  try { return json(await onlineSearch(env, account, body.idempotencyKey, query,
+    { allowNew: lane !== "object" || objectPrototype, maxCostUnits: body.maxCostUnits })); }
+  catch (failure) {
+    if (failure instanceof SearchError) return error(failure.code, failure.status);
+    throw failure;
+  }
 }
 
-function hexToQuery(hex) {
-  const out = new Uint8Array(hex.length / 2);
-  for (let i = 0; i < out.length; i += 1) out[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
-  return out;
-}
 
+const API_METHODS = new Map([
+  ["/api/capabilities","GET"],["/api/status","GET"],["/api/me","GET"],["/api/views","GET"],
+  ["/api/scene-qualifications","GET,POST"],["/api/object-qualifications","GET,POST"],["/api/accounts","POST"],["/api/recovery","POST"],
+  ["/api/account/delete","POST"],["/api/scene-audits","POST"],["/api/leases/release","POST"],
+  ["/api/leases/renew","POST"],["/api/leases","POST"],["/api/submissions","POST"],["/api/searches","POST"]
+]);
 export default {
+  async scheduled(_event, env) {
+    if (env.RESTORE_MAINTENANCE !== undefined && env.RESTORE_MAINTENANCE !== "0") return;
+    if (!env.DB || !env.INDEX) return;
+    // No request or scheduled handler installs/upgrades database structures.
+    await requireSchema(env);
+    await cleanupAccountArtifacts(env, null, 64);
+    await archiveAccountDeletionReceipts(env);
+  },
   async fetch(request, env) {
     const url = new URL(request.url);
+    if (url.pathname.startsWith("/api/") && env.RESTORE_MAINTENANCE !== undefined
+        && env.RESTORE_MAINTENANCE !== "0") return error("service_maintenance", 503, { "retry-after": "60" });
+    if (INDEX_DOWNLOAD_ROUTES.has(url.pathname)) return error("online_search_required", 410);
     if (!url.pathname.startsWith("/api/")) {
       const response = await env.ASSETS.fetch(request);
       const headers = new Headers(response.headers);
@@ -1589,79 +1187,71 @@ export default {
       headers.set("content-security-policy", HEADERS["content-security-policy"]);
       return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
     }
-    if (!env.DB) return error("control_plane_unprovisioned", 503);
+    // Reject unsupported routes/methods before touching a database or body.
+    if (!API_METHODS.get(url.pathname)?.split(",").includes(request.method)) return error("not_found",404);
+    if (!sameOrigin(request)) return error("cross_origin_request",403);
     try {
-      await ready(env);
-      if (url.pathname === "/api/status" && request.method === "GET") return json(await status(env));
-      if (url.pathname === "/api/me" && request.method === "GET") {
-        const account = await accountId(env, request);
-        if (!account) return error("unauthorized", 401);
-        return json(await status(env, account, { lite: url.searchParams.get("lite") === "1" }));
+      await ingressLimit(env,request);
+      const anonymous=["/api/capabilities","/api/status","/api/accounts","/api/recovery"].includes(url.pathname);
+      if (anonymous) await accountLimit(env,request,null);
+      if (!env.DB) return error("control_plane_unprovisioned",503);
+      await requireSchema(env);
+      if (url.pathname === "/api/capabilities") {
+        const restricted = env.SCENE_COHORT_ACCOUNTS !== undefined || env.SCENE_COHORT_UNTIL !== undefined;
+        const allowed = await sceneCohortAllows(env, restricted ? await accountId(env,request) : null);
+        const scene = !allowed ? sceneCapabilities(null)
+          : verifierConfigured(env) ? pipelineCapabilities(env) : sceneCapabilities(await loadSceneReferences(env));
+        return json({...scene,...objectCapabilities()});
       }
-      if (url.pathname === "/api/views" && request.method === "GET") {
-        if (!sameOrigin(request)) return error("cross_origin_request", 403);
-        const account = await accountId(env, request);
-        if (!account) return error("unauthorized", 401);
+      if (url.pathname === "/api/status") return json(await status(env));
+      const account=anonymous ? null : await accountId(env,request);
+      // Deleted accounts may still replay their own saved deletion receipt.
+      if (!anonymous && !account && url.pathname!=="/api/account/delete") return error("unauthorized",401);
+      if (!anonymous) await accountLimit(env,request,account);
+      if (["/api/scene-qualifications","/api/scene-audits","/api/leases","/api/submissions","/api/views"].includes(url.pathname)
+          && !await sceneCohortAllows(env,account)) {
+        if (request.body) void request.body.cancel().catch(() => {});
+        return error("scene_verification_unavailable",503,{"retry-after":"1800"});
+      }
+      if (url.pathname === "/api/object-qualifications") {
+        // This contract is recognized but has no trusted native provider yet.
+        // Refuse before reading canary bytes or touching qualification state.
+        if (request.body) void request.body.cancel().catch(() => {});
+        return error("object_verification_unavailable",503,{"retry-after":"1800"});
+      }
+      if (url.pathname === "/api/me") return json(await status(env, account, { lite: url.searchParams.get("lite") === "1" }));
+      if (url.pathname === "/api/scene-qualifications" && request.method==="GET") {
+        if (!verifierConfigured(env)) return error("scene_verification_unavailable",503);
+        return json(await qualificationStatus(env,account,url.searchParams.get("profileId")));
+      }
+      if (url.pathname === "/api/views") {
+        await viewLimit(env,account);
         return views(request);
       }
-      if (url.pathname === "/api/published-snapshot" && request.method === "GET") {
-        if (!sameOrigin(request)) return error("cross_origin_request", 403);
-        const account = await accountId(env, request);
-        if (!account) return error("unauthorized", 401);
-        return publishedSnapshot(env, account, url);
+      const body=await readRequestJson(request);
+      if (url.pathname === "/api/accounts") return await createAccount(env,request);
+      if (url.pathname === "/api/recovery") return await recover(env,request,body);
+      if (url.pathname === "/api/account/delete") {
+        const result=await deleteAccount(env,account,body);
+        await cleanupAccountArtifacts(env,body.accountId);
+        return json(result,200,{"set-cookie":cookie("",request)+"; Max-Age=0"});
       }
-      if (url.pathname === "/api/index-manifest" && request.method === "GET") {
-        if (!sameOrigin(request)) return error("cross_origin_request", 403);
-        const account = await accountId(env, request);
-        if (!account) return error("unauthorized", 401);
-        return indexManifest(env, account, url);
+      if (url.pathname === "/api/scene-qualifications") {
+        if (!verifierConfigured(env)) return error("scene_verification_unavailable",503);
+        return json(await qualifyDevice(env,account,body,validFourViewRecord));
       }
-      if (url.pathname === "/api/index-shard" && request.method === "GET") {
-        if (!sameOrigin(request)) return error("cross_origin_request", 403);
-        const account = await accountId(env, request);
-        if (!account) return error("unauthorized", 401);
-        return indexShard(env, account, url);
-      }
-      if (url.pathname === "/api/object-indexes" && request.method === "GET") {
-        if (!sameOrigin(request)) return error("cross_origin_request", 403);
-        const account = await accountId(env, request);
-        if (!account) return error("unauthorized", 401);
-        return objectIndexCatalog(env, account, url);
-      }
-      if (url.pathname === "/api/object-index-file" && request.method === "GET") {
-        if (!sameOrigin(request)) return error("cross_origin_request", 403);
-        const account = await accountId(env, request);
-        if (!account) return error("unauthorized", 401);
-        return objectIndexFile(env, account, url);
-      }
-      if (url.pathname === "/api/scene-indexes" && request.method === "GET") {
-        if (!sameOrigin(request)) return error("cross_origin_request", 403);
-        const account = await accountId(env, request);
-        if (!account) return error("unauthorized", 401);
-        return sceneIndexCatalog(env, account, url);
-      }
-      if (url.pathname === "/api/scene-index-file" && request.method === "GET") {
-        if (!sameOrigin(request)) return error("cross_origin_request", 403);
-        const account = await accountId(env, request);
-        if (!account) return error("unauthorized", 401);
-        return sceneIndexFile(env, account, url);
-      }
-      if (request.method !== "POST") return error("not_found", 404);
-      if (!sameOrigin(request)) return error("cross_origin_request", 403);
-      const body = await request.json().catch(() => null);
-      if (!body || typeof body !== "object") return error("invalid_json");
-      if (url.pathname === "/api/accounts") return createAccount(env, request);
-      if (url.pathname === "/api/recovery") return recover(env, request, body);
-      const account = await accountId(env, request);
-      if (!account) return error("unauthorized", 401);
-      if (url.pathname === "/api/leases/release") return releaseLease(env, account, body);
-      if (url.pathname === "/api/leases/renew") return renewLease(env, account, body);
-      if (url.pathname === "/api/leases") return lease(env, account, body);
-      if (url.pathname === "/api/submissions") return submit(env, account, body);
-      if (url.pathname === "/api/searches") return search(env, account, body);
-      return error("not_found", 404);
-    } catch (err) {
-      return viewFailure(err) || error("internal_error", 500);
+      if (url.pathname === "/api/scene-audits") return json(await auditScene(env,account,body.submissionId));
+      if (url.pathname === "/api/leases/release") return await releaseLease(env,account,body);
+      if (url.pathname === "/api/leases/renew") return await renewLease(env,account,body);
+      const objectPrototype=localObjectPrototype(request,env);
+      if (url.pathname === "/api/leases") return await lease(env,account,body,objectPrototype);
+      if (url.pathname === "/api/submissions") return await submit(env,account,body,objectPrototype);
+      if (url.pathname === "/api/searches") return await search(env,account,body,objectPrototype);
+      return error("not_found",404);
+    } catch(err) {
+      if (err instanceof ApiLimitError) return error(err.message,err.status,{"retry-after":"60"});
+      if (err?.message==="schema_update_required") return error("schema_update_required",503,{"retry-after":"60"});
+      return viewFailure(err) || error("internal_error",500);
     }
-  },
+  }
 };

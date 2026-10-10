@@ -12,6 +12,7 @@ so the rest of the queue can continue.
 from __future__ import annotations
 
 import argparse
+from http.client import HTTPException
 import json
 import os
 import sys
@@ -26,6 +27,8 @@ from .pano import CLI_LEASE_CAP
 from .worker import ProcessingWorker
 
 DEFAULT_URL = "https://vision-community.visioncommunity.workers.dev"
+MAX_SERVICE_JSON_BYTES = 8 * 1024 * 1024
+SERVICE_BODY_SECONDS = 120
 RETRY_STATUSES = {429, 502, 503, 504}
 RETRYABLE_CODES = {
     "network_error",
@@ -38,7 +41,41 @@ RETRYABLE_CODES = {
     "verification_failed",
     "internal_error",
     "index_unavailable",
+    "service_redirect_refused",
+    "service_response_limit",
 }
+
+# Only published protocol reasons may become exceptions, CLI output or reports.
+# A service/proxy can return arbitrary JSON here, including reflected private
+# request text. Preserve the HTTP status but never copy an unknown error value.
+SERVICE_ERROR_CODES = frozenset({
+    "http_error", "lease_failed", "renew_failed", "search_failed", "verification_failed",
+    "account_changed", "control_plane_unprovisioned", "cross_origin_request",
+    "expired_lease", "idempotency_conflict", "imagery_url_forbidden",
+    "incomplete_submission", "index_unavailable", "ingest_not_started",
+    "insufficient_credit", "internal_error", "invalid_batch", "invalid_camera_filter",
+    "invalid_catalog", "invalid_country_filter", "invalid_fixture", "invalid_idempotency_key",
+    "invalid_index", "invalid_json", "invalid_lane", "invalid_lease_request", "invalid_mma_map",
+    "invalid_object_coverage", "invalid_pace", "invalid_pano_id", "invalid_part", "invalid_pose",
+    "invalid_query", "invalid_recovery", "invalid_submission", "lease_lost", "no_available_work",
+    "not_found", "object_coverage_required", "object_coverage_requires_official_gen4",
+    "object_index_required", "object_verification_unavailable", "online_search_required",
+    "part_taken", "real_source_not_enabled", "rate_limited", "rate_limit_unavailable",
+    "scene_audit_backlog", "scene_device_not_qualified", "scene_device_qualification_required",
+    "scene_qualification_changed", "scene_qualification_rejected", "scene_qualification_required",
+    "scene_reference_not_approved", "scene_reference_pool_unprepared", "scene_reference_required",
+    "scene_submission_rejected", "scene_verification_unavailable", "scene_verifier_unavailable",
+    "schema_update_required", "service_maintenance", "unauthorized", "unknown_lease",
+    "unknown_search", "unknown_submission", "unsupported_model", "view_unavailable",
+    "invalid_search_quote", "search_price_changed", "search_unavailable",
+})
+
+
+def service_error_code(data, fallback="http_error"):
+    code = data.get("error") if isinstance(data, dict) else None
+    if isinstance(code, str) and code in SERVICE_ERROR_CODES:
+        return code
+    return fallback if fallback in SERVICE_ERROR_CODES else "http_error"
 
 
 class ContributeError(RuntimeError):
@@ -46,6 +83,47 @@ class ContributeError(RuntimeError):
         super().__init__(code)
         self.code = code
         self.status = status
+
+
+class _RefuseServiceRedirects(urllib.request.HTTPRedirectHandler):
+    def http_error_302(self, req, fp, code, msg, headers):
+        # Community API replies must come directly from the configured origin.
+        # Do not forward account credentials or turn a POST into a redirected GET.
+        try:
+            fp.close()
+        finally:
+            raise ContributeError("service_redirect_refused", 503)
+
+    http_error_301 = http_error_303 = http_error_307 = http_error_308 = http_error_302
+
+
+def read_service_json(response) -> bytes:
+    """Bound reply memory and elapsed body reads, without trusting headers.
+
+    The budget is checked between available fragments. Connection/header parsing
+    and an individual blocked read remain subject to the existing socket timeout.
+    """
+    declared = response.headers.get("Content-Length")
+    try:
+        declared = int(declared) if declared is not None else None
+    except (TypeError, ValueError):
+        declared = None
+    if declared is not None and not 0 <= declared <= MAX_SERVICE_JSON_BYTES:
+        raise ContributeError("service_response_limit", 503)
+    deadline = time.monotonic() + SERVICE_BODY_SECONDS
+    body = bytearray()
+    read = getattr(response, "read1", response.read)
+    while True:
+        if time.monotonic() >= deadline:
+            raise ContributeError("service_response_limit", 503)
+        fragment = read(min(64 * 1024, MAX_SERVICE_JSON_BYTES + 1 - len(body)))
+        if not fragment:
+            if declared is not None and len(body) != declared:
+                raise HTTPException("Incomplete service reply")
+            return bytes(body)
+        body.extend(fragment)
+        if len(body) > MAX_SERVICE_JSON_BYTES:
+            raise ContributeError("service_response_limit", 503)
 
 
 def origin_of(url: str) -> str:
@@ -102,12 +180,16 @@ class CommunityClient:
     def __init__(self, url: str, *, token: str | None = None):
         self.origin = origin_of(url)
         self.token = token or ""
+        # An instance-local opener preserves default TLS/proxy handling without
+        # changing urllib globally or sharing credentials between clients.
+        self.opener = urllib.request.build_opener(_RefuseServiceRedirects())
 
     def request(self, method: str, path: str, body: dict | None = None) -> tuple[int, dict, str | None]:
         payload = None if body is None else json.dumps(body).encode("utf-8")
         headers = {
             "Origin": self.origin,
             "Accept": "application/json",
+            "Accept-Encoding": "identity",
             "User-Agent": "VISION-Community-contribute/1",
         }
         if payload is not None:
@@ -120,24 +202,31 @@ class CommunityClient:
         last_error: Exception | None = None
         for attempt in range(3):
             try:
-                with urllib.request.urlopen(request, timeout=120) as response:
-                    raw = response.read()
+                with self.opener.open(request, timeout=120) as response:
+                    raw = read_service_json(response)
                     cookie = response.headers.get("Set-Cookie")
                     data = json.loads(raw.decode("utf-8")) if raw else {}
                     return response.status, data, cookie
             except urllib.error.HTTPError as error:
-                raw = error.read()
+                try:
+                    raw = read_service_json(error)
+                except (HTTPException, OSError, TimeoutError, ContributeError):
+                    # A broken error body must not hide a definitive HTTP
+                    # status (such as a revoked account's 401 or rejection).
+                    raw = b""
+                finally:
+                    error.close()
                 try:
                     data = json.loads(raw.decode("utf-8")) if raw else {}
-                except json.JSONDecodeError:
+                except (json.JSONDecodeError, UnicodeDecodeError):
                     data = {}
                 if error.code in RETRY_STATUSES and attempt < 2:
                     last_error = error
                     time.sleep(0.4 * (attempt + 1))
                     continue
-                code = data.get("error") if isinstance(data, dict) else None
-                raise ContributeError(str(code or "http_error"), error.code) from error
-            except (urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError) as error:
+                raise ContributeError(service_error_code(data), error.code) from error
+            except (urllib.error.URLError, TimeoutError, OSError, HTTPException,
+                    json.JSONDecodeError, UnicodeDecodeError) as error:
                 last_error = error
                 if attempt < 2:
                     time.sleep(0.4 * (attempt + 1))
@@ -175,8 +264,7 @@ class CommunityClient:
             body,
         )
         if status != 200:
-            code = data.get("error") if isinstance(data, dict) else None
-            raise ContributeError(str(code or "lease_failed"), status)
+            raise ContributeError(service_error_code(data, "lease_failed"), status)
         return data
 
     def submit(self, lease_id: str, outputs: list[dict]) -> dict:
@@ -206,8 +294,7 @@ class CommunityClient:
     def renew(self, lease_id: str) -> dict:
         status, data, _ = self.request("POST", "/api/leases/renew", {"leaseId": lease_id})
         if status != 200:
-            code = data.get("error") if isinstance(data, dict) else None
-            raise ContributeError(str(code or "renew_failed"), status)
+            raise ContributeError(service_error_code(data, "renew_failed"), status)
         return data
 
     def authorize_local_search(self, body: dict) -> dict:
@@ -217,7 +304,7 @@ class CommunityClient:
         if status == 402:
             raise ContributeError("insufficient_credit", status)
         if status != 200 or not isinstance(data, dict):
-            raise ContributeError(str(data.get("error") if isinstance(data, dict) else "search_failed"), status)
+            raise ContributeError(service_error_code(data, "search_failed"), status)
         return data
 
     def published_snapshot(self, *, search_id: str, lane: str, after: int = 0, limit: int = 250) -> dict:
@@ -248,7 +335,7 @@ class CommunityClient:
             method="GET",
         )
         try:
-            with urllib.request.urlopen(request, timeout=120) as response:
+            with self.opener.open(request, timeout=120) as response:
                 return response.read()
         except urllib.error.HTTPError as error:
             raise ContributeError("index_unavailable", error.code) from error
@@ -272,7 +359,7 @@ class CommunityClient:
             method="GET",
         )
         try:
-            with urllib.request.urlopen(request, timeout=120) as response:
+            with self.opener.open(request, timeout=120) as response:
                 return response.read()
         except urllib.error.HTTPError as error:
             raise ContributeError("index_unavailable", error.code) from error
@@ -298,7 +385,7 @@ class CommunityClient:
             headers["Authorization"] = f"Bearer {self.token}"
         request = urllib.request.Request(self.origin + path, headers=headers, method="GET")
         try:
-            with urllib.request.urlopen(request, timeout=120) as response:
+            with self.opener.open(request, timeout=120) as response:
                 if response.status != 200:
                     raise ContributeError("index_unavailable", response.status)
                 return response.read()

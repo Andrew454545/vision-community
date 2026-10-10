@@ -3,7 +3,8 @@ CREATE TABLE IF NOT EXISTS accounts (
   id TEXT PRIMARY KEY,
   token_hash TEXT NOT NULL UNIQUE,
   units INTEGER NOT NULL DEFAULT 0 CHECK (units >= 0),
-  recovery_hash TEXT UNIQUE
+  recovery_hash TEXT UNIQUE,
+  deleted_at INTEGER
 );
 CREATE TABLE IF NOT EXISTS locations (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -32,6 +33,13 @@ CREATE TABLE IF NOT EXISTS locations (
   UNIQUE (asset_id, capture, lane, model)
 );
 CREATE INDEX IF NOT EXISTS locations_queue ON locations (lane, state, lease_until, id);
+-- Written only by the trusted historical-coverage import, never by volunteers.
+CREATE TABLE IF NOT EXISTS object_coverage (
+  location_id INTEGER PRIMARY KEY REFERENCES locations(id),
+  validator TEXT NOT NULL,
+  evidence_sha256 TEXT NOT NULL,
+  validated_at INTEGER NOT NULL
+);
 CREATE TABLE IF NOT EXISTS leases (
   id TEXT PRIMARY KEY,
   account_id TEXT NOT NULL REFERENCES accounts(id),
@@ -39,12 +47,35 @@ CREATE TABLE IF NOT EXISTS leases (
   expires_at INTEGER NOT NULL,
   state TEXT NOT NULL CHECK (state IN ('active', 'submitted', 'expired')),
   generation INTEGER,
-  pace TEXT
+  pace TEXT,
+  scene_qualification_id TEXT
 );
 CREATE TABLE IF NOT EXISTS lease_items (
   lease_id TEXT NOT NULL REFERENCES leases(id),
   location_id INTEGER NOT NULL REFERENCES locations(id),
   PRIMARY KEY (lease_id, location_id)
+);
+CREATE TABLE IF NOT EXISTS scene_qualifications (
+  id TEXT PRIMARY KEY,
+  account_id TEXT NOT NULL REFERENCES accounts(id),
+  profile_id TEXT NOT NULL,
+  policy_id TEXT NOT NULL,
+  canary_sha256 TEXT NOT NULL,
+  expires_at INTEGER NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS scene_qualifications_lookup
+  ON scene_qualifications (account_id, policy_id, profile_id, expires_at);
+CREATE TABLE IF NOT EXISTS scene_candidates (
+  lease_id TEXT PRIMARY KEY REFERENCES leases(id),
+  account_id TEXT NOT NULL REFERENCES accounts(id),
+  qualification_id TEXT NOT NULL REFERENCES scene_qualifications(id),
+  policy_id TEXT NOT NULL,
+  submission_sha256 TEXT NOT NULL,
+  artifact_key TEXT NOT NULL,
+  records_json TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  state TEXT NOT NULL CHECK (state IN ('pending', 'published', 'rejected'))
 );
 CREATE TABLE IF NOT EXISTS published_index (
   location_id INTEGER PRIMARY KEY REFERENCES locations(id),

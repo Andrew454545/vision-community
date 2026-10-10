@@ -1,0 +1,114 @@
+{
+  "environment": "staging",
+  "evidencePins": {
+    "accounting-context.private.json": "ddc4548ce47b9d58b79e27180b24297d25b01b3344031e8d760618a11d51261f",
+    "converted-debug/failure-report.private.json": "4482adf142f9710680ecd037b41ea5f8a32743c19c332b6c22d6f21d0c133942",
+    "converted-fixed/conversion-report.private.json": "7ca2d53eb574b5ad5ced454f55885443eb80f9c75f28779c259fb41b84e702a7",
+    "converted/failure-report.private.json": "4482adf142f9710680ecd037b41ea5f8a32743c19c332b6c22d6f21d0c133942",
+    "fetch.mjs": "9e4dd599032489e6a774bcb0c509cd091ca8e1d6ca27d97e58e31f53ea04c100",
+    "hidden.py": "6ee5ead8ef1ef1bb399dd05100e28f17733a99236882ef27ca301ddbf23e1e91",
+    "object-readback.private.json": "ad9476c4f174e2d48a418727b11e4c09c2df5d64b13bf18e60ed130534d66555",
+    "prepare.py": "742b9bdebab10a2e60f7b5d8dd7a56034b63ddfaff18f27c445823314dc04675",
+    "production-order-regression.private.json": "bc4a67b4c636552b9205a8d34c346235dc0d8b498ff482fa697b0b8180f30445",
+    "python-final.receipt.private.json": "351a907a80f1a2e0f79b4988df9f533dd3a8ccbc6d1ac9efa36dfc36ba2dc295",
+    "python-final.stderr.private.log": "46bf18ae97d4592393c996d49a3324e17193e5d4760a8243b2ad0562a9430e21",
+    "r2-readback.receipt.private.json": "04cf26dd60cf33c6cb80601bdee2052b487090239d1e4d84f3fe5977d0fdc98c",
+    "recovery-v3/complete-recovery.private.json": "df23c82cefb9a7e03e22faac5ff79aa40ddb2c537a8593ea79f4e7160c3fb413",
+    "restore.mjs": "6ad2b94dcae783c87e910fe55be9101ef7605f72c0bf1fe61820d332f46382cb",
+    "run.py": "ae24d35259accfe0eb4f2c6d3040804317f04f14bedf0bd1b89802ce574deb3f",
+    "schema-differences.private.json": "3d5b8a65cd8d3a626285c4db8afb164955e71b303249fb3d5b53d277eea7ef0f"
+  },
+  "hostedBindingInventory": {
+    "bothGatewayServicesUseSameNativeHost": true,
+    "gatewaySecretTextBindings": 0,
+    "liveWrites": false,
+    "nativeHostSecretTextBindings": 3,
+    "readOnlyProviderVerified": true,
+    "rotationVerified": false,
+    "secretValuesRead": false,
+    "secretsBackedUp": false,
+    "sourcePins": {
+      "vision-community-native-host-staging": "95f5d3d65d17dfc6386beedb4fb88f86450956feb45a8f5a29530ea9b1398be3",
+      "vision-community-staging": "ca9921faf6f5f4ad2956dbe330bfbdb3a1927174e26c1cfd59611e35feb57555"
+    }
+  },
+  "limits": {
+    "actionsDispatched": false,
+    "currentIndependentFinancialAuthorityVerified": false,
+    "liveDataWritten": false,
+    "nativeInferenceRerun": false,
+    "pilotChanged": false,
+    "pointInTimeSnapshot": true,
+    "postBackupReconciliationVerified": false,
+    "productionQualified": false,
+    "providerRecoveryVerified": false,
+    "providerRestorePerformed": false,
+    "refresherChanged": false,
+    "secretsRestored": false,
+    "writersStopped": false
+  },
+  "paidRecovery": {
+    "activeAccounts": 1,
+    "bankedUnits": 6,
+    "byteIdentical": true,
+    "creditAdded": 0,
+    "deletedAccountsStillRevoked": 9,
+    "earnedUnits": 18,
+    "firstProcessConcurrentReplays": 12,
+    "freshProcessConcurrentReplays": 12,
+    "localInvitationClosed": true,
+    "localSessionRotatedOnly": true,
+    "nativeCalls": 0,
+    "newDebits": 0,
+    "priceChangedLocallyTo": 100,
+    "realSavedReplies": 3,
+    "searchDebits": 12
+  },
+  "platform": "Windows x64",
+  "preservedFailures": [
+    "dependent-table-before-parent conversion",
+    "private diagnostic reproduction",
+    "restricted folder access and incorrect test selector",
+    "initial hidden simulator output capture",
+    "application schema comparison included provider _cf_METADATA"
+  ],
+  "privateDatabaseSha256": "3d0605ecda0f0e44354c9721c0bdaee67d70b8d2246ff1390968bd21b53b28f9",
+  "privateSqlExportSha256": "f5ee923cbe104bc940c9b2e1280c53bfccfd0e5045e18aeb1b543ccc0fb20dbb",
+  "resource": {
+    "accountId": "272760294910ef0b246980278aeb36e2",
+    "bucket": "vision-community-staging",
+    "databaseId": "17043cb7-5dab-4a6f-84ca-19ae1c14cc05"
+  },
+  "sourceApplicationRows": 256,
+  "sourceApplicationTables": 17,
+  "sourceAutoincrementVerified": true,
+  "sourceRevisionBeforeFix": "222356e0abd0be910ac2bf2f4d08ba8e58b05875",
+  "sourceSchemaAndRowsIdentical": true,
+  "status": "ACTUAL_STAGING_LOCAL_PAID_REPLY_STORAGE_RECOVERY_VERIFIED",
+  "storage": {
+    "bytes": 288175,
+    "deletionReceipts": 9,
+    "exactBytesAndMetadataRoundtrip": true,
+    "freshProcessReadback": true,
+    "nativeBundles": 1,
+    "providerObjectsRead": 13,
+    "publishedBlobs": 3
+  },
+  "validation": {
+    "actualWorkerdChecks": 124,
+    "affectedPythonChecks": 36,
+    "fullProductionAutoincrementIdentical": true,
+    "fullProductionHistoricalRows": 364056,
+    "fullProductionSchemaAndEveryTypedRowIdentical": true,
+    "productionRegressionWallSeconds": 15.453000000037719,
+    "pythonFailures": 0,
+    "pythonSkipped": 0
+  },
+  "version": 1,
+  "wholeHistoryAccounting": {
+    "accepted": false,
+    "activeBalanceReconciled": true,
+    "failure": "unsupported_credit_reason",
+    "oldFixtureRowsPreserved": true
+  }
+}

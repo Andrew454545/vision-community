@@ -1,8 +1,17 @@
 name = "vision-community"
+account_id = "272760294910ef0b246980278aeb36e2"
 main = "src/worker.js"
 compatibility_date = "2026-09-19"
 compatibility_flags = ["nodejs_compat"]
 workers_dev = true
+preview_urls = false
+
+[observability]
+enabled = false
+
+# Bounded retries for unpublished artifacts after an account deletion.
+[triggers]
+crons = ["0 * * * *"]
 
 # D1 holds the prototype ledger. INDEX is the durable sealed-segment copy.
 # Production 200M search will not run in this Worker. Do not bind any other bucket.
@@ -15,6 +24,35 @@ database_id = "ed4705fa-1190-41fa-86a0-02d755db1b2a"
 [[r2_buckets]]
 binding = "INDEX"
 bucket_name = "vision-community"
+
+[vars]
+DEPLOYMENT_ENVIRONMENT = "production"
+RATE_LIMITS_REQUIRED = "1"
+INDEX_BUCKET_NAME = "vision-community"
+DELETION_ARCHIVE_REQUIRED = "1"
+DELETION_ARCHIVE_ENVIRONMENT = "production"
+DELETION_ARCHIVE_DB_ID = "ed4705fa-1190-41fa-86a0-02d755db1b2a"
+
+[[ratelimits]]
+name = "API_RATE_LIMITER"
+namespace_id = "1586479202"
+[ratelimits.simple]
+limit = 120
+period = 60
+
+[[ratelimits]]
+name = "API_INGRESS_LIMITER"
+namespace_id = "1586479204"
+[ratelimits.simple]
+limit = 600
+period = 60
+
+[[ratelimits]]
+name = "API_VIEW_LIMITER"
+namespace_id = "1586479206"
+[ratelimits.simple]
+limit = 12
+period = 60
 
 [assets]
 directory = "../../community/web"

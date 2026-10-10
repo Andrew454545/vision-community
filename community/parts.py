@@ -1,17 +1,19 @@
 """Exclusive catalog batches so volunteers index separate parts of the corpus.
 
-Local VISION reads the remainder TSV from the front. Community therefore hands
-volunteers the reserved remainder tail first, then the rest of ALL LOCATIONS,
-then already-indexed poses. Each account keeps one shard until it is finished
-or abandoned, so people do not all chew the same head of the queue.
+The remaining-location catalog excludes locally indexed and locally reserved
+panoramas. Legacy families remain recognizable for historical work. Each account
+keeps one shard until it is finished or abandoned.
 """
 
 from __future__ import annotations
+import re
 
 
 TAIL_PREFIX = "catalog/all-locations-tail-v1/"
 FULL_PREFIX = "catalog/all-locations-full-v1/"
 INDEXED_PREFIX = "catalog/vision-indexed-v1/"
+REMAINING_PREFIX = "catalog/official-remaining-v1/"
+RETIRED_PREFIXES = (TAIL_PREFIX, FULL_PREFIX, INDEXED_PREFIX)
 STEAL_AFTER_SECONDS = 6 * 60 * 60
 FAMILY_ORDER = ("new-places", "whole-map", "already-indexed", "other")
 FAMILY_LABELS = {
@@ -22,9 +24,24 @@ FAMILY_LABELS = {
 }
 
 
+def available_catalog_sql(table: str = "pose_catalog") -> str:
+    if not re.fullmatch(r"[a-z_][a-z0-9_]*", table, re.I):
+        raise ValueError("invalid_sql_alias")
+    return f"(COALESCE({table}.held,0)=0 AND " + " AND ".join(
+        f"{table}.r2_key NOT LIKE '{prefix}%'" for prefix in RETIRED_PREFIXES) + ")"
+
+
+def available_location_sql(table: str = "locations") -> str:
+    if not re.fullmatch(r"[a-z_][a-z0-9_]*", table, re.I):
+        raise ValueError("invalid_sql_alias")
+    return (f"({table}.catalog_shard IS NULL OR EXISTS (SELECT 1 FROM pose_catalog allocation "
+            f"WHERE allocation.lane={table}.lane AND allocation.shard_id={table}.catalog_shard "
+            f"AND {available_catalog_sql('allocation')}))")
+
+
 def family_for_key(r2_key: str | None) -> str:
     key = r2_key or ""
-    if key.startswith(TAIL_PREFIX):
+    if key.startswith((TAIL_PREFIX, REMAINING_PREFIX)):
         return "new-places"
     if key.startswith(FULL_PREFIX):
         return "whole-map"
@@ -47,7 +64,7 @@ def family_priority(family: str) -> int:
 def family_priority_sql(column: str = "r2_key") -> str:
     return (
         "CASE"
-        f" WHEN {column} LIKE '{TAIL_PREFIX}%' THEN 0"
+        f" WHEN ({column} LIKE '{TAIL_PREFIX}%' OR {column} LIKE '{REMAINING_PREFIX}%') THEN 0"
         f" WHEN {column} LIKE '{FULL_PREFIX}%' THEN 1"
         f" WHEN {column} LIKE '{INDEXED_PREFIX}%' THEN 2"
         " ELSE 3 END"
