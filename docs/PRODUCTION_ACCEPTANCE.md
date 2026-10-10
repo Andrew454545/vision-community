@@ -5,13 +5,30 @@ Updated **10 October 2026**. Start with the finite
 preserves historical results and limitations; completed reference trials do not
 require repeating merely because an older paragraph described them as pending.
 
+The [authentic native Object source handoff](NATIVE_OBJECT_SOURCE_HANDOFF_20261010.md)
+is verified: all 76 file pins match. Exact scans found no supplied candidate in
+the owner's completed Scene sources, as expected outside the protected union.
+Community Scene authority is an engineering task; owner MMA membership is not
+the appropriate prerequisite for this cohort. Private VISION PR #16 supports
+native v7 proofs and fixes Windows storage flushes (39/40 checks pass; one
+POSIX-only fixture skip). The original candidate and stale protected seal still
+fail correctly. A current portable import and authentic Object admission remain open.
+
+The [native Object spool restore component](OBJECT_SPOOL_RECOVERY_20261010.md)
+now exports independently pinned current deletion authority and applies it
+atomically before any restored receipt can be served. A Node-to-Python real
+SQLite backup/restart check passes with synthetic inference. Final selections
+pass 11 Python and 18 JavaScript cases without skips; existing job/privacy
+regressions also pass with their recorded platform skips. Complete provider,
+native-host and secret recovery remain open; no live Object gate changed.
+
 The [Object account-cleanup integration](NATIVE_OBJECT_ACCOUNT_CLEANUP_20261010.md)
 now journals assignment erasure with account revocation and handles a lost native
 job acknowledgement, delayed start, restart and late approval. It passes 213
 JavaScript/Python checks with three explicit Windows file-symlink skips, plus
 30 actual local workerd cases. Native inference is synthetic; no live Object
-binding or gate opened. Quarantine/publication/credit and independent native
-spool recovery remain open.
+binding or gate opened. Quarantine/publication/credit and authentic native-host
+recovery remain open; the spool recovery component above is separately tested.
 
 The [real paid-reply recovery exercise](REAL_PAID_RECOVERY_20261010.md) passes
 124 actual local workerd checks: the complete 256-row staging copy, 18
@@ -67,8 +84,10 @@ the Scene-only background pilot is running and its full acceptance remains open.
 The [verified positive Gen4 cohort](GEN4_COHORT_20261009.md) contains 100 original
 R2 locations across 22 countries. Fresh native validation and saved raw Google
 metadata agree; all are outside the real protected snapshot. Ten now have
-genuine Community Scene completion. Andrew's local MMA Scene membership and
-portable protected/runtime import authority remain required for Object admission.
+genuine Community Scene completion. The later authentic handoff above establishes
+that owner MMA membership is absent and inappropriate for this cohort. A distinct
+audited Community Scene authority route and current portable protected/runtime
+import authority remain required for Object admission.
 
 The [saved Object audit jobs](NATIVE_OBJECT_AUDIT_JOBS.md) add short private
 acknowledgements, durable attempt/decision recovery and bounded retry/cancellation
