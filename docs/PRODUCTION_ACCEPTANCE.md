@@ -5,6 +5,14 @@ Updated **10 October 2026**. Start with the finite
 preserves historical results and limitations; completed reference trials do not
 require repeating merely because an older paragraph described them as pending.
 
+The [Object account-cleanup integration](NATIVE_OBJECT_ACCOUNT_CLEANUP_20261010.md)
+now journals assignment erasure with account revocation and handles a lost native
+job acknowledgement, delayed start, restart and late approval. It passes 213
+JavaScript/Python checks with three explicit Windows file-symlink skips, plus
+30 actual local workerd cases. Native inference is synthetic; no live Object
+binding or gate opened. Quarantine/publication/credit and independent native
+spool recovery remain open.
+
 The [real paid-reply recovery exercise](REAL_PAID_RECOVERY_20261010.md) passes
 124 actual local workerd checks: the complete 256-row staging copy, 18
 publications, 13 provider-read objects, three real paid replies and six banked

@@ -12,8 +12,10 @@ export default {async fetch(request) {
   const mode = new URL(request.url).pathname.slice(1);
   const start = mode === 'start';
   const erasure = ['erase','erased','erase-unconfirmed'].includes(mode);
-  const control = mode === 'cancel' || mode === 'retry' || erasure;
-  const path = '/object-audits' + (start ? '' : '/'+receipt.jobId+(control ? '/'+(erasure ? 'erase' : mode) : ''));
+  const assignment = mode.startsWith('assignment-');
+  const control = mode === 'cancel' || mode === 'retry' || erasure || assignment;
+  const path = assignment ? `/object-assignments/${body.leaseId}/erase`
+    : '/object-audits' + (start ? '' : '/'+receipt.jobId+(control ? '/'+(erasure ? 'erase' : mode) : ''));
   const upstream = new Request('https://object-verifier.internal'+path,{
     method:start || control ? 'POST' : 'GET',
     headers:{'content-type':'application/json',authorization:'Bearer caller',cookie:'private-cookie'},
@@ -29,6 +31,9 @@ export default {async fetch(request) {
     if (mode === 'unapproved') return Response.json({...receipt,productionQualified:true});
     if (mode === 'wrong-id') return Response.json({...receipt,jobId:'1'.repeat(32)});
     if (mode === 'complete') return Response.json({...receipt,state:'approved',decision:'approved',attempts:1,receiptSha256:'1'.repeat(64)});
+    if (assignment) return Response.json({version:1,leaseId:mode==='assignment-wrong'?'f'.repeat(32):body.leaseId,
+      policyId:body.policyId,assignmentSha256:body.assignmentSha256,
+      state:mode==='assignment-pending'?'erasing':'erased',serverAuthorization:false,productionQualified:false});
     if (erasure) return Response.json({...receipt,state:mode === 'erase' ? 'erasing' : mode === 'erased' ? 'erased' : 'cancelled'});
     return Response.json(mode === 'cancel' ? {...receipt,state:'cancelled'} : receipt);
   },mode === 'deadline' ? 5 : 20000);

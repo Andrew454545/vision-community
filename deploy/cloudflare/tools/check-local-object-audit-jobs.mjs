@@ -13,7 +13,7 @@ try {
   for (const [mode,status,decision] of [['start',200,'pending'],['status',200,'pending'],['complete',200,'approved'],
     ['cancel',200,'pending'],['retry',200,'pending'],['conflict',409,null],['wrong-id',503,null],
     ['unapproved',503,null],['deadline',503,null],['erase',200,'pending'],['erased',200,'pending'],
-    ['erase-unconfirmed',503,null]]) {
+    ['erase-unconfirmed',503,null],['assignment-pending',200,null],['assignment-erased',200,null],['assignment-wrong',503,null]]) {
     const response = await mf.dispatchFetch('https://community.test/'+mode,{signal:AbortSignal.timeout(10000)});
     assert.equal(response.status,200,mode);
     const value = await response.json();
@@ -21,9 +21,10 @@ try {
     assert.equal(value.calls,1,mode);
     assert.equal(value.objectAdmissionReady,false,mode);
     assert.equal(value.nativeInferences,0,mode);
-    if (decision) assert.equal(value.result.decision,decision,mode);
+    if (mode==='assignment-pending' || mode==='assignment-erased') assert.equal(value.result.state,mode==='assignment-pending'?'erasing':'erased');
+    else if (decision) assert.equal(value.result.decision,decision,mode);
     else assert.deepEqual(value.result,{error:mode==='conflict'?'object_job_conflict':'object_verifier_unavailable'},mode);
   }
-  console.log(JSON.stringify({status:'ACTUAL_WORKERD_OBJECT_JOB_TRANSPORT_PASSED',cases:12,
+  console.log(JSON.stringify({status:'ACTUAL_WORKERD_OBJECT_JOB_TRANSPORT_PASSED',cases:15,
     syntheticProvider:true,objectAdmissionReady:false,nativeInferences:0,creditsCreated:0}));
 } finally { await mf.dispose(); }

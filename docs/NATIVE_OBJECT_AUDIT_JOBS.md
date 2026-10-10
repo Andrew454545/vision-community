@@ -7,8 +7,10 @@ requests. `deploy/cloudflare/native-object-verifier-bridge/worker.js` transports
 that protocol through a private service binding. It does not expose a public API.
 
 This is a tested operator component. Object device qualification, public
-quarantine, publication, hosted account-deletion integration and once-only credit settlement
-still need to be connected. Neither a saved job nor an `approved` audit grants
+quarantine, publication and once-only credit settlement still need to be connected.
+The [account-cleanup follow-up](NATIVE_OBJECT_ACCOUNT_CLEANUP_20261010.md) connects
+durable hosted assignment erasure in source, including lost start acknowledgements;
+it is not deployed native-host acceptance. Neither a saved job nor an `approved` audit grants
 an account permission or credit. All responses explicitly retain
 `serverAuthorization: false` and `productionQualified: false`.
 
@@ -86,6 +88,7 @@ The service's endpoints are:
 | `POST /object-audits/<jobId>/retry` | `{}`; explicitly retries an eligible failed job within backoff and attempt limits. |
 | `POST /object-audits/<jobId>/cancel` | `{}`; revokes the job's decision, including an approval that arrives later. |
 | `POST /object-audits/<jobId>/erase` | `{}`; durably revokes the job and requests removal of its private spool files. Poll the same job until `erased`; `erasing` is not a completed deletion. |
+| `POST /object-assignments/<leaseId>/erase` | `{}`; durably revokes a registered assignment before or after job creation. Returns `erasing` while an existing job needs cleanup, then `erased`; delayed uploads receive `object_assignment_revoked`. |
 
 The trusted caller must bind `submissionSha256` to its own quarantined payload
 and reconcile every response with that candidate and account before settlement.
@@ -102,11 +105,11 @@ inventories above 20,000 entries per job folder. A cleanup failure keeps the
 revocation pending and never advertises successful removal. The existing
 worker's 60-second failure wait prevents a cleanup retry loop.
 
-This private operation is not a public account-deletion API. Hosted ownership
-must select every affected job, persist its deletion authority before calling
-the bridge and wait for each `erased` acknowledgement. R2 quarantine, published
-indexes, search replies, backups and external operator inputs still need their
-own privacy reconciliation. No live account cleanup was connected by this change.
+This private operation is not a public account-deletion API. The account-cleanup
+follow-up selects owned assignments, persists deletion authority and waits for
+`erased` acknowledgements. R2 quarantine, published indexes, search replies,
+backups and external operator inputs need their own reconciliation. No live
+Object host binding or admission was enabled by these component changes.
 
 ## Finite component limits
 
@@ -120,8 +123,9 @@ separate spool; it cannot silently reinterpret old jobs.
 
 These limits support a controlled integration cohort, not indefinite public
 capacity. Before deployment, connect authenticated hosted qualification,
-quarantine ownership, hosted privacy revocation/cleanup, publication and credit
-settlement; add measured retention/cost/capacity and provider restart tests.
+quarantine ownership, publication and credit settlement. Verify account cleanup
+against the authentic native host and independent spool recovery; add measured
+retention/cost/capacity and provider restart tests.
 No bridge binding, public route or readiness flag was enabled by this change.
 
 ## Verification

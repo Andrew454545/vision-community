@@ -9,6 +9,7 @@ const ERRORS = new Map([
   ['invalid_object_job', 400], ['invalid_object_job_file', 400],
   ['unknown_object_assignment', 403], ['unknown_object_job', 404],
   ['object_job_identity_mismatch', 409], ['object_job_conflict', 409], ['object_job_source_mismatch', 409],
+  ['object_assignment_revoked', 409],
   ['object_job_candidate_incomplete', 409], ['object_job_retry_limited', 429],
   ['object_job_capacity_reached', 503], ['object_job_disk_budget', 503],
 ]);
@@ -67,10 +68,22 @@ function result(value, expected) {
   return value;
 }
 
+export function assignmentErasureResult(value, leaseId) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)
+      || Object.keys(value).sort().join(',') !== 'assignmentSha256,leaseId,policyId,productionQualified,serverAuthorization,state,version'
+      || value.version !== 1 || value.leaseId !== leaseId || !ID.test(value.leaseId)
+      || typeof value.assignmentSha256 !== 'string' || !HEX.test(value.assignmentSha256)
+      || typeof value.policyId !== 'string' || !/^[A-Za-z0-9_.-]{1,128}$/.test(value.policyId)
+      || !['erasing','erased'].includes(value.state) || value.serverAuthorization !== false
+      || value.productionQualified !== false) throw Error('invalid_assignment_erasure');
+  return value;
+}
+
 export async function handleObjectAuditJobs(request, env, fetcher = fetch, timeoutMs = 20000) {
   const url = new URL(request.url), path = url.pathname;
   const route = /^\/object-audits\/([0-9a-f]{32})(?:\/(cancel|retry|erase))?$/.exec(path);
-  if (url.search || !(request.method === 'POST' && (path === '/object-audits' || route?.[2])
+  const erasure = /^\/object-assignments\/([0-9a-f]{32})\/erase$/.exec(path);
+  if (url.search || !(request.method === 'POST' && (path === '/object-audits' || route?.[2] || erasure)
       || request.method === 'GET' && route && !route[2])) return reply(404, 'not_found');
   let target, secret;
   try {
@@ -93,11 +106,11 @@ export async function handleObjectAuditJobs(request, env, fetcher = fetch, timeo
     const expected = route ? {jobId:route[1]} : {};
     if (request.method === 'POST') {
       try {
-        const maximum = route ? 1024 : MAX_REQUEST, length = framed(request.headers, maximum);
+        const maximum = route || erasure ? 1024 : MAX_REQUEST, length = framed(request.headers, maximum);
         body = await bounded(request.body, maximum, deadline);
         if (!body.byteLength || length !== null && body.byteLength !== length) throw Error('invalid_length');
         const value = JSON.parse(new TextDecoder('utf-8', {fatal:true}).decode(body));
-        if (route) {
+        if (route || erasure) {
           if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).length !== 0) throw Error('invalid_control');
         } else {
           for (const key of ['leaseId','profileId','policyId','assignmentSha256','submissionSha256']) {
@@ -129,10 +142,10 @@ export async function handleObjectAuditJobs(request, env, fetcher = fetch, timeo
         }
         throw Error('unavailable');
       }
-      const checked = result(value, expected);
-      if (route?.[2] === 'cancel' && !['cancelled','erasing','erased'].includes(checked.state)
+      const checked = erasure ? assignmentErasureResult(value, erasure[1]) : result(value, expected);
+      if (!erasure && (route?.[2] === 'cancel' && !['cancelled','erasing','erased'].includes(checked.state)
           || route?.[2] === 'erase' && !['erasing','erased'].includes(checked.state)
-          || ['erasing','erased'].includes(checked.state) && (checked.receiptSha256 !== null || checked.retryAt !== 0)) {
+          || ['erasing','erased'].includes(checked.state) && (checked.receiptSha256 !== null || checked.retryAt !== 0))) {
         throw Error('revocation_unconfirmed');
       }
       return Response.json(checked, {headers:{'cache-control':'no-store'}});

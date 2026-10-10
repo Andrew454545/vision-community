@@ -1,0 +1,482 @@
+{
+  "version": 1,
+  "scope": "object-account-cleanup-component-evidence",
+  "recordedAt": "2026-10-10T19:46:34.443775+00:00",
+  "status": "PASSED_WITH_EXPLICIT_PLATFORM_SKIPS",
+  "platform": "Windows x64",
+  "nativeInference": "synthetic",
+  "liveResourcesChanged": false,
+  "objectAdmissionReady": false,
+  "productionQualified": false,
+  "checks": [
+    {
+      "name": "node-complete",
+      "tests": 93,
+      "passed": 91,
+      "failures": 0,
+      "skipped": 2,
+      "skipReason": "Windows file-symlink privilege unavailable",
+      "wallSeconds": 22.812
+    },
+    {
+      "name": "schema-final",
+      "tests": 63,
+      "passed": 62,
+      "failures": 0,
+      "skipped": 1,
+      "skipReason": "Windows file-symlink privilege unavailable",
+      "wallSeconds": 13.453
+    },
+    {
+      "name": "python-jobs-v2",
+      "tests": 36,
+      "passed": 36,
+      "failures": 0,
+      "skipped": 0,
+      "wallSeconds": 159.609,
+      "overlapsSavedServiceSuite": false
+    },
+    {
+      "name": "python-native-v2",
+      "tests": 24,
+      "passed": 24,
+      "failures": 0,
+      "skipped": 0,
+      "wallSeconds": 64.234,
+      "overlapsSavedServiceSuite": false
+    },
+    {
+      "name": "python-upgrade-final",
+      "tests": 1,
+      "passed": 1,
+      "failures": 0,
+      "skipped": 0,
+      "wallSeconds": 7.141,
+      "overlapsSavedServiceSuite": true
+    },
+    {
+      "name": "workerd-v2",
+      "cases": 15,
+      "passed": 15,
+      "failures": 0,
+      "wallSeconds": 0.953,
+      "syntheticProvider": true
+    },
+    {
+      "name": "hosted-workerd-final",
+      "cases": 15,
+      "passed": 15,
+      "failures": 0,
+      "wallSeconds": 3.484,
+      "syntheticProvider": true,
+      "separateProcesses": 3
+    }
+  ],
+  "sourceSha256": {
+    "community/object_audit_jobs.py": "3d37612f75b85b269e015736f5c88e60844801119488aba31047dff74ca30fa6",
+    "community/tests/test_object_audit_jobs.py": "86c05648e88f56167d5953b399798f0ea1bf448691f6caab6ec539decf07e69a",
+    "deploy/cloudflare/native-object-verifier-bridge/worker.js": "d6a1cc561e9721369f3e15827b3b6f9e5a1408868479e6e2e2a10f30582ec924",
+    "deploy/cloudflare/native-object-verifier-bridge/worker.test.mjs": "ed863de6559817e70ac23f4dc4ad22502d7cafe10e6b3340d303899a6b00d13f",
+    "deploy/cloudflare/src/objectAuditPrivacy.js": "7da0886f37601e7cb2253401beaa710866ea7b7374c4a3c30e3fc34f678a1a89",
+    "deploy/cloudflare/src/objectAuditPrivacy.test.mjs": "d7f5d258201b3c471c7841b27bff984877bbb678c00cc8b73e26fd713363f3ad",
+    "deploy/cloudflare/src/accountPrivacy.js": "3ca7e11a26edbe2d156034178b243215d2c74193a2133dcba03c536d8efda829",
+    "deploy/cloudflare/src/accountPrivacy.test.mjs": "a7b6abff4e2152ffa09eed1c4c9dac6a9d0d860b2f1de8cf40a43fe8c0c1e3e1",
+    "deploy/cloudflare/src/accountRestore.test.mjs": "2f702c0cb8414d34f5b16b4408d3223df7f796fa4f6410ee757922a28b526de2",
+    "deploy/cloudflare/src/privacyStorageRestore.test.mjs": "bb175b5ae195daa32c24a012d38e5779588bee901b052ffbbb11de1b98b73fd8",
+    "deploy/cloudflare/tools/account-restore.mjs": "505eeeacf38ab5d96fc78ec406c6a492e7c3b75e69b44ffa91488276fcb9797b",
+    "deploy/cloudflare/tools/privacy-storage-restore.mjs": "35044784d4336954f6072c01f43f0ce6a74d79d024c1bed7a8219e3410d8ddeb",
+    "deploy/cloudflare/tools/check-local-object-audit-jobs.mjs": "96cbba60e10bb7211388948fd31f001bcf8dff986fe84c03122ee6c198f33c62",
+    "deploy/cloudflare/tools/object-audit-jobs.fixture.mjs": "c9f4139598e6e1596f1f348d76483d870112b89a1c00db8cdefffcaa13a3f838",
+    "deploy/cloudflare/tools/check-local-object-audit-privacy.mjs": "58b1dabdda5646bab974612911738495de5fc24b850638583dc73b60e8042aa4",
+    "deploy/cloudflare/tools/object-audit-privacy.fixture.mjs": "e3ea1590be13103dcb2fedc1bc3767300ba7c6c73cb8bda7c03cb1abd769b8e0"
+  },
+  "privateEvidenceFolder": "work/object-owned-cleanup-20261010",
+  "finalPrivateEvidence": [
+    {
+      "file": "node-complete.owner.stderr.private.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "node-complete.owner.stdout.private.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "node-complete.receipt.private.json",
+      "bytes": 612,
+      "sha256": "330e248cfe613c529cb204feb7f9b32faf5517317433198025c71b896a98eebd"
+    },
+    {
+      "file": "node-complete.stderr.private.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "node-complete.stdout.private.log",
+      "bytes": 8333,
+      "sha256": "ad3f2a6a9fc68411aa9bffe329db3e17cc27426f84c63c5d3da52b0ffed6753a"
+    },
+    {
+      "file": "schema-final.owner.stderr.private.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "schema-final.owner.stdout.private.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "schema-final.receipt.private.json",
+      "bytes": 614,
+      "sha256": "3df961b12dc9c249f1133107c6dc9365c65d68f4951f6c9fa7dbab9a9dbf5a11"
+    },
+    {
+      "file": "schema-final.stderr.private.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "schema-final.stdout.private.log",
+      "bytes": 6129,
+      "sha256": "402e7ee5de521dd9a28c1382cdfa0dae550a29f12f779db121de4d4ab7b6a8e3"
+    },
+    {
+      "file": "python-jobs-v2.owner.stderr.private.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "python-jobs-v2.owner.stdout.private.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "python-jobs-v2.receipt.private.json",
+      "bytes": 620,
+      "sha256": "c19635b34407a8bc2fe9ac8438b4597f3cff1e2d475bf652a4ffbf0f0f4f8ca6"
+    },
+    {
+      "file": "python-jobs-v2.stderr.private.log",
+      "bytes": 7452,
+      "sha256": "73441f6a2b6f9037effd7334e80987f7a220d95c571a8cee518fb37c4e8b6717"
+    },
+    {
+      "file": "python-jobs-v2.stdout.private.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "python-native-v2.owner.stderr.private.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "python-native-v2.owner.stdout.private.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "python-native-v2.receipt.private.json",
+      "bytes": 621,
+      "sha256": "064967a8952f4ff81ad68bd9c76332ba7ee16dac5a3107a844f30836338ecf2e"
+    },
+    {
+      "file": "python-native-v2.stderr.private.log",
+      "bytes": 4917,
+      "sha256": "12d4e4e38d27a6ab7fc3e9ed258ae7043a0fb4124f18e26a081cb1806294d6fc"
+    },
+    {
+      "file": "python-native-v2.stdout.private.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "python-upgrade-final.owner.stderr.private.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "python-upgrade-final.owner.stdout.private.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "python-upgrade-final.receipt.private.json",
+      "bytes": 621,
+      "sha256": "670c2b0e27aae0f58dee25760c249a4609123b248f915ca09b09b33f536ab51a"
+    },
+    {
+      "file": "python-upgrade-final.stderr.private.log",
+      "bytes": 323,
+      "sha256": "21868365b3a8edfc5a043813bd6ff6efd18615d96cc0e904d5c012b2f1e324c5"
+    },
+    {
+      "file": "python-upgrade-final.stdout.private.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "workerd-v2.owner.stderr.private.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "workerd-v2.owner.stdout.private.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "workerd-v2.receipt.private.json",
+      "bytes": 614,
+      "sha256": "9fa27f1ae973d3e27050accf45de6647e5174149c538fa49ca41bee85f19455d"
+    },
+    {
+      "file": "workerd-v2.stderr.private.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "workerd-v2.stdout.private.log",
+      "bytes": 161,
+      "sha256": "056aee2ecd3bb9431aa69c5dc6735de8cfdd832ba3ba5cc9805efdbbf3048a7b"
+    },
+    {
+      "file": "hosted-workerd-final.owner.stderr.private.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "hosted-workerd-final.owner.stdout.private.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "hosted-workerd-final.receipt.private.json",
+      "bytes": 621,
+      "sha256": "00a8326399fe613fb6d3f57f02cfe41523d3bb0f19f8dd138437d2fcfab2a1db"
+    },
+    {
+      "file": "hosted-workerd-final.stderr.private.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "hosted-workerd-final.stdout.private.log",
+      "bytes": 189,
+      "sha256": "0052e100291806ba00a9dc9d01abc6cd850fe6bfd302aef5c3644bab0276e571"
+    }
+  ],
+  "preservedOriginalFailures": [
+    {
+      "file": "node-v1.owner.stderr.private.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "node-v1.owner.stdout.private.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "node-v1.receipt.private.json",
+      "bytes": 612,
+      "sha256": "cdaa410d55297f3d1efed1187f76638cda29022f6bf9537c9c2bb6ff0cdb47e9"
+    },
+    {
+      "file": "node-v1.stderr.private.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "node-v1.stdout.private.log",
+      "bytes": 9014,
+      "sha256": "10caafa2cee5894f8a8fefd4359f71fd693e765bd22f1666873f2e6fb5d69a13"
+    },
+    {
+      "file": "workerd-v1.owner.stderr.private.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "workerd-v1.owner.stdout.private.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "workerd-v1.receipt.private.json",
+      "bytes": 614,
+      "sha256": "11bd8bf8488b6f4412ff173a5d693f0901c42d292ceba3a6f79c76953efcbf4e"
+    },
+    {
+      "file": "workerd-v1.stderr.private.log",
+      "bytes": 3115,
+      "sha256": "081b0ec7d7ec333aacf2a4b59b18ca5945fed0c67647762b149c5970a0780226"
+    },
+    {
+      "file": "workerd-v1.stdout.private.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "hosted-workerd-v1.owner.stderr.private.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "hosted-workerd-v1.owner.stdout.private.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "hosted-workerd-v1.receipt.private.json",
+      "bytes": 621,
+      "sha256": "abb6ea09e468e9096e36164d75f1b487e4ba04c9b5ac7afcf036b0954f0c1fc1"
+    },
+    {
+      "file": "hosted-workerd-v1.stderr.private.log",
+      "bytes": 3573,
+      "sha256": "3de9cdb98c13da6b249485fb276bdbba76dde68f40a6a2a8c12c83d0a461e0db"
+    },
+    {
+      "file": "hosted-workerd-v1.stdout.private.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "hosted-workerd-v2.owner.stderr.private.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "hosted-workerd-v2.owner.stdout.private.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "hosted-workerd-v2.receipt.private.json",
+      "bytes": 621,
+      "sha256": "3767b27c3d7a70455ea91f7d6bcef2df3fe22647f601b11e7a5374acd260eccd"
+    },
+    {
+      "file": "hosted-workerd-v2.stderr.private.log",
+      "bytes": 3573,
+      "sha256": "0e6037ee2ddaec21c45f7cfeb253b7f428b718959aad1666dd17ed25f395f9eb"
+    },
+    {
+      "file": "hosted-workerd-v2.stdout.private.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "hosted-workerd-v3.owner.stderr.private.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "hosted-workerd-v3.owner.stdout.private.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "hosted-workerd-v3.receipt.private.json",
+      "bytes": 621,
+      "sha256": "ad44935ef2e98a6521b528c5f3af30cc0bc4ce743bf9ad8cfe19f1eee3bc83ce"
+    },
+    {
+      "file": "hosted-workerd-v3.stderr.private.log",
+      "bytes": 1410,
+      "sha256": "3c2b43ea16f4bee21e4facb8444db34e326224f5522d78816aae8c7fb49435d1"
+    },
+    {
+      "file": "hosted-workerd-v3.stdout.private.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "hosted-workerd-v4.owner.stderr.private.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "hosted-workerd-v4.owner.stdout.private.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "hosted-workerd-v4.receipt.private.json",
+      "bytes": 621,
+      "sha256": "ad44935ef2e98a6521b528c5f3af30cc0bc4ce743bf9ad8cfe19f1eee3bc83ce"
+    },
+    {
+      "file": "hosted-workerd-v4.stderr.private.log",
+      "bytes": 1719,
+      "sha256": "3cb78192c6cdb78ac2d635d839043f8a4216a1e9341ff7ae689d9a62523b3e46"
+    },
+    {
+      "file": "hosted-workerd-v4.stdout.private.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "hosted-workerd-v5.owner.stderr.private.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "hosted-workerd-v5.owner.stdout.private.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "hosted-workerd-v5.receipt.private.json",
+      "bytes": 621,
+      "sha256": "feb49e9125f8017f0b0380be40a1172211bc82afe6965f89fdfe88f3dad6cb62"
+    },
+    {
+      "file": "hosted-workerd-v5.stderr.private.log",
+      "bytes": 1719,
+      "sha256": "3cb78192c6cdb78ac2d635d839043f8a4216a1e9341ff7ae689d9a62523b3e46"
+    },
+    {
+      "file": "hosted-workerd-v5.stdout.private.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "python-v1.owner.stderr.private.log",
+      "bytes": 1657,
+      "sha256": "7f80631c71d4f7a3a51953afb16bbc991840fb80e7d631bc2e7b76d78312cede"
+    },
+    {
+      "file": "python-v1.owner.stdout.private.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "python-v1.receipt.private.json",
+      "bytes": 615,
+      "sha256": "c343a3ceb544c9a51a0e8d93ed28aa6bb790c56938623d91b4b7b4c37df17535"
+    },
+    {
+      "file": "python-v1.stderr.private.log",
+      "bytes": 42,
+      "sha256": "1177a192ad016f6d234ed846aa1b57806a9c324d72751eb3ddd5fe105d51f365"
+    },
+    {
+      "file": "python-v1.stdout.private.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "limitations": [
+    "No live Object binding or host deployment",
+    "No authentic Object qualification or admission",
+    "No Object quarantine/publication/credit settlement",
+    "No independent native spool recovery",
+    "No Mac execution",
+    "Three Windows file-symlink privilege skips; actual directory-junction checks pass",
+    "Old-spool follow-up overlaps one saved-service case; do not add it to suite totals"
+  ]
+}

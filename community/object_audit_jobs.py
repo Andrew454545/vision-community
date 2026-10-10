@@ -132,7 +132,9 @@ class ObjectAuditJobs:
                     job TEXT NOT NULL REFERENCES jobs(id), number INTEGER NOT NULL, state TEXT NOT NULL,
                     started INTEGER NOT NULL, finished INTEGER, receipt TEXT, PRIMARY KEY(job,number));
                   CREATE TABLE IF NOT EXISTS erasures (
-                    job TEXT PRIMARY KEY REFERENCES jobs(id), requested INTEGER NOT NULL, completed INTEGER);''')
+                    job TEXT PRIMARY KEY REFERENCES jobs(id), requested INTEGER NOT NULL, completed INTEGER);
+                  CREATE TABLE IF NOT EXISTS assignment_revocations (
+                    lease TEXT PRIMARY KEY, requested INTEGER NOT NULL);''')
                 identity = db.execute('SELECT * FROM identity').fetchall()
                 wanted = (registry_sha256, verifier.policy_sha256)
                 require(not identity or (len(identity) == 1 and tuple(identity[0]) == wanted),
@@ -201,6 +203,8 @@ class ObjectAuditJobs:
         fingerprint = digest(encoded(body))
         with self.lock, self.connect() as db:
             require(not self.stop.is_set(), 'object_verifier_unavailable', 503)
+            require(not db.execute('SELECT 1 FROM assignment_revocations WHERE lease=?', (lease,)).fetchone(),
+                    'object_assignment_revoked', 409)
             previous = db.execute('SELECT * FROM jobs WHERE lease=?', (lease,)).fetchone()
             if previous:
                 require(previous['fingerprint'] == fingerprint, 'object_job_conflict', 409)
@@ -246,6 +250,28 @@ class ObjectAuditJobs:
             db.commit()
             self.wake.set()
             return self.response(db.execute('SELECT * FROM jobs WHERE id=?', (job,)).fetchone())
+
+    def erase_assignment(self, lease):
+        # Hosted deletion knows the assignment even when the start reply was
+        # lost, or its delayed request has not reached this service yet. Keep
+        # an independent tombstone before acknowledging either case.
+        require(isinstance(lease, str) and ID.fullmatch(lease) and lease in self.entries,
+                'unknown_object_assignment', 403)
+        with self.lock, self.connect() as db:
+            require(not self.stop.is_set(), 'object_verifier_unavailable', 503)
+            now = int(self.clock())
+            db.execute('INSERT INTO assignment_revocations VALUES (?,?) ON CONFLICT(lease) DO NOTHING', (lease, now))
+            row = db.execute('SELECT * FROM jobs WHERE lease=?', (lease,)).fetchone()
+            if row and row['state'] != 'erased':
+                db.execute('INSERT INTO erasures VALUES (?,?,NULL) ON CONFLICT(job) DO NOTHING', (row['id'], now))
+                db.execute("UPDATE jobs SET state='erasing',receipt=NULL,retry_at=0 WHERE id=?", (row['id'],))
+            db.commit()
+            self.wake.set()
+            entry = self.entries[lease]
+            return {'version': 1, 'leaseId': lease, 'policyId': self.verifier.document['policyId'],
+                    'assignmentSha256': entry['assignment']['sha256'],
+                    'state': 'erasing' if row and row['state'] != 'erased' else 'erased',
+                    'serverAuthorization': False, 'productionQualified': False}
 
     def control(self, job, action):
         require(action in ('cancel', 'retry', 'erase'))
@@ -456,17 +482,21 @@ def make_server(jobs, secret, *, port=0):
             if not hmac.compare_digest(self.headers.get('Authorization', '').encode(), ('Bearer ' + secret).encode()):
                 return self.reply(401, {'error': 'unauthorized'})
             route = re.fullmatch(r'/object-audits/([0-9a-f]{32})(?:/(cancel|retry|erase))?', self.path)
+            erasure = re.fullmatch(r'/object-assignments/([0-9a-f]{32})/erase', self.path)
             try:
                 if self.command == 'GET' and route and route[2] is None:
                     return self.reply(200, jobs.get(route[1]))
-                require(self.command == 'POST' and (self.path == '/object-audits' or (route and route[2])), 'not_found', 404)
+                require(self.command == 'POST' and (self.path == '/object-audits' or (route and route[2]) or erasure), 'not_found', 404)
                 lengths = self.headers.get_all('Content-Length', [])
                 require(len(lengths) == 1 and re.fullmatch('[0-9]+', lengths[0])
                         and 0 < int(lengths[0]) <= MAX_REQUEST and not self.headers.get('Transfer-Encoding')
                         and self.headers.get('Content-Type', '').split(';')[0].strip() == 'application/json')
                 raw = self.rfile.read(int(lengths[0]))
                 require(len(raw) == int(lengths[0]))
-                if route:
+                if erasure:
+                    require(isinstance(strict_json(raw), dict) and strict_json(raw) == {})
+                    value = jobs.erase_assignment(erasure[1])
+                elif route:
                     require(strict_json(raw) == {})
                     value = jobs.control(route[1], route[2])
                 else:

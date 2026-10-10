@@ -331,3 +331,64 @@ test("deletion requires explicit typed confirmation, a saved nonce, and the matc
   await assert.rejects(deleteAccount(env, other, request), /account_changed/);
   assert.equal(row(sql, "SELECT COUNT(*) AS n FROM account_deletion_receipts").n, 0);
 });
+
+test('Object assignment erasure is journalled with account revocation before any native call', async t => {
+  const {sql,env} = await fixture(t);
+  const leases = ['1','2','3'].map(c=>c.repeat(32));
+  for (const [i,lease] of leases.entries()) sql.prepare('INSERT INTO leases(id,account_id,lane,expires_at,state) VALUES (?, ?, ?,9999,?)')
+    .run(lease,i===2?other:account,'object',i===0?'active':'submitted');
+  let calls=0,state='erasing';
+  env.OBJECT_VERIFIER = {async fetch(request) {
+    calls++;
+    assert.equal(row(sql,`SELECT units FROM accounts WHERE id='${account}'`).units,0);
+    assert.equal(row(sql,'SELECT COUNT(*) AS n FROM account_cleanup WHERE artifact_key LIKE \'object-audit-jobs/%\'').n,2);
+    assert.equal(await request.text(),'{}');
+    const lease = /\/object-assignments\/([a-f0-9]{32})\/erase$/.exec(request.url)[1];
+    return Response.json({version:1,leaseId:lease,policyId:'staging.synthetic',assignmentSha256:'e'.repeat(64),
+      state,serverAuthorization:false,productionQualified:false});
+  }};
+  await deleteAccount(env,account,request,1234);
+  assert.equal(calls,0);
+  assert.equal(row(sql,"SELECT COUNT(*) AS n FROM account_cleanup WHERE artifact_key LIKE 'object-audit-jobs/%'").n,2);
+  const r2=[];
+  env.INDEX.put = async key=>{r2.push(key);return {size:PRIVACY_FENCE.length};};
+  await cleanupAccountArtifacts(env,account);
+  assert.equal(calls,2);
+  assert.equal(row(sql,"SELECT COUNT(*) AS n FROM account_cleanup WHERE artifact_key LIKE 'object-audit-jobs/%' AND state='pending'").n,2);
+  state='erased';
+  await cleanupAccountArtifacts(env,null,64);
+  assert.equal(calls,4);
+  assert.equal(row(sql,"SELECT COUNT(*) AS n FROM account_cleanup WHERE state='erased'").n,2);
+  assert.deepEqual(r2,[quarantine]);
+  await cleanupAccountArtifacts(env,account);
+  assert.equal(calls,4);
+  assert.equal(row(sql,`SELECT state FROM leases WHERE id='${leases[2]}'`).state,'submitted');
+  assert.equal(row(sql,"SELECT COUNT(*) AS n FROM ledger WHERE reason='account_deleted'").n,1);
+});
+
+test('Object cleanup survives missing provider and refuses corrupt ownership or live accounts', async t => {
+  const {sql,env} = await fixture(t);
+  const lease='1'.repeat(32),key=`object-audit-jobs/${lease}`;
+  sql.prepare("INSERT INTO leases(id,account_id,lane,expires_at,state) VALUES (?,?,'object',9999,'active')").run(lease,account);
+  await deleteAccount(env,account,request,1234);
+  await cleanupAccountArtifacts(env,account);
+  assert.equal(sql.prepare('SELECT state FROM account_cleanup WHERE artifact_key=?').get(key).state,'pending');
+  env.OBJECT_VERIFIER={fetch:()=>assert.fail('native erasure crossed ownership')};
+  sql.prepare('UPDATE leases SET account_id=? WHERE id=?').run(other,lease);
+  await cleanupAccountArtifacts(env,account);
+  assert.equal(sql.prepare('SELECT state FROM account_cleanup WHERE artifact_key=?').get(key).state,'needs_review');
+  sql.prepare("INSERT INTO account_cleanup VALUES (?,?,1,'pending')").run('object-audit-jobs/'+ 'f'.repeat(32),other);
+  await cleanupAccountArtifacts(env,null,64);
+  assert.equal(sql.prepare('SELECT state FROM account_cleanup WHERE account_id=?').get(other).state,'needs_review');
+});
+
+test('conflicting Object cleanup ownership rolls back credential and credit revocation', async t => {
+  const {sql,env}=await fixture(t),lease='1'.repeat(32);
+  sql.prepare("INSERT INTO leases(id,account_id,lane,expires_at,state) VALUES (?,?,'object',9999,'active')").run(lease,account);
+  sql.prepare("INSERT INTO account_cleanup VALUES (?,?,1,'pending')").run(`object-audit-jobs/${lease}`,other);
+  await assert.rejects(deleteAccount(env,account,request),/NOT NULL constraint failed/);
+  assert.equal(row(sql,`SELECT token_hash FROM accounts WHERE id='${account}'`).token_hash,'old-token');
+  assert.equal(row(sql,`SELECT units FROM accounts WHERE id='${account}'`).units,250000);
+  assert.equal(row(sql,'SELECT COUNT(*) AS n FROM account_deletion_receipts').n,0);
+  assert.equal(row(sql,"SELECT COUNT(*) AS n FROM ledger WHERE reason='account_deleted'").n,0);
+});
