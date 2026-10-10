@@ -4,6 +4,7 @@ No administrator privileges or machine-wide startup settings are used. Saved
 work is never deleted; replacement/removal waits for the shared worker lock.
 """
 from contextlib import contextmanager
+from datetime import datetime, timezone
 import hashlib
 import json
 import os
@@ -36,12 +37,28 @@ def read_json(path, *, missing=False):
     path = regular(path, missing=missing)
     if missing and not path.exists():
         return None
-    if path.stat().st_size > 65536:
+    with path.open('rb') as stream:
+        raw = stream.read(65537)
+    if len(raw) > 65536:
         raise ValueError('saved_settings_need_review')
-    value = json.loads(path.read_text(encoding='utf-8'))
+    value = json.loads(raw.decode('utf-8'))
     if not isinstance(value, dict):
         raise ValueError('saved_settings_need_review')
     return value
+
+
+def report_time(value):
+    """Display only the worker's exact UTC format, in the computer's local time."""
+    if not isinstance(value, str) or len(value) != 20:
+        return 'unavailable'
+    try:
+        saved = datetime.strptime(value, '%Y-%m-%dT%H:%M:%SZ')
+        if saved.strftime('%Y-%m-%dT%H:%M:%SZ') != value:
+            return 'unavailable'
+        local = saved.replace(tzinfo=timezone.utc).astimezone()
+        return local.strftime('%Y-%m-%d %H:%M') + ' (computer time)'
+    except (ValueError, OverflowError, OSError):
+        return 'unavailable'
 
 
 def publish(path, body):
@@ -269,6 +286,9 @@ class MacBackground:
         if saved:
             state = STATES.get(saved.get('state'), 'Saved progress needs review.')
             message += ' Last saved report: ' + state
+            # Saved progress is historical evidence; launchd above is the
+            # independent indication that the owned worker is running now.
+            message += ' Report time: ' + report_time(saved.get('updatedAt')) + '.'
         if attention:
             message += ' A saved failure needs review; Resume will not clear it.'
         if pause:

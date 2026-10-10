@@ -9,6 +9,14 @@ computer's local clock. See [the short instructions](../macos/BACKGROUND.md).
 Maximum controls pacing until a parallel native profile is qualified. This
 source change is not a signed Mac release or permission to contribute.
 
+The 9 October source follow-up displays the saved report's time using the
+computer's clock, separately from the owned job's running state. Missing or
+invalid times display as unavailable. Saved settings/status reads enforce their
+64 KiB limit on the bytes actually read, including when an earlier size check
+would be stale. The page explains Medium/Maximum pacing and keeps the required
+per-type approval message. These changes still need actual Mac acceptance;
+see the [Windows component evidence](evidence/mac-control-clarity-windows-20261009.json).
+
 ## Startup and ownership
 
 Each startup runs the saved system-Perl guard before private Python. It verifies

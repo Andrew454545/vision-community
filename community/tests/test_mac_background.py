@@ -1,5 +1,6 @@
 """Owned registration/control fixtures. No accounts, service writes or imagery."""
 import hashlib
+from datetime import datetime, timezone
 import http.client
 import json
 import os
@@ -14,7 +15,7 @@ from http.server import ThreadingHTTPServer
 
 from community.background import DesktopError, measure_storage, single_instance
 from community.contribute import DEFAULT_URL
-from community.mac_background import DEFAULT_SETTINGS, MacBackground, settings_config
+from community.mac_background import DEFAULT_SETTINGS, MacBackground, read_json, settings_config
 from community.mac_background_control import Controls, handler_for
 from community.mac_launch_guard import GUARD
 from community.mac_runtime import PYTHON_FOLDER, PYTHON_RELATIVE, runtime_links
@@ -100,6 +101,41 @@ class MacBackgroundTests(unittest.TestCase):
         self.assertIn('not running now',value['message'])
         self.assertIn('Last saved report: Processing',value['message'])
         self.assertNotIn('healthy',value['message'])
+
+    def test_saved_report_time_is_validated_without_claiming_a_running_worker(self):
+        self.enable();self.scheduler.running=False
+        path=self.root/'background-status.json'
+        stamp='2026-10-09T23:59:18Z'
+        path.write_text(json.dumps({'state':'processing','updatedAt':stamp}))
+        expected=datetime(2026,10,9,23,59,18,tzinfo=timezone.utc).astimezone().strftime('%Y-%m-%d %H:%M')
+        value=self.manager.status()
+        self.assertIn('Report time: '+expected+' (computer time).',value['message'])
+        self.assertFalse(value['running'])
+        self.assertIn('not running now',value['message'])
+        self.assertNotIn('healthy',value['message'])
+        for invalid in (None,123,[],{},'private saved code','2026-10-09T23:59:18',
+                '2026-13-09T23:59:18Z','2026-10-39T23:59:18Z','2026-10-09T23:59:18Z extra'):
+            with self.subTest(invalid=invalid):
+                path.write_text(json.dumps({'state':'processing','updatedAt':invalid}))
+                value=self.manager.status()
+                self.assertFalse(value['running'])
+                self.assertIn('Report time: unavailable.',value['message'])
+                self.assertNotIn('private saved code',value['message'])
+
+    def test_status_read_stays_bounded_when_a_prior_file_size_is_stale(self):
+        path=self.root/'background-status.json'
+        original=json.dumps({'state':'processing','padding':'x'*65536}).encode()
+        path.write_bytes(original)
+        real_stat=Path.stat
+        def stale_size(file,*args,**kwargs):
+            value=real_stat(file,*args,**kwargs)
+            if file==path and kwargs.get('follow_symlinks',True):
+                fields=list(value);fields[6]=1
+                return os.stat_result(fields)
+            return value
+        with patch.object(Path,'stat',stale_size),self.assertRaisesRegex(ValueError,'saved_settings_need_review'):
+            read_json(path)
+        self.assertEqual(path.read_bytes(),original)
 
     def test_replacement_and_remove_preserve_account_pause_failure_and_history(self):
         self.enable();original = (self.root / 'account.json').read_bytes()

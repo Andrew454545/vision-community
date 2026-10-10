@@ -66,6 +66,13 @@ including real loopback saved-delivery recovery across fresh processes. This
 does not replace actual Mac, OS-restart or accepted-work testing. The installed
 contributor and the running diagnostic's earlier pinned source are unchanged.
 
+The [Mac control follow-up](MAC_BACKGROUND_CONTROLS_20261004.md) separates saved
+report time from current job state, bounds actual settings/status reads and
+clarifies processing pace. Its Windows component selection passes **50/54**,
+with four explicit symlink-privilege skips and no failures/errors. The original
+reproductions and an intermediate test-selector error are preserved. This is
+not actual Mac, signed-download or clean-device acceptance.
+
 The recorded full Windows application regression runs **772 tests**, with 757
 passing, 15 explicit platform/permission skips and no failures or errors. The
 Object auditor's new pinned-snapshot exclusion matches all 139 supplied native
