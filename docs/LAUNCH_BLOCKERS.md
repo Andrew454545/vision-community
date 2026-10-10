@@ -6,6 +6,13 @@ This is the single operational dependency list for the
 choices belong to Geonections; a missing resource is not a request for another
 general design approval. Keep private exports and location evidence private.
 
+The [real paid-reply/storage restore](REAL_PAID_RECOVERY_20261010.md) now passes
+124 actual local workerd checks and preserves all three genuine replies, six
+banked units, 18 publications and nine account deletions. The converter fix
+passes 36 Windows checks and exact full-production-copy regression. Complete
+provider/secret recovery, current drained authority and strict whole-history
+accounting remain open; old staging fixture credit reasons were preserved.
+
 The restricted [Windows Scene-only seven-day pilot](WINDOWS_SCENE_WEEK_PILOT_20261010.md)
 is running from **10 October 07:27:14 UTC** to a target **17 October 07:27:14 UTC**.
 The actual hidden scheduled batch accepted two fresh locations, earned two

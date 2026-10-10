@@ -38,7 +38,11 @@ The converter saves the original SQL, `input.sqlite` and a final pinned report.
 It limits export/database size to 512 MiB, individual statements/values to
 16 MiB and conversion to 300 seconds. It accepts known application schema/data,
 rejects external-file access, extensions and history-rewriting statements, and
-checks integrity and foreign keys. Conversion uses one owned transaction.
+checks integrity and foreign keys. Conversion declares all tables before
+replaying their data in one owned transaction. This supports Cloudflare dumps
+that place dependent tables before their parents, with foreign keys enabled.
+Data-derived table declarations are refused, and the retained SQL pin is checked
+again before commit. See the [actual paid-reply recovery check](REAL_PAID_RECOVERY_20261010.md).
 Its `providerProvenanceVerified: false` is deliberate: validating a pinned JSON
 does not authenticate Cloudflare or grant transfer permission. Keep the actual
 provider/consent receipts independently. Failed/partial copies are preserved.

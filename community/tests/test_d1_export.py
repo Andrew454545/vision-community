@@ -172,6 +172,49 @@ BEGIN SELECT RAISE(ABORT,'retained; fence'); END;
         self.seal(self.dump + "\nINSERT INTO lease_items VALUES('missing',1);")
         self.failed('export_integrity_failure')
 
+    def test_child_table_and_rows_before_parent_declarations_preserve_foreign_keys(self):
+        child = """-- Actual D1 dump ordering: a table and its data precede parents.
+CREATE TABLE account_artifact_writes(
+ artifact_key TEXT PRIMARY KEY, account_id TEXT REFERENCES accounts(id),
+ lease_id TEXT REFERENCES leases(id));
+INSERT INTO account_artifact_writes VALUES('private-artifact','owner','unfinished');
+"""
+        for index, pragma in enumerate(('', 'PRAGMA defer_foreign_keys=TRUE;\n')):
+            with self.subTest(pragma=pragma):
+                self.out = self.root / ('child-first-' + str(index))
+                self.seal(pragma + child + self.dump)
+                report = self.convert()
+                self.assertTrue(report['foreignKeysChecked'])
+                with closing(sqlite3.connect(self.out / 'input.sqlite')) as sql:
+                    self.assertEqual(sql.execute('PRAGMA foreign_key_check').fetchall(), [])
+                    self.assertEqual(sql.execute('SELECT * FROM account_artifact_writes').fetchone(),
+                                     ('private-artifact', 'owner', 'unfinished'))
+                    sql.execute('PRAGMA foreign_keys=ON')
+                    with self.assertRaises(sqlite3.IntegrityError):
+                        sql.execute("INSERT INTO account_artifact_writes VALUES('bad','missing','unfinished')")
+
+    def test_child_first_orphan_and_data_derived_table_are_refused(self):
+        self.seal("""CREATE TABLE account_cleanup(account_id TEXT REFERENCES accounts(id));
+INSERT INTO account_cleanup VALUES('missing');
+""" + self.dump)
+        self.failed('export_integrity_failure')
+        self.out = self.root / 'data-derived-table'
+        self.seal("CREATE TABLE account_cleanup AS SELECT 'owner' AS account_id;\n" + self.dump)
+        self.failed()
+
+    def test_retained_sql_changed_after_replay_cannot_complete(self):
+        original = export.statements
+        completed = 0
+        def altered(stream, deadline):
+            nonlocal completed
+            yield from original(stream, deadline)
+            completed += 1
+            if completed == 2:
+                with Path(stream.name).open('ab') as output:
+                    output.write(b'\n-- changed after replay\n')
+        with patch.object(export, 'statements', side_effect=altered):
+            self.failed('export_input_changed')
+
     def test_missing_application_tables_are_refused(self):
         self.seal('CREATE TABLE accounts(id TEXT);')
         self.failed('unsupported_export_schema')

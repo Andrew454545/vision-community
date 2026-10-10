@@ -5,6 +5,14 @@ Updated **10 October 2026**. Start with the finite
 preserves historical results and limitations; completed reference trials do not
 require repeating merely because an older paragraph described them as pending.
 
+The [real paid-reply recovery exercise](REAL_PAID_RECOVERY_20261010.md) passes
+124 actual local workerd checks: the complete 256-row staging copy, 18
+publications, 13 provider-read objects, three real paid replies and six banked
+units survive restore/restart. Nine deleted accounts stay revoked. Its converter
+fix passes 36 Windows checks and reproduces all 364,056 historical production
+rows exactly. Whole-history staging fixture accounting still fails closed;
+provider/secret recovery and a fresh drained-writer cutoff remain open.
+
 The [automatic Scene refresh follow-up](SCENE_AUTOMATIC_REFRESH_20261010.md)
 passes 222 targeted checks and real staging dynamic-snapshot earned-credit search
 with exact paid recovery. The finite hourly refresher's actual first run sealed

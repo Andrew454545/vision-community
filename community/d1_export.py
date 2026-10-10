@@ -126,6 +126,19 @@ def transaction_boundary(statement):
     return None
 
 
+def table_declaration(statement):
+    leading = re.match(r'(?:\s|--[^\r\n]*(?:\r?\n|$)|/\*[\s\S]*?\*/)*', statement)
+    return re.match(r'CREATE\s+TABLE\b', statement[leading.end():], re.IGNORECASE) is not None
+
+
+def authorize_table(action, first, second, database, trigger):
+    # Only schema declarations belong in the first pass. CREATE TABLE AS SELECT
+    # could change meaning when moved before the dump's data; refuse it.
+    if action == sqlite3.SQLITE_SELECT:
+        return sqlite3.SQLITE_DENY
+    return authorize(action, first, second, database, trigger)
+
+
 def convert_export(source, source_sha256, provenance, provenance_sha256, out, *, environment='production'):
     destination = Path(out).absolute()
     plain_path(destination.parent, directory=True)
@@ -166,8 +179,18 @@ def convert_export(source, source_sha256, provenance, provenance_sha256, out, *,
         sql.execute('PRAGMA foreign_keys=ON')
         sql.execute('BEGIN IMMEDIATE')
         sql.execute('PRAGMA defer_foreign_keys=ON')
-        sql.set_authorizer(authorize)
         sql.set_progress_handler(lambda: int(time.monotonic() - started >= MAX_SECONDS), 1000)
+        # D1 exports each table with its rows, without topologically ordering
+        # foreign-key parents. Deferring constraints alone still fails when an
+        # INSERT is prepared before its parent table exists. Declare every
+        # table first, keeping foreign keys enabled, then replay the remaining
+        # statements in their original order in the same owned transaction.
+        sql.set_authorizer(authorize_table)
+        with retained.open('rb') as stream:
+            for statement in statements(stream, deadline):
+                if table_declaration(statement):
+                    sql.execute(statement)
+        sql.set_authorizer(authorize)
         declared_transaction = False
         with retained.open('rb') as stream:
             for statement in statements(stream, deadline):
@@ -179,7 +202,8 @@ def convert_export(source, source_sha256, provenance, provenance_sha256, out, *,
                 # executescript silently commits an open transaction first.
                 # Keep the entire conversion in one owned transaction: D1 SQL
                 # dumps omit wrappers, and per-row disk commits are too slow.
-                sql.execute(statement)
+                if not table_declaration(statement):
+                    sql.execute(statement)
         require(not declared_transaction, 'export_transaction_incomplete')
         sql.set_authorizer(None)
         tables = {row[0] for row in sql.execute("SELECT name FROM sqlite_master WHERE type='table'")}
@@ -188,6 +212,7 @@ def convert_export(source, source_sha256, provenance, provenance_sha256, out, *,
                 and not sql.execute('PRAGMA foreign_key_check').fetchone(), 'export_integrity_failure')
         rows = {table: sql.execute('SELECT COUNT(*) FROM "' + table + '"').fetchone()[0]
                 for table in sorted(tables - {'sqlite_sequence'})}
+        require(file_digest(retained) == source_sha256, 'export_input_changed')
         sql.execute('COMMIT')
         sql.close()
         sql = None
