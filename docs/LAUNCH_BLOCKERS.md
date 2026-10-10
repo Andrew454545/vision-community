@@ -9,7 +9,9 @@ general design approval. Keep private exports and location evidence private.
 The [saved Object audit job component](NATIVE_OBJECT_AUDIT_JOBS.md) now provides
 durable start/status/retry/cancel handling outside the short website request.
 Windows process/HTTP recovery and actual local workerd transport are verified
-with explicit synthetic inference. Hosted qualification/quarantine, privacy
+with explicit synthetic inference. Explicit private job erasure now revokes
+approval and survives partial cleanup/restart; it does not yet connect hosted
+account deletion. Hosted qualification/quarantine, privacy
 cleanup, publication and once-only credit integration remain the first row's
 next executable engineering work; no public Object gate was opened.
 

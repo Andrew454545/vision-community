@@ -128,3 +128,24 @@ test('cancellation requires acknowledgement of revocation and late fetch bodies 
   await new Promise(done => setTimeout(done,5));
   assert.equal(cancelled,true);
 });
+
+test('private erasure acknowledgement stays pending until files are confirmed erased', async () => {
+  for (const state of ['erasing','erased']) {
+    const tombstone = {...receipt,state};
+    const response = await handleObjectAuditJobs(status('/erase','POST'),env,async (url,init) => {
+      assert.equal(url,env.NATIVE_OBJECT_VERIFIER_ORIGIN+'/object-audits/'+receipt.jobId+'/erase');
+      assert.equal(new TextDecoder().decode(init.body),'{}');
+      return Response.json(tombstone);
+    });
+    assert.equal(response.status,200);
+    assert.deepEqual(await response.json(),tombstone);
+    assert.equal((await handleObjectAuditJobs(status('/cancel','POST'),env,()=>Response.json(tombstone))).status,200);
+  }
+  for (const value of [receipt,{...receipt,state:'cancelled'},
+    {...receipt,state:'erasing',receiptSha256:'1'.repeat(64)},{...receipt,state:'erased',retryAt:1},
+    {...receipt,state:'approved',decision:'approved',attempts:1,receiptSha256:'1'.repeat(64)}]) {
+    assert.equal((await handleObjectAuditJobs(status('/erase','POST'),env,()=>Response.json(value))).status,503);
+  }
+  assert.equal((await handleObjectAuditJobs(status(),env,
+    ()=>Response.json({...receipt,state:'erased',receiptSha256:'1'.repeat(64)}))).status,503);
+});

@@ -11,8 +11,9 @@ const receipt = {version:1,jobId:'e'.repeat(32),leaseId:body.leaseId,profileId:b
 export default {async fetch(request) {
   const mode = new URL(request.url).pathname.slice(1);
   const start = mode === 'start';
-  const control = mode === 'cancel' || mode === 'retry';
-  const path = '/object-audits' + (start ? '' : '/'+receipt.jobId+(control ? '/'+mode : ''));
+  const erasure = ['erase','erased','erase-unconfirmed'].includes(mode);
+  const control = mode === 'cancel' || mode === 'retry' || erasure;
+  const path = '/object-audits' + (start ? '' : '/'+receipt.jobId+(control ? '/'+(erasure ? 'erase' : mode) : ''));
   const upstream = new Request('https://object-verifier.internal'+path,{
     method:start || control ? 'POST' : 'GET',
     headers:{'content-type':'application/json',authorization:'Bearer caller',cookie:'private-cookie'},
@@ -28,6 +29,7 @@ export default {async fetch(request) {
     if (mode === 'unapproved') return Response.json({...receipt,productionQualified:true});
     if (mode === 'wrong-id') return Response.json({...receipt,jobId:'1'.repeat(32)});
     if (mode === 'complete') return Response.json({...receipt,state:'approved',decision:'approved',attempts:1,receiptSha256:'1'.repeat(64)});
+    if (erasure) return Response.json({...receipt,state:mode === 'erase' ? 'erasing' : mode === 'erased' ? 'erased' : 'cancelled'});
     return Response.json(mode === 'cancel' ? {...receipt,state:'cancelled'} : receipt);
   },mode === 'deadline' ? 5 : 20000);
   return Response.json({responseStatus:response.status,result:await response.json(),calls,

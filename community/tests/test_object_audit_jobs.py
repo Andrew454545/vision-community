@@ -249,6 +249,179 @@ class ObjectAuditJobTests(unittest.TestCase):
         self.assertEqual((value['state'], value['decision']), ('cancelled', 'pending'))
         self.assertTrue((self.attempt(job) / 'audit-report.json').is_file())
 
+    def test_queued_erasure_is_durable_and_cannot_be_resurrected_by_any_replay(self):
+        job = self.submit()['jobId']
+        source = self.native.source_path.read_bytes()
+        ack = self.service.control(job, 'erase')
+        self.assertEqual((ack['state'], ack['decision'], ack['receiptSha256']), ('erasing', 'pending', None))
+        self.assertTrue((self.work / job).is_dir())
+        self.restart()
+        self.assertEqual(self.service.get(job)['state'], 'erasing')
+        self.assertTrue(self.run_next())
+        self.assertEqual(self.native.calls, [])
+        self.assertFalse((self.work / job).exists())
+        self.assertFalse((self.work / ('attempts-' + job)).exists())
+        self.assertEqual(self.native.source_path.read_bytes(), source)
+        self.restart()
+        for action in ('cancel', 'retry', 'erase'):
+            self.assertEqual(self.service.control(job, action)['state'], 'erased')
+        self.assertEqual(self.submit()['state'], 'erased')
+        self.assertFalse(self.run_next())
+        self.assertFalse((self.work / job).exists())
+        with self.service.connect() as db:
+            self.assertEqual(tuple(db.execute('SELECT requested,completed FROM erasures').fetchone()), (1000, 1000))
+            self.assertEqual(db.execute('SELECT input_bytes FROM jobs').fetchone()[0], 0)
+        self.body['submissionSha256'] = '3' * 64
+        with self.assertRaisesRegex(jobs.JobError, 'object_job_conflict'):
+            self.submit()
+
+    def test_approved_payload_and_native_private_reports_require_explicit_erasure(self):
+        job = self.submit()['jobId']
+        self.run_next()
+        report = self.attempt(job) / 'audit-report.json'
+        original = report.read_bytes()
+        self.service.control(job, 'cancel')
+        self.assertEqual(report.read_bytes(), original)
+        self.service.control(job, 'erase')
+        self.assertIsNone(self.service.get(job)['receiptSha256'])
+        self.run_next()
+        self.assertFalse(report.exists())
+        self.assertEqual(self.service.get(job)['state'], 'erased')
+        self.assertTrue(self.native.assignment.is_file())
+        self.assertTrue(self.registry.is_file())
+
+    def test_erasure_during_native_work_revokes_approval_but_waits_for_owned_writer(self):
+        job = self.submit()['jobId']
+        entered, resume = threading.Event(), threading.Event()
+        def runner(*args):
+            if not entered.is_set():
+                entered.set()
+                self.assertTrue(resume.wait(10))
+            return self.native.fake_native(*args)
+        with patch.object(self.native.verifier, 'run', side_effect=runner), ThreadPoolExecutor(max_workers=1) as pool:
+            pending = pool.submit(self.service.run_next)
+            self.assertTrue(entered.wait(5))
+            try:
+                self.assertEqual(self.service.control(job, 'erase')['state'], 'erasing')
+                self.assertFalse(self.service.run_next())
+                self.assertTrue((self.work / job / 'candidate/manifest.json').is_file())
+                with self.assertRaisesRegex(jobs.JobError, 'object_job_worker_busy'):
+                    self.service.erase_next()
+            finally:
+                resume.set()
+            self.assertTrue(pending.result(15))
+        self.assertEqual(self.service.get(job)['state'], 'erasing')
+        self.assertEqual(self.service.get(job)['decision'], 'pending')
+        self.assertIsNone(self.service.get(job)['receiptSha256'])
+        self.run_next()
+        self.assertEqual(self.service.get(job)['state'], 'erased')
+        self.assertFalse((self.work / ('attempts-' + job)).exists())
+
+    def test_erasure_after_partial_folder_cleanup_resumes_without_reauditing(self):
+        job = self.submit()['jobId']
+        self.run_next()
+        self.service.control(job, 'erase')
+        erase = self.service.erase_tree
+        def interrupted(name):
+            if name.startswith('attempts-'):
+                raise OSError('synthetic denied attempt cleanup')
+            erase(name)
+        with patch.object(self.service, 'erase_tree', side_effect=interrupted):
+            with self.assertRaises(OSError):
+                self.run_next()
+        self.assertFalse((self.work / job).exists())
+        self.assertTrue((self.work / ('attempts-' + job)).is_dir())
+        self.assertEqual(self.service.get(job)['state'], 'erasing')
+        calls = list(self.native.calls)
+        self.restart()
+        self.assertTrue(self.run_next())
+        self.assertEqual(self.native.calls, calls)
+        self.assertEqual(self.service.get(job)['state'], 'erased')
+
+    def test_missing_files_do_not_lose_the_uncommitted_erasure_intent(self):
+        job = self.submit()['jobId']
+        self.service.control(job, 'erase')
+        erase = self.service.erase_tree
+        def late_failure(name):
+            erase(name)
+            if name.startswith('attempts-'):
+                raise OSError('synthetic interruption before completion commit')
+        with patch.object(self.service, 'erase_tree', side_effect=late_failure):
+            with self.assertRaises(OSError):
+                self.run_next()
+        self.assertFalse((self.work / job).exists())
+        self.assertFalse((self.work / ('attempts-' + job)).exists())
+        self.restart()
+        self.assertTrue(self.run_next())
+        self.assertEqual(self.service.get(job)['state'], 'erased')
+
+    def test_erasure_inventory_limit_preserves_pending_intent_and_payload(self):
+        job = self.submit()['jobId']
+        self.service.control(job, 'erase')
+        with patch.object(jobs, 'MAX_ERASE_ENTRIES', 1):
+            with self.assertRaisesRegex(jobs.JobError, 'object_erasure_inventory_limit'):
+                self.run_next()
+        self.assertTrue((self.work / job / 'candidate/manifest.json').is_file())
+        self.assertEqual(self.service.get(job)['state'], 'erasing')
+        self.assertEqual(self.service.control(job, 'retry')['state'], 'erasing')
+        self.run_next()
+        self.assertEqual(self.service.get(job)['state'], 'erased')
+
+    def test_erasure_refuses_escaping_names_and_linked_payload_without_touching_target(self):
+        job = self.submit()['jobId']
+        outside = self.root / 'private-outside'
+        outside.mkdir()
+        retained = outside / 'must-remain.txt'
+        retained.write_bytes(b'untouched operator authority')
+        for name in ('../private-outside', str(outside), job + '/../private-outside'):
+            with self.assertRaises(jobs.JobError):
+                self.service.erase_tree(name)
+        link = self.work / job / 'external'
+        if os.name == 'nt':
+            result = subprocess.run(['cmd.exe','/c','mklink','/J',str(link),str(outside)],
+                stdout=subprocess.PIPE,stderr=subprocess.PIPE,creationflags=subprocess.CREATE_NO_WINDOW,timeout=10)
+            if result.returncode:
+                self.skipTest('Windows denied fixture directory-junction creation')
+            self.addCleanup(lambda: link.rmdir() if os.path.lexists(link) else None)
+        else:
+            link.symlink_to(outside, target_is_directory=True)
+            self.addCleanup(lambda: link.unlink() if os.path.lexists(link) else None)
+        self.service.control(job, 'erase')
+        with self.assertRaises(ValueError):
+            self.run_next()
+        self.assertEqual(retained.read_bytes(), b'untouched operator authority')
+        self.assertTrue((self.work / job / 'candidate/manifest.json').is_file())
+        self.assertEqual(self.service.get(job)['state'], 'erasing')
+
+    def test_restart_with_revoked_running_attempt_never_reads_or_approves_its_receipt(self):
+        job = self.submit()['jobId']
+        self.mark_running(job)
+        self.attempt(job).mkdir()
+        (self.attempt(job) / 'private.log').write_bytes(b'private synthetic candidate log')
+        self.service.control(job, 'erase')
+        with patch.object(self.service, 'receipt', side_effect=AssertionError('revoked receipt consulted')):
+            self.service.recover()
+        self.restart()
+        self.run_next()
+        self.assertEqual(self.service.get(job)['state'], 'erased')
+        self.assertEqual(self.native.calls, [])
+        with self.service.connect() as db:
+            self.assertEqual(db.execute('SELECT state FROM attempts').fetchone()[0], 'cancelled')
+
+    def test_upgrading_existing_private_spool_preserves_jobs_and_completed_attempts(self):
+        job = self.submit()['jobId']
+        self.run_next()
+        before = self.service.get(job)
+        self.service.close()
+        with self.service.connect() as db:
+            db.execute('DROP TABLE erasures')
+        self.service = self.open()
+        self.assertEqual(self.service.get(job), before)
+        self.assertFalse(self.run_next())
+        self.service.control(job, 'erase')
+        self.run_next()
+        self.assertEqual(self.service.get(job)['state'], 'erased')
+
     def test_transient_settlement_failure_recovers_receipt_without_another_native_attempt(self):
         job = self.submit()['jobId']
         with patch.object(self.service, 'finish', side_effect=sqlite3.OperationalError('synthetic temporary failure')):
@@ -274,6 +447,9 @@ class ObjectAuditJobTests(unittest.TestCase):
         self.body['leaseId'] = second_lease
         self.body['assignmentSha256'] = digest(second_assignment.read_bytes())
         self.body['objectIndex']['manifest']['sourceId'] = 'community-' + second_lease
+        # Equal creation seconds deliberately use opaque IDs as a tie-breaker.
+        # Give this fixture distinct times so it actually cancels the active job.
+        self.now += 1
         second = self.submit()['jobId']
         entered, resume = threading.Event(), threading.Event()
         def runner(*args):
@@ -359,6 +535,10 @@ class ObjectAuditJobTests(unittest.TestCase):
             status, result = request('GET', '/object-audits/' + first['jobId'])
             self.assertEqual((status, result['state']), (200, 'approved'))
             self.assertEqual(request('POST', '/object-audits/' + first['jobId'] + '/cancel', b'{}')[1]['state'], 'cancelled')
+            self.assertEqual(request('POST', '/object-audits/' + first['jobId'] + '/erase', b'{}', auth='wrong')[0], 401)
+            self.assertEqual(request('POST', '/object-audits/' + first['jobId'] + '/erase', b'{}')[1]['state'], 'erasing')
+            self.run_next()
+            self.assertEqual(request('GET', '/object-audits/' + first['jobId'])[1]['state'], 'erased')
         finally:
             server.shutdown(); server.server_close(); thread.join(5)
 

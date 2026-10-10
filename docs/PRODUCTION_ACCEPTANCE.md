@@ -17,6 +17,13 @@ workerd transport are tested with explicit synthetic inference. This closes a
 component timeout/recovery gap; hosted qualification, quarantine, publication,
 privacy cleanup and credit settlement remain open, as do actual Mac checks.
 
+The [private Object privacy follow-up](evidence/object-audit-privacy-20261010.json)
+passes 55 checks for durable revocation, interrupted cleanup, restart, replay
+prevention, Windows junction refusal and private transport. It does not connect
+live account deletion or open admission. The [actual seven-day start check](evidence/accepted-work-start-preflight-20261010.json)
+confirms both staging lanes remain unavailable; neither accepted-work clock
+started. The original fixture failure and earlier reports remain preserved.
+
 The [full production-data rehearsal](PRODUCTION_DATA_REHEARSAL_20261009.md) now
 passes after specific transfer consent: all 364,056 historical rows survive
 upgrade, generated-batch replay and injected final-statement rollback. Source

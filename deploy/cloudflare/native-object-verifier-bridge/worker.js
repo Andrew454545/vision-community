@@ -4,7 +4,7 @@ export const MAX_REQUEST = 4 * 1024 * 1024;
 export const MAX_RESPONSE = 65536;
 const ID = /^[0-9a-f]{32}$/;
 const HEX = /^[0-9a-f]{64}$/;
-const STATES = new Set(['staging', 'queued', 'running', 'approved', 'rejected', 'failed', 'cancelled']);
+const STATES = new Set(['staging', 'queued', 'running', 'approved', 'rejected', 'failed', 'cancelled', 'erasing', 'erased']);
 const ERRORS = new Map([
   ['invalid_object_job', 400], ['invalid_object_job_file', 400],
   ['unknown_object_assignment', 403], ['unknown_object_job', 404],
@@ -69,7 +69,7 @@ function result(value, expected) {
 
 export async function handleObjectAuditJobs(request, env, fetcher = fetch, timeoutMs = 20000) {
   const url = new URL(request.url), path = url.pathname;
-  const route = /^\/object-audits\/([0-9a-f]{32})(?:\/(cancel|retry))?$/.exec(path);
+  const route = /^\/object-audits\/([0-9a-f]{32})(?:\/(cancel|retry|erase))?$/.exec(path);
   if (url.search || !(request.method === 'POST' && (path === '/object-audits' || route?.[2])
       || request.method === 'GET' && route && !route[2])) return reply(404, 'not_found');
   let target, secret;
@@ -91,7 +91,6 @@ export async function handleObjectAuditJobs(request, env, fetcher = fetch, timeo
   try {
     let body;
     const expected = route ? {jobId:route[1]} : {};
-    if (route?.[2] === 'cancel') expected.state = 'cancelled';
     if (request.method === 'POST') {
       try {
         const maximum = route ? 1024 : MAX_REQUEST, length = framed(request.headers, maximum);
@@ -130,7 +129,13 @@ export async function handleObjectAuditJobs(request, env, fetcher = fetch, timeo
         }
         throw Error('unavailable');
       }
-      return Response.json(result(value, expected), {headers:{'cache-control':'no-store'}});
+      const checked = result(value, expected);
+      if (route?.[2] === 'cancel' && !['cancelled','erasing','erased'].includes(checked.state)
+          || route?.[2] === 'erase' && !['erasing','erased'].includes(checked.state)
+          || ['erasing','erased'].includes(checked.state) && (checked.receiptSha256 !== null || checked.retryAt !== 0)) {
+        throw Error('revocation_unconfirmed');
+      }
+      return Response.json(checked, {headers:{'cache-control':'no-store'}});
     } catch {
       if (response.body && !response.body.locked) void response.body.cancel().catch(() => {});
       return reply(503, 'object_verifier_unavailable');
