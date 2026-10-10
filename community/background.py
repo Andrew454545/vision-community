@@ -431,8 +431,11 @@ class BackgroundContributor:
                      "verification": "waiting_for_verification"}[retry["kind"]]
             self.status(state, "Waiting before the next recovery attempt. Saved work and failure reports are preserved.")
             return delay
-        # Check before downloading, creating an account, or consuming a lease.
-        self.app.capabilities(DesktopClient(self.url))
+        # Recover saved identities before invitation checks. This never creates
+        # an account; new users still check availability before any download.
+        if not self.app.client and self.session.exists():
+            self.connect_account(allow_create=False)
+        self.app.capabilities(self.app.client or DesktopClient(self.url))
         if space_ready and not self.prepared:
             self.status("preparing", "Checking the private processing files.")
             self.app.prepare()

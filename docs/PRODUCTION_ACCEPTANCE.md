@@ -18,6 +18,15 @@ stopped. Automatic snapshot refresh, Mac/Object acceptance, sustainable pricing,
 both seven-day workloads, signed downloads and complete provider recovery remain
 open. Earlier dated reports below describe their recorded states.
 
+The [publication sealer](SCENE_PUBLICATION_REFRESH.md) now derives snapshot
+approvals from pinned native audit, qualification, current membership and exact
+earned-credit claims. Fresh primary D1 evidence for all eight real contributions
+produces the same records and members as the paid trial. The affected Windows
+selection passes 152 checks with no skips/failures; earlier restricted failures
+remain preserved. Guided recovery now works after admission closes, and saved
+background identities authenticate before invitation checks. Remote scheduled
+refresh/activation and the accepted-work pilot's actual start remain separate.
+
 The [verified positive Gen4 cohort](GEN4_COHORT_20261009.md) contains 100 original
 R2 locations across 22 countries. Fresh native validation and saved raw Google
 metadata agree; all are outside the real protected snapshot. Eight now have
