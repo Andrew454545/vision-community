@@ -16,6 +16,15 @@ Final import remains correctly refused without matching protected Main/WAL
 authority. Fresh portable authority and real hosted Object acceptance are next;
 no public gate or frozen Scene test changed.
 
+The [protected origin handoff](PROTECTED_ORIGIN_HANDOFF_20261010.md) now captures
+the complete selected Main/WAL/Arrow/delta set and provides opt-in independently
+pinned sealer/scheduler checks. Windows passes 112/113 component cases with one
+existing POSIX skip. The authentic import remains refused; original failures
+and all 76 owner pins remain intact. The wrapper needs a real source-side run
+with the owner's existing exporter. It is not portable import authority or a
+private MMA database transfer; actual Mac/native export and Object acceptance
+remain open.
+
 The [audited Community Scene source exporter](COMMUNITY_SCENE_SOURCE_20261010.md)
 now matches the eight genuine credited completions to the authentic original
 100-row source, preserving exact row bytes and explicitly identifying its

@@ -14,6 +14,13 @@ refused without matching protected Main/WAL authority. Windows passes 76/77
 component cases with one POSIX-only skip. Complete fresh portable protection and
 real Object settlement next; this source work does not open public admission.
 
+The [protected origin handoff](PROTECTED_ORIGIN_HANDOFF_20261010.md) now adds a
+repeatable source-side export and opt-in admission/pre-work guard for every
+selected Arrow/delta member as well as Main/WAL. Windows passes 112/113 component
+checks with one existing POSIX skip; the authentic eight-row import still fails
+safely. A fresh owner-side run using his existing exporter is needed. This is
+origin evidence, not a portable import or approval to copy the private MMA database.
+
 The [Community Scene source producer](COMMUNITY_SCENE_SOURCE_20261010.md) now
 exports all eight genuine credited completions from the authentic 100-row source
 without claiming owner MMA membership. Exact rows and road-label dialect are
