@@ -36,6 +36,15 @@ do not approve that complete historical ledger. A clean genuine-work accounting
 source and independent current financial/deletion authority remain release
 requirements.
 
+A subsequent read-only provider inventory confirms that the staging gateway has
+no secret-text bindings and routes verification/search to the same private native
+host. That host has three secret-text bindings: `PROBE_SECRET`,
+`VISION_HOST_OPERATOR_SECRET` and `VISION_HOST_SECRET`. Provider metadata exposes
+their names, not their values. Full recovery must securely recreate and verify
+these bindings together with the container's matching authentication before
+reopening. This inventory is complete for these two workers; it does not prove
+secret backup or successful rotation. That implementation remains operator work.
+
 Original converter failures, the initial restricted-folder/test-selector
 failures, the first simulator launch and the schema comparison failure remain
 private. The sole schema difference was independently identified as Cloudflare's

@@ -18,6 +18,20 @@
     "run.py": "ae24d35259accfe0eb4f2c6d3040804317f04f14bedf0bd1b89802ce574deb3f",
     "schema-differences.private.json": "3d5b8a65cd8d3a626285c4db8afb164955e71b303249fb3d5b53d277eea7ef0f"
   },
+  "hostedBindingInventory": {
+    "bothGatewayServicesUseSameNativeHost": true,
+    "gatewaySecretTextBindings": 0,
+    "liveWrites": false,
+    "nativeHostSecretTextBindings": 3,
+    "readOnlyProviderVerified": true,
+    "rotationVerified": false,
+    "secretValuesRead": false,
+    "secretsBackedUp": false,
+    "sourcePins": {
+      "vision-community-native-host-staging": "95f5d3d65d17dfc6386beedb4fb88f86450956feb45a8f5a29530ea9b1398be3",
+      "vision-community-staging": "ca9921faf6f5f4ad2956dbe330bfbdb3a1927174e26c1cfd59611e35feb57555"
+    }
+  },
   "limits": {
     "actionsDispatched": false,
     "currentIndependentFinancialAuthorityVerified": false,
