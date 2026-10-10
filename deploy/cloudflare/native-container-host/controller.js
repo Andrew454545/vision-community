@@ -55,6 +55,17 @@ export function descriptor(value) {
   return { version: 1, key: value.key, sha256: value.sha256, bytes: value.bytes };
 }
 
+export function refreshDescriptor(value, runtime) {
+  if (!value || Object.keys(value).sort().join(',') !== 'bundle,expectedBundleSha256,search'
+      || !HEX.test(value.expectedBundleSha256 || '') || !value.search
+      || Object.keys(value.search).sort().join(',') !== 'policyId,runtimeSha256,snapshotSha256'
+      || typeof value.search.policyId !== 'string' || !value.search.policyId || value.search.policyId.length > 200
+      || value.search.runtimeSha256 !== runtime || !HEX.test(value.search.snapshotSha256 || ''))
+    throw Error('invalid_refresh_descriptor');
+  return { bundle: descriptor(value.bundle), expectedBundleSha256: value.expectedBundleSha256,
+    search: { ...value.search } };
+}
+
 async function responseBytes(response, maximum, statuses = [200], search = false) {
   if (!statuses.includes(response.status)
       || response.headers.get("content-type")?.split(";")[0].trim().toLowerCase() !== "application/json") {
@@ -368,13 +379,57 @@ export class NativeController {
       productionQualified: false }, { headers: jsonHeaders }), {touchIdle:false});
   }
 
-  activate(value) {
+  searchSnapshot() {
+    return this.exclusive(async () => {
+      const active = await this.active(), head = await this.ctx.storage.get('searchHead');
+      if (!head || head.bundleSha256 !== active?.sha256 || head.runtimeSha256 !== this.env.NATIVE_RUNTIME_SHA256
+          || !HEX.test(head.snapshotSha256 || '') || typeof head.policyId !== 'string' || !head.policyId)
+        return failure('search_snapshot_unavailable');
+      return Response.json(head, { headers: jsonHeaders });
+    }, {touchIdle:false});
+  }
+
+  refresh(value) {
+    let request;
+    try { request = refreshDescriptor(value, this.env.NATIVE_RUNTIME_SHA256); }
+    catch { return Promise.resolve(failure('invalid_refresh_descriptor', 400)); }
+    return this.activate(request.bundle, request);
+  }
+
+  activate(value, refresh = null) {
     return this.exclusive(async () => {
       const candidate = descriptor(value), previous = await this.active();
+      const head = refresh && await this.ctx.storage.get('searchHead');
+      if (refresh && previous?.sha256 === candidate.sha256 && head?.bundleSha256 === candidate.sha256
+          && ['policyId','runtimeSha256','snapshotSha256'].every(key => head[key] === refresh.search[key]))
+        return Response.json({ ...head, refreshed: true, replay: true }, { headers: jsonHeaders });
+      if (refresh && previous?.sha256 !== refresh.expectedBundleSha256) {
+        // A retry after lost acknowledgement is free and cannot reload native
+        // work. Another operator's replacement must never be overwritten.
+        return failure('operator_bundle_changed', 409);
+      }
+      const saveHead = async health => {
+        if (!refresh) {
+          await this.ctx.storage.transaction(async storage => {
+            await storage.put('activeBundle', candidate); await storage.delete('searchHead');
+          });
+          return { ...health, bundleSha256: candidate.sha256 };
+        }
+        if (health.searchReady !== true) throw Error('operator_activation_unavailable');
+        const head = { ...refresh.search, bundleSha256: candidate.sha256 };
+        await this.ctx.storage.transaction(async storage => {
+          await storage.put('activeBundle', candidate); await storage.put('searchHead', head);
+        });
+        return { ...head, refreshed: true, replay: false };
+      };
       await this.reserveRequest();
       if (candidate.sha256 === previous?.sha256 && candidate.bytes === previous.bytes) {
         await this.ensure(previous);
-        return Response.json(await this.checkedHealth(), { headers: jsonHeaders });
+        try { return Response.json(await saveHead(await this.checkedHealth()), { headers: jsonHeaders }); }
+        catch {
+          this.hydratedDigest = undefined; await this.ctx.container.destroy();
+          return failure('operator_activation_failed');
+        }
       }
       // A new image/helper policy may be unable to load the previous seal.
       // Boot the independently pinned runtime before loading the replacement;
@@ -384,9 +439,9 @@ export class NativeController {
         const health = await this.upload(candidate);
         // Persist before acknowledging activation. On an uncertain write,
         // destroy candidate state; the next call resolves the durable pointer.
-        await this.ctx.storage.put("activeBundle", candidate);
+        const saved = await saveHead(health);
         this.hydratedDigest = candidate.sha256;
-        return Response.json({ ...health, bundleSha256: candidate.sha256 }, { headers: jsonHeaders });
+        return Response.json(saved, { headers: jsonHeaders });
       } catch {
         this.hydratedDigest = undefined;
         await this.recordFailure("operator_activation_failed");

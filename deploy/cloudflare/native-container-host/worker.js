@@ -1,5 +1,5 @@
 import { DurableObject, WorkerEntrypoint } from "cloudflare:workers";
-import { NativeController, authorized, descriptor, failure, requestBytes } from "./controller.js";
+import { NativeController, authorized, descriptor, refreshDescriptor, failure, requestBytes } from "./controller.js";
 import { MAX_REQUEST } from "../native-scene-bridge/worker.js";
 
 const INSTANCE_NAME = "scene-cpu1";
@@ -10,6 +10,8 @@ export class NativeHostProbe extends DurableObject {
   health() { return this.controller.health(); }
   status() { return this.controller.status(); }
   activate(bundle) { return this.controller.activate(bundle); }
+  refresh(bundle) { return this.controller.refresh(bundle); }
+  searchSnapshot() { return this.controller.searchSnapshot(); }
   restart() { return this.controller.restart(); }
   modelCheck() { return this.controller.modelCheck(); }
   auditBudgetCheck() { return this.controller.auditBudgetCheck(); }
@@ -33,7 +35,11 @@ async function privateService(request, env, paths, maximum) {
 // Only explicitly named private service bindings can reach native inference.
 // The default HTTP handler never dispatches public /search, /audit or /qualify.
 export class NativeSceneSearch extends WorkerEntrypoint {
-  fetch(request) { return privateService(request, this.env, ["/search"], MAX_REQUEST); }
+  fetch(request) {
+    if (request.method === 'GET' && new URL(request.url).pathname === '/snapshot')
+      return this.env.NATIVE_HOST.getByName(INSTANCE_NAME).searchSnapshot();
+    return privateService(request, this.env, ["/search"], MAX_REQUEST);
+  }
 }
 export class NativeSceneVerification extends WorkerEntrypoint {
   fetch(request) { return privateService(request, this.env, ["/audit", "/qualify"], 6 * 1024 * 1024); }
@@ -41,7 +47,7 @@ export class NativeSceneVerification extends WorkerEntrypoint {
 
 async function operatorRequest(request, env, privateBinding = false) {
     const path = new URL(request.url).pathname;
-    if (![["GET", "/health"], ["GET", "/operator/status"], ["POST", "/operator/bundle"],
+    if (![["GET", "/health"], ["GET", "/operator/status"], ["POST", "/operator/bundle"], ["POST", "/operator/refresh"],
       ["POST", "/operator/restart"], ["POST", "/operator/model-check"], ["POST", "/operator/launch-check"],
       ["POST", "/operator/main-check"], ["POST", "/operator/audit-budget-check"], ["POST", "/operator/repeatability-check"]]
       .some(([method, route]) => request.method === method && path === route)) {
@@ -53,10 +59,15 @@ async function operatorRequest(request, env, privateBinding = false) {
       try { bundle = descriptor(JSON.parse(new TextDecoder().decode(await requestBytes(request, 4096)))); }
       catch { return failure("invalid_operator_descriptor", 400); }
     }
+    if (path === '/operator/refresh') {
+      try { bundle = refreshDescriptor(JSON.parse(new TextDecoder().decode(await requestBytes(request, 4096))), env.NATIVE_RUNTIME_SHA256); }
+      catch { return failure('invalid_refresh_descriptor', 400); }
+    }
     try {
       const host = env.NATIVE_HOST.getByName(INSTANCE_NAME);
       if (path === "/health") return await host.health();
       if (path === "/operator/status") return await host.status();
+      if (path === '/operator/refresh') return await host.refresh(bundle);
       if (path === "/operator/restart") return await host.restart();
       if (path === "/operator/model-check") return await host.modelCheck();
       if (path === "/operator/audit-budget-check") return await host.auditBudgetCheck();

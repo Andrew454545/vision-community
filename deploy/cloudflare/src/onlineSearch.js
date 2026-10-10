@@ -14,7 +14,34 @@ export const INDEX_DOWNLOAD_ROUTES = new Set([
 
 export function onlineSearchConfigured(env) {
   return !!(env.SEARCH_ENGINE?.fetch && typeof env.SEARCH_POLICY_ID === "string" && env.SEARCH_POLICY_ID
-    && HEX.test(env.SEARCH_RUNTIME_SHA256 || "") && HEX.test(env.SEARCH_SNAPSHOT_SHA256 || ""));
+    && HEX.test(env.SEARCH_RUNTIME_SHA256 || "") && HEX.test(env.SEARCH_SNAPSHOT_SHA256 || "")
+    && [undefined, '0', '1'].includes(env.SEARCH_DYNAMIC_SNAPSHOT));
+}
+
+async function snapshotIdentity(env) {
+  if (env.SEARCH_DYNAMIC_SNAPSHOT !== '1') return env.SEARCH_SNAPSHOT_SHA256;
+  try {
+    const response = await env.SEARCH_ENGINE.fetch(new Request('https://search.internal/snapshot', {
+      signal: AbortSignal.timeout(10000),
+    }));
+    if (!response.ok || !response.body) throw Error();
+    const reader = response.body.getReader();
+    const chunks = []; let size = 0;
+    try {
+      while (true) {
+        const {done, value} = await reader.read(); if (done) break;
+        size += value.byteLength; if (size > 4096) { await reader.cancel(); throw Error(); }
+        chunks.push(value);
+      }
+    } finally { reader.releaseLock(); }
+    const bytes = new Uint8Array(size); let offset = 0;
+    for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+    const head = JSON.parse(new TextDecoder().decode(bytes));
+    if (!head || Object.keys(head).sort().join(',') !== 'bundleSha256,policyId,runtimeSha256,snapshotSha256'
+        || head.policyId !== env.SEARCH_POLICY_ID || head.runtimeSha256 !== env.SEARCH_RUNTIME_SHA256
+        || !HEX.test(head.snapshotSha256 || '') || !HEX.test(head.bundleSha256 || '')) throw Error();
+    return head.snapshotSha256;
+  } catch { throw new SearchError('search_unavailable'); }
 }
 
 export async function searchDigest(query) {
@@ -25,12 +52,13 @@ export async function searchDigest(query) {
 
 async function engineResult(env, query, digest) {
   if (!onlineSearchConfigured(env)) throw new SearchError("search_unavailable");
+  const snapshotSha256 = await snapshotIdentity(env);
   let response;
   try {
     response = await env.SEARCH_ENGINE.fetch(new Request("https://search.internal/search", {
       method: "POST", headers: { "content-type": "application/json" },
       body: JSON.stringify({ contractVersion: SEARCH_CONTRACT_VERSION, policyId: env.SEARCH_POLICY_ID,
-        runtimeSha256: env.SEARCH_RUNTIME_SHA256, snapshotSha256: env.SEARCH_SNAPSHOT_SHA256,
+        runtimeSha256: env.SEARCH_RUNTIME_SHA256, snapshotSha256,
         requestSha256: digest.slice(7), query }), signal: AbortSignal.timeout(120000),
     }));
   } catch { throw new SearchError("search_unavailable"); }
@@ -53,7 +81,7 @@ async function engineResult(env, query, digest) {
   let result;
   try { result = JSON.parse(new TextDecoder().decode(bytes)); } catch { throw new SearchError("search_unavailable"); }
   if (result?.contractVersion !== SEARCH_CONTRACT_VERSION || result.policyId !== env.SEARCH_POLICY_ID
-      || result.runtimeSha256 !== env.SEARCH_RUNTIME_SHA256 || result.snapshotSha256 !== env.SEARCH_SNAPSHOT_SHA256
+      || result.runtimeSha256 !== env.SEARCH_RUNTIME_SHA256 || result.snapshotSha256 !== snapshotSha256
       || result.requestSha256 !== digest.slice(7) || !Array.isArray(result.hits)
       || result.hits.length > query.resultCount || !Number.isSafeInteger(result.processedLocations)
       || result.processedLocations < result.hits.length) throw new SearchError("search_unavailable");

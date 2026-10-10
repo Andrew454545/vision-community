@@ -14,12 +14,19 @@ recovery. Eight earned units remain banked. CPU1, finite invitation and current
 hosting limits are unchanged. This does not start the full Mac/Objects/Both gate;
 actual interruptions and final reconciliation are still pending.
 
+The [automatic refresh follow-up](SCENE_AUTOMATIC_REFRESH_20261010.md) now deploys
+guarded dynamic snapshot search and a finite hourly operator refresher. Its real
+scheduled baseline sealed ten locations without activation; the next fresh real
+append remains to be observed. All 222 targeted checks and real earned-credit
+search/recovery pass. The additional two-unit search leaves six banked units;
+the earlier start balances above remain historical evidence.
+
 The [finite Windows Scene trial](WINDOWS_SCENE_COHORT_20261010.md) has completed
 real native-audited publication and earned-credit search: eight new locations,
 eight countries, eight units earned, one eight-unit debit, exact paid recovery
 and eight units still banked. Replays award and charge nothing extra. The trial
 is closed with compute stopped. This clears the first Windows Scene milestone;
-automatic snapshot refresh, equivalent Mac/Object work and the other gates below
+the first future real automatic append, equivalent Mac/Object work and the other gates below
 remain open.
 
 The [saved Object audit job component](NATIVE_OBJECT_AUDIT_JOBS.md) now provides
@@ -33,7 +40,7 @@ next executable engineering work; no public Object gate was opened.
 
 | Work / owner | Next executable action | Prerequisite | Completion check | Evidence |
 |---|---|---|---|---|
-| Repeatable Scene contributions / Geonections | Automate accepted-publication snapshot refresh and recovery; qualify the exact Mac profile and repeat genuine publication/search there. Connect normal background operation and verified parallel profiles. | Current Windows CPU1 qualification, eight fresh native-audited publications and earned-search recovery now pass. The finite trial used an operator-sealed snapshot; public admission remains closed. | New accepted work becomes searchable without manual snapshot preparation; recovery preserves prior publications, credits and paid replies; equivalent Mac evidence exists. | [Real Windows trial](WINDOWS_SCENE_COHORT_20261010.md) and its pinned receipt. |
+| Repeatable Scene contributions / Geonections | Observe the first future real append from the installed hourly refresher; qualify the exact Mac profile and repeat genuine publication/search there. Connect normal background operation and verified parallel profiles. | Current Windows CPU1 qualification, eight fresh native-audited publications and earned-search recovery now pass. Dynamic search and the real scheduled no-change baseline now pass; the next fresh real append remains to be observed. Public admission remains closed. | New accepted work becomes searchable without manual snapshot preparation; recovery preserves prior publications, credits and paid replies; equivalent Mac evidence exists. | [Real Windows trial](WINDOWS_SCENE_COHORT_20261010.md) and its pinned receipt. |
 | Genuine Objects / Geonections; native source handoff / Andrew | Use the verified 100-location/22-country cohort to connect Object qualification, quarantine, full native audit, publication and once-only credit. | Current coverage and geographic exclusion are verified. Eight have genuine Community Scene completion; local MMA Scene membership, authentic portable sealed import and matching protected database/runtime/quality authority remain required. The cohort and precise sealer request are delivered in private VISION PR #15; completion outputs are preserved in a private handoff. | Windows and Mac each publish fresh qualified Object/Both work; altered, protected, wrong-runtime and duplicate submissions fail safely. | [Verified cohort](GEN4_COHORT_20261009.md), [Object auditor](NATIVE_OBJECT_AUDIT.md), [cross-platform limits](OBJECT_CROSS_PLATFORM_20261009.md), private PR #15 and future fresh receipts. |
 | Sustainable pricing and both search modes / Geonections | Measure representative effort and hosted cost within the existing allowance; choose an initial price without rewriting historic debits, saved replies or balances. Exercise native Object search after admission is authentic. | Real Windows Scene earned-credit search and fresh-process exact paid recovery now pass. The finite eight-unit trial price does not establish public capacity or sustainable economics. | New contributors can earn and spend real credit in both modes; lost replies, concurrent retries and recovery return the same paid result once within measured resource bounds. | [Real Windows trial](WINDOWS_SCENE_COHORT_20261010.md), [launch plan](LAUNCH_PLAN.md), [accounting recovery](CREDIT_RECOVERY.md) and future capacity receipts. |
 | Full-data schema rehearsal / Geonections | Complete: approved full export, guarded conversion, actual 364,056-row upgrade, independent generated-batch replay and injected final-statement rollback. Prepare the controlled live migration within complete recovery work below. | Specific transfer consent was granted. Independent live schema readback and all 18 balance/ledger checks pass. The historical copy has zero paid-search rows and is not a fresh rollout cutoff. | Credentials, balances, publications, active leases and high-water marks survived. Full provider/paid-reply recovery and a new drained-writer cutoff remain open. | [Actual production-data rehearsal](PRODUCTION_DATA_REHEARSAL_20261009.md) and private pinned evidence. |
@@ -61,7 +68,7 @@ It has a fixed 11 October 01:59:18 UTC deadline and does not start the accepted-
 soak or reclassify either failed diagnostic. Read its final receipt once after
 that deadline instead of repeatedly polling it.
 
-The first finite Windows Scene cohort is complete. Repeatable snapshot refresh
+The first finite Windows Scene cohort is complete. The first future real automatic append
 and genuine Mac/Object acceptance are the next engineering milestones. The checklist's
 24–48-hour target starts after its necessary source/access is available; it is
 not a completion promise. The seven-day test itself needs at least seven days

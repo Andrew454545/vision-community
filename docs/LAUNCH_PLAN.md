@@ -56,13 +56,19 @@ Its finite hidden recovery task runs without Codex. This is partial Scene-only
 reliability evidence; actual interruptions, final reconciliation, Mac/Objects,
 verified parallel Maximum and the full unattended-operation gate remain open.
 
+The later [automatic refresh service check](SCENE_AUTOMATIC_REFRESH_20261010.md)
+passes 222 targeted checks, real dynamic-snapshot search and free paid recovery.
+The installed hourly task verified its first ten-location no-change baseline;
+its first future real append still needs a receipt. Six earned units now remain
+banked after this additional two-unit search. The pilot client/image are unchanged.
+
 The [finite Windows Scene trial](WINDOWS_SCENE_COHORT_20261010.md) now publishes
 eight fresh replacement-pool locations across eight countries, earns eight units
 and searches only those new contributions using eight genuinely earned units.
 Fresh-process account recovery returns the exact paid result after admission
 closes without another debit; eight units remain banked. No synthetic credit
 funded this test. Current CPU1 fixed-input qualification and 92 affected checks
-pass. That finite trial closed before the separate pilot above. Automatic snapshot refresh,
+pass. That finite trial closed before the separate pilot above. Future real automatic append,
 equivalent Mac/Object work and sustainable public pricing remain open.
 
 The full identical-input Scene matrices are complete on Windows and Mac.

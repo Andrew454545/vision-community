@@ -5,12 +5,17 @@ handwritten output-approval lists with correlated native audit and credit
 evidence. It does not download data, change admission, grant credit, activate
 hosting or perform an automatic remote refresh.
 
+The separate [automatic staging refresher](SCENE_AUTOMATIC_REFRESH_20261010.md)
+now collects these exports, prepares guarded activation and recovers a lost reply.
+Its actual scheduled baseline and real dynamic-head paid search pass; the first
+future real append activation remains to be observed.
+
 Supply three independently pinned private exports from the same confirmed
 Community environment:
 
 - The current publication inventory used by `community.search_snapshot`.
 - A consistent control-plane read containing `candidates`, `qualifications`,
-  `accounts` and `ledger`. Candidates must be published, their owners undeleted,
+  `accounts` and `ledger`. Candidates must be published, their owners active,
   qualifications valid when submitted and each exact lease credited once as
   `verified_work`. Include only audits represented in the current inventory;
   never include credentials or recovery codes.
@@ -18,6 +23,14 @@ Community environment:
   `inputModel`, `snapshotPolicyId` and `policies`. Each allowed policy pins its
   `policyId`, `profileIds` and native `runtimeSha256`. Production additionally
   requires explicit production authority and refuses staging policies.
+
+Under the existing account-deletion contract, already verified anonymous
+contributions remain searchable. Retaining them also requires explicit authority
+`accountDeletionRetention: "retain-verified-anonymous-contributions"` and matching
+`deletions` receipts with `account_id` and `deleted_at`. The original publication
+must predate deletion and retain its native qualification and once-earned credit
+evidence. A revoked qualification never admits new work. Without this explicit
+retention authority, deleted owners remain refused.
 
 All three documents require `version: 1` and the exact confirmed `resource`
 pair. Volunteer checksums or claimed qualification are not these exports.
@@ -52,8 +65,9 @@ published R2 bytes. All eight previous record bytes and ordinals were preserved;
 native earned-credit search returned the complete ten-location snapshot and
 exact paid recovery passed. Collection and activation were operator steps.
 
-Scheduled collection, guarded hosted activation, deletion-driven removal and
-concurrent refresh/recovery remain integration work. Before activation, recheck
-current publication/deletion authority; an old audit cannot restore deleted work.
-The existing append guard intentionally refuses removal or changed history.
-Do not treat this offline component as completed automatic service refresh.
+Scheduled collection, guarded hosted activation, dynamic search and lost-reply
+recovery are now implemented in the separate follow-up. Before new activation,
+recheck current publication/deletion authority; an old audit cannot restore erased
+private identity or qualify new work. The existing append guard intentionally
+refuses removal or changed history. Those migrations, equivalent Mac evidence
+and the first future real scheduled append remain open.

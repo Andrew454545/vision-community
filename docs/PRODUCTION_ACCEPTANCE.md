@@ -5,6 +5,14 @@ Updated **10 October 2026**. Start with the finite
 preserves historical results and limitations; completed reference trials do not
 require repeating merely because an older paragraph described them as pending.
 
+The [automatic Scene refresh follow-up](SCENE_AUTOMATIC_REFRESH_20261010.md)
+passes 222 targeted checks and real staging dynamic-snapshot earned-credit search
+with exact paid recovery. The finite hourly refresher's actual first run sealed
+the existing ten locations with no change or activation. Its first future real
+append remains to be observed. Primary D1 now reconciles six banked units after
+the additional two-unit search; the pilot's eight-unit start balance below is
+preserved historical evidence. The pilot client/image/start pins are unchanged.
+
 The [Windows Scene seven-day pilot](WINDOWS_SCENE_WEEK_PILOT_20261010.md) started
 at **10 October 07:27:14 UTC / 02:27:14 CDT**, targeting **17 October at the same
 time**. Its real scheduled background batch published two fresh locations and
@@ -26,7 +34,7 @@ admission closed, without another debit. Eight units remain banked. The current
 CPU1 profile passed fixed-input qualification under unchanged bounds; 92 affected
 component checks pass with no skips. The original live-input mismatch and failed
 client recovery reports remain preserved. That earlier finite trial closed
-before the separate pilot above. Automatic snapshot refresh, Mac/Object acceptance, sustainable pricing,
+before the separate pilot above. Future real automatic append, Mac/Object acceptance, sustainable pricing,
 both seven-day workloads, signed downloads and complete provider recovery remain
 open. Earlier dated reports below describe their recorded states.
 
@@ -37,8 +45,8 @@ produces the same records and members as the paid trial. The affected Windows
 selection passes 152 checks with no skips/failures; earlier restricted failures
 remain preserved. Guided recovery now works after admission closes, and saved
 background identities authenticate before invitation checks. Remote scheduled
-refresh/activation remain separate; the Scene-only background pilot above has
-now actually started.
+refresh and dynamic search are now deployed as the separate follow-up above;
+the Scene-only background pilot is running and its full acceptance remains open.
 
 The [verified positive Gen4 cohort](GEN4_COHORT_20261009.md) contains 100 original
 R2 locations across 22 countries. Fresh native validation and saved raw Google
