@@ -25,6 +25,7 @@ from .desktop import DesktopApp, DesktopClient, DesktopError, public_error
 from .vision_index import RETRYABLE_NATIVE_CODES, VisionIndexError
 
 WAIT_SECONDS = 1800
+MAX_RETRY_STATE_BYTES = 4096
 MIN_FREE_BYTES = 5 * 1024**3
 MAX_STORAGE_ENTRIES = 200_000
 STORAGE_SCAN_SECONDS = 10
@@ -368,24 +369,33 @@ class BackgroundContributor:
         if not path.exists():
             return None
         try:
-            record = json.loads(path.read_text(encoding="utf-8"))
-            if (record.get("version") != 1 or record.get("kind") not in {"indexing", "service", "verification"}
+            with path.open("rb") as stream:
+                raw = stream.read(MAX_RETRY_STATE_BYTES + 1)
+            if len(raw) > MAX_RETRY_STATE_BYTES:
+                raise ValueError
+            record = json.loads(raw.decode("utf-8"))
+            if (type(record.get("version")) is not int or record["version"] != 1
+                    or record.get("kind") not in {"indexing", "service", "verification"}
                     or type(record.get("attempts")) is not int or not 1 <= record["attempts"] <= 1_000_000
                     or type(record.get("nextAttemptAt")) not in (int, float)
                     or not math.isfinite(record["nextAttemptAt"]) or record["nextAttemptAt"] < 0):
                 raise ValueError
             return record
-        except (ValueError, TypeError, AttributeError):
+        except (ValueError, TypeError, AttributeError, OverflowError):
             raise DesktopError("invalid_background_retry_state") from None
 
-    def retry_later(self, kind):
-        previous = self.retry_record()
-        attempts = min(1_000_000, previous["attempts"] + 1) if previous and previous["kind"] == kind else 1
+    def retry_delay(self, kind, attempts):
         # Indexing failures have already exhausted native retries. Cool down
         # progressively rather than continuously relaunching a broken batch.
         delay = self.retry_seconds
         if kind == "indexing":
             delay = min(6 * 60 * 60, delay * 2 ** min(attempts - 1, 10))
+        return delay
+
+    def retry_later(self, kind):
+        previous = self.retry_record()
+        attempts = min(1_000_000, previous["attempts"] + 1) if previous and previous["kind"] == kind else 1
+        delay = self.retry_delay(kind, attempts)
         atomic_json(self.root / "background-retry.json", {
             "version": 1, "kind": kind, "attempts": attempts,
             "nextAttemptAt": self.wall_clock() + delay,
@@ -408,11 +418,19 @@ class BackgroundContributor:
         if not space_ready and not self.app.client and not self.session.exists():
             return self.wait_for_space()
         retry = self.retry_record()
-        if retry and retry["nextAttemptAt"] > self.wall_clock():
+        now = self.wall_clock()
+        if retry and retry["nextAttemptAt"] > now:
+            remaining = retry["nextAttemptAt"] - now
+            delay = min(remaining, self.retry_delay(retry["kind"], retry["attempts"]))
+            if remaining > delay:
+                # A backward wall-clock correction must not suspend recovery
+                # beyond its normal cooldown. Persist the new deadline so a
+                # later restart does not begin the same full wait again.
+                atomic_json(self.root / "background-retry.json", {**retry, "nextAttemptAt": now + delay})
             state = {"indexing": "retrying_indexing", "service": "waiting_for_service",
                      "verification": "waiting_for_verification"}[retry["kind"]]
             self.status(state, "Waiting before the next recovery attempt. Saved work and failure reports are preserved.")
-            return min(86400, retry["nextAttemptAt"] - self.wall_clock())
+            return delay
         # Check before downloading, creating an account, or consuming a lease.
         self.app.capabilities(DesktopClient(self.url))
         if space_ready and not self.prepared:

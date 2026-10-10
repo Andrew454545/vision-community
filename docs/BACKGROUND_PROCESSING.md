@@ -179,6 +179,10 @@ to GitHub.
 - `retrying_indexing`: a recognized indexing interruption is waiting for a
   later attempt. Increasing delays, capped at six hours, survive a restart;
   this does not override rejected qualification or rejected work.
+  If the computer's clock moves backward, an excessive wait is reset to the
+  normal cooldown and saved for the next restart. Ordinary remaining waits
+  stay unchanged. Oversized or invalid saved retry settings stop for review;
+  the original file and saved work remain in place.
 - `needs_attention`: inspect `desktop-failure.json` and retained batch reports.
   Fix the cause, then remove `NEEDS-ATTENTION`. Failed PC checks are not rerun
   indefinitely. An interrupted batch resumes only while its lease and runtime

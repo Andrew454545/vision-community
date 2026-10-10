@@ -265,6 +265,28 @@ class BackgroundHTTPRestartTests(unittest.TestCase):
         self.assertEqual(self.awards,set())
         self.assert_private_and_no_new_work()
 
+    def test_clock_rollback_keeps_saved_delivery_and_recovers_after_bounded_cooldown(self):
+        self.phase='pending'
+        self.child('seed')
+        self.phase='audit-outage'
+        self.assertEqual(self.child(),{'state':'waiting_for_service','accepted':0})
+        saved=self.row()
+        failure=(self.root/'desktop-failure.json').read_bytes()
+        calls=len(self.calls)
+        self.phase='ack'
+        self.assertEqual(self.child(now=1000),{'state':'waiting_for_service','accepted':0})
+        self.assertEqual(json.loads((self.root/'background-retry.json').read_text())['nextAttemptAt'],2800)
+        self.assertEqual(self.child(now=2799),{'state':'waiting_for_service','accepted':0})
+        self.assertEqual(len(self.calls),calls)
+        self.assertEqual(self.row(),saved)
+        self.assertEqual((self.root/'desktop-failure.json').read_bytes(),failure)
+        self.assertEqual(self.child(now=2800),{'state':'waiting_for_space','accepted':1},
+            (self.root/'desktop-failure.json').read_text())
+        self.assertEqual(self.child(now=2860),{'state':'waiting_for_space','accepted':0})
+        self.assertEqual(self.awards,{LEASE})
+        self.assertEqual((self.root/'desktop-failure.json').read_bytes(),failure)
+        self.assert_private_and_no_new_work()
+
     def test_partial_service_error_is_transient_and_preserves_pending_output(self):
         self.phase='audit-outage';self.child('seed')
         self.phase='error-partial'

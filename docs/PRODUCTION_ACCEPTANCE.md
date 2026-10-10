@@ -57,7 +57,16 @@ one existing permission skip and fresh native index/verify/search completed.
 It targets 24 hourly 1/2/4-thread rounds; completion remains pending. Earlier
 failed runs and both unstarted accepted-work clocks remain unchanged.
 
-The final full Windows application regression runs **772 tests**, with 757
+The background retry worker now bounds a backward-clock wait to its normal
+cooldown and saves the corrected deadline across restarts. Oversized or invalid
+retry state stops for review without replacing the original. The
+[affected Windows regression](evidence/background-retry-clock-recovery-20261009.json)
+passes **115/116 checks**, with one symlink-permission skip and no failures,
+including real loopback saved-delivery recovery across fresh processes. This
+does not replace actual Mac, OS-restart or accepted-work testing. The installed
+contributor and the running diagnostic's earlier pinned source are unchanged.
+
+The recorded full Windows application regression runs **772 tests**, with 757
 passing, 15 explicit platform/permission skips and no failures or errors. The
 Object auditor's new pinned-snapshot exclusion matches all 139 supplied native
 decisions and refuses protected assignments before running models. The closed

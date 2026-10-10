@@ -219,6 +219,103 @@ class BackgroundTest(unittest.TestCase):
             self.assertEqual(path.read_text(), "broken")
             app.capabilities.assert_not_called()
 
+    def test_clock_rollback_rebases_cooldown_and_survives_another_restart(self):
+        with tempfile.TemporaryDirectory() as root:
+            worker, app = self.worker(root)
+            app.capabilities.side_effect = ContributeError("http_error", 503)
+            worker.run(once=True)
+            retry_path = Path(root) / "background-retry.json"
+            self.assertEqual(json.loads(retry_path.read_text())["nextAttemptAt"], 11800)
+            app.capabilities.side_effect = None
+            worker.wall_clock.return_value = 1000
+            worker.run(once=True)
+            self.assertEqual(json.loads(retry_path.read_text())["nextAttemptAt"], 2800)
+            app.capabilities.assert_called_once()
+            app.indexer.assert_not_called()
+            restarted, restarted_app = self.worker(root, wall_clock=Mock(return_value=2799))
+            restarted.run(once=True)
+            restarted_app.capabilities.assert_not_called()
+            restarted.wall_clock.return_value = 2800
+            restarted.run(once=True)
+            restarted_app.indexer.assert_called_once()
+            self.assertFalse(retry_path.exists())
+
+    def test_clock_rollback_preserves_the_progressive_native_retry_delay(self):
+        with tempfile.TemporaryDirectory() as root:
+            worker, app = self.worker(root, retry_minutes=1)
+            app.indexer.side_effect = VisionIndexError("vision_binary_timeout")
+            worker.run(once=True)
+            worker.wall_clock.return_value = 10060
+            worker.run(once=True)
+            retry_path = Path(root) / "background-retry.json"
+            self.assertEqual(json.loads(retry_path.read_text())["attempts"], 2)
+            worker.wall_clock.return_value = 1000
+            self.assertEqual(worker.step(), 120)
+            self.assertEqual(json.loads(retry_path.read_text()), {
+                "version": 1, "kind": "indexing", "attempts": 2, "nextAttemptAt": 1120,
+            })
+            self.assertEqual(app.indexer.call_count, 2)
+
+    def test_ordinary_remaining_retry_is_not_restarted_or_extended(self):
+        with tempfile.TemporaryDirectory() as root:
+            worker, app = self.worker(root)
+            worker.retry_later("service")
+            path = Path(root) / "background-retry.json"
+            original = path.read_bytes()
+            worker.wall_clock.return_value = 11799
+            self.assertEqual(worker.step(), 1)
+            self.assertEqual(path.read_bytes(), original)
+            app.capabilities.assert_not_called()
+
+    def test_forward_clock_adjustment_allows_an_expired_retry(self):
+        with tempfile.TemporaryDirectory() as root:
+            worker, app = self.worker(root)
+            worker.retry_later("service")
+            worker.wall_clock.return_value = 90000
+            worker.run(once=True)
+            app.indexer.assert_called_once()
+            self.assertFalse((Path(root) / "background-retry.json").exists())
+
+    def test_pause_and_review_markers_still_prevent_clock_recovery_work(self):
+        for marker, state in (("PAUSE", "paused"), ("NEEDS-ATTENTION", "needs_attention")):
+            with self.subTest(marker=marker), tempfile.TemporaryDirectory() as root:
+                worker, app = self.worker(root)
+                worker.retry_later("service")
+                path = Path(root) / "background-retry.json"
+                original = path.read_bytes()
+                (Path(root) / marker).touch()
+                worker.wall_clock.return_value = 1000
+                worker.run(once=True)
+                self.assertEqual(worker.last_state, state)
+                self.assertEqual(path.read_bytes(), original)
+                app.capabilities.assert_not_called()
+                app.indexer.assert_not_called()
+
+    def test_oversized_retry_record_stops_and_preserves_the_original(self):
+        with tempfile.TemporaryDirectory() as root:
+            worker, app = self.worker(root)
+            path = Path(root) / "background-retry.json"
+            original = json.dumps({"version": 1, "kind": "service", "attempts": 1,
+                "nextAttemptAt": 0, "padding": "x" * 4096}).encode()
+            path.write_bytes(original)
+            worker.run(once=True)
+            self.assertEqual(worker.last_state, "needs_attention")
+            self.assertEqual(path.read_bytes(), original)
+            app.capabilities.assert_not_called()
+            app.indexer.assert_not_called()
+
+    def test_boolean_retry_version_stops_without_overwriting_the_record(self):
+        with tempfile.TemporaryDirectory() as root:
+            worker, app = self.worker(root)
+            path = Path(root) / "background-retry.json"
+            original = json.dumps({"version": True, "kind": "service", "attempts": 1,
+                "nextAttemptAt": 0}).encode()
+            path.write_bytes(original)
+            worker.run(once=True)
+            self.assertEqual(worker.last_state, "needs_attention")
+            self.assertEqual(path.read_bytes(), original)
+            app.capabilities.assert_not_called()
+
     def test_stop_request_during_batch_exits_after_saving_batch(self):
         with tempfile.TemporaryDirectory() as root:
             worker, app = self.worker(root)
