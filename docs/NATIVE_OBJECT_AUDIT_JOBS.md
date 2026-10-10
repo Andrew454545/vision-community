@@ -111,6 +111,17 @@ follow-up selects owned assignments, persists deletion authority and waits for
 backups and external operator inputs need their own reconciliation. No live
 Object host binding or admission was enabled by these component changes.
 
+## Restored spools
+
+Use the [offline recovery procedure](OBJECT_SPOOL_RECOVERY_20261010.md) before
+starting a restored backup. A separately pinned current deletion ledger and
+closed hosted database determine which assignments must be revoked again.
+Supply both `--recovery-authority` and `--recovery-authority-sha256`; they are
+operator inputs outside the mutable spool. Authority application commits before
+receipt recovery or HTTP startup. Never expose an unreconciled old backup.
+These options do not approve an audit or grant credit. The worker must complete
+pending erasure and current hosted ownership must reconcile before admission.
+
 ## Finite component limits
 
 This first private cohort service accepts at most 64 retained jobs, eight

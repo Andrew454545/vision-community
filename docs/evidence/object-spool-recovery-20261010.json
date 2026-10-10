@@ -1,0 +1,175 @@
+{
+  "version": 1,
+  "date": "2026-10-10",
+  "scope": "offline-object-spool-deletion-recovery-component",
+  "parentCommit": "8e9f86a6e52248d753160ebe6eed2f7bd70846fa",
+  "platform": "Windows",
+  "python": "3.12.14",
+  "node": "24.19.0",
+  "sourceBytes": "actual Windows working files",
+  "sourceFiles": {
+    "community/object_audit_jobs.py": {
+      "bytes": 34950,
+      "sha256": "e441dd00992e79c59d903eaaff64412a780dfd13c25195c257853eb59a3a8ec9"
+    },
+    "community/object_audit_recovery.py": {
+      "bytes": 2493,
+      "sha256": "d70a6b2b320009237e4d2ade1096e4c93a0eb43d87084a4b8e3c2ee7b8c85fb4"
+    },
+    "community/tests/test_object_audit_jobs.py": {
+      "bytes": 37735,
+      "sha256": "86c05648e88f56167d5953b399798f0ea1bf448691f6caab6ec539decf07e69a"
+    },
+    "community/tests/test_object_audit_recovery.py": {
+      "bytes": 12069,
+      "sha256": "8dff3e55119cf5ce7991443343c7a189b48a5388b8b36a3c0c54dc3bd4b283dd"
+    },
+    "deploy/cloudflare/tools/object-erasure-recovery.mjs": {
+      "bytes": 9273,
+      "sha256": "d99cf5e49aa21f1d54daa76f7a6a6f16fe340848a1233176c9390d5fcd2dbc3e"
+    },
+    "deploy/cloudflare/src/objectErasureRecovery.test.mjs": {
+      "bytes": 8051,
+      "sha256": "499367cb059659fd86e9e93a33793f85575a9034de8e6e3dce6bf42f596e5584"
+    },
+    "deploy/cloudflare/tools/account-restore.mjs": {
+      "bytes": 16755,
+      "sha256": "505eeeacf38ab5d96fc78ec406c6a492e7c3b75e69b44ffa91488276fcb9797b"
+    },
+    "deploy/cloudflare/tools/privacy-storage-restore.mjs": {
+      "bytes": 15295,
+      "sha256": "35044784d4336954f6072c01f43f0ce6a74d79d024c1bed7a8219e3410d8ddeb"
+    }
+  },
+  "checks": {
+    "existingJobsAndFirstRecovery": {
+      "action": "python",
+      "exitCode": 0,
+      "wallSeconds": 186.235,
+      "platform": "win32",
+      "liveCalls": 0,
+      "nativeInference": false,
+      "tests": 46,
+      "passed": 46,
+      "skipped": 0,
+      "failed": 0,
+      "existingJobTests": 36,
+      "recoveryTests": 10,
+      "privateReceipt": {
+        "bytes": 143,
+        "sha256": "d88e522dca160f2223caf50d6d8da428bea358c3788d2b85c2f54cce7fef7a1e"
+      },
+      "privateStdout": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "privateStderr": {
+        "bytes": 9440,
+        "sha256": "6fb7c2e988dbedf7d631aef021dff55305b6a865eb3493a8d79cfd888caaed28"
+      }
+    },
+    "finalPythonRecovery": {
+      "action": "python",
+      "exitCode": 0,
+      "wallSeconds": 33.188,
+      "platform": "win32",
+      "liveCalls": 0,
+      "nativeInference": false,
+      "tests": 11,
+      "passed": 11,
+      "skipped": 0,
+      "failed": 0,
+      "crossLanguageClosedCopyExportAndRestore": true,
+      "privateReceipt": {
+        "bytes": 142,
+        "sha256": "db164cd75c18a593760dab3955d87d115c2129bdc369b2daf76715ca8a88e0d4"
+      },
+      "privateStdout": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "privateStderr": {
+        "bytes": 2335,
+        "sha256": "ae60236c8ac2dd105fc42b98a19280742c00e37c6957cfdbcc884ce26793ead8"
+      }
+    },
+    "existingNodePrivacyAndRestore": {
+      "action": "node",
+      "exitCode": 0,
+      "wallSeconds": 22.109,
+      "platform": "win32",
+      "liveCalls": 0,
+      "nativeInference": false,
+      "tests": 88,
+      "passed": 86,
+      "skipped": 2,
+      "failed": 0,
+      "skipReason": "Windows file-symlink privilege",
+      "privateReceipt": {
+        "bytes": 140,
+        "sha256": "b3610423c1ccd5d46e36da3029fb3b25a0c0eca9a438c8484cac0a5cc0e41190"
+      },
+      "privateStdout": {
+        "bytes": 7631,
+        "sha256": "1f0fe1c79406819b90291cf7f1efce940a91f7234bfeb3d0808107e0e7c9121c"
+      },
+      "privateStderr": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    "finalOfflineExportAndRecovery": {
+      "action": "node-recovery",
+      "exitCode": 0,
+      "wallSeconds": 0.671,
+      "platform": "win32",
+      "liveCalls": 0,
+      "nativeInference": false,
+      "tests": 18,
+      "passed": 18,
+      "skipped": 0,
+      "failed": 0,
+      "actualOperatorArgumentParsing": true,
+      "privateReceipt": {
+        "bytes": 148,
+        "sha256": "fc44ac41a9709fc9118215b98af351d867529bf786ca88ad62d01e7428dae722"
+      },
+      "privateStdout": {
+        "bytes": 1511,
+        "sha256": "7b8f2f738354d8ff94aa06026df07cd394eef4210120181e31a06bd6434f5310"
+      },
+      "privateStderr": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    }
+  },
+  "overlappingSelections": true,
+  "nativeInference": "explicit synthetic fixture",
+  "liveCalls": 0,
+  "liveResourceChanges": false,
+  "tested": [
+    "restored approval revoked before receipt recovery and HTTP start",
+    "closed pinned D1 copy and independent ledger exported across Node and Python",
+    "deleted assignments re-revoked despite hosted erased acknowledgement",
+    "active accounts and balances retained",
+    "atomic last-statement rollback",
+    "saved tombstones survive restart and reject delayed upload",
+    "stale or changed pins and unfinished database refused",
+    "failed export retains failure report and no completion marker",
+    "existing outputs cannot be overwritten",
+    "older/conflicting authority refused; newer authority cannot remove revocation"
+  ],
+  "limits": [
+    "synthetic inference",
+    "actual Mac execution pending",
+    "complete provider/native-host/R2/bundle/secret recovery pending",
+    "operator must establish current drained writer cutoff independently",
+    "R2-only checker still refuses native spool certification",
+    "external inputs and source backup privacy retention require separate inventory"
+  ],
+  "productionQualified": false,
+  "acceptedContributions": 0,
+  "searchCreditsCreated": 0,
+  "scenePilotChanged": false
+}

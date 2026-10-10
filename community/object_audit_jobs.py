@@ -58,10 +58,12 @@ def write_new(path, raw):
 
 
 class ObjectAuditJobs:
-    def __init__(self, verifier, registry, registry_sha256, work, *, clock=time.time):
+    def __init__(self, verifier, registry, registry_sha256, work, *, clock=time.time,
+                 recovery_authority=None, recovery_sha256=None):
         self.verifier, self.clock = verifier, clock
         self.registry_path = regular(registry)
         self.registry_sha256 = registry_sha256
+        require((recovery_authority is None) == (recovery_sha256 is None), 'object_recovery_authority_required')
         document = strict_json(pinned_read(self.registry_path, registry_sha256, MAX_MANIFEST))
         require(isinstance(document, dict) and set(document) == {'version', 'scope', 'policyId', 'resource', 'assignments'}
                 and document['version'] == 1 and document['scope'] == 'private-object-audit-registry'
@@ -96,6 +98,8 @@ class ObjectAuditJobs:
                  verifier.authority_path, verifier.snapshot_path]
         roots += [Path(entry['path']) for entry in verifier.authority_doc['protectedDatabase'].values()]
         roots += [Path(entry[key]['path']) for entry in entries for key in ('assignment', 'source')]
+        if recovery_authority is not None:
+            roots.append(regular(recovery_authority))
         require(all(path != self.work and self.work not in path.parents and path not in self.work.parents
                     for path in roots), 'object_job_spool_overlaps_authority')
         self.guard = (self.work / 'service.lock').open('a+b')
@@ -134,13 +138,19 @@ class ObjectAuditJobs:
                   CREATE TABLE IF NOT EXISTS erasures (
                     job TEXT PRIMARY KEY REFERENCES jobs(id), requested INTEGER NOT NULL, completed INTEGER);
                   CREATE TABLE IF NOT EXISTS assignment_revocations (
-                    lease TEXT PRIMARY KEY, requested INTEGER NOT NULL);''')
+                    lease TEXT PRIMARY KEY, requested INTEGER NOT NULL);
+                  CREATE TABLE IF NOT EXISTS recovery_authorities (
+                    sha256 TEXT PRIMARY KEY, captured INTEGER NOT NULL, applied INTEGER NOT NULL);''')
                 identity = db.execute('SELECT * FROM identity').fetchall()
                 wanted = (registry_sha256, verifier.policy_sha256)
                 require(not identity or (len(identity) == 1 and tuple(identity[0]) == wanted),
                         'object_job_service_identity_changed', 503)
                 if not identity:
                     db.execute('INSERT INTO identity VALUES (?,?)', wanted)
+            if recovery_authority is not None:
+                # Current independent deletion authority must revoke a restored
+                # approval before recover() can examine or serve that receipt.
+                self.apply_recovery_authority(recovery_authority, recovery_sha256)
             self.recover()
         except BaseException:
             self.guard.close()
@@ -163,6 +173,41 @@ class ObjectAuditJobs:
         raw = pinned_read(regular(pin['path']), pin['sha256'], MAX_MANIFEST)
         require(len(raw) == pin['bytes'], 'object_job_registry_changed', 503)
         return raw
+
+    def apply_recovery_authority(self, path, sha256):
+        from .object_audit_recovery import recovery_revocations
+        with self.lock:
+            require(self.worker is None and self.active_job is None and not self.stop.is_set(),
+                    'object_recovery_requires_offline_spool', 409)
+            now = int(self.clock())
+            authority = recovery_revocations(path, sha256, registry_sha256=self.registry_sha256,
+                verifier=self.verifier, entries=self.entries, now=now)
+            # A fresh manifest cannot reinterpret a changed registry/policy.
+            pinned_read(self.registry_path, self.registry_sha256, MAX_MANIFEST)
+            self.verifier.verify_inputs()
+            for row in authority['revocations']:
+                self.entry({'lease': row['leaseId']})
+            with self.connect() as db:
+                latest = db.execute('SELECT MAX(captured) FROM recovery_authorities').fetchone()[0]
+                require(latest is None or authority['capturedAt'] >= latest,
+                        'object_recovery_authority_older_than_applied', 409)
+                conflict = db.execute('SELECT sha256 FROM recovery_authorities WHERE captured=? AND sha256<>?',
+                                      (authority['capturedAt'], sha256)).fetchone()
+                require(conflict is None, 'object_recovery_authority_conflict', 409)
+                # One transaction records all revocations and the application
+                # receipt. No old receipt/attempt file is rewritten here.
+                for entry in authority['revocations']:
+                    db.execute('INSERT INTO assignment_revocations VALUES (?,?) ON CONFLICT(lease) DO NOTHING',
+                               (entry['leaseId'], entry['deletedAt']))
+                    job = db.execute('SELECT id,state FROM jobs WHERE lease=?', (entry['leaseId'],)).fetchone()
+                    if job and job['state'] != 'erased':
+                        db.execute('INSERT INTO erasures VALUES (?,?,NULL) ON CONFLICT(job) DO NOTHING',
+                                   (job['id'], entry['deletedAt']))
+                        db.execute("UPDATE jobs SET state='erasing',receipt=NULL,retry_at=0 WHERE id=?", (job['id'],))
+                db.execute('INSERT INTO recovery_authorities VALUES (?,?,?) ON CONFLICT(sha256) DO NOTHING',
+                           (sha256, authority['capturedAt'], now))
+            return {'authoritySha256': sha256, 'revokedAssignments': len(authority['revocations']),
+                    'cleanupComplete': False, 'serverAuthorization': False, 'productionQualified': False}
 
     def entry(self, row):
         pinned_read(self.registry_path, self.registry_sha256, MAX_MANIFEST)
@@ -537,12 +582,15 @@ def main():
         parser.add_argument('--' + name, type=Path, required=True)
     for name in ('policy-sha256', 'registry-sha256'):
         parser.add_argument('--' + name, required=True)
+    parser.add_argument('--recovery-authority', type=Path)
+    parser.add_argument('--recovery-authority-sha256')
     parser.add_argument('--port', type=int, default=8768)
     args = parser.parse_args()
     jobs = server = None
     try:
         verifier = NativeObjectVerifier(args.binary, args.models, args.policy, args.policy_sha256)
-        jobs = ObjectAuditJobs(verifier, args.registry, args.registry_sha256, args.work)
+        jobs = ObjectAuditJobs(verifier, args.registry, args.registry_sha256, args.work,
+            recovery_authority=args.recovery_authority, recovery_sha256=args.recovery_authority_sha256)
         server = make_server(jobs, os.environ.get('VISION_OBJECT_VERIFIER_SECRET', ''), port=args.port)
         jobs.start()
         print(encoded({'ready': True, 'bind': '127.0.0.1', 'port': server.server_port,
