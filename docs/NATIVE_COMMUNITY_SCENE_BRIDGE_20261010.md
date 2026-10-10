@@ -66,6 +66,12 @@ Original invalid candidates and all previous failure evidence remain intact.
 
 ## Remaining release work
 
+The [protected origin follow-up](PROTECTED_ORIGIN_HANDOFF_20261010.md), now in
+the same PR at `e118a442e0123477c4c64c4b0488ccd509548eff`, adds a source-side
+capture and complete selected-map guards. It passes 112/113 Windows cases with
+one existing POSIX skip; it still requires the actual source machine and does
+not make the missing portable authority pass.
+
 Next finish fresh portable protected/runtime authority, refresh coverage when
 needed and connect current hosted membership, Object qualification, quarantine,
 native jobs, publication, once-only credit and earned Object search. Actual Mac

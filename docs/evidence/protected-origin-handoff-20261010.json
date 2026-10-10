@@ -1,0 +1,172 @@
+{
+  "version": 1,
+  "date": "2026-10-10",
+  "scope": "protected-origin-export-and-selected-map-guard",
+  "parentCommunityCommit": "92181c6a8848933fa6fb8c9f5d4d0e7aa827da95",
+  "nativeRepository": "Andrew454545/VISION",
+  "nativePullRequest": 17,
+  "nativeHead": "e118a442e0123477c4c64c4b0488ccd509548eff",
+  "nativeParent": "cf64635a88dcf44ee069e67910a162b9eb478e4b",
+  "remoteVerified": true,
+  "platform": "Windows x64",
+  "node": "24.19.0",
+  "nativeSourceFiles": {
+    "automation/runtime-source/docs/community-scene-authority.md": {
+      "bytes": 6897,
+      "sha256": "f7be8e4c339829b9d8a000b14f99e1ced4acc45ccf15da6ccf7918e924cd34de"
+    },
+    "automation/runtime-source/docs/protected-origin-handoff.md": {
+      "bytes": 4662,
+      "sha256": "1a754e091a0fecbcf0377a65b697b1868523653dc779d6d14dd12cb954c5089d"
+    },
+    "automation/runtime-source/scripts/build-vision-gen4-object-pool.test.mjs": {
+      "bytes": 45097,
+      "sha256": "458e157c73b606a5781fa3df9b4575c6227a55a4bad659bcbb87f7decc47c063"
+    },
+    "automation/runtime-source/scripts/prepare-protected-mma-handoff.mjs": {
+      "bytes": 16976,
+      "sha256": "3592609e095a7d77b4bb4839855161634baa1efe4b2dc29855ff6724cbcd3f3d"
+    },
+    "automation/runtime-source/scripts/prepare-protected-mma-handoff.test.mjs": {
+      "bytes": 11341,
+      "sha256": "d24b20aa5dacc8b50e1f40c13d2581bd0615fefb82ea765d7717b27e88982cbf"
+    },
+    "automation/runtime-source/scripts/run-vision-object-indexer.mjs": {
+      "bytes": 82422,
+      "sha256": "68e01fee81382474174a796ae1603031a1c496432e7f12e55a5c4710c749ff2f"
+    },
+    "automation/runtime-source/scripts/seal-vision-gen4-inline-pool.mjs": {
+      "bytes": 33490,
+      "sha256": "9a6fd1d428339accebcd115c167b5f9c7980ab779ce0ad8547e0bd9a392420ef"
+    }
+  },
+  "regression": {
+    "tests": 113,
+    "pass": 112,
+    "fail": 0,
+    "skipped": 1,
+    "skip": "existing POSIX executable fixture",
+    "nativeInference": "explicitly synthetic fixtures only",
+    "realNativeExporterExecuted": false,
+    "receipt": {
+      "file": "regression-v2.receipt.private.json",
+      "bytes": 2454,
+      "sha256": "440300ea664f1b05635e4257adfc3da38a0fe2992eaac38fe4015afbe842014e"
+    },
+    "stdout": {
+      "file": "regression-v2.stdout.private.log",
+      "bytes": 10424,
+      "sha256": "f5b7bde31a98204809eca6a7ec3a141f544c80a2862526350f591237eaf3698c"
+    },
+    "stderr": {
+      "file": "regression-v2.stderr.private.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "authenticSourceRegression": {
+    "status": "AUTHENTIC_EIGHT_ROW_IMPORT_STILL_REFUSED",
+    "rows": 8,
+    "candidateManifestSha256": "f78da18af2c9e3fae003b9ec271277017760e0803902cb6b60592e8e31704152",
+    "failure": "protected MMA database disappeared while sealing the queue",
+    "originalCandidateUnchanged": true,
+    "importOutputCreated": false,
+    "networkUsed": false,
+    "nativeInference": false,
+    "newCreditGranted": 0,
+    "objectImportApproved": false,
+    "ownerPacketFilePinsStillVerified": 76,
+    "priorCoverageValidatorUnchanged": true,
+    "receipt": {
+      "file": "authentic-check.private.json",
+      "bytes": 424,
+      "sha256": "bdc6c14522e7aa5c2dfa9bd25beae442f9dd17ff68dc7d44f40e5bea796d49b7"
+    }
+  },
+  "preservedFailures": [
+    {
+      "run": "focused-v1",
+      "counts": {
+        "tests": 32,
+        "pass": 31,
+        "fail": 1,
+        "skipped": 0
+      },
+      "cause": "retry expectation was corrected; changed exporter is rejected at its independent pin before EEXIST",
+      "receipt": {
+        "file": "focused-v1.receipt.private.json",
+        "bytes": 435,
+        "sha256": "49e106333f4ee27e59bed739b04de648a4ed956dbbb378b0b15ca46dbe5cd69a"
+      },
+      "stdout": {
+        "file": "focused-v1.stdout.private.log",
+        "bytes": 5887,
+        "sha256": "7ea56fb63a8ff2427e3d2f65708a5054b09d7efe1b8ed162adcab80320cdbb5b"
+      }
+    },
+    {
+      "run": "focused-v2",
+      "counts": {
+        "tests": 32,
+        "pass": 25,
+        "fail": 7,
+        "skipped": 0
+      },
+      "cause": "Windows 64-bit file IDs were rounded by default Number stats; exact BigInt/string identities correct false alias rejection",
+      "receipt": {
+        "file": "focused-v2.receipt.private.json",
+        "bytes": 435,
+        "sha256": "02badbc772fa27496b024c7a5fccceaa7c477ffa81e3445e700437524692cebe"
+      },
+      "stdout": {
+        "file": "focused-v2.stdout.private.log",
+        "bytes": 16077,
+        "sha256": "47b5bd8f91180386febea354266d792ebc9662d04585eab1606a605dac34a007"
+      }
+    },
+    {
+      "run": "offline-native-build",
+      "cause": "existing private Cargo cache lacks arrow; no dependency download was attempted",
+      "receipt": {
+        "file": "build.receipt.private.json",
+        "bytes": 646,
+        "sha256": "e4e2c2175796fe9c6371171f55d2c1c0661643e7b033673ae96840aab102fd69"
+      },
+      "stderr": {
+        "file": "build-test.stderr.private.log",
+        "bytes": 424,
+        "sha256": "f8e694ab11be8f1946438e5ecdb935c76d3e9bf1f6c9bd77354fb95b8ba53fe3"
+      }
+    }
+  ],
+  "guards": {
+    "mainWalUnchanged": true,
+    "selectedArrowDeltaWholeSetBound": true,
+    "absentMembersBound": true,
+    "sourceFingerprintRecheckedBeforeProcessing": true,
+    "independentOperatorPinRequiredForNewGuard": true,
+    "originMaxAgeMillis": 3600000,
+    "originFilesRequired": true,
+    "portableImportApproved": false
+  },
+  "sideEffects": {
+    "networkCalls": 0,
+    "imageryRequests": 0,
+    "providerWrites": 0,
+    "newCredits": 0,
+    "globalInstalls": 0,
+    "actionsRunsRequested": 0,
+    "databaseBytesCopied": false,
+    "scenePilotChanged": false,
+    "sceneRefresherChanged": false,
+    "publicObjectGateOpened": false
+  },
+  "remaining": [
+    "actual fresh source-side native export on owner Mac",
+    "legitimate portable/live protection and runtime authority",
+    "authentic hosted Object admission, publication, credit and search",
+    "Mac and signed clean-device acceptance",
+    "full accepted-work endurance",
+    "complete provider, native-bundle and secret recovery"
+  ]
+}
