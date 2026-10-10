@@ -54,10 +54,12 @@ sealer/export commands and required source/fingerprint fields:
 
 - A legitimate portable sealed Object import authority, authentic database
   artifacts/source and matching guard for a **small unprotected current-Gen4
-  cohort**. The geographic snapshot alone is not that seal.
-- The private production-backup/export specification needed for a full-data
-  schema rehearsal. If contributor-side export approval is blocked, ask the
-  owner-side agent to provide an authorized private artifact.
+  cohort**. The [verified 100-row cohort](GEN4_COHORT_20261009.md) is now supplied;
+  the geographic snapshot alone is not a runtime import seal. Genuine Scene
+  completion and portable real protected-database/runtime authority remain.
+- The approved full production export and [actual schema/rollback rehearsal](PRODUCTION_DATA_REHEARSAL_20261009.md)
+  now pass. Continue complete provider recovery and obtain a fresh drained-writer
+  cutoff before controlled migration; do not treat the historical copy as live state.
 - Signing-enrollment status, a clean supported Windows PC, a clean Apple-silicon
   Mac and a nontechnical tester. Coordinate installer work with NickEvans4130.
 

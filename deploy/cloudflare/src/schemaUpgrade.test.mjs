@@ -37,7 +37,17 @@ test('legacy upgrade preserves credentials, balances, paid maps, publications, l
   const plan=JSON.parse(readFileSync(join(out,'query-batch.private.json'))).batch;
   assert.ok(!JSON.stringify(plan).includes('retained-token'));
   assert.ok(!JSON.stringify(plan).includes('private café'));
-  assert.deepEqual(readdirSync(out).sort(),['query-batch.private.json','upgrade-report.private.json','upgrade.private.sql','upgraded.sqlite']);
+  assert.equal(report.generatedBatchApplied,true);
+  assert.equal(report.injectedLateFailureReached,true);
+  assert.equal(report.fullCopyRollbackVerified,true);
+  const rolledBack=open(join(out,'rollback.sqlite'));
+  assert.equal(rolledBack.prepare('PRAGMA table_info(accounts)').all().some(column=>column.name==='deleted_at'),false);
+  assert.equal(rolledBack.prepare('SELECT units FROM accounts').get().units,100001);
+  assert.equal(rolledBack.prepare('SELECT hex(CAST(result_json AS BLOB)) bytes FROM searches').get().bytes,Buffer.from('map;\0Ω').toString('hex').toUpperCase());
+  const replayed=open(join(out,'replayed.sqlite'));
+  await requireSchema({DB:sqliteD1(replayed)});
+  assert.equal(replayed.prepare('SELECT recovery_hash FROM accounts').get().recovery_hash,'retained-code');
+  assert.deepEqual(readdirSync(out).sort(),['query-batch.private.json','replayed.sqlite','rollback.sqlite','upgrade-report.private.json','upgrade.private.sql','upgraded.sqlite']);
 });
 
 test('deployed legacy CHECK and foreign-key schema upgrades without changing synthetic history or active leases',async t=>{

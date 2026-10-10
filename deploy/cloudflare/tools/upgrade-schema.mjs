@@ -62,8 +62,8 @@ function historicalTables(sql, rows) {
     return { name: row.name, columns: columns.map(column => column.name) };
   });
 }
-function fingerprint(sql, table) {
-  const expressions = table.columns.map(column => table.name === 'account_cleanup' && column === 'state'
+function fingerprint(sql, table, normalizeCleanup = true) {
+  const expressions = table.columns.map(column => normalizeCleanup && table.name === 'account_cleanup' && column === 'state'
     ? `CASE WHEN ${identifier(column)}='removed' THEN 'pending' ELSE ${identifier(column)} END` : identifier(column));
   // Read text as bytes: some Node SQLite versions truncate embedded NULs.
   const selections = expressions.flatMap((column,index) => [`typeof(${column}) AS t${index}`,
@@ -89,6 +89,48 @@ function sequence(sql) {
   return query.all().map(row => ({ name:row.name, seq:String(row.seq) }));
 }
 function same(left, right) { return JSON.stringify(left) === JSON.stringify(right); }
+
+// Exercise the *generated rollout batch* on independent copies of the entire
+// input, not just the migration functions that produced it. The deliberate last
+// statement must actually be reached; an earlier failure is not a rollback pass.
+async function replayPlan(input, inputPin, destination, plan) {
+  for (const mode of ['rollback', 'replayed']) {
+    const copy = join(destination, mode + '.sqlite');
+    copyFileSync(input, copy, constants.COPYFILE_EXCL);
+    checkInput(copy, inputPin);
+    const sql = new DatabaseSync(copy, { allowExtension: false });
+    try {
+      sql.exec('PRAGMA trusted_schema=OFF; PRAGMA foreign_keys=ON');
+      const originalSchema = schema(sql);
+      const tables = historicalTables(sql, originalSchema);
+      const saved = tables.map(table => fingerprint(sql, table, mode !== 'rollback'));
+      const originalSequence = sequence(sql);
+      const revision = originalSchema.some(row => row.name === 'community_schema_revision')
+        ? fingerprint(sql, {name:'community_schema_revision',columns:['slot','revision','contract','installed_at']}) : null;
+      let lastQuery;
+      const db = sqliteD1(sql, query => { lastQuery = query; });
+      if (mode === 'rollback') {
+        const injection = 'INSERT INTO community_upgrade_injected_failure_missing VALUES(1)';
+        let failed = false;
+        try { await db.batch([...plan, injection].map(query => db.prepare(query))); }
+        catch { failed = true; }
+        if (!failed || lastQuery !== injection || !same(originalSchema, schema(sql))
+            || !same(saved, tables.map(table => fingerprint(sql, table, false)))
+            || !same(originalSequence, sequence(sql))
+            || revision && !same(revision, fingerprint(sql, {name:'community_schema_revision',columns:['slot','revision','contract','installed_at']}))) {
+          fail('generated_batch_rollback_failed');
+        }
+      } else {
+        await db.batch(plan.map(query => db.prepare(query)));
+        await requireSchema({DB:db});
+        if (!same(saved, tables.map(table => fingerprint(sql, table)))
+            || !same(originalSequence, sequence(sql))) fail('generated_batch_history_changed');
+      }
+      validDatabase(sql);
+    } finally { sql.close(); }
+    checkInput(input, inputPin);
+  }
+}
 
 // Guard the complete application schema, including existing trigger bodies.
 // Data is deliberately absent: a fresh quiesced backup is still required at rollout.
@@ -145,10 +187,12 @@ export async function rehearseUpgrade({ database, databaseSha256, out }) {
     if (Buffer.byteLength(planFile) > 1024 * 1024 || plan.length > 1000) fail('upgrade_plan_too_large');
     writeFileSync(join(destination,'upgrade.private.sql'), planFile, { flag:'wx', mode:0o600 });
     writeFileSync(join(destination,'query-batch.private.json'), encoded({batch:plan.map(query => ({sql:query,params:[]}))}), {flag:'wx',mode:0o600});
+    await replayPlan(input, databaseSha256, destination, plan);
     const report = { version:1, scope:'offline-community-schema-upgrade', complete:true, liveReady:false,
       inputSha256:databaseSha256, databaseSha256:hash(readFileSync(copy)), sourceSchemaSha256:hash(encoded(originalSchema)),
       planSha256:hash(planFile), statements:plan.length, historicalTables:before,
-      cleanupRequeued, preservedAutoincrement:true, cloudResourcesAccessed:false };
+      cleanupRequeued, preservedAutoincrement:true, generatedBatchApplied:true,
+      injectedLateFailureReached:true, fullCopyRollbackVerified:true, cloudResourcesAccessed:false };
     writeFileSync(join(destination,'upgrade-report.private.json'), encoded(report), { flag:'wx',mode:0o600 });
     return report;
   } catch (error) {
@@ -165,6 +209,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
     if (!values.database || !values['database-sha256'] || !values.out) fail('invalid_upgrade_arguments');
     const report = await rehearseUpgrade({database:values.database,databaseSha256:values['database-sha256'],out:values.out});
     console.log(encoded({complete:report.complete,liveReady:false,statements:report.statements,historicalTables:report.historicalTables.length,
-      historicalRows:report.historicalTables.reduce((sum,table)=>sum+table.rows,0),cloudResourcesAccessed:false}));
+      historicalRows:report.historicalTables.reduce((sum,table)=>sum+table.rows,0),
+      generatedBatchApplied:report.generatedBatchApplied,fullCopyRollbackVerified:report.fullCopyRollbackVerified,cloudResourcesAccessed:false}));
   } catch (error) {console.error(encoded({complete:false,liveReady:false,error:error instanceof UpgradeError ? error.message : 'upgrade_rehearsal_failed'}));process.exitCode=1;}
 }
