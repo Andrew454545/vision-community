@@ -1,0 +1,114 @@
+{
+  "version": 1,
+  "status": "REAL_WINDOWS_SCENE_CONTRIBUTION_EARNED_SEARCH_AND_RECOVERY_VERIFIED",
+  "dateUtc": "2026-10-10",
+  "environment": "staging",
+  "productionApproved": false,
+  "publicAdmissionOpened": false,
+  "qualifiedPlatform": "Windows x64",
+  "inferenceThreads": 1,
+  "profileSha256": "de1ed392dfebd25a1a4e6d08d59fdeeabee9bed9a26015978f1fee50e8f64a86",
+  "nativeBinarySha256": "6ce8f5c9dbfeb8404da13daa71afecfd07a56f118fc61819d07c1d2330f191ba",
+  "independentFullMatrixReceiptSha256": "ce83a777fea953b496f905cbc2b9e4a52508d0bc60e87ab2bb19f180f564f6e9",
+  "fixedReadiness": {
+    "locations": 112,
+    "views": 448,
+    "wallSeconds": 165.92946610000217,
+    "minimumCosine": 0.9999937272496635,
+    "maximumRelativeL2": 0.003543760549555531,
+    "bounds": {
+      "minimumViewCosine": 0.9999,
+      "maximumViewRelativeL2": 0.02
+    },
+    "serverQualified": true
+  },
+  "historicalLiveReadiness": {
+    "complete": true,
+    "qualified": false,
+    "maximumRelativeL2": 0.13675474974335408,
+    "unchangedHistoricalMaximumRelativeL2": 0.125,
+    "originalReportPreserved": true
+  },
+  "accepted": {
+    "locations": 8,
+    "countries": 8,
+    "newEarnedUnits": 8,
+    "replayEarnedUnits": 0,
+    "pendingDeliveries": 0,
+    "source": "verified replacement Community allocation; not reference fixtures",
+    "trustedNativeLiveAudit": true
+  },
+  "search": {
+    "actualEarnedDebitUnits": 8,
+    "remainingBankedUnits": 8,
+    "results": 8,
+    "processedLocations": 8,
+    "onlyFreshContributions": true,
+    "snapshotSha256": "c20a7cc8abaee78e6af25f85108877493a3ebe7d888e31bd6f0bc0f2d499fa96",
+    "samePaidResultAfterFreshProcessAndAccountRecovery": true,
+    "replayAfterAdmissionClosed": true,
+    "replayAfterDefaultPriceRestored": true,
+    "searchLedgerEntries": 1,
+    "syntheticCreditAdded": 0,
+    "trialPriceOnly": true,
+    "publicScaleEconomicsEstablished": false
+  },
+  "checks": {
+    "nodePassed": 60,
+    "actualWorkerdCasesPassed": 14,
+    "pythonClientPassed": 18,
+    "skips": 0,
+    "failuresInFinalChecks": 0
+  },
+  "cleanup": {
+    "originalClosedStagingBindingsRestored": true,
+    "nativeComputeStopped": true,
+    "acceptedWorkCreditsAndPaidRepliesPreserved": true,
+    "productionResourcesChanged": false,
+    "dailyRequestLimit": 48,
+    "dailyContainerStartLimit": 12,
+    "usedRequests": 5,
+    "usedStarts": 2
+  },
+  "failuresPreserved": [
+    "historical live input comparison",
+    "restricted native fixed-input Access Denied",
+    "initial router fixture and retry harness receipt correction",
+    "two simulator deletion fixture failures",
+    "initial headered metadata parser failures",
+    "Wrangler D1 import authentication failure",
+    "initial real paid-search wrapper/recovery failure caused by missing client price-error allowlist"
+  ],
+  "fullSevenDayAcceptanceStarted": false,
+  "objectAdmissionOpened": false,
+  "privateEvidenceSha256": {
+    "operator-decision.private.json": "a95258399f0683ad5c7bcef48876d94cf05f49696f4c9210598c2c543b9d5a72",
+    "fresh-fixed-canary-fixedcanary-authorized/canary-report.json": "50566f6f0afbb1c1a35812bbea0d8976aa92cd212d35bff4726bb4565e5900da",
+    "contribution.private.json": "42dc47a646417b3195027c51c40b99d58ac30d8bb64e3c9070a90aa1df8f96d3",
+    "publication-inventory.private.json": "5934c16ae5834e71d7f64acf1caab796da8542d8b1f55c03935de00af6186176",
+    "publication-control.private.json": "e87035b06119fd268c394fddf95c324687f7cfc523de003744989630adac64cf",
+    "published-r2.private.i8": "d54e191b07640b4a0383eee59e12a314d7d44794672b48a69499b297dd21659d",
+    "fresh-snapshot-receipt.private.json": "92976becf7160ebd9145f2045b38ffd6ff1520a765cc204f0a5f6e910619cad9",
+    "paid-query.private.json": "6ee42fd1cdfc15a9c2abadacb58c808e7a7534053a598b4425290732e245cb25",
+    "paid-reply.private.json": "247ddec005df60012ba0df54d3214cdbb82ce558554a136f970f388d9f0af355",
+    "earned-search.private.json": "c5ca4b20ca4f72e5750c90b5f45fa38c631e927a3d65013eed8b4747c6779e7f",
+    "earned-search-recovery.private.json": "d0f6313f57c4feab4233c04030ff0228bcf4f9f22760e4319d9062b9bdc3f768",
+    "earned-search-recovery-fixed.private.json": "81ed44fdfa43859d39235e4465c5f051a869887b0a5bfb50798a670439a3b433",
+    "final-provider-readback.private.json": "67934c5daa45377f3abc685ae0223df67f04c5b85021795512b49ae0a9ea4569",
+    "node.stdout.private.log": "68812acdabed2c0c825ee8666a5745c9990267f21ce0d8bd5ee3e4b148684dcf",
+    "node-receipt-correction.private.json": "1629fa20225a2ab608d61ed92eab661a0440b9f80d6dfadffbdb67670330dc7b",
+    "node-fixed.stdout.private.log": "b2acc01100fc2a1d72aeb7ce0f45ad03de6a34c29204dad2387be1e58932b9b7",
+    "workerd-authorized.stderr.private.log": "35bc4fa2e76e5ee8db16030e63a46db0fa20ccd61fb54d0b11385f5d8fe264ba",
+    "workerd-confirmed.stderr.private.log": "54abb76e23924fc2c7068ebc6a31eac8e22d47d36790b7b9c585da2fcfb5e3f4",
+    "workerd-final.stdout.private.log": "2c08c9a4b9404de4318cdfc877b4f4b93bd6fb15e7cea3e3d00a9e7d23daf3ff",
+    "client-fixed.stderr.private.log": "0537154ac61dc27bd15f2c1ea5f8c1bbe130f9bdede08900653a52da4a272fed"
+  },
+  "remaining": [
+    "automatic publication snapshot refresh and recovery",
+    "equivalent Mac acceptance",
+    "authentic Object runtime/protected/quality authority and hosted integration",
+    "both-platform accepted-work endurance",
+    "signed clean-device and nontechnical-user acceptance",
+    "complete provider recovery, sustainable capacity and controlled rollout"
+  ]
+}

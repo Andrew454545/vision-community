@@ -5,10 +5,24 @@ Updated **10 October 2026**. Start with the finite
 preserves historical results and limitations; completed reference trials do not
 require repeating merely because an older paragraph described them as pending.
 
+The [real Windows Scene trial](WINDOWS_SCENE_COHORT_20261010.md) now closes a
+contribution-to-earned-search milestone: eight fresh replacement-pool locations
+across eight countries passed native audit, earned eight units and formed the
+only searchable snapshot. A native search charged eight genuinely earned units
+once; fresh-process account recovery returned the exact paid result after
+admission closed, without another debit. Eight units remain banked. The current
+CPU1 profile passed fixed-input qualification under unchanged bounds; 92 affected
+component checks pass with no skips. The original live-input mismatch and failed
+client recovery reports remain preserved. The trial is closed and compute is
+stopped. Automatic snapshot refresh, Mac/Object acceptance, sustainable pricing,
+both seven-day workloads, signed downloads and complete provider recovery remain
+open. Earlier dated reports below describe their recorded states.
+
 The [verified positive Gen4 cohort](GEN4_COHORT_20261009.md) contains 100 original
 R2 locations across 22 countries. Fresh native validation and saved raw Google
-metadata agree; all are outside the real protected snapshot. Genuine Scene
-completion and portable protected/runtime import authority remain required.
+metadata agree; all are outside the real protected snapshot. Eight now have
+genuine Community Scene completion. Andrew's local MMA Scene membership and
+portable protected/runtime import authority remain required for Object admission.
 
 The [saved Object audit jobs](NATIVE_OBJECT_AUDIT_JOBS.md) add short private
 acknowledgements, durable attempt/decision recovery and bounded retry/cancellation
@@ -21,8 +35,9 @@ The [private Object privacy follow-up](evidence/object-audit-privacy-20261010.js
 passes 55 checks for durable revocation, interrupted cleanup, restart, replay
 prevention, Windows junction refusal and private transport. It does not connect
 live account deletion or open admission. The [actual seven-day start check](evidence/accepted-work-start-preflight-20261010.json)
-confirms both staging lanes remain unavailable; neither accepted-work clock
-started. The original fixture failure and earlier reports remain preserved.
+recorded both staging lanes unavailable before the finite Scene trial above;
+neither accepted-work clock started. Admission is closed again after the trial.
+The original fixture failure and earlier reports remain preserved.
 
 The [full production-data rehearsal](PRODUCTION_DATA_REHEARSAL_20261009.md) now
 passes after specific transfer consent: all 364,056 historical rows survive
@@ -58,7 +73,8 @@ actual browser cancellation/reload/explicit-price approval and once-only paid
 recovery, plus local workerd/D1 restart checks. These are synthetic component
 checks; the historical default price is unchanged. The complete recorded local
 Windows service suite passes 448/451 tests with three permission skips and no
-failures. Genuine earned-credit search and production recovery remain open.
+failures. The genuine Windows earned-credit Scene search now passes as recorded
+above; Object/Mac search and full production recovery remain open.
 
 The [offline credit-recovery checker](CREDIT_RECOVERY.md) now rejects a
 reproduced transient-source-WAL mismatch by querying pinned private copies.

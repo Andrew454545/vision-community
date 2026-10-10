@@ -6,6 +6,14 @@ This is the single operational dependency list for the
 choices belong to Geonections; a missing resource is not a request for another
 general design approval. Keep private exports and location evidence private.
 
+The [finite Windows Scene trial](WINDOWS_SCENE_COHORT_20261010.md) has completed
+real native-audited publication and earned-credit search: eight new locations,
+eight countries, eight units earned, one eight-unit debit, exact paid recovery
+and eight units still banked. Replays award and charge nothing extra. The trial
+is closed with compute stopped. This clears the first Windows Scene milestone;
+automatic snapshot refresh, equivalent Mac/Object work and the other gates below
+remain open.
+
 The [saved Object audit job component](NATIVE_OBJECT_AUDIT_JOBS.md) now provides
 durable start/status/retry/cancel handling outside the short website request.
 Windows process/HTTP recovery and actual local workerd transport are verified
@@ -17,8 +25,9 @@ next executable engineering work; no public Object gate was opened.
 
 | Work / owner | Next executable action | Prerequisite | Completion check | Evidence |
 |---|---|---|---|---|
-| Small genuine contributions / Geonections; native source handoff / Andrew | Use the verified 100-location/22-country cohort to connect Object qualification, quarantine, full native audit, publication and once-only credit; finish the measured Scene policy on each OS. | Current coverage and geographic exclusion are verified. Genuine Scene completion, authentic portable sealed import and matching protected database/runtime/quality authority remain required. The cohort and precise sealer request are delivered in private VISION PR #15. | Windows and Mac each publish fresh qualified work in both lanes; altered, protected, wrong-runtime and duplicate submissions fail safely. | [Verified cohort](GEN4_COHORT_20261009.md), [Object auditor](NATIVE_OBJECT_AUDIT.md), [cross-platform limits](OBJECT_CROSS_PLATFORM_20261009.md), private PR #15 and future fresh receipts. |
-| Early pricing and earned-credit search / Geonections | Choose a sustainable initial price from measured processing effort and hosted cost; implement it without rewriting historic debits, saved replies or balances. Seal accepted contributor indexes and exercise both native search modes. | Fresh accepted cohort; representative hosted cost/capacity measurements within the existing private allowance. Current disposable funded-search evidence is insufficient. | A new contributor earns and spends real credit; lost replies, concurrent retries and recovery return the same paid result once. | [Launch plan](LAUNCH_PLAN.md), [accounting recovery](CREDIT_RECOVERY.md), future pricing/capacity and earned-search receipts. |
+| Repeatable Scene contributions / Geonections | Automate accepted-publication snapshot refresh and recovery; qualify the exact Mac profile and repeat genuine publication/search there. Connect normal background operation and verified parallel profiles. | Current Windows CPU1 qualification, eight fresh native-audited publications and earned-search recovery now pass. The finite trial used an operator-sealed snapshot; public admission remains closed. | New accepted work becomes searchable without manual snapshot preparation; recovery preserves prior publications, credits and paid replies; equivalent Mac evidence exists. | [Real Windows trial](WINDOWS_SCENE_COHORT_20261010.md) and its pinned receipt. |
+| Genuine Objects / Geonections; native source handoff / Andrew | Use the verified 100-location/22-country cohort to connect Object qualification, quarantine, full native audit, publication and once-only credit. | Current coverage and geographic exclusion are verified. Eight have genuine Community Scene completion; local MMA Scene membership, authentic portable sealed import and matching protected database/runtime/quality authority remain required. The cohort and precise sealer request are delivered in private VISION PR #15; completion outputs are preserved in a private handoff. | Windows and Mac each publish fresh qualified Object/Both work; altered, protected, wrong-runtime and duplicate submissions fail safely. | [Verified cohort](GEN4_COHORT_20261009.md), [Object auditor](NATIVE_OBJECT_AUDIT.md), [cross-platform limits](OBJECT_CROSS_PLATFORM_20261009.md), private PR #15 and future fresh receipts. |
+| Sustainable pricing and both search modes / Geonections | Measure representative effort and hosted cost within the existing allowance; choose an initial price without rewriting historic debits, saved replies or balances. Exercise native Object search after admission is authentic. | Real Windows Scene earned-credit search and fresh-process exact paid recovery now pass. The finite eight-unit trial price does not establish public capacity or sustainable economics. | New contributors can earn and spend real credit in both modes; lost replies, concurrent retries and recovery return the same paid result once within measured resource bounds. | [Real Windows trial](WINDOWS_SCENE_COHORT_20261010.md), [launch plan](LAUNCH_PLAN.md), [accounting recovery](CREDIT_RECOVERY.md) and future capacity receipts. |
 | Full-data schema rehearsal / Geonections | Complete: approved full export, guarded conversion, actual 364,056-row upgrade, independent generated-batch replay and injected final-statement rollback. Prepare the controlled live migration within complete recovery work below. | Specific transfer consent was granted. Independent live schema readback and all 18 balance/ledger checks pass. The historical copy has zero paid-search rows and is not a fresh rollout cutoff. | Credentials, balances, publications, active leases and high-water marks survived. Full provider/paid-reply recovery and a new drained-writer cutoff remain open. | [Actual production-data rehearsal](PRODUCTION_DATA_REHEARSAL_20261009.md) and private pinned evidence. |
 | Seven-day accepted workload / Geonections and platform operators | Start each OS independently as soon as its qualified admission and earned-search prerequisites pass; use the normal background contributor. | Current qualified profiles, genuine accepted work in both lanes, required environment/schema ready, fixed resource/retention budgets. Public admission can remain closed to a restricted cohort. | At least seven calendar days with useful accepted work, actual interruptions, day/night transitions and independently reconciled publication/credit. | [Start and completion protocol](ACCEPTED_WORK_SOAK.md). **Neither accepted-work clock has started.** |
 | Separate offline Windows diagnostic / Geonections | Preserve the terminal failure and three completed native rounds; investigate the interrupted recovery helper separately. | Saved-image inputs and pinned private source/runtime; no live service or credits. | A fresh regression is separate evidence and cannot erase the failed diagnostic or close the accepted-work gate. | [Terminal result](WINDOWS_NATIVE_DIAGNOSTIC_20261009.md#terminal-result): failed in round 4 at 18:04 CDT; three one-location 1/2/4-thread rounds completed. Its verified task is disabled. The older two-location failure remains failed and preserved. |
@@ -34,8 +43,9 @@ See [the Windows integration receipt](evidence/credit-recovery-windows-integrati
 The subsequent [pricing recovery checks](SEARCH_PRICING_RECOVERY_20261009.md)
 pass **448 of 451 service tests**, with three permission skips and zero failures,
 and include the actual browser walkthrough and local workerd/D1 paid replay. The historical
-default price is unchanged; representative cost and genuinely earned-credit
-search remain prerequisites for the pricing gate.
+default price is unchanged. Genuine Windows Scene earned-credit search now passes
+in the finite trial above; representative cost/capacity and Object/Mac evidence
+remain prerequisites for the full pricing/search gate.
 
 The [fresh windowless offline diagnostic](WINDOWS_WINDOWLESS_ENDURANCE_20261009.md)
 started at 23:59:18 UTC after its preliminary recovery/native cycle passed.
@@ -43,7 +53,8 @@ It has a fixed 11 October 01:59:18 UTC deadline and does not start the accepted-
 soak or reclassify either failed diagnostic. Read its final receipt once after
 that deadline instead of repeatedly polling it.
 
-The first accepted cohort is the next engineering milestone. The checklist's
+The first finite Windows Scene cohort is complete. Repeatable snapshot refresh
+and genuine Mac/Object acceptance are the next engineering milestones. The checklist's
 24–48-hour target starts after its necessary source/access is available; it is
 not a completion promise. The seven-day test itself needs at least seven days
 after its prerequisites pass. Signing/provider enrollment and unavailable test

@@ -17,6 +17,7 @@ import { OBJECT_INDEX_MODEL, validateObjectIndex } from "./objectIndex.js";
 import { onlineSearch, onlineSearchConfigured, INDEX_DOWNLOAD_ROUTES } from "./onlineSearch.js";
 import { SearchError } from "./searchLedger.js";
 import { searchCost } from "./searchPricing.js";
+import { sceneCohortAllows } from "./sceneCohort.js";
 import { deleteAccount, cleanupAccountArtifacts, archiveAccountDeletionReceipts } from "./accountPrivacy.js";
 import { writeSceneArtifact } from "./artifactWrites.js";
 import { officialGen4Coverage, objectCoverageComplete } from "./objectCoverage.js";
@@ -206,6 +207,7 @@ async function accountId(env, request) {
 
 async function status(env, account, options = {}) {
   const cost = searchCost(env);
+  const cohortAllowed = await sceneCohortAllows(env, account);
   const lite = Boolean(options.lite);
   const rows = await env.DB.prepare(
     `SELECT lane,
@@ -243,8 +245,8 @@ async function status(env, account, options = {}) {
       : await r2Status(env),
     searchCost: cost,
     searchBackend: "online",
-    searchOnSite: cost !== null && onlineSearchConfigured(env),
-    searchReady: cost !== null && onlineSearchConfigured(env),
+    searchOnSite: cohortAllowed && cost !== null && onlineSearchConfigured(env),
+    searchReady: cohortAllowed && cost !== null && onlineSearchConfigured(env),
     indexDownloads: false,
     accountDeletionAvailable: true,
     model: MODEL_ID,
@@ -1195,7 +1197,10 @@ export default {
       if (!env.DB) return error("control_plane_unprovisioned",503);
       await requireSchema(env);
       if (url.pathname === "/api/capabilities") {
-        const scene=verifierConfigured(env) ? pipelineCapabilities(env) : sceneCapabilities(await loadSceneReferences(env));
+        const restricted = env.SCENE_COHORT_ACCOUNTS !== undefined || env.SCENE_COHORT_UNTIL !== undefined;
+        const allowed = await sceneCohortAllows(env, restricted ? await accountId(env,request) : null);
+        const scene = !allowed ? sceneCapabilities(null)
+          : verifierConfigured(env) ? pipelineCapabilities(env) : sceneCapabilities(await loadSceneReferences(env));
         return json({...scene,...objectCapabilities()});
       }
       if (url.pathname === "/api/status") return json(await status(env));
@@ -1203,6 +1208,11 @@ export default {
       // Deleted accounts may still replay their own saved deletion receipt.
       if (!anonymous && !account && url.pathname!=="/api/account/delete") return error("unauthorized",401);
       if (!anonymous) await accountLimit(env,request,account);
+      if (["/api/scene-qualifications","/api/scene-audits","/api/leases","/api/submissions","/api/views"].includes(url.pathname)
+          && !await sceneCohortAllows(env,account)) {
+        if (request.body) void request.body.cancel().catch(() => {});
+        return error("scene_verification_unavailable",503,{"retry-after":"1800"});
+      }
       if (url.pathname === "/api/object-qualifications") {
         // This contract is recognized but has no trusted native provider yet.
         // Refuse before reading canary bytes or touching qualification state.

@@ -45,6 +45,20 @@ function fixture(t, units = 200000) {
 function balance(sql) { return sql.prepare("SELECT units FROM accounts WHERE id='anonymous'").get().units; }
 function count(sql, table) { return sql.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get().n; }
 
+test('cohort expiry blocks new inference and debit while preserving an actually paid replay',async t=>{
+  const {sql,env,query}=fixture(t);
+  const paid=await onlineSearch(env,'anonymous','before-invitation-expiry',query);
+  const saved=balance(sql);
+  env.SCENE_COHORT_ACCOUNTS='[]';
+  env.SEARCH_ENGINE.fetch=()=>{throw Error('closed cohort must not run inference');};
+  await assert.rejects(onlineSearch(env,'anonymous','after-invitation-expiry',query),
+    failure=>failure.code==='search_unavailable');
+  assert.deepEqual(await onlineSearch(env,'anonymous','before-invitation-expiry',query),paid);
+  assert.equal(balance(sql),saved);
+  assert.equal(count(sql,'ledger'),1);
+  assert.equal(count(sql,'searches'),1);
+});
+
 test("the configured current price is charged once, rather than the browser's maximum", async t => {
   const { sql, env, query } = fixture(t, 120);
   env.SEARCH_COST_UNITS = "100";
