@@ -4,6 +4,11 @@
 for a small quarantined batch. It is an operator component, not a download or
 an instruction for volunteers. Hosted Object admission remains closed.
 
+The [saved-job service](NATIVE_OBJECT_AUDIT_JOBS.md) now runs this component
+outside a website request, preserves attempts across restarts and provides
+bounded private status/retry/cancellation transport. Hosted qualification and
+publication still need to be connected.
+
 The component requires independently pinned operator policy, runtime and
 assignment files. Never generate those pins from an uploader's claimed policy
 or accept an uploader's coverage labels as trusted assignment data.

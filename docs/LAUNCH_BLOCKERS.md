@@ -1,10 +1,17 @@
-# Launch work and dependencies — 9 October 2026
+# Launch work and dependencies — 10 October 2026
 
 This is the single operational dependency list for the
 [ordered completion plan](COMPLETION_EXECUTION_PLAN.md). The
 [five launch gates](LAUNCH_PLAN.md) remain the release definition. Engineering
 choices belong to Geonections; a missing resource is not a request for another
 general design approval. Keep private exports and location evidence private.
+
+The [saved Object audit job component](NATIVE_OBJECT_AUDIT_JOBS.md) now provides
+durable start/status/retry/cancel handling outside the short website request.
+Windows process/HTTP recovery and actual local workerd transport are verified
+with explicit synthetic inference. Hosted qualification/quarantine, privacy
+cleanup, publication and once-only credit integration remain the first row's
+next executable engineering work; no public Object gate was opened.
 
 | Work / owner | Next executable action | Prerequisite | Completion check | Evidence |
 |---|---|---|---|---|
