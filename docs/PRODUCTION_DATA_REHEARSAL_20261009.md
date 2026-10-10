@@ -17,6 +17,11 @@ financial snapshot exporter also passes on the upgraded copy. The backup has
 **zero paid-search rows**: real paid-reply recovery is not established by this
 copy. Synthetic paid-reply tests remain separate evidence.
 
+The later [actual staging recovery exercise](REAL_PAID_RECOVERY_20261010.md)
+restores three real paid replies, contributed R2 files and deletion archives into
+local workerd, without changing this historical backup. Its corrected converter
+also reproduces every historical row and schema object in this production copy.
+
 ## Verification and retained failures
 
 - The converter selection passes 16 Windows tests without skips or failures.
