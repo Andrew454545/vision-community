@@ -1,5 +1,6 @@
 import { randomHex, sha256Hex, encodeUtf8 } from "./model.js";
 import { ARTIFACT_WRITES_SCHEMA, PRIVACY_FENCE, sceneArtifactLease } from "./artifactWrites.js";
+import { objectAuditCleanupLease, eraseObjectAssignment } from './objectAuditPrivacy.js';
 
 export class AccountPrivacyError extends Error {
   constructor(code, status = 400) { super(code); this.status = status; }
@@ -206,6 +207,14 @@ export async function deleteAccount(env, authenticatedAccount, body, now = Math.
       SELECT artifact_key,account_id,?,'pending' FROM scene_candidates
         WHERE account_id=? AND state!='published' AND ${claim}
       ON CONFLICT(artifact_key) DO NOTHING`).bind(now, account, account, key),
+    // Select every owned Object assignment, including starts whose job reply
+    // was lost and approved audits whose private spool still needs erasure.
+    env.DB.prepare(`INSERT INTO account_cleanup (artifact_key,account_id,created_at,state)
+      SELECT 'object-audit-jobs/'||id,account_id,?,'pending' FROM leases
+        WHERE account_id=? AND lane='object' AND ${claim}
+      ON CONFLICT(artifact_key) DO UPDATE SET account_id=CASE
+        WHEN account_cleanup.account_id=excluded.account_id THEN account_cleanup.account_id ELSE NULL END`)
+      .bind(now, account, account, key),
     env.DB.prepare(`UPDATE accounts SET deleted_at=?,units=0,recovery_hash=NULL,token_hash=?
       WHERE id=? AND deleted_at IS NULL AND ${claim}`).bind(now, randomHex(32), account, account, key),
     env.DB.prepare(`DELETE FROM searches WHERE account_id=? AND ${claim}`).bind(account, account, key),
@@ -237,8 +246,27 @@ export async function cleanupAccountArtifacts(env, account = null, limit = 16) {
   const jobs = (await env.DB.prepare(`SELECT artifact_key,account_id FROM account_cleanup
     WHERE (? IS NULL OR account_id=?) AND state='pending' ORDER BY created_at,artifact_key LIMIT ?`)
     .bind(account, account, limit).all()).results || [];
+  const objectDeadline = Date.now() + 20000;
   for (const job of jobs) {
     const owner = await env.DB.prepare("SELECT deleted_at FROM accounts WHERE id=?").bind(job.account_id).first();
+    if (job.artifact_key.startsWith('object-audit-jobs/')) {
+      const lease = objectAuditCleanupLease(job.artifact_key);
+      const assignment = lease && await env.DB.prepare('SELECT account_id,lane FROM leases WHERE id=?').bind(lease).first();
+      const receipt = await env.DB.prepare('SELECT deleted_at FROM account_deletion_receipts WHERE account_id=?')
+        .bind(job.account_id).first();
+      if (!owner || !Number.isSafeInteger(owner.deleted_at) || owner.deleted_at < 0 || receipt?.deleted_at !== owner.deleted_at
+          || !assignment || assignment.account_id !== job.account_id || assignment.lane !== 'object') {
+        await env.DB.prepare("UPDATE account_cleanup SET state='needs_review' WHERE artifact_key=?")
+          .bind(job.artifact_key).run();
+      } else {
+        const remaining = Math.min(20000, objectDeadline - Date.now());
+        if (remaining > 0 && await eraseObjectAssignment(env, lease, remaining)) {
+          await env.DB.prepare("UPDATE account_cleanup SET state='erased' WHERE artifact_key=? AND state='pending'")
+            .bind(job.artifact_key).run();
+        }
+      }
+      continue;
+    }
     const intent = await env.DB.prepare("SELECT * FROM account_artifact_writes WHERE artifact_key=?").bind(job.artifact_key).first();
     const lease = sceneArtifactLease(job.artifact_key);
     const assignment = lease && await env.DB.prepare("SELECT account_id,lane FROM leases WHERE id=?").bind(lease).first();

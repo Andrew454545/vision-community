@@ -187,6 +187,16 @@ export function applyDeletionLedger(sql, ledger, notBefore, now = Math.floor(Dat
         SELECT artifact_key,account_id,?,'pending' FROM scene_candidates WHERE account_id=? AND state!='published'
         ON CONFLICT(artifact_key) DO UPDATE SET state='pending' WHERE account_cleanup.account_id=excluded.account_id`)
         .run(now, id);
+      if (sql.prepare(`SELECT 1 FROM leases l JOIN account_cleanup q ON q.artifact_key='object-audit-jobs/'||l.id
+          WHERE l.account_id=? AND l.lane='object' AND q.account_id!=l.account_id LIMIT 1`).get(id)) {
+        throw new RestoreError('restore_cleanup_owner_conflict');
+      }
+      // A backup's old "erased" acknowledgement is not current authority for
+      // the independently restored native host. Reapply assignment revocation.
+      sql.prepare(`INSERT INTO account_cleanup (artifact_key,account_id,created_at,state)
+        SELECT 'object-audit-jobs/'||id,account_id,?,'pending' FROM leases WHERE account_id=? AND lane='object'
+        ON CONFLICT(artifact_key) DO UPDATE SET state='pending' WHERE account_cleanup.account_id=excluded.account_id`)
+        .run(now, id);
       if (account.deleted_at === null) {
         sql.prepare("UPDATE accounts SET deleted_at=?,units=0,recovery_hash=NULL,token_hash=? WHERE id=?")
           .run(row.deletedAt, randomBytes(32).toString("hex"), id);

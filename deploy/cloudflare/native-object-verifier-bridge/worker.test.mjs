@@ -10,6 +10,8 @@ const receipt = {version:1,jobId:'e'.repeat(32),leaseId:body.leaseId,profileId:b
   assignmentSha256:body.assignmentSha256,submissionSha256:body.submissionSha256,candidateManifestSha256:'f'.repeat(64),
   state:'queued',decision:'pending',attempts:0,retryAt:0,receiptSha256:null,serverAuthorization:false,
   productionQualified:false,acceptedContributions:0,searchCreditsCreated:0};
+const erasedAssignment = {version:1,leaseId:body.leaseId,policyId:body.policyId,
+  assignmentSha256:body.assignmentSha256,state:'erased',serverAuthorization:false,productionQualified:false};
 const start = (options={}) => new Request('https://object-verifier.internal/object-audits',
   {method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body),...options});
 const status = (tail='', method='GET') => new Request('https://object-verifier.internal/object-audits/'+receipt.jobId+tail,
@@ -148,4 +150,30 @@ test('private erasure acknowledgement stays pending until files are confirmed er
   }
   assert.equal((await handleObjectAuditJobs(status(),env,
     ()=>Response.json({...receipt,state:'erased',receiptSha256:'1'.repeat(64)}))).status,503);
+});
+
+test('assignment revocation works without a job acknowledgement and validates the exact tombstone', async () => {
+  const request = () => new Request(`https://object.internal/object-assignments/${body.leaseId}/erase`, {
+    method:'POST',headers:{'content-type':'application/json',authorization:'Bearer caller'},body:'{}'});
+  for (const state of ['erasing','erased']) {
+    const response = await handleObjectAuditJobs(request(),env,async (url,init) => {
+      assert.equal(url,`${env.NATIVE_OBJECT_VERIFIER_ORIGIN}/object-assignments/${body.leaseId}/erase`);
+      assert.equal(init.headers.authorization,'Bearer '+env.NATIVE_OBJECT_VERIFIER_SECRET);
+      assert.equal(new TextDecoder().decode(init.body),'{}');
+      return Response.json({...erasedAssignment,state});
+    });
+    assert.equal(response.status,200);
+    assert.equal((await response.json()).state,state);
+  }
+  for (const changed of [{leaseId:'1'.repeat(32)},{state:'approved'},{productionQualified:true},
+    {serverAuthorization:true},{assignmentSha256:['f'.repeat(64)]},{private:'source path'}]) {
+    assert.equal((await handleObjectAuditJobs(request(),env,()=>Response.json({...erasedAssignment,...changed}))).status,503);
+  }
+  for (const [method,raw] of [['GET',undefined],['POST','[]'],['POST','{"jobId":"caller"}']]) {
+    const bad = new Request(`https://object.internal/object-assignments/${body.leaseId}/erase`,{
+      method,headers:{'content-type':'application/json'},...(raw ? {body:raw} : {})});
+    assert.equal((await handleObjectAuditJobs(bad,env,()=>assert.fail('forwarded'))).status,method==='GET'?404:400);
+  }
+  const response = await handleObjectAuditJobs(start(),env,()=>Response.json({error:'object_assignment_revoked'},{status:409}));
+  assert.deepEqual(await response.json(),{error:'object_assignment_revoked'});
 });

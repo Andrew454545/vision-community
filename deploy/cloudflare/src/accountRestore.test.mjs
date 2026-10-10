@@ -98,6 +98,28 @@ test("reapplied tombstones retain database fences against late searches, credits
   ]) assert.throws(() => sql.exec(statement), /account_not_active/);
 });
 
+test('restored deletion requeues Object assignment revocation instead of trusting an old native acknowledgement', t => {
+  const sql=fixture(t), lease='1'.repeat(32), key=`object-audit-jobs/${lease}`;
+  for (const statement of PRIVACY_TABLES) sql.exec(statement);
+  sql.prepare("INSERT INTO leases(id,account_id,lane,expires_at,state) VALUES (?,?,'object',9999,'submitted')").run(lease,account);
+  sql.prepare("INSERT INTO account_cleanup VALUES (?,?,1,'erased')").run(key,account);
+  applyDeletionLedger(sql,ledger(),100,210);
+  assert.equal(sql.prepare('SELECT state FROM account_cleanup WHERE artifact_key=?').get(key).state,'pending');
+  assert.equal(sql.prepare('SELECT units FROM accounts WHERE id=?').get(account).units,0);
+  sql.prepare("UPDATE account_cleanup SET state='erased' WHERE artifact_key=?").run(key);
+  applyDeletionLedger(sql,ledger(),100,220);
+  assert.equal(sql.prepare('SELECT state FROM account_cleanup WHERE artifact_key=?').get(key).state,'pending');
+});
+
+test('a conflicting restored Object cleanup owner rolls back deletion reconciliation', t => {
+  const sql=fixture(t),lease='1'.repeat(32);
+  for (const statement of PRIVACY_TABLES) sql.exec(statement);
+  sql.prepare("INSERT INTO leases(id,account_id,lane,expires_at,state) VALUES (?,?,'object',9999,'submitted')").run(lease,account);
+  sql.prepare("INSERT INTO account_cleanup VALUES (?,?,1,'erased')").run(`object-audit-jobs/${lease}`,other);
+  assert.throws(()=>applyDeletionLedger(sql,ledger(),100,210),/restore_cleanup_owner_conflict/);
+  assert.equal(sql.prepare('SELECT token_hash FROM accounts WHERE id=?').get(account).token_hash,'private-old-token');
+});
+
 test("repeated repair preserves the original receipt and does not close credits twice", t => {
   const sql = fixture(t);
   applyDeletionLedger(sql, ledger(), 100, 210);

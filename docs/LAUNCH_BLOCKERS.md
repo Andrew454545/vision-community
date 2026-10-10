@@ -6,6 +6,12 @@ This is the single operational dependency list for the
 choices belong to Geonections; a missing resource is not a request for another
 general design approval. Keep private exports and location evidence private.
 
+The [Object account-cleanup checkpoint](NATIVE_OBJECT_ACCOUNT_CLEANUP_20261010.md)
+connects deletion ownership to saved native assignments, including lost start
+acknowledgements and pre-start revocation. The source passes actual local D1
+recovery across three processes. It does not deploy/open Object admission or
+finish qualification, quarantine, publication/credit or native-spool recovery.
+
 The [real paid-reply/storage restore](REAL_PAID_RECOVERY_20261010.md) now passes
 124 actual local workerd checks and preserves all three genuine replies, six
 banked units, 18 publications and nine account deletions. The converter fix

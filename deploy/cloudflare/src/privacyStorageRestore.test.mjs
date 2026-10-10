@@ -86,6 +86,7 @@ for (const environment of ["production", "staging"]) test(`independently cached 
 });
 
 const databaseFaults = {
+  native_host_erasure_needs_independent_recovery: "INSERT INTO account_cleanup VALUES ('object-audit-jobs/11111111111111111111111111111111','aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',150,'erased')",
   missing_receipt: "DELETE FROM account_deletion_archives; DELETE FROM account_deletion_receipts",
   changed_receipt_date: "UPDATE account_deletion_receipts SET deleted_at=149",
   missing_archive: "DELETE FROM account_deletion_archives",

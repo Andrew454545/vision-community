@@ -106,6 +106,9 @@ function expectedObjects(sql, notBefore, now, environment) {
   const jobs = sql.prepare("SELECT * FROM account_cleanup ORDER BY artifact_key LIMIT ?").all(MAX_OBJECTS + 1);
   require(jobs.length <= MAX_OBJECTS, "storage_object_limit");
   for (const job of jobs) {
+    // An R2 inventory cannot independently attest a native host's spool or
+    // its restored assignment tombstone, even if D1 remembers "erased".
+    require(!job.artifact_key.startsWith('object-audit-jobs/'), 'native_object_privacy_recovery_required');
     const published = sql.prepare("SELECT 1 FROM published_index WHERE four_view_key=? LIMIT 1").get(job.artifact_key);
     if (published) { require(job.state === "retained", "published_artifact_fence_conflict"); continue; }
     const owner = sql.prepare("SELECT deleted_at FROM accounts WHERE id=?").get(job.account_id);

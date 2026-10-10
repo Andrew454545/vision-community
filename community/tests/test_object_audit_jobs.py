@@ -275,6 +275,105 @@ class ObjectAuditJobTests(unittest.TestCase):
         with self.assertRaisesRegex(jobs.JobError, 'object_job_conflict'):
             self.submit()
 
+    def test_assignment_erasure_before_start_survives_restart_and_rejects_delayed_upload(self):
+        lease = self.body['leaseId']
+        first = self.service.erase_assignment(lease)
+        self.assertEqual(first, {'version': 1, 'leaseId': lease, 'policyId': self.body['policyId'],
+            'assignmentSha256': self.body['assignmentSha256'], 'state': 'erased',
+            'serverAuthorization': False, 'productionQualified': False})
+        self.now += 100
+        self.restart()
+        self.assertEqual(self.service.erase_assignment(lease), first)
+        with self.assertRaisesRegex(jobs.JobError, 'object_assignment_revoked'):
+            self.submit()
+        self.assertFalse(self.run_next())
+        with self.service.connect() as db:
+            self.assertEqual(db.execute('SELECT COUNT(*) FROM jobs').fetchone()[0], 0)
+            self.assertEqual(db.execute('SELECT requested FROM assignment_revocations').fetchone()[0], 1000)
+        self.assertEqual(self.native.calls, [])
+
+    def test_lost_start_reply_erases_by_assignment_without_knowing_job_id(self):
+        self.submit()  # Deliberately discard the acknowledgement.
+        lease = self.body['leaseId']
+        self.assertEqual(self.service.erase_assignment(lease)['state'], 'erasing')
+        self.restart()
+        self.assertEqual(self.service.erase_assignment(lease)['state'], 'erasing')
+        self.run_next()
+        self.assertEqual(self.service.erase_assignment(lease)['state'], 'erased')
+        self.assertEqual(self.native.calls, [])
+        self.assertEqual(list(self.work.glob('attempts-*')), [])
+        with self.assertRaisesRegex(jobs.JobError, 'object_assignment_revoked'):
+            self.submit()
+
+    def test_concurrent_assignment_deletion_and_start_never_leave_an_auditable_job(self):
+        def start():
+            try:
+                return self.submit()
+            except jobs.JobError as error:
+                self.assertEqual(str(error), 'object_assignment_revoked')
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            started = pool.submit(start)
+            deleted = pool.submit(self.service.erase_assignment, self.body['leaseId'])
+            started.result(10)
+            self.assertIn(deleted.result(10)['state'], ('erasing', 'erased'))
+        self.run_next()
+        self.restart()
+        self.assertEqual(self.service.erase_assignment(self.body['leaseId'])['state'], 'erased')
+        with self.assertRaisesRegex(jobs.JobError, 'object_assignment_revoked'):
+            self.submit()
+        self.assertEqual(self.native.calls, [])
+
+    def test_assignment_erasure_during_native_work_cannot_acknowledge_before_writer_finishes(self):
+        job = self.submit()['jobId']
+        entered, resume = threading.Event(), threading.Event()
+        def runner(*args):
+            if not entered.is_set():
+                entered.set()
+                self.assertTrue(resume.wait(10))
+            return self.native.fake_native(*args)
+        with patch.object(self.native.verifier, 'run', side_effect=runner), ThreadPoolExecutor(max_workers=1) as pool:
+            pending = pool.submit(self.service.run_next)
+            self.assertTrue(entered.wait(5))
+            try:
+                self.assertEqual(self.service.erase_assignment(self.body['leaseId'])['state'], 'erasing')
+                self.assertTrue((self.work / job).exists())
+            finally:
+                resume.set()
+            self.assertTrue(pending.result(15))
+        self.assertEqual(self.service.get(job)['state'], 'erasing')
+        self.assertIsNone(self.service.get(job)['receiptSha256'])
+        self.run_next()
+        self.assertEqual(self.service.erase_assignment(self.body['leaseId'])['state'], 'erased')
+
+    def test_assignment_erasure_retains_revocation_after_partial_cleanup_failure(self):
+        job = self.submit()['jobId']
+        self.run_next()
+        self.service.erase_assignment(self.body['leaseId'])
+        erase = self.service.erase_tree
+        def interrupted(name):
+            if name.startswith('attempts-'):
+                raise OSError('synthetic interrupted private cleanup')
+            erase(name)
+        with patch.object(self.service, 'erase_tree', side_effect=interrupted):
+            with self.assertRaises(OSError):
+                self.run_next()
+        self.restart()
+        self.assertEqual(self.service.erase_assignment(self.body['leaseId'])['state'], 'erasing')
+        with self.assertRaisesRegex(jobs.JobError, 'object_assignment_revoked'):
+            self.submit()
+        calls = list(self.native.calls)
+        self.run_next()
+        self.assertEqual(self.native.calls, calls)
+        self.assertFalse((self.work / ('attempts-' + job)).exists())
+        self.assertEqual(self.service.erase_assignment(self.body['leaseId'])['state'], 'erased')
+
+    def test_assignment_erasure_cannot_create_unbounded_unregistered_tombstones(self):
+        for lease in ('f' * 32, '../outside', None, []):
+            with self.assertRaisesRegex(jobs.JobError, 'unknown_object_assignment'):
+                self.service.erase_assignment(lease)
+        with self.service.connect() as db:
+            self.assertEqual(db.execute('SELECT COUNT(*) FROM assignment_revocations').fetchone()[0], 0)
+
     def test_approved_payload_and_native_private_reports_require_explicit_erasure(self):
         job = self.submit()['jobId']
         self.run_next()
@@ -415,6 +514,7 @@ class ObjectAuditJobTests(unittest.TestCase):
         self.service.close()
         with self.service.connect() as db:
             db.execute('DROP TABLE erasures')
+            db.execute('DROP TABLE assignment_revocations')
         self.service = self.open()
         self.assertEqual(self.service.get(job), before)
         self.assertFalse(self.run_next())
@@ -539,6 +639,13 @@ class ObjectAuditJobTests(unittest.TestCase):
             self.assertEqual(request('POST', '/object-audits/' + first['jobId'] + '/erase', b'{}')[1]['state'], 'erasing')
             self.run_next()
             self.assertEqual(request('GET', '/object-audits/' + first['jobId'])[1]['state'], 'erased')
+            path = '/object-assignments/' + self.body['leaseId'] + '/erase'
+            self.assertEqual(request('POST', path, b'{}', auth='wrong')[0], 401)
+            self.assertEqual(request('POST', path, b'[]')[0], 400)
+            self.assertEqual(request('GET', path)[0], 404)
+            self.assertEqual(request('POST', path, b'{}')[1]['state'], 'erased')
+            self.assertEqual(request('POST', '/object-audits', encoded(self.body)),
+                             (409, {'error': 'object_assignment_revoked'}))
         finally:
             server.shutdown(); server.server_close(); thread.join(5)
 
