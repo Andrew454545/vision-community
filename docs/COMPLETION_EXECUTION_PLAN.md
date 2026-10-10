@@ -81,6 +81,10 @@ replace source or coverage authority.
 
 Connect qualification, quarantine, bounded native recomputation, full verification,
 publication and once-only credit. Keep the small resumable Object default.
+The [saved-job audit component](NATIVE_OBJECT_AUDIT_JOBS.md) now supplies the
+bounded start/status/retry/cancel path and durable native-attempt recovery.
+Wire it to trusted hosted ownership, qualification, deletion and settlement;
+do not put several minutes of Object recomputation in a synchronous Scene request.
 Diagnose the two-location timeout and start a distinct fresh one-location trial
 within the existing finite limits. If it still fails, fix the measured cause
 before increasing concurrency. Do not invent an MMA file or remove a guard.

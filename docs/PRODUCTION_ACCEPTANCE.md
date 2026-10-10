@@ -1,6 +1,6 @@
 # Production acceptance
 
-Updated **9 October 2026**. Start with the finite
+Updated **10 October 2026**. Start with the finite
 [five-gate launch plan](LAUNCH_PLAN.md). The detailed dated evidence below
 preserves historical results and limitations; completed reference trials do not
 require repeating merely because an older paragraph described them as pending.
@@ -9,6 +9,13 @@ The [verified positive Gen4 cohort](GEN4_COHORT_20261009.md) contains 100 origin
 R2 locations across 22 countries. Fresh native validation and saved raw Google
 metadata agree; all are outside the real protected snapshot. Genuine Scene
 completion and portable protected/runtime import authority remain required.
+
+The [saved Object audit jobs](NATIVE_OBJECT_AUDIT_JOBS.md) add short private
+acknowledgements, durable attempt/decision recovery and bounded retry/cancellation
+around the existing native auditor. Real Windows process/HTTP recovery and local
+workerd transport are tested with explicit synthetic inference. This closes a
+component timeout/recovery gap; hosted qualification, quarantine, publication,
+privacy cleanup and credit settlement remain open, as do actual Mac checks.
 
 The [full production-data rehearsal](PRODUCTION_DATA_REHEARSAL_20261009.md) now
 passes after specific transfer consent: all 364,056 historical rows survive
