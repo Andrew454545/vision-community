@@ -293,13 +293,20 @@ class DesktopApp:
         self.update(busy=True)
         try:
             client = self.client_factory(self.url)
-            self.capabilities(client)  # Avoid asking users to sign up for a blocked service.
             if create:
+                self.capabilities(client)  # Never create an account for a blocked service.
                 account = client.create_account()
             else:
                 if not isinstance(code, str) or not 1 <= len(code.strip()) <= 256:
                     raise DesktopError("invalid_request")
                 account = client.recover(code.strip())
+                # Recovery must work after admission closes. Invitations also
+                # require authenticating before checking processing availability.
+                try:
+                    self.capabilities(client)
+                except DesktopError as error:
+                    if str(error) not in {"scene_verification_unavailable", "object_verification_unavailable"}:
+                        raise
             me = client.me()
             client.enable_outbox(self.root / "indexes", me.get("accountId"))
             self.client = client
@@ -308,17 +315,19 @@ class DesktopApp:
             self.update(connected=True, savedCode=not create, phase="ready", units=int(me.get("units", 0)),
                         qualified=False, pending=client.pending, undelivered=client.undelivered,
                         message="Account connected. Run the short computer check next.")
-            if "scene" in self.work_plan.lanes and self.canary_report and self.profile_matches(self.canary_report, **self.assets):
+            if self.state["serviceReady"] and "scene" in self.work_plan.lanes and self.canary_report and self.profile_matches(self.canary_report, **self.assets):
                 profile = self.canary_report["runtimeProfile"]["sha256"]
                 _, previous, _ = client.request("GET", "/api/scene-qualifications?profileId=" + profile)
                 self.set_qualification(previous)
-            if ("object" in self.work_plan.lanes and self.object_canary_report and self.object_profile_matches
+            if (self.state["serviceReady"] and "object" in self.work_plan.lanes and self.object_canary_report and self.object_profile_matches
                     and self.object_profile_matches(self.object_canary_report, **self.object_assets)):
                 profile = self.object_canary_report["runtimeProfile"]["sha256"]
                 _, previous, _ = client.request("GET", "/api/object-qualifications?profileId=" + profile)
                 self.set_object_qualification(previous)
             if self.snapshot()["qualified"]:
                 self.update(message="This computer's existing approvals are current. You can start helping.")
+            elif not self.state["serviceReady"]:
+                self.update(message="Account recovered. Your credits and saved results are kept. Contributions are currently unavailable.")
             return {"recoveryCode": account.get("recoveryCode")} if create else {"connected": True}
         finally:
             self.update(busy=False)

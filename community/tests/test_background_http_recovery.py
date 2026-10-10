@@ -53,6 +53,8 @@ class BackgroundHTTPRestartTests(unittest.TestCase):
         self.phase='drop-submit'
         self.saved={}
         self.awards=set()
+        self.cohort_only=False
+        self.contributions_closed=False
         owner=self
         class Handler(BaseHTTPRequestHandler):
             def log_message(self,*_args):pass
@@ -73,8 +75,10 @@ class BackgroundHTTPRestartTests(unittest.TestCase):
             def do_GET(self):
                 owner.calls.append(('GET',self.path,None))
                 if self.path=='/api/capabilities':
+                    allowed=not owner.contributions_closed and (not owner.cohort_only
+                        or self.headers.get('Authorization')=='Bearer fixture-token')
                     return self.send(200,{'version':1,'sceneContributions':{
-                        'model':'vision-four-view-v4','ready':True,
+                        'model':'vision-four-view-v4','ready':allowed,
                         'deviceQualificationRequired':True,'canaryLocations':112}})
                 if self.path=='/api/me':
                     return self.send(200,{'accountId':ACCOUNT,'units':len(owner.awards)})
@@ -153,6 +157,30 @@ class BackgroundHTTPRestartTests(unittest.TestCase):
         self.server.shutdown()
         self.server.server_close()
         self.thread.join(timeout=3)
+
+    def test_saved_identity_can_recover_before_invitation_check_without_new_account_or_native_work(self):
+        from community.background import BackgroundContributor
+        self.cohort_only=True
+        worker=BackgroundContributor(self.root,url=self.url,storage_limit_gb=1,prevent_sleep=False)
+        worker.storage_limit_bytes=1
+        worker.storage['limitBytes']=1
+        worker.run(once=True)
+        self.assertEqual(worker.last_state,'waiting_for_space')
+        self.assertEqual(worker.completed,0)
+        self.assertEqual(self.calls[0][:2],('POST','/api/recovery'))
+        self.assertNotIn('/api/accounts',[call[1] for call in self.calls])
+        self.assertNotIn('/api/leases',[call[1] for call in self.calls])
+
+    def test_guided_account_recovery_remains_available_after_contributions_close(self):
+        from community.desktop import DesktopApp
+        self.contributions_closed=True
+        app=DesktopApp(self.root,url=self.url)
+        self.assertEqual(app.connect(CODE),{'connected':True})
+        self.assertTrue(app.state['connected'])
+        self.assertFalse(app.state['serviceReady'])
+        self.assertFalse(app.state['qualified'])
+        self.assertNotIn(CODE,app.state['message'])
+        self.assertNotIn('/api/accounts',[call[1] for call in self.calls])
 
     def test_unexpected_private_error_is_redacted_and_recovers_across_fresh_workers(self):
         self.phase='pending'
