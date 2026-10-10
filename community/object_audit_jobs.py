@@ -16,6 +16,7 @@ import re
 import secrets
 import shutil
 import sqlite3
+import stat
 import threading
 import time
 
@@ -33,6 +34,7 @@ MAX_QUEUED = 8
 MAX_ATTEMPTS = 3
 MAX_INPUT_BYTES = 512 * 1024 * 1024
 MIN_FREE_BYTES = 1024 * 1024 * 1024
+MAX_ERASE_ENTRIES = 20_000
 ID = re.compile(r'[0-9a-f]{32}\Z')
 HEX = re.compile(r'[0-9a-f]{64}\Z')
 
@@ -128,7 +130,9 @@ class ObjectAuditJobs:
                     receipt TEXT, created INTEGER NOT NULL);
                   CREATE TABLE IF NOT EXISTS attempts (
                     job TEXT NOT NULL REFERENCES jobs(id), number INTEGER NOT NULL, state TEXT NOT NULL,
-                    started INTEGER NOT NULL, finished INTEGER, receipt TEXT, PRIMARY KEY(job,number));''')
+                    started INTEGER NOT NULL, finished INTEGER, receipt TEXT, PRIMARY KEY(job,number));
+                  CREATE TABLE IF NOT EXISTS erasures (
+                    job TEXT PRIMARY KEY REFERENCES jobs(id), requested INTEGER NOT NULL, completed INTEGER);''')
                 identity = db.execute('SELECT * FROM identity').fetchall()
                 wanted = (registry_sha256, verifier.policy_sha256)
                 require(not identity or (len(identity) == 1 and tuple(identity[0]) == wanted),
@@ -244,11 +248,20 @@ class ObjectAuditJobs:
             return self.response(db.execute('SELECT * FROM jobs WHERE id=?', (job,)).fetchone())
 
     def control(self, job, action):
-        require(action in ('cancel', 'retry'))
+        require(action in ('cancel', 'retry', 'erase'))
         with self.lock, self.connect() as db:
             self.get(job)
             row = db.execute('SELECT * FROM jobs WHERE id=?', (job,)).fetchone()
-            if action == 'cancel':
+            if row['state'] in ('erasing', 'erased'):
+                # An old cancel/retry/start cannot undo a privacy tombstone.
+                return self.response(row)
+            if action == 'erase':
+                # Save revocation before acknowledging. Files are removed only
+                # by the single worker after any native owner has finished.
+                db.execute('INSERT INTO erasures VALUES (?,?,NULL) ON CONFLICT(job) DO NOTHING',
+                           (job, int(self.clock())))
+                db.execute("UPDATE jobs SET state='erasing',receipt=NULL,retry_at=0 WHERE id=?", (job,))
+            elif action == 'cancel':
                 # Revocation wins over a late native approval. Original evidence stays private.
                 db.execute("UPDATE jobs SET state='cancelled' WHERE id=?", (job,))
             elif row['state'] == 'failed':
@@ -266,6 +279,50 @@ class ObjectAuditJobs:
             db.commit()
             self.wake.set()
             return self.response(db.execute('SELECT * FROM jobs WHERE id=?', (job,)).fetchone())
+
+    def erase_tree(self, name):
+        # Only the two exact spool children for a validated opaque job ID may
+        # be deleted. Check the full tree before deleting; never follow a link,
+        # Windows junction, special file or path into the operator's authority.
+        require(re.fullmatch(r'(?:attempts-)?[0-9a-f]{32}', name), 'invalid_object_job')
+        regular(self.work, directory=True)
+        target = self.work / name
+        require(target.is_absolute() and target.parent == self.work, 'unsafe_object_erasure', 503)
+        if not os.path.lexists(target):
+            return
+        regular(target, directory=True)
+        require(target.resolve() == target, 'unsafe_object_erasure', 503)
+        pending, count = [target], 0
+        while pending:
+            with os.scandir(pending.pop()) as children:
+                for child in children:
+                    count += 1
+                    require(count <= MAX_ERASE_ENTRIES, 'object_erasure_inventory_limit', 503)
+                    info = child.stat(follow_symlinks=False)
+                    require(not stat.S_ISLNK(info.st_mode) and not getattr(info, 'st_file_attributes', 0) & 0x400
+                            and (stat.S_ISDIR(info.st_mode) or stat.S_ISREG(info.st_mode)),
+                            'unsafe_object_erasure', 503)
+                    if stat.S_ISDIR(info.st_mode):
+                        pending.append(Path(child.path))
+        shutil.rmtree(target)
+        require(not os.path.lexists(target), 'object_erasure_unconfirmed', 503)
+
+    def erase_next(self):
+        with self.lock, self.connect() as db:
+            require(self.active_job is None, 'object_job_worker_busy', 409)
+            row = db.execute('SELECT j.* FROM jobs j JOIN erasures e ON e.job=j.id '
+                             'WHERE e.completed IS NULL ORDER BY e.requested,j.id LIMIT 1').fetchone()
+            if not row:
+                return False
+            require(row['state'] == 'erasing' and ID.fullmatch(row['id']), 'unsafe_object_erasure', 503)
+            self.erase_tree(row['id'])
+            self.erase_tree('attempts-' + row['id'])
+            # A crash anywhere above leaves the intent pending. Repeating the
+            # exact cleanup is safe, including an already absent first folder.
+            db.execute("UPDATE jobs SET state='erased',input_bytes=0,receipt=NULL,retry_at=0 WHERE id=?", (row['id'],))
+            db.execute('UPDATE erasures SET completed=? WHERE job=? AND completed IS NULL',
+                       (int(self.clock()), row['id']))
+            return True
 
     def receipt(self, row):
         entry = self.entry(row)
@@ -304,6 +361,9 @@ class ObjectAuditJobs:
             db.execute("UPDATE jobs SET state='failed',retry_at=? WHERE state='staging'", (int(self.clock()) + 60,))
             for row in db.execute("SELECT j.* FROM jobs j JOIN attempts a ON a.job=j.id AND a.number=j.attempts "
                                   "WHERE a.state='running'").fetchall():
+                if row['state'] in ('erasing', 'erased'):
+                    self.finish(db, row, 'cancelled')
+                    continue
                 try:
                     state, receipt = self.receipt(row)
                     self.finish(db, row, state, receipt)
@@ -316,6 +376,8 @@ class ObjectAuditJobs:
         with self.lock, self.connect() as db:
             if self.stop.is_set() or self.active_job is not None:
                 return False
+            if self.erase_next():
+                return True
             # A transient settlement failure may leave a completed native receipt
             # without a committed decision. Recover it without another model run.
             if db.execute("SELECT 1 FROM attempts WHERE state='running'").fetchone():
@@ -393,7 +455,7 @@ def make_server(jobs, secret, *, port=0):
         def dispatch(self):
             if not hmac.compare_digest(self.headers.get('Authorization', '').encode(), ('Bearer ' + secret).encode()):
                 return self.reply(401, {'error': 'unauthorized'})
-            route = re.fullmatch(r'/object-audits/([0-9a-f]{32})(?:/(cancel|retry))?', self.path)
+            route = re.fullmatch(r'/object-audits/([0-9a-f]{32})(?:/(cancel|retry|erase))?', self.path)
             try:
                 if self.command == 'GET' and route and route[2] is None:
                     return self.reply(200, jobs.get(route[1]))

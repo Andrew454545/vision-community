@@ -74,12 +74,20 @@ An operator review closes only the checks that the evidence establishes; a
 successful soak does not replace signing, clean-device setup or full production
 backup/recovery and capacity checks in [the launch plan](LAUNCH_PLAN.md).
 
-## Current state — 9 October 2026
+## Current state — 10 October 2026
 
 The Windows accepted-work run has **not started**. The current application has
 closed contribution capabilities; the earlier finite staging experiment does
 not qualify this background workload. Mac's accepted-work run has not started.
 No seven-day clock should be reported as running yet.
+
+The [actual start preflight](evidence/accepted-work-start-preflight-20261010.json)
+at 05:12 UTC / 00:12 CDT confirms both staging contribution capabilities are
+unavailable. The installed contributor's saved status is `waiting_for_service`
+with zero accepted work in that run. The default production capability URL
+returns 404; this does not describe all legacy production activity. These are
+unfinished admission/search prerequisites, not a request for more general user
+approval. Starting a timer now would count waiting instead of accepted work.
 
 The separate one-location Windows native/resource diagnostic uses already saved
 private imagery and fixed command deadlines. It creates no contributions or
