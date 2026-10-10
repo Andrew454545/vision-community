@@ -48,6 +48,15 @@ The contributor's recovery registration is unchanged. The user's exact random
 pop-up remains unattributed; this is process reliability evidence, not native
 qualification or signed clean-device acceptance.
 
+The finite visibility trace completed with no detected terminal events; its
+[final receipt](evidence/windows-console-visibility-completion-20261009.json)
+does not establish the earlier pop-up's source. A separate
+[windowless endurance diagnostic](WINDOWS_WINDOWLESS_ENDURANCE_20261009.md)
+started at 23:59:18 UTC after 130/131 preliminary recovery checks passed with
+one existing permission skip and fresh native index/verify/search completed.
+It targets 24 hourly 1/2/4-thread rounds; completion remains pending. Earlier
+failed runs and both unstarted accepted-work clocks remain unchanged.
+
 The final full Windows application regression runs **772 tests**, with 757
 passing, 15 explicit platform/permission skips and no failures or errors. The
 Object auditor's new pinned-snapshot exclusion matches all 139 supplied native
