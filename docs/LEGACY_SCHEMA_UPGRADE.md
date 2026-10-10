@@ -18,10 +18,30 @@ node tools/upgrade-schema.mjs --database CLOSED_PRIVATE_COPY.sqlite --database-s
 
 The input must be a closed regular SQLite file with no WAL/journal sidecars,
 at most 512 MiB, and the independently established checksum. SQL exports must
-first be imported into a new private SQLite file; never supply a live database
+first be converted into a new private SQLite file; never supply a live database
 path. Input files and output parents must have no symbolic links or directory
 redirection in their ancestors. The destination must be new and its parent must exist. All generated
 files are private and must remain outside Git/public releases.
+
+For a complete Cloudflare SQL export, first authenticate the export's source,
+confirm the exact Community resource pair and obtain permission for its private
+destination. Record an independently pinned provenance JSON with `version: 1`,
+`scope: "private-cloudflare-d1-export"`, `resource`, `completeSchemaAndData: true`,
+the provider's `bookmark`, and the export's exact `bytes` and `sha256`. From the
+repository root, use the existing private Python runtime:
+
+```text
+python -B -m community.d1_export --sql-export PRIVATE_EXPORT.sql --sql-sha256 TRUSTED_EXPORT_SHA256 --provenance PRIVATE_PROVENANCE.json --provenance-sha256 TRUSTED_PROVENANCE_SHA256 --out NEW_PRIVATE_CONVERSION_FOLDER
+```
+
+The converter saves the original SQL, `input.sqlite` and a final pinned report.
+It limits export/database size to 512 MiB, individual statements/values to
+16 MiB and conversion to 300 seconds. It accepts known application schema/data,
+rejects external-file access, extensions and history-rewriting statements, and
+checks integrity and foreign keys. Conversion uses one owned transaction.
+Its `providerProvenanceVerified: false` is deliberate: validating a pinned JSON
+does not authenticate Cloudflare or grant transfer permission. Keep the actual
+provider/consent receipts independently. Failed/partial copies are preserved.
 
 The tool runs the actual application migrations on a private copy in one
 transaction. Before committing, it checks integrity, the current schema
@@ -36,10 +56,17 @@ financial discrepancies or qualify a runtime.
 Successful output contains:
 
 - `upgraded.sqlite`: the completed private copy.
+- `rollback.sqlite`: independent complete copy verified unchanged after the
+  generated batch reaches an injected failing final statement.
+- `replayed.sqlite`: independent complete copy upgraded using the generated batch.
 - `upgrade.private.sql`: the data-free migration plan.
 - `query-batch.private.json`: exact statement boundaries, including trigger bodies.
 - `upgrade-report.private.json`: input/output/plan/schema pins, historical row
   counts/digests and the intentional cleanup count, written last.
+
+Allow space for the original/retained SQL and all four SQLite files, plus failed attempts.
+The completion report requires successful independent replay and full-copy
+rollback, rather than inferring rollback from a synthetic fixture alone.
 
 The report explicitly says `liveReady: false`. Failure preserves a redacted
 failure report and the partial copy, with no completion report. A failed
@@ -73,3 +100,5 @@ Validation includes synthetic late-failure and schema-mismatch rollback in
 actual local workerd/D1, exact private-value preservation, deletion fences and
 an offline older-schema rehearsal. These checks establish the upgrade path;
 they do not establish a live migration, hosting capacity or production approval.
+The [actual production-data rehearsal](PRODUCTION_DATA_REHEARSAL_20261009.md)
+now passes; complete provider recovery and controlled rollout remain open.

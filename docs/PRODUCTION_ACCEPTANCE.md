@@ -5,13 +5,24 @@ Updated **9 October 2026**. Start with the finite
 preserves historical results and limitations; completed reference trials do not
 require repeating merely because an older paragraph described them as pending.
 
+The [verified positive Gen4 cohort](GEN4_COHORT_20261009.md) contains 100 original
+R2 locations across 22 countries. Fresh native validation and saved raw Google
+metadata agree; all are outside the real protected snapshot. Genuine Scene
+completion and portable protected/runtime import authority remain required.
+
+The [full production-data rehearsal](PRODUCTION_DATA_REHEARSAL_20261009.md) now
+passes after specific transfer consent: all 364,056 historical rows survive
+upgrade, generated-batch replay and injected final-statement rollback. Source
+schema readback and all 18 account balance checks pass. Complete provider/paid
+recovery, accepted-work endurance, signing and controlled rollout remain open.
+
 The [verified allocation handoff](ALLOCATION_HANDOFF_20261009.md) closes the
 replacement-pool dependency: both private packets and all 55 contained file pins
 pass, and independent live D1 readback confirms 618 replacement shards per lane
 and no retired-family registrations. Actual local workerd verifies retirement,
 late holds and competing claims. The deployed schema's missing fields now have
-an exact-structure synthetic upgrade rehearsal; the full-data rehearsal and
-rollout remain open. A finite 24-round offline Windows
+an exact-structure synthetic upgrade rehearsal and the full-data check above;
+controlled rollout remains open. A finite 24-round offline Windows
 supervisor was started independently of Codex, but its first native round timed
 out after 902.781 seconds and the failure receipt is preserved. It created no
 accepted work or credit and does not close the seven-day production workload gate.
