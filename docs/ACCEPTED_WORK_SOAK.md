@@ -76,15 +76,27 @@ backup/recovery and capacity checks in [the launch plan](LAUNCH_PLAN.md).
 
 ## Current state — 10 October 2026
 
-The Windows accepted-work run has **not started**. The new
+The restricted [Windows Scene-only reliability pilot](WINDOWS_SCENE_WEEK_PILOT_20261010.md)
+**started at 10 October 07:27:14 UTC / 02:27:14 CDT**, targeting 17 October at the
+same time. Its actual scheduled background batch published two fresh locations,
+earned two units once, and passed delivery replay. A sealed ten-contribution
+native search charged two genuinely earned units once and recovered the exact
+paid reply in a fresh process. Primary D1 reconciles the balance; its finite
+windowless task is enabled and independent of Codex. It uses CPU1 and restricted
+batch intervals within existing hosting limits. Actual interruptions, schedule
+boundaries and final reconciliation remain pending. This does not start or
+complete the full Windows/Mac Scenes/Objects/Both workload gate, and does not
+approve Maximum parallel processing.
+
+The earlier
 [finite Windows Scene trial](WINDOWS_SCENE_COHORT_20261010.md) passes current CPU1
 qualification, eight fresh native-audited publications and genuine earned-credit
 search/recovery. It ran a finite foreground batch with an operator-sealed snapshot;
-it does not qualify the normal background workload, Objects/Both or Maximum's
-parallel profile. Admission is closed again and the trial's compute stopped.
-Automatic snapshot refresh, background interruption/resource checks and authentic
-Object admission remain prerequisites. Mac's accepted-work run has not started.
-No full seven-day clock should be reported as running yet.
+it did not qualify the normal background workload, Objects/Both or Maximum's
+parallel profile. That finite trial closed before the later pilot above.
+Automatic snapshot refresh, background interruption checks and authentic Object
+admission remain prerequisites for the full gate. Mac's accepted-work run has
+not started. No full Scenes/Objects/Both clock should be reported as running.
 
 The [actual start preflight](evidence/accepted-work-start-preflight-20261010.json)
 at 05:12 UTC / 00:12 CDT recorded both staging contribution capabilities
