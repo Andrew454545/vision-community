@@ -6,9 +6,13 @@ export const objectAuditCleanupKey = lease => `object-audit-jobs/${lease}`;
 export const objectAuditCleanupLease = key => typeof key === 'string'
   ? /^object-audit-jobs\/([0-9a-f]{32})$/.exec(key)?.[1] ?? null : null;
 
-export async function eraseObjectAssignment(env, lease, timeoutMs = 20000) {
-  if (typeof env.OBJECT_VERIFIER?.fetch !== 'function' || !/^[0-9a-f]{32}$/.test(lease)
+export async function eraseObjectAssignment(env, lease, timeoutMs = 20000, expected = null) {
+  if (typeof env.OBJECT_VERIFIER?.fetch !== 'function' || typeof lease !== 'string' || !/^[0-9a-f]{32}$/.test(lease)
       || !Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 20000) return false;
+  if (expected !== null && (!expected || typeof expected !== 'object' || Array.isArray(expected)
+      || Object.keys(expected).sort().join(',') !== 'assignmentSha256,policyId'
+      || typeof expected.assignmentSha256 !== 'string' || !/^[0-9a-f]{64}$/.test(expected.assignmentSha256)
+      || typeof expected.policyId !== 'string' || !/^[A-Za-z0-9_.-]{1,128}$/.test(expected.policyId))) return false;
   const abort = new AbortController();
   let timer;
   const deadline = new Promise((_, reject) => {
@@ -32,7 +36,8 @@ export async function eraseObjectAssignment(env, lease, timeoutMs = 20000) {
       return false;
     }
     const value = await Promise.race([readVerifierJson(response, Math.min(timeoutMs, 10000)), deadline]);
-    return assignmentErasureResult(value, lease).state === 'erased';
+    const checked = assignmentErasureResult(value, lease);
+    return checked.state === 'erased' && (expected === null || Object.entries(expected).every(([key,wanted]) => checked[key] === wanted));
   } catch {
     // Transport/setup failures and pending erasure all retain the durable job.
     // Never retain native paths, candidate data, credentials or exception text.

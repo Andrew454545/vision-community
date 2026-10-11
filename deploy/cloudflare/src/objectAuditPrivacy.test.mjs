@@ -45,3 +45,17 @@ test('unavailable, oversized, stalled and late native replies never erase the du
   await new Promise(resolve=>setTimeout(resolve,5));
   assert.equal(cancelled,true);
 });
+
+test('optional expected assignment pins are exact and invalid expectations cannot contact the native host', async () => {
+  const expected={policyId:erased.policyId,assignmentSha256:erased.assignmentSha256};let calls=0;
+  const env={OBJECT_VERIFIER:{fetch(){calls++;return Response.json(erased);}}};
+  assert.equal(await eraseObjectAssignment(env,lease,100,expected),true);assert.equal(calls,1);
+  for(const mismatch of [{...expected,policyId:'wrong'},{...expected,assignmentSha256:'c'.repeat(64)}])
+    assert.equal(await eraseObjectAssignment(env,lease,100,mismatch),false);
+  const before=calls;
+  for(const invalid of [{},{...expected,extra:true},{...expected,policyId:'../outside'},
+    {...expected,assignmentSha256:'invalid'},[],false])
+    assert.equal(await eraseObjectAssignment(env,lease,100,invalid),false);
+  assert.equal(await eraseObjectAssignment(env,Symbol('bad-lease'),100,expected),false);
+  assert.equal(calls,before);
+});
