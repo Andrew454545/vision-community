@@ -262,3 +262,64 @@ test("outputs cannot overlap the pinned plan or cached objects", t => {
 test("oversized database input is rejected without reading it", t => {
   const options = fixture(t); truncateSync(options.current, 512 * 1024 ** 2 + 1); fails(options, planPrivacyStorage);
 });
+
+
+for (const objectKey of [`object-index-v4/${lease}/semantic.bin`,
+  `object-quarantine/${lease}/${"e".repeat(64)}.json`]) {
+  test(`Object member fences are independently checked during private storage recovery: ${objectKey.split("/")[0]}`, t => {
+    const options=fixture(t,sql=>{
+      sql.prepare("UPDATE leases SET lane='object' WHERE id=?").run(lease);
+      sql.prepare('UPDATE account_artifact_writes SET artifact_key=?').run(objectKey);
+      sql.prepare('UPDATE account_cleanup SET artifact_key=?').run(objectKey);
+    });
+    const report=planPrivacyStorage(options),plan=join(options.out,'privacy-object-plan.private.json');
+    assert.equal(report.privacyFences,1);
+    const cache=join(options.root,'object-cache');mkdirSync(cache);
+    const bodies=[
+      {key:`privacy/account-deletions/v1/${sha(Buffer.from(account))}.json`,body:archive('staging'),
+        httpMetadata:{contentType:'application/json',cacheControl:'no-store'},
+        customMetadata:{visionDeletionReceipt:'1',sha256:sha(archive('staging'))}},
+      {key:objectKey,body:Buffer.from('VISION COMMUNITY PRIVACY FENCE\n'),
+        httpMetadata:{contentType:'application/x-vision-privacy-fence',cacheControl:'no-store'},
+        customMetadata:{visionPrivacyFence:'1'}},
+    ];
+    const inventory=join(options.root,'object-inventory.private.json');
+    const observed={version:1,scope:'vision-community-privacy-object-cache',resource:RESOURCE_PROFILES.staging,
+      exportedAt:200,objects:bodies.map(({body,...metadata})=>({...metadata,size:body.length,sha256:sha(body)}))};
+    writeFileSync(inventory,encoded(observed));
+    for(const item of bodies) writeFileSync(join(cache,privacyObjectCacheName(item.key)),item.body);
+    const check={plan,planSha256:report.planSha256,inventory,inventorySha256:sha(readFileSync(inventory)),cache,
+      now:210,environment:'staging',out:join(options.root,'object-check')};
+    assert.equal(checkPrivacyStorage(check).objectsVerified,true);
+    writeFileSync(join(cache,privacyObjectCacheName(objectKey)),Buffer.from('resurrected private Object bytes'));
+    assert.throws(()=>checkPrivacyStorage({...check,out:join(options.root,'damaged-object-check')}),/storage_object_payload_changed/);
+  });
+}
+
+test('published Object prefixes are retained without suppressing a different lease cleanup',t=>{
+  const objectKey=`object-index-v4/${lease}/semantic.bin`;
+  const options=fixture(t,sql=>{
+    sql.prepare("UPDATE leases SET lane='object' WHERE id=?").run(lease);
+    sql.prepare('UPDATE account_artifact_writes SET artifact_key=?').run(objectKey);
+    sql.prepare("UPDATE account_cleanup SET artifact_key=?,state='retained'").run(objectKey);
+    sql.prepare("INSERT INTO locations(id,asset_id,capture,lane,model,state,contributor_id) VALUES (1,'synthetic','fixture','object','fixture','published',?)").run(account);
+    sql.prepare("INSERT INTO published_index(location_id,index_text,output_sha256,published_at,object_index_key) VALUES (1,'','synthetic',1,?)").run(`object-index-v4/${lease}/`);
+  });
+  assert.equal(planPrivacyStorage(options).privacyFences,0);
+});
+
+for(const fault of ['wrong_lane','missing_intent','different_published_lease']) test(`Object storage restore refuses ${fault}`,t=>{
+  const objectKey=`object-index-v4/${lease}/semantic.bin`;
+  const options=fixture(t,sql=>{
+    if(fault!=='wrong_lane')sql.prepare("UPDATE leases SET lane='object' WHERE id=?").run(lease);
+    sql.prepare('UPDATE account_artifact_writes SET artifact_key=?').run(objectKey);
+    sql.prepare('UPDATE account_cleanup SET artifact_key=?').run(objectKey);
+    if(fault==='missing_intent')sql.exec('DELETE FROM account_artifact_writes');
+    if(fault==='different_published_lease'){
+      sql.prepare("UPDATE account_cleanup SET state='retained'").run();
+      sql.prepare("INSERT INTO locations(id,asset_id,capture,lane,model,state,contributor_id) VALUES (1,'synthetic','fixture','object','fixture','published',?)").run(account);
+      sql.prepare("INSERT INTO published_index(location_id,index_text,output_sha256,published_at,object_index_key) VALUES (1,'','synthetic',1,?)").run(`object-index-v4/${'f'.repeat(32)}/`);
+    }
+  });
+  assert.throws(()=>planPrivacyStorage(options),/unsafe_or_pending_cleanup|deleted_artifact_not_fenced/);
+});

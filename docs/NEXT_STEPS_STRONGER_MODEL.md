@@ -1,5 +1,13 @@
 # Remaining launch work
 
+The [Object storage follow-up](OBJECT_OWNED_STORAGE_20261011.md) adds owned,
+immutable quarantine/bundle writes and deletion/recovery fences. Windows passes
+271/274 affected checks (three file-link permission skips) and 18 actual local
+Cloudflare storage cases across three processes. This closes the new writer
+component; authentic qualification and hosted saved-job/publication/credit
+integration remain open. The frozen Scene pilot is unchanged.
+
+
 The [Object origin auditor follow-up](OBJECT_ORIGIN_AUDIT_20261011.md) now
 binds Python auditing and saved approvals to the native source receipt, including
 all selected Arrow/delta members and one-hour freshness. Actual Node-to-Python
@@ -58,12 +66,12 @@ both hooks released. Its final private receipt is pinned in the
 the limited negative observation does not prove the earlier issue is fixed.
 Keep unrelated terminals and the contributor's recovery task unchanged.
 
-The separate [fresh windowless diagnostic](WINDOWS_WINDOWLESS_ENDURANCE_20261009.md)
-actually started at 23:59:18 UTC after a passing 131-case preliminary cycle and
-fresh saved-input native replay. It targets 24 hourly 1/2/4-thread rounds and
-has a fixed 11 October 01:59:18 UTC deadline. Inspect its final private receipt
-once after that deadline; do not poll it during ordinary check-ins. This does
-not replace earlier failures or start the accepted-work clock.
+The separate [windowless diagnostic](WINDOWS_WINDOWLESS_ENDURANCE_20261009.md#terminal-result--11-october-2026)
+is terminal and its owned task is disabled. Three native rounds completed;
+round 4 failed during Windows process-name resource measurement. Preserve its
+original receipt and earlier failures. Do not poll or restart this finished
+diagnostic; any new regression needs separate evidence and cannot start the
+accepted-work clock.
 
 1. **Complete:** actual browser price review, cancellation, reload, approval of the displayed amount and free paid replay. All four deliveries retained the original query/key and incurred one synthetic debit. See [pricing recovery](SEARCH_PRICING_RECOVERY_20261009.md).
 2. **Complete:** push `e99332b` and verify the remote. Keep the historical default price until real accepted-work cost and capacity evidence supports a change. Use `[skip ci]` for the follow-up fixes/evidence too.

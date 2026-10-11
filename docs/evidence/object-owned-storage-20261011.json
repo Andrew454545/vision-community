@@ -1,0 +1,156 @@
+{
+  "version": 1,
+  "scope": "object-owned-storage-component",
+  "checkedAt": "2026-10-11T10:20:02.070654+00:00",
+  "sourceBase": "db51999b05b8f3411f0a7282df40bce53c9be339",
+  "platform": "Windows x64",
+  "runtime": {
+    "node": "24.19.0",
+    "miniflare": "5.20260926.1-alpha",
+    "workerd": "1.20260926.1",
+    "compatibilityDate": "2026-09-19",
+    "typesReviewed": "existing private @cloudflare/workers-types 5.20261002.1; current D1/R2 official API documentation"
+  },
+  "regression": {
+    "tests": 274,
+    "pass": 271,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 3
+  },
+  "skips": [
+    "\ufe63 linked input snapshots are rejected (351.8622ms) # file symlink privilege unavailable",
+    "\ufe63 cached private object refuses linked payload (354.8855ms) # Windows file-symlink privilege is unavailable; directory-junction checks run separately",
+    "\ufe63 linked source fails before a successful report (341.8007ms) # Windows file-symlink privilege is unavailable; directory-junction checks run separately"
+  ],
+  "actualWorkerd": {
+    "status": "ACTUAL_WORKERD_OBJECT_STORAGE_RECOVERY_PASSED",
+    "cases": 18,
+    "separateProcesses": 3,
+    "syntheticInputs": true,
+    "objectAdmissionReady": false,
+    "nativeInferences": 0,
+    "earnedCredits": 0,
+    "liveCalls": 0
+  },
+  "sourcePins": {
+    "deploy/cloudflare/src/accountPrivacy.js": "f51c0f03ea7ee722e468cad71e75f41ad7c37ced7248267e0e90159f7909dd38",
+    "deploy/cloudflare/src/artifactWrites.js": "7edb1253ab7f23d8724d504c088b6851817ddb50f06ac8efc85de9f068bde3e5",
+    "deploy/cloudflare/src/worker.js": "319d83812422ec11db9fe58bc0e15d1a521286052f8f18d9b6c59e9b45a4a337",
+    "deploy/cloudflare/tools/privacy-storage-restore.mjs": "733a4b88b65e926b75ba2d68cd3422e36ad5a6c15fd0f05f7d33ae066e885832",
+    "deploy/cloudflare/src/objectArtifactWrites.test.mjs": "e90dabdf7a84472397ac994a6b506d4acc12093da73480732e07eb6f772437b1",
+    "deploy/cloudflare/src/objectStorageRouter.test.mjs": "065adac45df8d3eac331c36f5a1339d51d991e86e16ad5c92f1edb6462945de8",
+    "deploy/cloudflare/src/privacyStorageRestore.test.mjs": "50b4a6de18dd3e89c8ad04da90084dcab5e691dab58c8da52351e2f2ac82bdb6",
+    "deploy/cloudflare/tools/object-storage.fixture.mjs": "22333830d5e44f7cdefcb6072d3e361fb4ba33f3d9a61f799c66f4c1b74dddc3",
+    "deploy/cloudflare/tools/check-local-object-storage.mjs": "a076f4864c8abef76c52d3cdc99ecf72b51429c3273812ade831b995ed7b91dc"
+  },
+  "privateEvidenceDirectory": "work/object-storage-20261011",
+  "privateReceipts": {
+    "focused-v1.receipt.private.json": {
+      "bytes": 12706,
+      "sha256": "7d6d411f03da8c5afa7c6f3ba247d762c50628e560f7174d7574284d00f9b14c"
+    },
+    "focused-v1.stderr.private.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "focused-v1.stdout.private.log": {
+      "bytes": 10311,
+      "sha256": "80218e2f6d70c557f740d108b24e448d376b9e0ad68ec1d0171d20d17890a669"
+    },
+    "regression-v1.receipt.private.json": {
+      "bytes": 12970,
+      "sha256": "46e8c9be6f9842d4b022f1e8362e4d09721258742e0c6027c2af00f2d194fab1"
+    },
+    "regression-v1.stderr.private.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "regression-v1.stdout.private.log": {
+      "bytes": 14267,
+      "sha256": "4f8966190cbff209374e5f4e4659add583f90319d60bc483bf0bf1ed594f2db9"
+    },
+    "regression-v2.receipt.private.json": {
+      "bytes": 15549,
+      "sha256": "b036df7689b25f196e698ac3a5380674f367ccc7d59c6a995360787cd12ef782"
+    },
+    "regression-v2.stderr.private.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "regression-v2.stdout.private.log": {
+      "bytes": 20888,
+      "sha256": "a71bc105580c65f5daf1e899a4ea43532fa07c49e31f5bf569f8e52e9b3e7d19"
+    },
+    "regression-v3.receipt.private.json": {
+      "bytes": 15537,
+      "sha256": "c61010d8a4757333b3abd3378a4b395ae3e60e2b4da655b2bcae6c57925daad2"
+    },
+    "regression-v3.stderr.private.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "regression-v3.stdout.private.log": {
+      "bytes": 20114,
+      "sha256": "af62b72332d16737a3df1d6094464bcc39c97f6f15a998ada28e02ec21e1b47d"
+    },
+    "worker-v1.receipt.private.json": {
+      "bytes": 12970,
+      "sha256": "4891c578c00468564655cc2dba7b853e0a55ee811bc3d64d20fe61328a25aa31"
+    },
+    "worker-v1.stderr.private.log": {
+      "bytes": 3233,
+      "sha256": "c8f30c5bb573a1d96b64201c7f61eeb48072770c2ac0c3400c4fc4cd57404833"
+    },
+    "worker-v1.stdout.private.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "worker-v2.receipt.private.json": {
+      "bytes": 13563,
+      "sha256": "e2630937a2049d05f38bade2e1e74a793c8fafaf60a141c9658008bcc944991f"
+    },
+    "worker-v2.stderr.private.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "worker-v2.stdout.private.log": {
+      "bytes": 197,
+      "sha256": "3777dc6f5ed3a5cf3be97a2d734ac47ecdade8566ac211a6c789870e9262c6d1"
+    },
+    "worker-v3.receipt.private.json": {
+      "bytes": 13705,
+      "sha256": "4d3e34ffdb6e18e8710b5d4a3202cb511fff16be9bdebcc3433c7c7ae0f1d2d3"
+    },
+    "worker-v3.stderr.private.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "worker-v3.stdout.private.log": {
+      "bytes": 197,
+      "sha256": "3777dc6f5ed3a5cf3be97a2d734ac47ecdade8566ac211a6c789870e9262c6d1"
+    }
+  },
+  "preservedFailures": [
+    "worker-v1: selected older installed engine, whose latest compatibility date was 2026-08-06; no test worker started. Retried with the existing newer private engine, without changing the fixture compatibility date.",
+    "regression-v2: one new route fixture incorrectly expected 500 after account revocation. Existing handler correctly returns 401 unauthorized; only the test expectation changed. All other cases passed."
+  ],
+  "originalOfflineDiagnosticSha256": "ef082f14d1cda17056cc15bb52601cfc9cff3f24822155f861e60f94649f916d",
+  "originalOfflineDiagnosticUnchanged": true,
+  "publicObjectAdmissionReady": false,
+  "productionQualified": false,
+  "nativeInference": false,
+  "liveCalls": 0,
+  "realAcceptedContributions": 0,
+  "realSearchCreditsCreated": 0,
+  "deployed": false,
+  "githubActionsStarted": false,
+  "scenePilotOrRefresherModified": false,
+  "schemaRevisionChanged": false,
+  "limits": [
+    "Storage ownership, safe deletion and local restart evidence; not authentic Object qualification or full hosted admission/settlement.",
+    "Existing unjournalled legacy Object orphans need independent inventory reconciliation; their cleanup is not certified.",
+    "R2 recovery still refuses to certify native spool/assignment erasure from a remembered hosted acknowledgement alone.",
+    "No actual Mac execution, provider/secret recovery, signed clean-device acceptance or completed seven-day accepted-work gate."
+  ]
+}

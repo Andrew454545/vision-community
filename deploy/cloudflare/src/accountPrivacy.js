@@ -1,5 +1,5 @@
 import { randomHex, sha256Hex, encodeUtf8 } from "./model.js";
-import { ARTIFACT_WRITES_SCHEMA, PRIVACY_FENCE, sceneArtifactLease } from "./artifactWrites.js";
+import { ARTIFACT_WRITES_SCHEMA, PRIVACY_FENCE, indexArtifactIdentity, artifactPublicationSql } from "./artifactWrites.js";
 import { objectAuditCleanupLease, eraseObjectAssignment } from './objectAuditPrivacy.js';
 
 export class AccountPrivacyError extends Error {
@@ -200,8 +200,7 @@ export async function deleteAccount(env, authenticatedAccount, body, now = Math.
       .bind(`account-delete:${account}`, account, account, key),
     env.DB.prepare(`INSERT INTO account_cleanup (artifact_key,account_id,created_at,state)
       SELECT artifact_key,account_id,?,'pending' FROM account_artifact_writes w
-        WHERE account_id=? AND ${claim} AND NOT EXISTS
-          (SELECT 1 FROM published_index i WHERE i.four_view_key=w.artifact_key)
+        WHERE account_id=? AND ${claim} AND NOT ${artifactPublicationSql("w")}
       ON CONFLICT(artifact_key) DO NOTHING`).bind(now, account, account, key),
     env.DB.prepare(`INSERT INTO account_cleanup (artifact_key,account_id,created_at,state)
       SELECT artifact_key,account_id,?,'pending' FROM scene_candidates
@@ -268,25 +267,26 @@ export async function cleanupAccountArtifacts(env, account = null, limit = 16) {
       continue;
     }
     const intent = await env.DB.prepare("SELECT * FROM account_artifact_writes WHERE artifact_key=?").bind(job.artifact_key).first();
-    const lease = sceneArtifactLease(job.artifact_key);
+    const identity = indexArtifactIdentity(job.artifact_key), lease = identity?.lease;
     const assignment = lease && await env.DB.prepare("SELECT account_id,lane FROM leases WHERE id=?").bind(lease).first();
     // Quarantine predates the intent journal; unpublished final artifacts must
     // have a journal proof of ownership. Never touch arbitrary or live keys.
     if (!owner || owner.deleted_at === null || !lease || !assignment
-        || assignment.account_id !== job.account_id || assignment.lane !== "scene"
+        || assignment.account_id !== job.account_id || assignment.lane !== identity.lane
         || intent && (intent.account_id !== job.account_id || intent.lease_id !== lease)
-        || job.artifact_key.startsWith("four-view-v4/") && !intent) {
+        || identity.intentRequired && !intent) {
       await env.DB.prepare("UPDATE account_cleanup SET state='needs_review' WHERE artifact_key=?")
         .bind(job.artifact_key).run();
       continue;
     }
-    if (await env.DB.prepare("SELECT 1 FROM published_index WHERE four_view_key=? LIMIT 1").bind(job.artifact_key).first()) {
+    if (identity.reference && await env.DB.prepare(`SELECT 1 FROM published_index WHERE ${identity.column}=? LIMIT 1`)
+      .bind(identity.reference).first()) {
       await env.DB.prepare("UPDATE account_cleanup SET state='retained' WHERE artifact_key=?").bind(job.artifact_key).run();
       continue;
     }
     try {
       // An ordinary delete permits a delayed create to put private bytes back.
-      // Keep this tiny fence permanently; every new scene writer is create-only.
+      // Keep this tiny fence permanently; Scene and Object writers are create-only.
       const written = await env.INDEX.put(job.artifact_key, PRIVACY_FENCE, {
         customMetadata: { visionPrivacyFence: "1" },
         httpMetadata: { contentType: "application/x-vision-privacy-fence", cacheControl: "no-store" },
