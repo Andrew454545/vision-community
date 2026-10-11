@@ -323,3 +323,14 @@ for(const fault of ['wrong_lane','missing_intent','different_published_lease']) 
   });
   assert.throws(()=>planPrivacyStorage(options),/unsafe_or_pending_cleanup|deleted_artifact_not_fenced/);
 });
+
+test('R2-only account-deletion recovery refuses active-account submission cancellations in every cleanup state', t => {
+  for (const state of ['pending', 'erased', 'needs_review']) {
+    const options = fixture(t, sql => {
+      sql.exec('CREATE TABLE object_audit_cancellations (account_id TEXT,state TEXT)');
+      sql.prepare('INSERT INTO object_audit_cancellations VALUES (?,?)').run(other,state);
+    });
+    assert.throws(() => planPrivacyStorage(options), {message:'object_cancellation_recovery_required'});
+    assert.equal(existsSync(join(options.out,'privacy-plan-report.json')),false);
+  }
+});

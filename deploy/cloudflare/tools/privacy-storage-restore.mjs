@@ -80,6 +80,10 @@ function expectedObjects(sql, notBefore, now, environment) {
   const resource = clock(notBefore, now, environment);
   require(sql.prepare("SELECT count(*) AS n FROM account_deletion_receipts").get().n <= 10000
     && sql.prepare("SELECT count(*) AS n FROM accounts WHERE deleted_at IS NOT NULL").get().n <= 10000, "storage_object_limit");
+  // This checker has account-deletion authority only. A remembered completed
+  // cancellation does not independently attest its current native/R2 recovery.
+  require(!sql.prepare("SELECT 1 FROM sqlite_master WHERE name='object_audit_cancellations'").get()
+    || !sql.prepare('SELECT 1 FROM object_audit_cancellations LIMIT 1').get(), 'object_cancellation_recovery_required');
   const ledger = exportDeletionLedger(sql, now, environment), objects = [];
   require(!sql.prepare("SELECT 1 FROM accounts WHERE deleted_at IS NOT NULL AND (units!=0 OR recovery_hash IS NOT NULL) LIMIT 1").get()
     && !sql.prepare("SELECT 1 FROM searches s JOIN accounts a ON a.id=s.account_id WHERE a.deleted_at IS NOT NULL LIMIT 1").get(), "deleted_account_not_closed");

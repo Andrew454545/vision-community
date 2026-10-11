@@ -37,6 +37,13 @@ export function exportObjectErasureAuthority(sql, { registryRaw, registrySha256,
   const receipts = new Map(ledger.receipts.map(row => [row.accountId,row]));
   sql.exec('BEGIN');
   try {
+    // V1 authority contains account deletion only. An active owner's cancelled
+    // submission needs independent current cancellation authority too; never
+    // export an apparently complete manifest that would omit that revocation.
+    if (sql.prepare("SELECT 1 FROM sqlite_master WHERE name='object_audit_cancellations'").get()
+        && sql.prepare('SELECT 1 FROM object_audit_cancellations LIMIT 1').get()) {
+      throw Error('object_cancellation_recovery_required');
+    }
     // The complete current database and independent ledger must agree. A
     // post-backup deletion may not be erased by relabeling the old copy current.
     const deleted = sql.prepare('SELECT id,deleted_at,units,recovery_hash FROM accounts WHERE deleted_at IS NOT NULL').all();

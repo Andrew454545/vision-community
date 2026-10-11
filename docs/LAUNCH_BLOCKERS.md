@@ -1,5 +1,13 @@
 # Launch work and dependencies — 10 October 2026
 
+The [Object cancellation follow-up](OBJECT_AUDIT_CANCELLATION_20261011.md) adds
+durable submission revocation and independent native/R2 cleanup without account
+deletion or credit changes. Windows passes 248/251 affected JavaScript checks
+(three existing file-link skips), ten actual local Cloudflare restart cases and
+one actual Node/Python lost-start-reply test with synthetic inference. Existing
+recovery tools refuse incomplete cancellation authority; full current-authority
+restore and public integration remain open. The frozen Scene pilot is unchanged.
+
 The [Object recovery follow-up](OBJECT_AUDIT_RECOVERY_20261011.md) adds
 explicit, journalled connection resumption and once-only native retry intents.
 Lost replies/restarts cannot create an extra attempt; original failures and

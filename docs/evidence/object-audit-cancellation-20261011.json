@@ -1,0 +1,136 @@
+{
+  "version": 1,
+  "date": "2026-10-11",
+  "scope": "private-object-submission-cancellation-component",
+  "sourceBaseCommit": "ddbe0ff53ae1f0b4a45308cef502dea621a689a7",
+  "platform": "Windows x64",
+  "javascript": {
+    "tests": 251,
+    "passed": 248,
+    "failed": 0,
+    "skipped": 3,
+    "newCancellationCases": 18,
+    "skipReason": "Existing Windows file-symlink privilege unavailable"
+  },
+  "actualLocalCloudflare": {
+    "status": "ACTUAL_WORKERD_OBJECT_CANCELLATION_PASSED",
+    "cases": 10,
+    "separateProcesses": 4,
+    "syntheticInference": true,
+    "nativeInferences": 0,
+    "earnedCredits": 0,
+    "liveCalls": 0
+  },
+  "pythonInterop": {
+    "tests": 1,
+    "passed": 1,
+    "failed": 0,
+    "skipped": 0,
+    "protocol": {
+      "status": "NODE_PYTHON_OBJECT_CANCELLATION_INTEROP_PASSED",
+      "starts": 1,
+      "erasures": 26,
+      "lostStartReply": true,
+      "unknownHostedJobId": true,
+      "erased": true,
+      "accountActive": true,
+      "bankedUnits": 10,
+      "syntheticInference": true,
+      "nativeInferences": 0,
+      "earnedCredits": 0,
+      "liveCalls": 0
+    },
+    "savedJobs": 1,
+    "syntheticNativeAttempts": 1,
+    "assignmentRevocations": 1,
+    "completedErasures": 1,
+    "fixtureRetryClockAdvanced": true,
+    "nativeInputAndAttemptDirectoriesErased": true
+  },
+  "runs": [
+    {
+      "label": "focused-v1",
+      "exitCode": 0,
+      "wallSeconds": 1.2339999999967404,
+      "receiptSha256": "061cbbbfd4a6c039cd8efb177829584adb9b2721d1d6c4e7f906eabcab3528b3",
+      "stdoutSha256": "2645c11a471dd6de6a9f590387cb8443d0bc045e26931d558bc3a67a50af68eb",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "worker-v1",
+      "exitCode": 0,
+      "wallSeconds": 5.922000000020489,
+      "receiptSha256": "8fc89a9000182f0def4b50c84fd93ca364e8494731bb70102431d5edd2c2b412",
+      "stdoutSha256": "15c08348dc055835403c7464fc217d671aef97713597f3b1f49ba4ddcef99315",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "python-interop-v1",
+      "exitCode": 0,
+      "wallSeconds": 10.40700000000652,
+      "receiptSha256": "67ff5413e1b0907deb265607d11b371cd645a9c6302aa90cb36b1b4af66638d0",
+      "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSha256": "ef576757a8beb7ac089462c65c836b8bb0c7d0642765c000924b8192b976db69"
+    },
+    {
+      "label": "regression-v1",
+      "exitCode": 0,
+      "wallSeconds": 27.71799999999348,
+      "receiptSha256": "effc263d5ed7ef2989c7ef2b959fd1d98da48c3e63aad94c748199cf3b08b45d",
+      "stdoutSha256": "5db81276c3799be0b9a58275d8679dba3dbd03105d708277273354789dace520",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "regression-v2",
+      "exitCode": 0,
+      "wallSeconds": 28.90600000001723,
+      "receiptSha256": "a6399741188e358a74ce1f86bddeb2386aba0d558da0dfabbe4be5766a5a82d0",
+      "stdoutSha256": "5e804a85ec1ac60063912deb8a781604bdb2e9e2211912dd53a7f9c25b245e51",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "sourcePins": {
+    "community/tests/test_object_cancellation_interop.py": "db5ffc3d73224bbaec9fd32e00fbd975c0c154a5b18413165937c2a1082054c7",
+    "community/object_audit_jobs.py": "09a473a1a80fb350d6fa3b26b3a4b9a01508703035812cc6a6377d695e695c4c",
+    "deploy/cloudflare/src/objectAuditCancellation.js": "7f858ac557ee80bc664b9b6b845d41034ae6160c4956ce5af2d721f4e5fded0a",
+    "deploy/cloudflare/src/objectAuditCancellation.test.mjs": "1bc54e51475aad79aaff8034c9403b462f4224525ad22de4d35ea3490539db96",
+    "deploy/cloudflare/src/objectAuditPrivacy.js": "4cd73981e8e7373e18cd9eda6cc8735e9491797c21fbafaf7584cd0ccb9e7c40",
+    "deploy/cloudflare/src/objectAuditPrivacy.test.mjs": "e3965294fb729ba5a03026ee95ac3d0620355bc16187ae648479494cc6ed1fd2",
+    "deploy/cloudflare/src/privacyStorageRestore.test.mjs": "fc86e333decc8a6d41fa4ff7479845970213d237a2e06301d8718996df57e43e",
+    "deploy/cloudflare/src/objectAuditDispatch.js": "ec502dc91414da05a0aba36674345be7b0630a7406c3665b5031aee7776715c0",
+    "deploy/cloudflare/tools/object-erasure-recovery.mjs": "eaaf8dec925ea4343b161916bfb7d08f5cc9d7e5ab2f732b464df1c4a41c225b",
+    "deploy/cloudflare/tools/privacy-storage-restore.mjs": "694cba636421c9a9fa081b6c49cdbf1f51a59320b9c60d96ab4f0d76109dfbce",
+    "deploy/cloudflare/tools/check-local-object-cancellation.mjs": "aa902c1cc92ec9352ea2eef46c9e37df4e8a6e7e065a00c389150065a20078a2",
+    "deploy/cloudflare/tools/object-cancellation-interop.mjs": "3a37c8bc0c0f32a3cda697ef00d642e68db87b66b5533a3daba6d9d2a89a75be",
+    "deploy/cloudflare/tools/object-cancellation.fixture.mjs": "5136e5cf4d09306da7fb91c348a163c3e5cb0afa889f317b2c14112d0f621b85",
+    "deploy/cloudflare/tools/prepare-object-audit-cancellation.mjs": "9725a14131621b1ce7d2b7a70e6e1431b3b08e2990168f1efa9982fbe97f9cd2"
+  },
+  "preservedFailures": [
+    {
+      "scope": "evidence-writer-only",
+      "code": "Windows_path_separator_KeyError",
+      "testsAffected": false,
+      "sourceSha256": "c384097e36942e19fde9de5fd634cafb4598d99c0d8ae79de45678e70d9c9ea9",
+      "correction": "Normalize saved Windows receipt path separators; verify unchanged native source against its prior pinned regression receipt."
+    }
+  ],
+  "originalOfflineDiagnosticSha256": "ef082f14d1cda17056cc15bb52601cfc9cff3f24822155f861e60f94649f916d",
+  "originalOfflineDiagnosticUnchanged": true,
+  "liveCalls": 0,
+  "earnedCredits": 0,
+  "actionsRuns": 0,
+  "providerDeployment": false,
+  "objectAdmissionReady": false,
+  "productionQualified": false,
+  "frozenScenePilotChanged": false,
+  "remaining": [
+    "independent current cancellation authority and older D1/native/provider restore",
+    "public owner route and scheduled cleanup integration",
+    "retention/compaction policy",
+    "authentic protection/runtime authority and exact Object canary qualification",
+    "atomic publication/once-only credit/real Object search",
+    "full provider/secret recovery",
+    "Mac and signed clean-device acceptance",
+    "full accepted-work soaks and controlled rollout"
+  ]
+}
