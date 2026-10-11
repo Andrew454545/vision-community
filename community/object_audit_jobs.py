@@ -135,6 +135,9 @@ class ObjectAuditJobs:
                   CREATE TABLE IF NOT EXISTS attempts (
                     job TEXT NOT NULL REFERENCES jobs(id), number INTEGER NOT NULL, state TEXT NOT NULL,
                     started INTEGER NOT NULL, finished INTEGER, receipt TEXT, PRIMARY KEY(job,number));
+                  CREATE TABLE IF NOT EXISTS retry_intents (
+                    request_id TEXT PRIMARY KEY, job TEXT NOT NULL REFERENCES jobs(id),
+                    expected_attempts INTEGER NOT NULL, created INTEGER NOT NULL);
                   CREATE TABLE IF NOT EXISTS erasures (
                     job TEXT PRIMARY KEY REFERENCES jobs(id), requested INTEGER NOT NULL, completed INTEGER);
                   CREATE TABLE IF NOT EXISTS assignment_revocations (
@@ -325,14 +328,31 @@ class ObjectAuditJobs:
                     'state': 'erasing' if row and row['state'] != 'erased' else 'erased',
                     'serverAuthorization': False, 'productionQualified': False}
 
-    def control(self, job, action):
+    def control(self, job, action, intent=None):
         require(action in ('cancel', 'retry', 'erase'))
+        if intent is not None:
+            require(action == 'retry' and isinstance(intent, dict)
+                    and set(intent) == {'requestId', 'expectedAttempts'}
+                    and isinstance(intent['requestId'], str) and HEX.fullmatch(intent['requestId'])
+                    and type(intent['expectedAttempts']) is int
+                    and 0 <= intent['expectedAttempts'] < MAX_ATTEMPTS)
         with self.lock, self.connect() as db:
             self.get(job)
             row = db.execute('SELECT * FROM jobs WHERE id=?', (job,)).fetchone()
             if row['state'] in ('erasing', 'erased'):
                 # An old cancel/retry/start cannot undo a privacy tombstone.
                 return self.response(row)
+            if intent is not None:
+                previous = db.execute('SELECT * FROM retry_intents WHERE request_id=?',
+                                      (intent['requestId'],)).fetchone()
+                if previous:
+                    require(previous['job'] == job and previous['expected_attempts'] == intent['expectedAttempts'],
+                            'object_job_control_conflict', 409)
+                    # Replay observes the current state; it never repeats the
+                    # retry, even if that new attempt has already failed.
+                    return self.response(row)
+                require(row['attempts'] == intent['expectedAttempts'] and row['state'] == 'failed',
+                        'object_job_control_conflict', 409)
             if action == 'erase':
                 # Save revocation before acknowledging. Files are removed only
                 # by the single worker after any native owner has finished.
@@ -354,6 +374,10 @@ class ObjectAuditJobs:
                 trusted = self.verifier.assignment(entry['assignment']['path'], entry['assignment']['sha256'], source)
                 self.verifier.validate_index(self.work / job / 'candidate', row['candidate'], source, trusted)
                 db.execute("UPDATE jobs SET state='queued' WHERE id=?", (job,))
+                if intent is not None:
+                    # State change and nonce are one durable SQLite commit.
+                    db.execute('INSERT INTO retry_intents VALUES (?,?,?,?)',
+                               (intent['requestId'], job, intent['expectedAttempts'], int(self.clock())))
             db.commit()
             self.wake.set()
             return self.response(db.execute('SELECT * FROM jobs WHERE id=?', (job,)).fetchone())
@@ -552,8 +576,9 @@ def make_server(jobs, secret, *, port=0):
                     require(isinstance(strict_json(raw), dict) and strict_json(raw) == {})
                     value = jobs.erase_assignment(erasure[1])
                 elif route:
-                    require(strict_json(raw) == {})
-                    value = jobs.control(route[1], route[2])
+                    control = strict_json(raw)
+                    require(control == {} or route[2] == 'retry' and isinstance(control, dict))
+                    value = jobs.control(route[1], route[2], control if control else None)
                 else:
                     value = jobs.submit(raw)
                 self.reply(200, value)

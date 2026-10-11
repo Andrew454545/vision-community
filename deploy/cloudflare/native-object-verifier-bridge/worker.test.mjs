@@ -177,3 +177,24 @@ test('assignment revocation works without a job acknowledgement and validates th
   const response = await handleObjectAuditJobs(start(),env,()=>Response.json({error:'object_assignment_revoked'},{status:409}));
   assert.deepEqual(await response.json(),{error:'object_assignment_revoked'});
 });
+
+test('retry forwards a bounded immutable nonce and exact expected attempt count',async()=>{
+  const intent={requestId:'7'.repeat(64),expectedAttempts:1};
+  const request=new Request(status('/retry','POST'),{body:JSON.stringify(intent)});
+  const response=await handleObjectAuditJobs(request,env,async(url,init)=>{
+    assert.equal(url,env.NATIVE_OBJECT_VERIFIER_ORIGIN+'/object-audits/'+receipt.jobId+'/retry');
+    assert.deepEqual(JSON.parse(new TextDecoder().decode(init.body)),intent);return Response.json({...receipt,attempts:1});
+  });
+  assert.equal(response.status,200);
+  const conflict=await handleObjectAuditJobs(new Request(status('/retry','POST'),{body:JSON.stringify(intent)}),env,
+    ()=>Response.json({error:'object_job_control_conflict'},{status:409}));
+  assert.equal(conflict.status,409);assert.deepEqual(await conflict.json(),{error:'object_job_control_conflict'});
+});
+test('retry-only nonce cannot be applied to cancellation, erasure or malformed attempts',async()=>{
+  const intent={requestId:'7'.repeat(64),expectedAttempts:1};
+  for(const [tail,body] of [['/cancel',intent],['/erase',intent],['/retry',{...intent,expectedAttempts:true}],
+    ['/retry',{...intent,expectedAttempts:3}],['/retry',{...intent,requestId:'short'}],['/retry',{...intent,extra:1}]]){
+    assert.equal((await handleObjectAuditJobs(new Request(status(tail,'POST'),{body:JSON.stringify(body)}),env,
+      ()=>assert.fail('invalid control forwarded'))).status,400);
+  }
+});

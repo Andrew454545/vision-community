@@ -51,8 +51,9 @@ uploader-facing start/status route: their authority argument must come from a
 trusted qualification/assignment registry. The existing local-only prototype
 is not an audited contribution path. Fresh portable protection/runtime authority,
 exact canary qualification, atomic publication/once-only credit and real Object
-search still need integration and authentic acceptance. Explicit operator native
-retry/cancel, retention and provider recovery remain work before deployment.
+search still need integration and authentic acceptance. Explicit native retry
+and connection resumption are now implemented in the [recovery follow-up](OBJECT_AUDIT_RECOVERY_20261011.md).
+Durable abandon/cancel cleanup, retention and provider recovery remain work before deployment.
 Every dispatch response reports zero accepted work/credit and no qualification.
 
 Andrew reports the preceding native coverage/Windows repair merged as VISION
