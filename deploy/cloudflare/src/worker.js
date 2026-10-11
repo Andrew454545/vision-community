@@ -19,7 +19,7 @@ import { SearchError } from "./searchLedger.js";
 import { searchCost } from "./searchPricing.js";
 import { sceneCohortAllows } from "./sceneCohort.js";
 import { deleteAccount, cleanupAccountArtifacts, archiveAccountDeletionReceipts } from "./accountPrivacy.js";
-import { writeSceneArtifact } from "./artifactWrites.js";
+import { writeSceneArtifact, writeObjectArtifact } from "./artifactWrites.js";
 import { officialGen4Coverage, objectCoverageComplete } from "./objectCoverage.js";
 import { readRequestJson } from "./requestBody.js";
 import { localObjectPrototype, objectCapabilities } from "./objectAdmission.js";
@@ -800,10 +800,11 @@ async function submitObjectIndex(env, account, leaseId, items, supplied, objectI
     }
   }
   const prefix = `object-index-v4/${leaseId}/`;
-  await env.INDEX.put(`${prefix}manifest.json`, JSON.stringify({ ...objectIndex.manifest, sourceTsv: "locations.tsv" }));
-  await env.INDEX.put(`${prefix}locations.tsv`, sourceTsv);
+  await writeObjectArtifact(env, account, leaseId, `${prefix}manifest.json`,
+    encodeUtf8(JSON.stringify({ ...objectIndex.manifest, sourceTsv: "locations.tsv" })), now);
+  await writeObjectArtifact(env, account, leaseId, `${prefix}locations.tsv`, sourceTsv, now);
   for (const [name, bytes] of Object.entries(files)) {
-    await env.INDEX.put(`${prefix}${name}`, bytes);
+    await writeObjectArtifact(env, account, leaseId, `${prefix}${name}`, bytes, now);
   }
   const earned = items.reduce((sum, row) => sum + UNITS[row.lane], 0);
   const statements = [

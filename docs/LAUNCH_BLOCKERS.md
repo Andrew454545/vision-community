@@ -1,5 +1,13 @@
 # Launch work and dependencies — 10 October 2026
 
+The [Object storage follow-up](OBJECT_OWNED_STORAGE_20261011.md) adds owned,
+immutable quarantine/bundle writes and deletion/recovery fences. Windows passes
+271/274 affected checks (three file-link permission skips) and 18 actual local
+Cloudflare storage cases across three processes. This closes the new writer
+component; authentic qualification and hosted saved-job/publication/credit
+integration remain open. The frozen Scene pilot is unchanged.
+
+
 The [Object origin auditor follow-up](OBJECT_ORIGIN_AUDIT_20261011.md) now
 binds Python auditing and saved approvals to the native source receipt, including
 all selected Arrow/delta members and one-hour freshness. Actual Node-to-Python
@@ -123,11 +131,11 @@ default price is unchanged. Genuine Windows Scene earned-credit search now passe
 in the finite trial above; representative cost/capacity and Object/Mac evidence
 remain prerequisites for the full pricing/search gate.
 
-The [fresh windowless offline diagnostic](WINDOWS_WINDOWLESS_ENDURANCE_20261009.md)
-started at 23:59:18 UTC after its preliminary recovery/native cycle passed.
-It has a fixed 11 October 01:59:18 UTC deadline and does not start the accepted-work
-soak or reclassify either failed diagnostic. Read its final receipt once after
-that deadline instead of repeatedly polling it.
+The [windowless offline diagnostic](WINDOWS_WINDOWLESS_ENDURANCE_20261009.md#terminal-result--11-october-2026)
+is terminal: round 4 failed during Windows process-name resource measurement.
+Three complete native rounds and all original failures are preserved; its exact
+owned task is disabled. No further polling or restart of that diagnostic is
+required. It does not establish the accepted-work gate.
 
 The first finite Windows Scene cohort is complete. The first future real automatic append
 and genuine Mac/Object acceptance are the next engineering milestones. The checklist's

@@ -7,7 +7,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
 import { DatabaseSync } from "node:sqlite";
 import { exportDeletionLedger, RESOURCE_PROFILES, RestoreError } from "./account-restore.mjs";
-import { PRIVACY_FENCE, sceneArtifactLease } from "../src/artifactWrites.js";
+import { PRIVACY_FENCE, indexArtifactIdentity, artifactPublicationSql } from "../src/artifactWrites.js";
 
 const HEX = /^[0-9a-f]{64}$/, ACCOUNT = /^[0-9a-f]{32}$/;
 const MAX_DATABASE = 512 * 1024 ** 2, MAX_JSON = 64 * 1024 ** 2, MAX_OBJECTS = 110000;
@@ -93,8 +93,7 @@ function expectedObjects(sql, notBefore, now, environment) {
   }
   // Include intent-only uploads: a delayed create need not have reached candidates.
   const unfinished = sql.prepare(`SELECT w.artifact_key,w.account_id FROM account_artifact_writes w
-    JOIN accounts a ON a.id=w.account_id WHERE a.deleted_at IS NOT NULL AND NOT EXISTS
-      (SELECT 1 FROM published_index p WHERE p.four_view_key=w.artifact_key)
+    JOIN accounts a ON a.id=w.account_id WHERE a.deleted_at IS NOT NULL AND NOT ${artifactPublicationSql("w")}
     UNION SELECT c.artifact_key,c.account_id FROM scene_candidates c JOIN accounts a ON a.id=c.account_id
     WHERE a.deleted_at IS NOT NULL AND NOT EXISTS
       (SELECT 1 FROM published_index p WHERE p.four_view_key=c.artifact_key) LIMIT ?`).all(MAX_OBJECTS + 1);
@@ -109,16 +108,22 @@ function expectedObjects(sql, notBefore, now, environment) {
     // An R2 inventory cannot independently attest a native host's spool or
     // its restored assignment tombstone, even if D1 remembers "erased".
     require(!job.artifact_key.startsWith('object-audit-jobs/'), 'native_object_privacy_recovery_required');
-    const published = sql.prepare("SELECT 1 FROM published_index WHERE four_view_key=? LIMIT 1").get(job.artifact_key);
-    if (published) { require(job.state === "retained", "published_artifact_fence_conflict"); continue; }
+    const identity = indexArtifactIdentity(job.artifact_key);
+    const published = identity?.reference && sql.prepare(`SELECT 1 FROM published_index WHERE ${identity.column}=? LIMIT 1`)
+      .get(identity.reference);
+    // Preserve legacy Scene recovery receipts, whose published keys predate the
+    // strict writer grammar. Unknown Object keys never gain that exception.
+    const legacyScene = !identity && job.artifact_key.startsWith("four-view-v4/")
+      && sql.prepare("SELECT 1 FROM published_index WHERE four_view_key=? LIMIT 1").get(job.artifact_key);
+    if (published || legacyScene) { require(job.state === "retained", "published_artifact_fence_conflict"); continue; }
     const owner = sql.prepare("SELECT deleted_at FROM accounts WHERE id=?").get(job.account_id);
-    const lease = sceneArtifactLease(job.artifact_key);
+    const lease = identity?.lease;
     const assignment = lease && sql.prepare("SELECT account_id,lane FROM leases WHERE id=?").get(lease);
     const intent = sql.prepare("SELECT * FROM account_artifact_writes WHERE artifact_key=?").get(job.artifact_key);
     require(job.state === "fenced" && ACCOUNT.test(job.account_id) && owner && owner.deleted_at !== null
-      && assignment?.account_id === job.account_id && assignment.lane === "scene"
+      && assignment?.account_id === job.account_id && assignment.lane === identity?.lane
       && (!intent || intent.account_id === job.account_id && intent.lease_id === lease)
-      && (!job.artifact_key.startsWith("four-view-v4/") || intent), "unsafe_or_pending_cleanup");
+      && (!identity?.intentRequired || intent), "unsafe_or_pending_cleanup");
     const raw = Buffer.from(PRIVACY_FENCE);
     objects.push({ key: job.artifact_key, kind: "privacy-fence", size: raw.length, sha256: sha(raw),
       httpMetadata: { contentType: "application/x-vision-privacy-fence", cacheControl: "no-store" },
