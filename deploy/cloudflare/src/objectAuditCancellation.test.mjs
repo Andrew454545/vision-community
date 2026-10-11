@@ -196,3 +196,13 @@ test('account-deletion-only native recovery cannot certify current submission ca
   await s.cancel();assert.throws(()=>exportObjectErasureAuthority(s.sql,args),/object_cancellation_recovery_required/);
   await s.advance();assert.throws(()=>exportObjectErasureAuthority(s.sql,args),/object_cancellation_recovery_required/);s.noCredit();
 });
+
+test('later publication from another lease cannot strand the cancelled owner\'s cleanup or erase the new bundle',async t=>{
+  const s=await setup(t);await s.cancel();
+  const prefix='object-index-v4/'+other+'/',newKey=prefix+'manifest.json',bytes=encodeUtf8('synthetic other-owner publication');
+  s.objects.set(newKey,bytes);
+  s.sql.prepare("INSERT INTO published_index(location_id,index_text,output_sha256,published_at,object_index_key) VALUES (1,'synthetic',?,100001,?)").run('f'.repeat(64),prefix);
+  assert.equal((await s.advance(now+2)).cleanupState,'erased');assert.deepEqual(s.objects.get(newKey),bytes);
+  assert.equal(s.sql.prepare('SELECT units FROM accounts WHERE id=?').get(account).units,10);
+  assert.equal(s.sql.prepare('SELECT count(*) AS n FROM ledger').get().n,0);
+});

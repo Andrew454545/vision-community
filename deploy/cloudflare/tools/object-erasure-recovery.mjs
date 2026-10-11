@@ -7,18 +7,24 @@ import {pathToFileURL} from 'node:url';
 import {parseArgs} from 'node:util';
 import {DatabaseSync} from 'node:sqlite';
 import { validateLedger, RESOURCE_PROFILES } from './account-restore.mjs';
+import {reconcileObjectCancellations} from './object-cancellation-authority.mjs';
 
 const HEX = /^[0-9a-f]{64}$/, ID = /^[0-9a-f]{32}$/;
 const sha = raw => createHash('sha256').update(raw).digest('hex');
 function require(value) { if (!value) throw Error('invalid_object_erasure_recovery_source'); }
 
 export function exportObjectErasureAuthority(sql, { registryRaw, registrySha256, policySha256,
-  deletionLedgerRaw, deletionLedgerSha256, notBefore, now = Math.floor(Date.now()/1000), environment }) {
+  deletionLedgerRaw, deletionLedgerSha256, cancellationLedgerRaw = null, cancellationLedgerSha256 = null,
+  notBefore, now = Math.floor(Date.now()/1000), environment }) {
   require(Buffer.isBuffer(registryRaw) && registryRaw.length <= 1024*1024 && HEX.test(registrySha256)
     && sha(registryRaw) === registrySha256 && typeof policySha256 === 'string' && HEX.test(policySha256)
     && Buffer.isBuffer(deletionLedgerRaw) && deletionLedgerRaw.length <= 4*1024*1024
     && HEX.test(deletionLedgerSha256) && sha(deletionLedgerRaw) === deletionLedgerSha256
     && ['staging','production'].includes(environment));
+  require((cancellationLedgerRaw === null) === (cancellationLedgerSha256 === null));
+  if (cancellationLedgerRaw !== null) require(Buffer.isBuffer(cancellationLedgerRaw)
+    && cancellationLedgerRaw.length <= 4*1024*1024 && typeof cancellationLedgerSha256 === 'string'
+    && HEX.test(cancellationLedgerSha256) && sha(cancellationLedgerRaw) === cancellationLedgerSha256);
   const registry = JSON.parse(registryRaw.toString('utf8'));
   const ledger = validateLedger(JSON.parse(deletionLedgerRaw.toString('utf8')), notBefore, now, environment);
   require(now-ledger.exportedAt < 600 && registry.version === 1
@@ -37,10 +43,11 @@ export function exportObjectErasureAuthority(sql, { registryRaw, registrySha256,
   const receipts = new Map(ledger.receipts.map(row => [row.accountId,row]));
   sql.exec('BEGIN');
   try {
-    // V1 authority contains account deletion only. An active owner's cancelled
-    // submission needs independent current cancellation authority too; never
-    // export an apparently complete manifest that would omit that revocation.
-    if (sql.prepare("SELECT 1 FROM sqlite_master WHERE name='object_audit_cancellations'").get()
+    let cancellations = null;
+    if (cancellationLedgerRaw !== null) {
+      const independent = JSON.parse(cancellationLedgerRaw.toString('utf8'));
+      cancellations = reconcileObjectCancellations(sql, independent, notBefore, now, environment);
+    } else if (sql.prepare("SELECT 1 FROM sqlite_master WHERE name='object_audit_cancellations'").get()
         && sql.prepare('SELECT 1 FROM object_audit_cancellations LIMIT 1').get()) {
       throw Error('object_cancellation_recovery_required');
     }
@@ -70,10 +77,20 @@ export function exportObjectErasureAuthority(sql, { registryRaw, registrySha256,
         revocations.push({leaseId:entry.leaseId,assignmentSha256:entry.assignment.sha256,deletedAt:account.deleted_at});
       }
     }
+    const cancelled = [];
+    if (cancellations) for (const entry of registry.assignments) {
+      const row = cancellations.get(entry.leaseId);
+      if (!row) continue;
+      require(row.policyId === registry.policyId && row.assignmentSha256 === entry.assignment.sha256);
+      cancelled.push({leaseId:row.leaseId,assignmentSha256:row.assignmentSha256,requestId:row.requestId,cancelledAt:row.cancelledAt});
+    }
+    const cancellationCaptured = cancellations ? JSON.parse(cancellationLedgerRaw.toString('utf8')).exportedAt : ledger.exportedAt;
     sql.exec('COMMIT');
-    return {version:1,scope:'private-object-erasure-recovery-v1',resource:registry.resource,
-      policySha256,registrySha256,deletionLedgerSha256,capturedAt:ledger.exportedAt,
-      expiresAt:ledger.exportedAt+600,revocations:revocations.sort((a,b)=>a.leaseId.localeCompare(b.leaseId))};
+    return {version:cancellations ? 2 : 1,scope:cancellations ? 'private-object-erasure-recovery-v2' : 'private-object-erasure-recovery-v1',
+      resource:registry.resource,policySha256,registrySha256,deletionLedgerSha256,
+      capturedAt:Math.max(ledger.exportedAt,cancellationCaptured),expiresAt:Math.min(ledger.exportedAt,cancellationCaptured)+600,
+      revocations:revocations.sort((a,b)=>a.leaseId.localeCompare(b.leaseId)),
+      ...(cancellations ? {cancellationLedgerSha256,cancellations:cancelled.sort((a,b)=>a.leaseId.localeCompare(b.leaseId))} : {})};
   } catch (error) { sql.exec('ROLLBACK'); throw error; }
 }
 
@@ -101,13 +118,16 @@ function writeNew(path,raw) {
 }
 
 export function prepareObjectErasureRecovery({current,currentSha256,registry,registrySha256,policySha256,
-  deletions,deletionsSha256,notBefore,now=Math.floor(Date.now()/1000),environment,out}) {
+  deletions,deletionsSha256,cancellations=null,cancellationsSha256=null,notBefore,now=Math.floor(Date.now()/1000),environment,out}) {
   out=resolve(out);regular(dirname(out),true);mkdirSync(out,{mode:0o700});
   let sql;
   try {
+    require((cancellations === null) === (cancellationsSha256 === null));
     current=regular(current);registry=regular(registry);deletions=regular(deletions);
+    if(cancellations !== null)cancellations=regular(cancellations);
     const check=()=>{closed(current);pinned(current,currentSha256,512*1024**2);
-      pinned(registry,registrySha256,1024**2);pinned(deletions,deletionsSha256,4*1024**2);};
+      pinned(registry,registrySha256,1024**2);pinned(deletions,deletionsSha256,4*1024**2);
+      if(cancellations !== null)pinned(cancellations,cancellationsSha256,4*1024**2);};
     check();
     const copy=join(out,'current.sqlite');copyFileSync(current,copy,constants.COPYFILE_EXCL);
     const fd=openSync(copy,'r+');try{fsyncSync(fd);}finally{closeSync(fd);}
@@ -117,13 +137,17 @@ export function prepareObjectErasureRecovery({current,currentSha256,registry,reg
     require(sql.prepare('PRAGMA integrity_check').all().every(row=>row.integrity_check==='ok')
       && sql.prepare('PRAGMA foreign_key_check').all().length===0);
     const authority=exportObjectErasureAuthority(sql,{registryRaw:readFileSync(registry),registrySha256,policySha256,
-      deletionLedgerRaw:readFileSync(deletions),deletionLedgerSha256:deletionsSha256,notBefore,now,environment});
+      deletionLedgerRaw:readFileSync(deletions),deletionLedgerSha256:deletionsSha256,
+      cancellationLedgerRaw:cancellations === null ? null : readFileSync(cancellations),
+      cancellationLedgerSha256:cancellationsSha256,notBefore,now,environment});
     sql.close();sql=null;check();pinned(copy,currentSha256,512*1024**2);
     const raw=Buffer.from(JSON.stringify(authority)+'\n');
     writeNew(join(out,'object-erasure-authority.private.json'),raw);
-    const report={complete:true,scope:'offline-object-erasure-recovery-export-v1',currentSha256,
+    const report={complete:true,scope:authority.version === 2 ? 'offline-object-erasure-recovery-export-v2' : 'offline-object-erasure-recovery-export-v1',currentSha256,
       authoritySha256:sha(raw),registrySha256,deletionLedgerSha256:deletionsSha256,
-      revokedAssignments:authority.revocations.length,capturedAt:authority.capturedAt,expiresAt:authority.expiresAt,
+      revokedAssignments:new Set([...authority.revocations,...(authority.cancellations || [])].map(row=>row.leaseId)).size,
+      ...(authority.version === 2 ? {cancelledAssignments:authority.cancellations.length,cancellationLedgerSha256:cancellationsSha256} : {}),
+      capturedAt:authority.capturedAt,expiresAt:authority.expiresAt,
       liveReady:false,productionQualified:false};
     writeNew(join(out,'export-report.json'),Buffer.from(JSON.stringify(report)+'\n'));
     return report;
@@ -137,11 +161,12 @@ export function main(argv=process.argv.slice(2)) {
   try {
     const names=['current','current-sha256','registry','registry-sha256','policy-sha256',
       'deletions','deletions-sha256','writers-stopped-at','environment','out'];
-    const {values}=parseArgs({args:argv,options:Object.fromEntries(names.map(name=>[name,{type:'string'}]))});
+    const {values}=parseArgs({args:argv,options:Object.fromEntries([...names,'cancellations','cancellations-sha256'].map(name=>[name,{type:'string'}]))});
     require(names.every(name=>typeof values[name]==='string' && values[name]) && /^\d+$/.test(values['writers-stopped-at']));
     const report=prepareObjectErasureRecovery({current:values.current,currentSha256:values['current-sha256'],
       registry:values.registry,registrySha256:values['registry-sha256'],policySha256:values['policy-sha256'],
       deletions:values.deletions,deletionsSha256:values['deletions-sha256'],
+      cancellations:values.cancellations ?? null,cancellationsSha256:values['cancellations-sha256'] ?? null,
       notBefore:Number(values['writers-stopped-at']),environment:values.environment,out:values.out});
     console.log(JSON.stringify(report));return 0;
   }catch{

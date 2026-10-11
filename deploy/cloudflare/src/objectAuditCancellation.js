@@ -110,6 +110,15 @@ export async function cancelObjectAudit(env,account,lease,requestId,now=Math.flo
   return result(row);
 }
 
+// Released locations may later be accepted from another lease. That later
+// bundle does not own this cancelled lease's private quarantine/native job.
+// Unknown, older or same-lease publication still requires operator review.
+export function objectCancellationPublicationSafe(publication,lease,cancelledAt) {
+  if(typeof publication.object_index_key !== 'string' || !Number.isSafeInteger(publication.published_at)
+      || publication.published_at<cancelledAt)return false;
+  const key=indexArtifactIdentity(publication.object_index_key+'manifest.json');
+  return key?.lane==='object' && key.reference===publication.object_index_key && key.lease!==lease;
+}
 async function owned(env,row) {
   const key=indexArtifactIdentity(row.artifact_key);
   if(key?.lane!=='object' || key.lease!==row.lease_id || key.digest!==row.submission_sha256 || key.reference!==null) return false;
@@ -119,10 +128,12 @@ async function owned(env,row) {
       AND l.lane='object' AND l.state='expired' AND c.policy_id=? AND c.assignment_sha256=?
       AND c.submission_sha256=? AND c.artifact_key=? AND c.payload_bytes=?
       AND w.account_id=c.account_id AND w.lease_id=c.lease_id AND w.sha256=c.submission_sha256 AND w.bytes=c.payload_bytes
-      AND (a.deleted_at IS NULL OR EXISTS (SELECT 1 FROM account_deletion_receipts d WHERE d.account_id=a.id AND d.deleted_at=a.deleted_at))
-      AND NOT EXISTS (SELECT 1 FROM lease_items i JOIN published_index p ON p.location_id=i.location_id WHERE i.lease_id=c.lease_id)`)
+      AND (a.deleted_at IS NULL OR EXISTS (SELECT 1 FROM account_deletion_receipts d WHERE d.account_id=a.id AND d.deleted_at=a.deleted_at))`)
     .bind(row.lease_id,row.account_id,row.policy_id,row.assignment_sha256,row.submission_sha256,row.artifact_key,row.payload_bytes).first();
-  return !!proof;
+  if(!proof)return false;
+  const publications=(await env.DB.prepare(`SELECT p.object_index_key,p.published_at FROM lease_items i
+    JOIN published_index p ON p.location_id=i.location_id WHERE i.lease_id=?`).bind(row.lease_id).all()).results;
+  return publications.every(p=>objectCancellationPublicationSafe(p,row.lease_id,row.created_at));
 }
 async function fence(env,row,deadline) {
   const written=await Promise.race([env.INDEX.put(row.artifact_key,PRIVACY_FENCE,{

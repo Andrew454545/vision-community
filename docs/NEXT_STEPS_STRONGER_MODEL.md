@@ -1,5 +1,14 @@
 # Remaining launch work
 
+The [current Object cancellation recovery follow-up](OBJECT_CANCELLATION_NATIVE_RECOVERY_20261011.md)
+now binds native backup startup to an independently pinned current cancellation
+ledger, including active accounts. Windows passes 211/214 JavaScript checks
+(three existing file-link skips), 60 Python regressions and eleven actual local
+Cloudflare restart/reassignment cases. An approved old native backup is revoked
+before serving, with no extra inference; source backups and banked fixture units
+are preserved. Older-D1/provider replay, authentic Object acceptance and other
+launch gates remain open. The frozen Scene pilot is unchanged.
+
 The [Object cancellation follow-up](OBJECT_AUDIT_CANCELLATION_20261011.md) adds
 durable submission revocation and independent native/R2 cleanup without account
 deletion or credit changes. Windows passes 248/251 affected JavaScript checks

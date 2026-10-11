@@ -1,5 +1,11 @@
 # Restoring private Object audit work
 
+**11 October follow-up:** [current submission cancellation authority](OBJECT_CANCELLATION_NATIVE_RECOVERY_20261011.md)
+adds v2 recovery for active accounts. With any current cancellation records,
+add both cancellation-ledger options described there; the deletion-only command
+below deliberately refuses to certify that state. Its historical evidence is
+preserved. Complete older-D1/provider recovery remains open.
+
 Restoring a pre-deletion native backup must not revive an account's approval or
 allow its delayed upload. The saved-job service now applies independently pinned
 current deletion authority **before** recovering receipts or starting HTTP/native

@@ -40,7 +40,8 @@ if(!phase){
       const response=await mf.dispatchFetch('https://community.test'+path,{signal:AbortSignal.timeout(15000)});
       assert.equal(response.status,200,path+' '+(response.status===200?'':await response.text()));
       const value=await response.json();assert.equal(value.nativeInferences,0);assert.equal(value.liveCalls,0);
-      assert.equal(value.ledgerEntries,0);assert.equal(value.publications,0);
+      assert.equal(value.ledgerEntries,0);assert.ok(value.publications===0 || value.publications===1);
+      if(value.publications===1)assert.equal(value.otherBundlePreserved,true);
       assert.equal(value.owner.units,10);assert.equal(value.owner.deleted_at,null);cases++;return value;
     };
     if(phase==='cancel'){
@@ -50,6 +51,7 @@ if(!phase){
       assert.equal(result.location.active_lease,null);assert.equal(result.location.queue_state,'pending');
     }else if(phase==='partial'){
       const before=await call('/state');assert.equal(before.cancellation.state,'pending');assert.equal(before.native.erasures,0);
+      const reassigned=await call('/reassigned');assert.equal(reassigned.publications,1);assert.equal(reassigned.otherBundlePreserved,true);
       const result=await call('/partial');assert.equal(result.value.cleanupPending,true);assert.equal(result.artifactFence,true);
       assert.equal(result.cancellation.r2_fenced_at,100002);assert.equal(result.cancellation.native_erased_at,null);assert.equal(result.native.erasures,1);
     }else if(phase==='finish'){
