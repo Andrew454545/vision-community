@@ -28,6 +28,8 @@ export default {async fetch(request) {
         || init.redirect !== 'manual') throw Error('transport_contract_failed');
     if (mode === 'deadline') return new Promise(()=>{});
     if (mode === 'conflict') return Response.json({error:'object_job_conflict'},{status:409});
+    if (mode === 'stale-receipt' || mode === 'stale-origin') return Response.json(
+      {error:mode === 'stale-receipt' ? 'object_job_receipt_unavailable' : 'object_job_origin_unavailable'}, {status:503});
     if (mode === 'unapproved') return Response.json({...receipt,productionQualified:true});
     if (mode === 'wrong-id') return Response.json({...receipt,jobId:'1'.repeat(32)});
     if (mode === 'complete') return Response.json({...receipt,state:'approved',decision:'approved',attempts:1,receiptSha256:'1'.repeat(64)});

@@ -29,6 +29,12 @@ an account permission or credit. All responses explicitly retain
   retries require a persisted backoff and stop after three attempts. Each
   attempt has a new folder. Polling or repeating the initial submission never
   silently starts another failed audit.
+- Before returning a saved approval or rejection, status and duplicate requests
+  revalidate the receipt and supporting files. Changed or unavailable evidence
+  returns 503 while preserving the original report. Cancellation and erasure
+  still work. Runtime identity checks avoid rehashing large models on status;
+  startup and native settlement retain full content verification. See the
+  [integrity checks](OBJECT_SAVED_RESULT_INTEGRITY_20261011.md).
 - A transient database error after native completion can recover the saved
   receipt during the next worker cycle, without restarting the service or
   recomputing the models. Shutdown refuses new work before releasing ownership.
