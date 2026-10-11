@@ -20,11 +20,12 @@ import stat
 import threading
 import time
 
-from .native_object_verifier import NativeObjectVerifier, MAX_MANIFEST, MAX_FILES
+from .native_object_verifier import NativeObjectVerifier, MAX_MANIFEST, MAX_FILES, file_states
 from .native_scene_search import strict_json
 from .object_canary import regular
 from .object_index import decode_object_submission
 from .search_snapshot import digest, encoded, pinned_read, bounded_read
+from .vision_index import VisionIndexError
 
 # Four audited locations need only small lanes. Do not inherit the prototype's
 # thousand-location request budget at this private, two-connection endpoint.
@@ -230,6 +231,14 @@ class ObjectAuditJobs:
                 # Preserve the historical receipt, but do not serve an approval
                 # whose live source proof changed or expired after settlement.
                 raise JobError('object_job_origin_unavailable', 503) from None
+        if row['state'] in ('approved', 'rejected'):
+            try:
+                decision, receipt = self.receipt(row, full=False)
+                require(decision == row['state'] and receipt == row['receipt'],
+                        'object_job_receipt_unavailable', 503)
+            except (OSError, ValueError, KeyError, TypeError, VisionIndexError):
+                # Leave the historical decision, attempt and report intact.
+                raise JobError('object_job_receipt_unavailable', 503) from None
         entry = self.entries[row['lease']]
         return {'version': 1, 'jobId': row['id'], 'leaseId': row['lease'], 'profileId': entry['profileId'],
                 'policyId': self.verifier.document['policyId'], 'assignmentSha256': entry['assignment']['sha256'],
@@ -340,9 +349,12 @@ class ObjectAuditJobs:
                     and isinstance(intent['requestId'], str) and HEX.fullmatch(intent['requestId'])
                     and type(intent['expectedAttempts']) is int
                     and 0 <= intent['expectedAttempts'] < MAX_ATTEMPTS)
+        require(isinstance(job, str) and ID.fullmatch(job), 'unknown_object_job', 404)
         with self.lock, self.connect() as db:
-            self.get(job)
+            require(not self.stop.is_set(), 'object_verifier_unavailable', 503)
             row = db.execute('SELECT * FROM jobs WHERE id=?', (job,)).fetchone()
+            require(row is not None, 'unknown_object_job', 404)
+            # Revocation must remain possible when an old receipt is unavailable.
             if row['state'] in ('erasing', 'erased'):
                 # An old cancel/retry/start cannot undo a privacy tombstone.
                 return self.response(row)
@@ -430,7 +442,21 @@ class ObjectAuditJobs:
                        (int(self.clock()), row['id']))
             return True
 
-    def receipt(self, row):
+    def receipt_input_state(self, row):
+        entry = self.entries[row['lease']]
+        directory = regular(self.work / row['id'] / 'candidate', directory=True)
+        paths = [self.registry_path, Path(entry['assignment']['path']), Path(entry['source']['path']),
+                 self.work / row['id'] / 'locations.tsv',
+                 self.work / ('attempts-' + row['id']) / f"attempt-{row['attempts']}" / 'audit-report.json']
+        for path in directory.iterdir():
+            paths.append(path)
+            require(len(paths) <= 93, 'object_job_receipt_unavailable', 503)
+        return file_states(paths)
+
+    def receipt(self, row, *, full=True):
+        initial_state = self.receipt_input_state(row)
+        if not full:
+            self.verifier.verify_inputs_guard()
         entry = self.entry(row)
         source = self.source(entry)
         require(pinned_read(regular(self.work / row['id'] / 'locations.tsv'), entry['source']['sha256'], MAX_MANIFEST)
@@ -449,10 +475,14 @@ class ObjectAuditJobs:
             'serverAuthorization': False, 'productionQualified': False, 'acceptedContributions': 0, 'searchCreditsCreated': 0}
         require(isinstance(report, dict) and all(type(report.get(k)) is type(v) and report[k] == v for k, v in expected.items())
                 and report.get('decision') in ('approved', 'rejected'), 'object_job_receipt_unavailable', 503)
-        self.verifier.verify_inputs()
+        if full:
+            self.verifier.verify_inputs()
+        else:
+            self.verifier.verify_inputs_guard()
         if self.verifier.origin_path is not None:
             require(report.get('protectedOrigin') == self.verifier.origin_evidence,
                     'object_job_receipt_unavailable', 503)
+        require(self.receipt_input_state(row) == initial_state, 'object_job_receipt_unavailable', 503)
         return report['decision'], digest(raw)
 
     def finish(self, db, row, state, receipt=None):
@@ -476,7 +506,7 @@ class ObjectAuditJobs:
                 try:
                     state, receipt = self.receipt(row)
                     self.finish(db, row, state, receipt)
-                except (OSError, ValueError, KeyError, TypeError):
+                except (OSError, ValueError, KeyError, TypeError, VisionIndexError):
                     self.finish(db, row, 'failed')
                     db.execute("UPDATE attempts SET state='unconfirmed' WHERE job=? AND number=?",
                                (row['id'], row['attempts']))
@@ -588,7 +618,7 @@ def make_server(jobs, secret, *, port=0):
                 self.reply(200, value)
             except JobError as error:
                 self.reply(error.status, {'error': str(error)})
-            except (OSError, ValueError, KeyError, TypeError, sqlite3.Error):
+            except (OSError, ValueError, KeyError, TypeError, sqlite3.Error, VisionIndexError):
                 self.reply(503, {'error': 'object_verifier_unavailable'})
         do_GET = dispatch
         do_POST = dispatch

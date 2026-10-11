@@ -24,7 +24,7 @@ from .object_index import (manifest_file_names, object_tsv_lines, source_id_for,
 from .object_snapshot import VALIDATOR, public_manifest
 from .process_owner import run_owned
 from .protected_reference import ProtectedReference
-from .protected_origin import verify_origin, MAX_JSON as MAX_ORIGIN_JSON
+from .protected_origin import verify_origin, identity, MAX_JSON as MAX_ORIGIN_JSON
 from .search_snapshot import digest, encoded, file_digest, pinned_read, resource_for_environment
 from .vision_index import THREAD_ENVIRONMENT_KEYS
 
@@ -90,6 +90,40 @@ def within(report, limits):
 
 def overlaps(left, right):
     return left == right or left in right.parents or right in left.parents
+
+
+def file_states(paths, *, optional=()):
+    """Handle identities bracket full hash checks; never substitute for them.
+
+    Native Windows ChangeTime also detects same-size edits with restored mtime.
+    These private, in-memory states are rebuilt by full verification on startup.
+    """
+    missing = {str(Path(p).absolute()) for p in optional}
+    states, deadline = {}, time.monotonic() + 5
+    for index, value in enumerate(paths):
+        require(index < 512 and time.monotonic() <= deadline, 'object_audit_input_guard_limit')
+        path = Path(value).absolute()
+        key = str(path)
+        if key in missing and not path.exists():
+            regular(path.parent, directory=True)
+            require(not path.is_symlink(), 'object_audit_inputs_changed')
+            states[key] = None
+            continue
+        before = regular(path).stat()
+        with path.open('rb') as stream:
+            opened = os.fstat(stream.fileno())
+            require((before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns)
+                    == (opened.st_dev, opened.st_ino, opened.st_size, opened.st_mtime_ns),
+                    'object_audit_inputs_changed')
+            state = identity(opened, stream)
+            require(identity(os.fstat(stream.fileno()), stream) == state, 'object_audit_inputs_changed')
+        after = regular(path).stat()
+        require((before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns, before.st_ctime_ns)
+                == (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns, after.st_ctime_ns),
+                'object_audit_inputs_changed')
+        states[key] = state
+    require(time.monotonic() <= deadline, 'object_audit_input_guard_limit')
+    return states
 
 
 class NativeObjectVerifier:
@@ -187,7 +221,31 @@ class NativeObjectVerifier:
         require(self.profile['profile']['assets']['models/rfdetr-medium-576-b4.onnx'] == COMMON_MODEL_SHA256
                 and doc['pq'].get('sha256') == CODEBOOK_SHA256, 'invalid_object_audit_models')
 
+    def input_state(self):
+        root = Path(__file__).parent.parent
+        paths = [self.binary, self.policy_path, self.authority_path, self.snapshot_path]
+        paths += [self.models / key[7:] for key in self.profile['profile']['assets'] if key.startswith('models/')]
+        # Inventory additions/removals as well as the files already in the pin.
+        for folder, suffixes in ((self.binary.parent, ('.dll', '.dylib')),
+                                 (root / 'community', ('.py',)), (root / 'calibration', ('.py',))):
+            for path in folder.iterdir():
+                if path.suffix.lower() in suffixes:
+                    paths.append(path)
+                    require(len(paths) <= 510, 'object_audit_input_guard_limit')
+        database = self.authority_doc.get('protectedDatabase')
+        require(isinstance(database, dict) and set(database) == {'main', 'wal'}, 'invalid_object_audit_authority')
+        require(all(isinstance(entry, dict) and isinstance(entry.get('path'), str)
+                    and Path(entry['path']).is_absolute() and type(entry.get('exists')) is bool
+                    for entry in database.values()), 'invalid_object_audit_authority')
+        paths += [Path(entry['path']) for entry in database.values()]
+        return file_states(paths, optional=[entry['path'] for entry in database.values() if not entry['exists']])
+
+    def verify_inputs_guard(self):
+        require(self.input_state() == getattr(self, 'input_guard', None), 'object_audit_inputs_changed')
+        self.verify_origin_guard()
+
     def verify_inputs(self):
+        initial_state = self.input_state()
         require(read_json(self.policy_path, self.policy_sha256) == self.document
                 and source_pins() == self.document['sourceFiles'], 'object_audit_policy_changed')
         require(runtime_profile(self.binary, self.models) == self.profile, 'object_audit_runtime_changed')
@@ -224,6 +282,8 @@ class NativeObjectVerifier:
         require(all(not entry['exists'] or entry['modifiedUnixMillis'] <= self.protected.generated_unix_millis + 1000
                     for entry in database.values()), 'object_audit_protected_snapshot_stale')
         self.verify_origin_guard(full=True)
+        require(self.input_state() == initial_state, 'object_audit_inputs_changed')
+        self.input_guard = initial_state
 
     def verify_origin_guard(self, *, full=False):
         if self.origin_path is not None:

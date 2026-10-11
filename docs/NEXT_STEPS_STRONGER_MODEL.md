@@ -1,5 +1,9 @@
 # Remaining launch work
 
+Saved Object decisions now revalidate their supporting files, with cancellation
+and erasure still available; [105 distinct Python, 101 JavaScript and 17 local
+Cloudflare checks pass](OBJECT_SAVED_RESULT_INTEGRITY_20261011.md). Launch gates remain open.
+
 The [Object SQL recovery follow-up](OBJECT_CANCELLATION_SQL_RECOVERY_20261011.md)
 now preserves cancellation fences, retry/failure history and exact saved values
 through offline D1 batch preparation and local import/restart. Windows passes
