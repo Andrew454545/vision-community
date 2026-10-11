@@ -24,6 +24,7 @@ from .object_index import (manifest_file_names, object_tsv_lines, source_id_for,
 from .object_snapshot import VALIDATOR, public_manifest
 from .process_owner import run_owned
 from .protected_reference import ProtectedReference
+from .protected_origin import verify_origin, MAX_JSON as MAX_ORIGIN_JSON
 from .search_snapshot import digest, encoded, file_digest, pinned_read, resource_for_environment
 from .vision_index import THREAD_ENVIRONMENT_KEYS
 
@@ -145,6 +146,20 @@ class NativeObjectVerifier:
         require(authority_doc['quality'].get('tunnelEvidenceManifest') is None,
                 'unsupported_object_audit_authority')
         self.authority_doc = authority_doc
+        self.origin_path = None
+        self.origin_evidence = None
+        origin = authority_doc.get('protectedOriginHandoff')
+        operator_pin = doc.get('protectedOriginHandoffSha256')
+        if ('protectedOriginHandoff' in authority_doc or 'protectedOriginHandoffSha256' in doc
+                or 'protectedSourceArtifactsSealed' in authority_doc['invariants']):
+            require(isinstance(origin, dict) and set(origin) == {'path', 'bytes', 'sha256'}
+                    and isinstance(origin.get('path'), str) and Path(origin['path']).is_absolute()
+                    and type(origin.get('bytes')) is int and 0 < origin['bytes'] <= MAX_ORIGIN_JSON
+                    and isinstance(operator_pin, str) and native.HEX.fullmatch(operator_pin)
+                    and origin.get('sha256') == operator_pin
+                    and authority_doc['invariants'].get('protectedSourceArtifactsSealed') is True,
+                    'invalid_object_audit_origin_authority')
+            self.origin_path = regular(origin['path'])
         snapshot = authority_doc.get('protectedSnapshot')
         require(isinstance(snapshot, dict) and isinstance(snapshot.get('path'), str)
                 and Path(snapshot['path']).is_absolute()
@@ -208,6 +223,18 @@ class NativeObjectVerifier:
         # bless an older coordinate snapshot.
         require(all(not entry['exists'] or entry['modifiedUnixMillis'] <= self.protected.generated_unix_millis + 1000
                     for entry in database.values()), 'object_audit_protected_snapshot_stale')
+        self.verify_origin_guard(full=True)
+
+    def verify_origin_guard(self, *, full=False):
+        if self.origin_path is not None:
+            origin = self.authority_doc['protectedOriginHandoff']
+            require(regular(self.origin_path).stat().st_size == origin['bytes'],
+                    'object_audit_origin_changed')
+            evidence = verify_origin(self.origin_path,
+                self.document['protectedOriginHandoffSha256'],
+                self.authority_doc['protectedSnapshot'], self.authority_doc['protectedDatabase'], full=full)
+            if full:
+                self.origin_evidence = evidence
 
     def assignment(self, path, pin, source):
         doc = read_json(path, pin)
@@ -302,6 +329,10 @@ class NativeObjectVerifier:
                   self.snapshot_path.parent,
                   regular(assignment).parent, regular(source).parent, regular(candidate, directory=True)]
         inputs += [Path(v['path']).parent for v in self.authority_doc['protectedDatabase'].values()]
+        if self.origin_path is not None:
+            origin = native.strict_json(pinned_read(self.origin_path,
+                self.document['protectedOriginHandoffSha256'], MAX_ORIGIN_JSON))
+            inputs += [self.origin_path.parent, regular(origin['exporter']['path']).parent]
         require(not any(overlaps(out, root) for root in inputs), 'object_audit_output_overlaps_input')
         out.mkdir(mode=0o700, exist_ok=False)
         regular(out, directory=True)
@@ -321,6 +352,11 @@ class NativeObjectVerifier:
             value = self.document['timeoutSeconds'] - (time.monotonic() - started)
             require(value > 0, 'object_audit_timeout')
             return value
+        def checked_run(command, job, timeout):
+            self.verify_origin_guard()
+            result = self.run(command, job, min(timeout, remaining()))
+            self.verify_origin_guard()
+            return result
         try:
             save()
             self.verify_inputs()
@@ -333,7 +369,7 @@ class NativeObjectVerifier:
             cache.mkdir(mode=0o700)
             total = len(trusted['records'])
             identity = source_id_for(trusted['leaseId'])
-            info = native.strict_json(self.run([str(self.binary), 'runtime-info', '--model',
+            info = native.strict_json(checked_run([str(self.binary), 'runtime-info', '--model',
                 str(self.models / 'rfdetr-medium-576-b4.onnx'), '--model-manifest',
                 str(self.models / 'object-model.json'), '--runtime-manifest',
                 str(self.models / 'hybrid-object-runtime.json')], out / 'runtime-check', remaining()))
@@ -351,11 +387,11 @@ class NativeObjectVerifier:
                        '--global-start', '0', '--cpu', '--quality-filter', '--protected-authority-manifest',
                        str(self.authority_path), '--duty-cycle-percent', '100', '--checkpoint-every', '1',
                        '--model-cache', str(cache)]
-            self.run(command, out / 'inference', remaining())
+            checked_run(command, out / 'inference', remaining())
             reference_pin = file_digest(regular(target / 'manifest.json'))
             self.validate_index(target, reference_pin, original_source, trusted)
             for label in ('verify-before', 'verify-after'):
-                result = native.strict_json(self.run([str(self.binary), *verify_arguments(source_tsv=local_source,
+                result = native.strict_json(checked_run([str(self.binary), *verify_arguments(source_tsv=local_source,
                     output_dir=target, source_id=identity, total=total, global_start=0, full=True)],
                     out / label, remaining()))
                 require(isinstance(result, dict) and result.get('valid') is True
@@ -380,6 +416,8 @@ class NativeObjectVerifier:
                           protectedAssignmentsChecked=True,
                           candidateManifestSha256=candidate_sha256, referenceManifestSha256=reference_pin,
                           locations=total, inputIdentity='LIVE_RETRIEVAL_NOT_FROZEN', comparison=measured)
+            if self.origin_evidence is not None:
+                report['protectedOrigin'] = self.origin_evidence
         except (Exception, KeyboardInterrupt) as error:
             report.update(status='FAILED', decision='pending', errorType=type(error).__name__,
                           error=str(error) if isinstance(error, ObjectAuditError) else 'object_audit_unavailable')

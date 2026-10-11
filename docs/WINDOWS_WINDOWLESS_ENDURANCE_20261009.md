@@ -2,7 +2,7 @@
 
 A separate finite diagnostic actually started at **23:59:18 UTC / 18:59:18 CDT**.
 It targets **24 hourly rounds**, rotating **1/2/4 threads**, with a fixed deadline
-of **11 October, 01:59:18 UTC / 10 October, 20:59:18 CDT**. Completion is pending.
+of **11 October, 01:59:18 UTC / 10 October, 20:59:18 CDT**. The terminal failure is recorded below; launch details are retained.
 It runs through a hidden, limited current-user task and does not require Codex
 or an open terminal. Sleep and shutdown still pause computation; sign-in and
 15-minute recovery triggers can resume it within its original deadline.
@@ -57,3 +57,31 @@ The [launch evidence](evidence/windows-windowless-endurance-launch-20261009.json
 pins the completed preliminary receipts and actual scheduler start readback.
 No imagery, private production database, Cloudflare operation, upload, account,
 credit, public admission or GitHub Actions run was created.
+
+## Terminal result — 11 October 2026
+
+**Failed; not a completed 24-round test.** The original summary records failure
+on 10 October at about 03:13 UTC. Three rounds at 1/2/4 threads completed native
+indexing, two full verifications and saved-input search comparisons. Their
+comparison hashes agree. Each recovery round ran 131 cases with zero failures
+or errors and one explicit file-symlink permission skip.
+
+Round 4 also completed its recovery selection, indexing and first full native
+verification. During search, owned-resource measurement failed while reading a
+process name: Windows error **5 (access denied)**. The replay retains its OSError
+and missing command exit code; it is not a successful search/complete round.
+The owned descendants were stopped, but complete resource measurement was not
+established. Do not relabel this as a native inference defect, an interruption,
+a passed soak or approved parallel profile.
+
+After the fixed deadline, exact action/working-directory/current-user ownership
+readback verified the finite hidden task before disabling it. The source,
+summary, failed attempt, earlier failures and launch receipts remain unchanged.
+Neither the Scene pilot, hourly refresher nor contributor recovery task changed.
+No replacement long-running test was started merely to repeat this failure.
+
+The [terminal evidence](evidence/windows-windowless-endurance-terminal-20261011.json)
+pins the original summary, comparisons, round-4 receipts and before/disabled
+task registrations. This closes the diagnostic's final readback/retirement task;
+it does not close either OS's accepted-work gate or establish current coverage,
+production inference, accepted contributions or earned credit.

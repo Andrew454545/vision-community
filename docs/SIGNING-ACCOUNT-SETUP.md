@@ -1,5 +1,9 @@
 # Set up signing accounts
 
+Start with the [publisher and tester plan](SIGNING-PUBLISHER-PLAN.md). The
+recommended publisher is a real organization so Andrew's surname does not
+appear on the installer certificate. Country/state and enrollment are pending.
+
 This is for the VISION account holder. People using VISION do not need either
 account. The installer code is prepared, but no signing account is configured
 as of 8 October 2026. The protected GitHub `signing` environment is ready; it
@@ -10,7 +14,7 @@ not dispatch the signing workflow until that restriction is lifted.
 
 1. Open [Apple Developer enrollment](https://developer.apple.com/programs/enroll/).
 2. Sign in with your own Apple Account, with two-factor authentication enabled.
-   Enroll as yourself or your legal organization and complete Apple's identity,
+   Enroll the chosen legal organization and complete Apple's identity,
    agreement and membership steps.
 3. After approval, tell the maintainer that enrollment is complete. They can
    help create the Developer ID Application certificate and configure
@@ -25,7 +29,7 @@ machine or in approved CI secrets.
 
 1. Open [Microsoft's Artifact Signing setup guide](https://learn.microsoft.com/en-us/azure/artifact-signing/quickstart).
 2. Use your own Azure account and subscription. Review the billing terms, then
-   create the Artifact Signing account and complete **Public Trust** identity
+   create a **Basic** Artifact Signing account and complete organization **Public Trust** identity
    validation in the Azure portal.
 3. Create the Public Trust certificate profile. Tell the maintainer when it is
    ready; they can configure the signing node and permissions.

@@ -216,6 +216,13 @@ class ObjectAuditJobs:
         return entry
 
     def response(self, row):
+        if row['state'] in ('approved', 'rejected') and self.verifier.origin_path is not None:
+            try:
+                self.verifier.verify_origin_guard()
+            except (OSError, ValueError, KeyError, TypeError):
+                # Preserve the historical receipt, but do not serve an approval
+                # whose live source proof changed or expired after settlement.
+                raise JobError('object_job_origin_unavailable', 503) from None
         entry = self.entries[row['lease']]
         return {'version': 1, 'jobId': row['id'], 'leaseId': row['lease'], 'profileId': entry['profileId'],
                 'policyId': self.verifier.document['policyId'], 'assignmentSha256': entry['assignment']['sha256'],
@@ -415,6 +422,9 @@ class ObjectAuditJobs:
         require(isinstance(report, dict) and all(type(report.get(k)) is type(v) and report[k] == v for k, v in expected.items())
                 and report.get('decision') in ('approved', 'rejected'), 'object_job_receipt_unavailable', 503)
         self.verifier.verify_inputs()
+        if self.verifier.origin_path is not None:
+            require(report.get('protectedOrigin') == self.verifier.origin_evidence,
+                    'object_job_receipt_unavailable', 503)
         return report['decision'], digest(raw)
 
     def finish(self, db, row, state, receipt=None):

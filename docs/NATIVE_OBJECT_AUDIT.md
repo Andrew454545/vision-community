@@ -150,3 +150,24 @@ The unattended Object command now defaults to one location per batch at every
 pace, matching the guided application. It continues through successive batches;
 explicit operator counts remain supported. This improves recovery boundaries
 without claiming an approved parallel runtime or guaranteed throughput.
+
+## Origin-bound operator policies — 11 October 2026
+
+An origin-bound import additionally requires `protectedOriginHandoffSha256` in
+the independently pinned policy. It must match the import's
+`protectedOriginHandoff` (`path`, `bytes`, `sha256`) and
+`invariants.protectedSourceArtifactsSealed: true`. Declaring only part of this
+guard is refused. `community.protected_origin` checks the original live files,
+selected Arrow/delta set, exporter and snapshot within one hour of the original
+capture. It grants no portable import authority.
+
+Full hashes are checked before/after the audit and for recovered settlement.
+Exact native identity/size/timestamp guards run between stages and before serving
+saved approval, without rereading large source contents for status. A changed
+or expired proof returns private fixed-code unavailability; historical reports
+and job decisions are not rewritten. Reports bind hash-only origin evidence;
+source paths and protected coordinates remain private.
+
+See [the integration evidence and limits](OBJECT_ORIGIN_AUDIT_20261011.md).
+Use a new independently sealed policy with the changed adapter source pins;
+do not edit a frozen or already running policy to bless the new code.
