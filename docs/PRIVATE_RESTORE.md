@@ -326,3 +326,10 @@ and [native-spool authority procedure](OBJECT_CANCELLATION_NATIVE_RECOVERY_20261
 Their pending-cleanup reports do not certify provider, account-deletion or
 financial reconciliation. The account-only SQL preparer and R2-only checker
 intentionally refuse incomplete Object recovery.
+
+
+After a pinned Object cancellation repair, the separate [Object SQL preparer](OBJECT_CANCELLATION_SQL_RECOVERY_20261011.md)
+preserves the exact optional schemas and current cancellation authority through
+bounded private SQL preparation. It does not execute provider imports or certify
+current account deletion, finance, native/R2 cleanup or live cutover. The account-only
+preparer remains deliberately closed to Object tables.

@@ -119,3 +119,9 @@ work includes authentic portable Object authority and qualification/publication/
 once-only credit/search, real provider/secret/deletion/financial reconciliation,
 signed Windows/Mac acceptance and full accepted-work soaks. Andrew's fresh-origin
 handoff request is unchanged.
+
+
+The later [SQL recovery follow-up](OBJECT_CANCELLATION_SQL_RECOVERY_20261011.md)
+provides a separate strict offline preparer for these repaired Object schemas.
+Actual local D1 import/rollback/restart is verified there; live provider cutover,
+independent current deletion/finance and pending native/R2 cleanup remain open.

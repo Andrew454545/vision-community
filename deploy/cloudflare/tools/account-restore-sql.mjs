@@ -5,6 +5,7 @@ import { closeSync, constants, copyFileSync, existsSync, fsyncSync, mkdirSync, o
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
+import { sqliteLiteralRows } from "./sqlite-value-literals.mjs";
 import { PRIVACY_FENCES } from "../src/accountPrivacy.js";
 import { RESOURCE_PROFILES, RestoreError } from "./account-restore.mjs";
 
@@ -38,21 +39,8 @@ function writeNew(path, raw) {
   const fd = openSync(path, "r+"); try { fsyncSync(fd); } finally { closeSync(fd); }
 }
 function literalRows(sql, table) {
-  const columns = sql.prepare(`PRAGMA table_xinfo(${quoteName(table)})`).all();
-  if (!columns.length || columns.some(c => c.hidden !== 0)) throw new RestoreError("unsupported_sql_export_schema");
-  // SQLite supplies exact numeric/blob literals, including 64-bit integers.
-  // quote(TEXT) truncates NULs; encode those strings explicitly as UTF-8 bytes.
-  const selections = columns.map(({ name }) => {
-    const col = quoteName(name);
-    return `CASE WHEN typeof(${col})='text' AND instr(${col},char(0))>0
-      THEN 'CAST(X'''||hex(CAST(${col} AS BLOB))||''' AS TEXT)' ELSE quote(${col}) END AS ${col}`;
-  });
-  const rows = [];
-  for (const row of sql.prepare(`SELECT ${selections.join(",")} FROM ${quoteName(table)}`).iterate()) {
-    if (rows.length >= MAX_STATEMENTS) throw new RestoreError("sql_export_limit_exceeded");
-    rows.push(columns.map(c => row[c.name]).join(","));
-  }
-  return { columns: columns.map(c => quoteName(c.name)).join(","), rows: rows.sort() };
+  try { return sqliteLiteralRows(sql, table, MAX_STATEMENTS); }
+  catch (error) { throw new RestoreError(error.message); }
 }
 
 export function prepareD1Sql({ repairedDir, reportSha256, environment = "production", out }) {
