@@ -1,5 +1,15 @@
 # Remaining launch work
 
+The [saved Object handoff](OBJECT_AUDIT_DISPATCH_20261011.md) now connects
+owned quarantine to durable native-job dispatch/status with bounded retries,
+exact reply pins and deletion/revocation guards. Windows passes 194/197 affected
+JavaScript checks (three file-link permission skips), ten actual local Cloudflare
+scenarios across four processes and one actual Node/Python protocol test with
+explicit synthetic inference. Pending upload retries no longer report accepted
+work. Public qualification/router/publication/credit integration and authentic
+authority remain open; the frozen Scene pilot/refresher is unchanged.
+
+
 The [Object storage follow-up](OBJECT_OWNED_STORAGE_20261011.md) adds owned,
 immutable quarantine/bundle writes and deletion/recovery fences. Windows passes
 271/274 affected checks (three file-link permission skips) and 18 actual local
