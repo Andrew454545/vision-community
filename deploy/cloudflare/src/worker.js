@@ -834,8 +834,23 @@ async function submit(env, account, body, objectPrototype = false) {
   const leaseRow = await env.DB.prepare("SELECT * FROM leases WHERE id=? AND account_id=?").bind(leaseId, account).first();
   if (!leaseRow) return error("unknown_lease", 404);
   if (leaseRow.state === "submitted") {
-    const accepted = await env.DB.prepare("SELECT COUNT(*) AS n FROM lease_items WHERE lease_id=?").bind(leaseId).first();
-    return json({ accepted: accepted?.n || 0, unitsEarned: 0, replayed: true });
+    // Submitted means uploaded, including quarantine awaiting native audit.
+    // A replay must count actual publications rather than promise lease items.
+    const receipt = await env.DB.prepare(`SELECT
+      COALESCE(SUM(CASE WHEN l.state='published' AND p.location_id IS NOT NULL
+        AND (p.object_index_key=? OR p.four_view_key=? OR
+          (p.object_index_key IS NULL AND p.four_view_key IS NULL AND l.contributor_id=?
+            AND EXISTS (SELECT 1 FROM ledger WHERE reference=? AND account_id=? AND units>0)))
+        THEN 1 ELSE 0 END),0) AS accepted,
+      COALESCE(SUM(CASE WHEN l.state!='published' AND l.queue_state='quarantined'
+        AND (l.active_lease=? OR EXISTS (SELECT 1 FROM scene_candidates c
+          WHERE c.lease_id=? AND c.account_id=? AND c.state='pending')) THEN 1 ELSE 0 END),0) AS pending
+      FROM lease_items i JOIN locations l ON l.id=i.location_id
+        LEFT JOIN published_index p ON p.location_id=l.id WHERE i.lease_id=?`)
+      .bind(`object-index-v4/${leaseId}/`,`four-view-v4/${leaseId}.i8`,account,`lease:${leaseId}`,account,
+        leaseId,leaseId,account,leaseId).first();
+    return json({ accepted: receipt?.accepted || 0, unitsEarned: 0, replayed: true,
+      ...(receipt?.pending ? {pendingAudit:true,pending:receipt.pending} : {}) });
   }
   if (leaseRow.state !== "active" || leaseRow.expires_at <= now) return error("expired_lease", 409);
   const items = (await env.DB.prepare(

@@ -47,7 +47,7 @@ function framed(headers, maximum) {
   return length === null ? null : Number(length);
 }
 
-function result(value, expected) {
+export function objectAuditResult(value, expected) {
   const fields = ['version','jobId','leaseId','profileId','policyId','assignmentSha256','submissionSha256',
     'candidateManifestSha256','state','decision','attempts','retryAt','receiptSha256','serverAuthorization',
     'productionQualified','acceptedContributions','searchCreditsCreated'];
@@ -62,6 +62,7 @@ function result(value, expected) {
       || !Number.isSafeInteger(value.retryAt) || value.retryAt < 0
       || !(value.receiptSha256 === null || typeof value.receiptSha256 === 'string' && HEX.test(value.receiptSha256))
       || ['approved','rejected'].includes(value.state) && (value.attempts < 1 || value.receiptSha256 === null)
+      || ['erasing','erased'].includes(value.state) && (value.receiptSha256 !== null || value.retryAt !== 0)
       || value.serverAuthorization !== false || value.productionQualified !== false
       || value.acceptedContributions !== 0 || value.searchCreditsCreated !== 0
       || Object.entries(expected).some(([key, wanted]) => value[key] !== wanted)) throw Error('invalid_job_response');
@@ -142,7 +143,7 @@ export async function handleObjectAuditJobs(request, env, fetcher = fetch, timeo
         }
         throw Error('unavailable');
       }
-      const checked = erasure ? assignmentErasureResult(value, erasure[1]) : result(value, expected);
+      const checked = erasure ? assignmentErasureResult(value, erasure[1]) : objectAuditResult(value, expected);
       if (!erasure && (route?.[2] === 'cancel' && !['cancelled','erasing','erased'].includes(checked.state)
           || route?.[2] === 'erase' && !['erasing','erased'].includes(checked.state)
           || ['erasing','erased'].includes(checked.state) && (checked.receiptSha256 !== null || checked.retryAt !== 0))) {
