@@ -1,5 +1,12 @@
 # Launch work and dependencies — 10 October 2026
 
+The [Object pre-publication check](OBJECT_SETTLEMENT_CHECK_20261011.md) now
+joins owned quarantine bytes, a fresh correlated native receipt and current
+lease/coverage/deletion state without granting publication or credit. Windows
+passes 175 related checks and 13 local Cloudflare cases across three processes;
+inference/coverage are synthetic. Authentic qualification and atomic settlement
+remain open; the frozen Scene pilot/refresher is unchanged.
+
 Saved Object decisions now revalidate their supporting files, with cancellation
 and erasure still available; [105 distinct Python, 101 JavaScript and 17 local
 Cloudflare checks pass](OBJECT_SAVED_RESULT_INTEGRITY_20261011.md). Launch gates remain open.

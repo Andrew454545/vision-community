@@ -158,3 +158,8 @@ The [privacy follow-up evidence](evidence/object-audit-privacy-20261010.json)
 records the erasure, interrupted cleanup, restart, directory-junction and
 private-transport checks separately. Earlier test failures and their receipts
 remain preserved.
+
+The [private pre-publication check](OBJECT_SETTLEMENT_CHECK_20261011.md) binds a
+fresh saved-job reply to current owned R2 bytes and D1 lease/coverage/deletion
+state. It grants no authority and does not replace device qualification or
+atomic guarded publication/once-only credit. Candidate bytes remain private.
