@@ -1,5 +1,13 @@
 # Production acceptance
 
+The [Object SQL recovery follow-up](OBJECT_CANCELLATION_SQL_RECOVERY_20261011.md)
+now preserves cancellation fences, retry/failure history and exact saved values
+through offline D1 batch preparation and local import/restart. Windows passes
+265/269 affected checks (four file-link privilege skips) and 37 actual local
+Cloudflare checks across three processes. Live destination/deletion/financial/
+provider recovery and authentic Object acceptance remain open; the frozen Scene
+pilot is unchanged.
+
 The [older-D1 cancellation recovery component](OBJECT_CANCELLATION_D1_RECOVERY_20261011.md)
 now reapplies current cancellations even when a backup predates the lease, and
 blocks late uploads/publication while preserving accepted records and units.
