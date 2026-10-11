@@ -1,0 +1,130 @@
+{
+  "version": 1,
+  "date": "2026-10-11",
+  "scope": "private-current-cancellation-native-recovery",
+  "sourceBaseCommit": "b69c6de1461c7c23410fd307ce523795c956ac40",
+  "platform": "Windows x64",
+  "javascript": {
+    "tests": 214,
+    "passed": 211,
+    "failed": 0,
+    "skipped": 3,
+    "skipReason": "Existing Windows file-symlink privilege unavailable",
+    "newAuthorityCases": 10,
+    "newReassignmentCleanupCases": 1
+  },
+  "python": {
+    "tests": 60,
+    "passed": 60,
+    "failed": 0,
+    "skipped": 0,
+    "newRecoveryCases": 5,
+    "focusedTests": 5,
+    "focusedPassed": 5,
+    "groupsOverlap": true
+  },
+  "actualLocalCloudflare": {
+    "status": "ACTUAL_WORKERD_OBJECT_CANCELLATION_PASSED",
+    "cases": 11,
+    "separateProcesses": 4,
+    "syntheticInference": true,
+    "nativeInferences": 0,
+    "earnedCredits": 0,
+    "liveCalls": 0
+  },
+  "actualNodePythonRestore": {
+    "accountActive": true,
+    "approvedBackupRevokedBeforeServing": true,
+    "assignmentRevocations": 1,
+    "bankedUnits": 10,
+    "completedErasures": 1,
+    "earnedCredits": 0,
+    "extraNativeAttempts": 0,
+    "liveCalls": 0,
+    "nativeInferences": 0,
+    "originalBackupPreserved": true,
+    "originalBackupReportSha256": "b3125f5559a1af78e1077db039e270b3cac399b9d964fc9de9665478e7c16fd1",
+    "savedAttempts": 1,
+    "status": "NODE_PYTHON_CURRENT_CANCELLATION_RESTORE_PASSED",
+    "syntheticInference": true
+  },
+  "runs": [
+    {
+      "label": "javascript-focused-v1",
+      "exitCode": 1,
+      "wallSeconds": 1.0310000000172295,
+      "receiptSha256": "0b899488d80eaa20b6d7bea3037bd09a640f8de962c4cd7b83e849e85ffa346a",
+      "stdoutSha256": "d2fa4158857175a7e60eba3fe77280f0398d91ffda81c362d246b215582e220d",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "python-focused-v1",
+      "exitCode": 0,
+      "wallSeconds": 12.672000000020489,
+      "receiptSha256": "9c4bc99828b71d308fb1390e26ec939dd1fa04636e544f7adbe281c2f330216a",
+      "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSha256": "3e49ebc6913203f2721c235054d372cb4a59d3d0f32eb2113bcf5942f493bcc9"
+    },
+    {
+      "label": "javascript-regression-v2",
+      "exitCode": 0,
+      "wallSeconds": 27.18800000002375,
+      "receiptSha256": "a3e027c3d7cd57a61085f7c535f3f90474b714fc4a729fc6a4640499e4ae348d",
+      "stdoutSha256": "11c8aa5508c057b043e089222958bd919675e73026d3d82299925aab88b7b6db",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "python-regression-v2",
+      "exitCode": 0,
+      "wallSeconds": 265.0929999999935,
+      "receiptSha256": "fd64e574cd9740a2209263168205a6ec5f0808a61b61ffd5b3c65010877ce02e",
+      "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSha256": "072fcd8a6a450605c2d09573ecd931839ac4c1675fa61fa6e72f700248fbfc42"
+    },
+    {
+      "label": "worker-v1",
+      "exitCode": 0,
+      "wallSeconds": 5.672000000020489,
+      "receiptSha256": "17ac7ceb3af2b691ab296d8fe001affd5421b2c776026d66e24e9eaa26ea1379",
+      "stdoutSha256": "22eb0f7344f59b084132c2fab1790f703d52378a8849c0067729b846344bb8b7",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "sourcePins": {
+    "community/object_audit_jobs.py": "1e90af3958b2a682a7a87d78b5ccbf8fedb584d3547a7dd5f7c3817ccedf923a",
+    "community/object_audit_recovery.py": "f0fdf3474da8e9f7d5227e146519a460b422ad45d25a0d7c862b522140b90560",
+    "community/tests/test_object_cancellation_recovery.py": "65c90d31935a3aa85a52ec027edd747c0b88c6bf43fbb333e9d5d0fad3292024",
+    "deploy/cloudflare/src/objectAuditCancellation.js": "72d072cdaa1da42f141b05314f34a2be77e9ad56584685b46aaa2e697d49419c",
+    "deploy/cloudflare/src/objectAuditCancellation.test.mjs": "29c9612e97b57a49cde43fffb9b56da75ce28dd3b026de60f5f29458aeaa20b7",
+    "deploy/cloudflare/src/objectCancellationAuthority.test.mjs": "6cbc7f01e7b66f10eee5459aba8a42330413f316dacc86f33d4e001357289b0b",
+    "deploy/cloudflare/tools/object-cancellation-authority.mjs": "0f2865edfad8c3ae6bdbc5f4c7560deb126f2113fb76ce234a518554d076ab5a",
+    "deploy/cloudflare/tools/object-erasure-recovery.mjs": "9c0f2d4bd3a6d2109ac82a8d3a1dded4ba5498a7a0b28da8d427f22eed9a42bb",
+    "deploy/cloudflare/tools/native-cancellation-recovery.fixture.mjs": "9d30f98ddf3d6d9ab21fc2dc81ed49916412391ffbd2b01f9afb6b78a26c1f4e",
+    "deploy/cloudflare/tools/check-local-object-cancellation.mjs": "980c127f66c74a7c5ff69c83511d078ca94a94e55eb7fb1685b25321a53d569b",
+    "deploy/cloudflare/tools/object-cancellation.fixture.mjs": "83e53ca5773b838349cd3b0a47582317e49e9aec4ce47245cce34a4eaaf164f3"
+  },
+  "preservedFailures": [
+    {
+      "label": "javascript-focused-v1",
+      "meaning": "Corruption fixture hit artifact_write_intent_immutable before the export assertion.",
+      "correction": "Use a missing ownership row to test an incomplete backup; immutable intent protection unchanged."
+    }
+  ],
+  "originalOfflineDiagnosticSha256": "ef082f14d1cda17056cc15bb52601cfc9cff3f24822155f861e60f94649f916d",
+  "originalOfflineDiagnosticUnchanged": true,
+  "liveCalls": 0,
+  "earnedCredits": 0,
+  "actionsRuns": 0,
+  "providerDeployment": false,
+  "productionQualified": false,
+  "objectAdmissionReady": false,
+  "frozenScenePilotChanged": false,
+  "remaining": [
+    "older-D1 cancellation replay and current provider fence verification",
+    "complete provider/secret/financial reconciliation",
+    "authentic protection/runtime authority and Object qualification/publication/credit/search",
+    "public cancellation/cleanup integration and retention policy",
+    "Mac and signed clean-device acceptance",
+    "full accepted-work soaks and rollout"
+  ]
+}

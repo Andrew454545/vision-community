@@ -188,8 +188,12 @@ class ObjectAuditJobs:
             # A fresh manifest cannot reinterpret a changed registry/policy.
             pinned_read(self.registry_path, self.registry_sha256, MAX_MANIFEST)
             self.verifier.verify_inputs()
-            for row in authority['revocations']:
-                self.entry({'lease': row['leaseId']})
+            revocations = {row['leaseId']: row['deletedAt'] for row in authority['revocations']}
+            for row in authority.get('cancellations', []):
+                lease = row['leaseId']
+                revocations[lease] = min(revocations.get(lease, row['cancelledAt']), row['cancelledAt'])
+            for lease in revocations:
+                self.entry({'lease': lease})
             with self.connect() as db:
                 latest = db.execute('SELECT MAX(captured) FROM recovery_authorities').fetchone()[0]
                 require(latest is None or authority['capturedAt'] >= latest,
@@ -199,17 +203,17 @@ class ObjectAuditJobs:
                 require(conflict is None, 'object_recovery_authority_conflict', 409)
                 # One transaction records all revocations and the application
                 # receipt. No old receipt/attempt file is rewritten here.
-                for entry in authority['revocations']:
+                for lease, revoked_at in revocations.items():
                     db.execute('INSERT INTO assignment_revocations VALUES (?,?) ON CONFLICT(lease) DO NOTHING',
-                               (entry['leaseId'], entry['deletedAt']))
-                    job = db.execute('SELECT id,state FROM jobs WHERE lease=?', (entry['leaseId'],)).fetchone()
+                               (lease, revoked_at))
+                    job = db.execute('SELECT id,state FROM jobs WHERE lease=?', (lease,)).fetchone()
                     if job and job['state'] != 'erased':
                         db.execute('INSERT INTO erasures VALUES (?,?,NULL) ON CONFLICT(job) DO NOTHING',
-                                   (job['id'], entry['deletedAt']))
+                                   (job['id'], revoked_at))
                         db.execute("UPDATE jobs SET state='erasing',receipt=NULL,retry_at=0 WHERE id=?", (job['id'],))
                 db.execute('INSERT INTO recovery_authorities VALUES (?,?,?) ON CONFLICT(sha256) DO NOTHING',
                            (sha256, authority['capturedAt'], now))
-            return {'authoritySha256': sha256, 'revokedAssignments': len(authority['revocations']),
+            return {'authoritySha256': sha256, 'revokedAssignments': len(revocations),
                     'cleanupComplete': False, 'serverAuthorization': False, 'productionQualified': False}
 
     def entry(self, row):
