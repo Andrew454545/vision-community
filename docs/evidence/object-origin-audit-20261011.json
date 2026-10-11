@@ -1,0 +1,101 @@
+{
+  "version": 1,
+  "date": "2026-10-11",
+  "status": "COMPONENT_GUARDS_VERIFIED_NOT_PRODUCTION_ACCEPTANCE",
+  "windowsPython": {
+    "tests": 93,
+    "failures": 0,
+    "errors": 0,
+    "skips": []
+  },
+  "nativeJavaScript": {
+    "tests": 113,
+    "pass": 112,
+    "fail": 0,
+    "skipped": 1,
+    "skipReason": "Existing POSIX executable fixture"
+  },
+  "crossLanguageProducer": "Actual Node protected-origin producer; explicitly synthetic exporter/data, no native inference",
+  "windowsIdentity": "Exact NTFS file ID; native ChangeTime; libuv DWORD volume serial; no rounded identifiers",
+  "enforced": [
+    "independent policy/receipt pins",
+    "same protected snapshot",
+    "live Main/WAL/Arrow/delta/exporter",
+    "explicit absent members",
+    "one hour from original start",
+    "source change during native stage",
+    "cached approved/rejected response freshness",
+    "recovered receipt origin binding",
+    "native quality policy enum"
+  ],
+  "sourceReadBudget": "Full hashes at admission/final settlement; exact native file identity/size/timestamps between stages and for status",
+  "legacyAuthorityUnchanged": true,
+  "productionQualified": false,
+  "serverAuthorization": false,
+  "acceptedContributions": 0,
+  "searchCreditsCreated": 0,
+  "liveResourcesModified": false,
+  "macExecution": false,
+  "nativeModelInference": false,
+  "actionsRun": false,
+  "preservedFailures": [
+    "focused-v1: Windows path-stat/handle-stat ctime representation mismatch",
+    "focused-v2: fixture expected piped output from a file-backed process helper",
+    "regression-v1: combined test harness exceeded its 300-second limit; no completed suite claimed"
+  ],
+  "receipts": {
+    "regression-v2.tests.private.json": {
+      "bytes": 54,
+      "sha256": "e9ff4da06d8dc994d8be08691183149f631c8e21ab922ea719ccc803edf5c2e0"
+    },
+    "regression-v2.receipt.private.json": {
+      "bytes": 16655,
+      "sha256": "59707a7ab44f669b51cd2e29e9cdeae337b1b5930b5f264f8700e992e3a76f0c"
+    },
+    "regression-v2.stdout.private.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "regression-v2.stderr.private.log": {
+      "bytes": 18712,
+      "sha256": "a841a4361253aa1fced52b1e0e496eb0d6f4de455e1c74d893cacfeb1563dd80"
+    },
+    "native-v2.receipt.private.json": {
+      "bytes": 16655,
+      "sha256": "d2b8aeb9e8fe755a1837dc7b678d73c0ca084ba0db8a842b8b9e6944e38be59f"
+    },
+    "native-v2.stdout.private.log": {
+      "bytes": 10433,
+      "sha256": "9a4be73d2f8aa9be3c807ce801ab74d515445da5466cc710988307cf10ae389a"
+    },
+    "native-v2.stderr.private.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "sources": {
+    "community/protected_origin.py": {
+      "bytes": 9749,
+      "sha256": "77c124c064f707e9a3d30dbbb0c305712c051d0fc0c20aeaec79f04514512700"
+    },
+    "community/native_object_verifier.py": {
+      "bytes": 27933,
+      "sha256": "f3883c73138013446d2a660890918faeb0ccd55b22167a86193db6a33ec52217"
+    },
+    "community/object_audit_jobs.py": {
+      "bytes": 35608,
+      "sha256": "48b826cdd7e7977679b5ddc314bfb0e369de06c8753480b3594953e5058c9c1a"
+    },
+    "community/tests/test_protected_origin.py": {
+      "bytes": 14813,
+      "sha256": "4471e58ff0b71bdc00b9d10070583c1757021f9679ce221b81cf4094ace6a90e"
+    }
+  },
+  "nativeSourceCommit": "5e57a26bad52fe195bc277cac55dd6c4a6a0cd07",
+  "nativeSourcePins": {
+    "automation/runtime-source/scripts/seal-vision-gen4-inline-pool.mjs": "4854bb2eaca8ce4d1d6408a5af1d469ecd274f6d92f450ccb7d8d282c4a898f7",
+    "automation/runtime-source/scripts/run-vision-object-indexer.mjs": "2f3b541b233fef86fc921f97c221c7e006207c2ad272cdeb50bfac88e3a5e8e1",
+    "automation/runtime-source/scripts/seal-vision-gen4-inline-pool.test.mjs": "77bda10db1c936f2b8244927b136b3643f4cf348c869ec3e9ae988ad22565b0a",
+    "automation/runtime-source/scripts/run-vision-object-indexer.test.mjs": "8d43361b49bfc7d90ae9e2c429744c25b63435735a21ad6671f9725cca03e222"
+  }
+}

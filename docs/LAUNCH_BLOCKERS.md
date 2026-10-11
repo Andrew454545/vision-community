@@ -1,5 +1,17 @@
 # Launch work and dependencies — 10 October 2026
 
+The [Object origin auditor follow-up](OBJECT_ORIGIN_AUDIT_20261011.md) now
+binds Python auditing and saved approvals to the native source receipt, including
+all selected Arrow/delta members and one-hour freshness. Actual Node-to-Python
+Windows component checks pass; the native no-tunnel policy mismatch is fixed.
+Real portable authority and hosted Object admission remain open. The separate
+expired offline diagnostic failed during round 4 Windows resource measurement;
+its original failure and three completed rounds are preserved, and its exact
+owned task is now disabled. See its [terminal result](WINDOWS_WINDOWLESS_ENDURANCE_20261009.md#terminal-result--11-october-2026).
+The Scene pilot/refresher remain unchanged. The user is arranging testers;
+[organization signing setup](SIGNING-PUBLISHER-PLAN.md) awaits publisher jurisdiction.
+
+
 This is the single operational dependency list for the
 [ordered completion plan](COMPLETION_EXECUTION_PLAN.md). The
 [five launch gates](LAUNCH_PLAN.md) remain the release definition. Engineering
