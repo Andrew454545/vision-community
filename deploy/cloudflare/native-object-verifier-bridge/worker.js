@@ -8,7 +8,7 @@ const STATES = new Set(['staging', 'queued', 'running', 'approved', 'rejected', 
 const ERRORS = new Map([
   ['invalid_object_job', 400], ['invalid_object_job_file', 400],
   ['unknown_object_assignment', 403], ['unknown_object_job', 404],
-  ['object_job_identity_mismatch', 409], ['object_job_conflict', 409], ['object_job_source_mismatch', 409],
+  ['object_job_identity_mismatch', 409], ['object_job_conflict', 409], ['object_job_control_conflict', 409], ['object_job_source_mismatch', 409],
   ['object_assignment_revoked', 409],
   ['object_job_candidate_incomplete', 409], ['object_job_retry_limited', 429],
   ['object_job_capacity_reached', 503], ['object_job_disk_budget', 503],
@@ -112,7 +112,13 @@ export async function handleObjectAuditJobs(request, env, fetcher = fetch, timeo
         if (!body.byteLength || length !== null && body.byteLength !== length) throw Error('invalid_length');
         const value = JSON.parse(new TextDecoder('utf-8', {fatal:true}).decode(body));
         if (route || erasure) {
-          if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).length !== 0) throw Error('invalid_control');
+          if (!value || typeof value !== 'object' || Array.isArray(value)) throw Error('invalid_control');
+          if (Object.keys(value).length !== 0 && !(route?.[2] === 'retry'
+              && Object.keys(value).sort().join(',') === 'expectedAttempts,requestId'
+              && typeof value.requestId === 'string' && HEX.test(value.requestId)
+              && Number.isInteger(value.expectedAttempts) && value.expectedAttempts >= 0 && value.expectedAttempts < 3)) {
+            throw Error('invalid_control');
+          }
         } else {
           for (const key of ['leaseId','profileId','policyId','assignmentSha256','submissionSha256']) {
             if (typeof value?.[key] !== 'string') throw Error('invalid_start');

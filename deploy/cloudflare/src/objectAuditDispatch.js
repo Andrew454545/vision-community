@@ -90,13 +90,14 @@ function identity(account, lease, now) {
     throw new ObjectDispatchError('invalid_object_dispatch', 400);
   }
 }
-function result(row, fresh = false) {
+export function objectAuditDispatchResult(row, fresh = false) {
   return {submissionId:row.lease_id, accepted:0, unitsEarned:0, pendingAudit:row.state === 'pending',
     pending:row.state === 'pending' ? row.location_count : 0, rejected:row.state === 'rejected',
     cancelled:row.state === 'cancelled', auditState:row.native_state, freshAuditReply:fresh,
     retryAt:row.next_attempt, needsAttention:row.transport_failures >= MAX_FAILURES || row.native_state === 'failed',
     productionQualified:false, serverAuthorization:false};
 }
+const result=objectAuditDispatchResult;
 const readRow = (env, account, lease) => env.DB.prepare(
   'SELECT * FROM object_audit_candidates WHERE lease_id=? AND account_id=?').bind(lease,account).first();
 

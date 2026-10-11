@@ -1,5 +1,14 @@
 # Launch work and dependencies — 10 October 2026
 
+The [Object recovery follow-up](OBJECT_AUDIT_RECOVERY_20261011.md) adds
+explicit, journalled connection resumption and once-only native retry intents.
+Lost replies/restarts cannot create an extra attempt; original failures and
+deletion authority remain intact. Windows passes 210/213 affected JavaScript
+checks (three existing file-link skips), twelve actual local Cloudflare cases,
+42 Python regressions and a separate overlapping five-case final selection.
+Inference is synthetic; authentic qualification/publication/credit integration
+and other launch gates remain open. The frozen Scene pilot is unchanged.
+
 The [saved Object handoff](OBJECT_AUDIT_DISPATCH_20261011.md) now connects
 owned quarantine to durable native-job dispatch/status with bounded retries,
 exact reply pins and deletion/revocation guards. Windows passes 194/197 affected
