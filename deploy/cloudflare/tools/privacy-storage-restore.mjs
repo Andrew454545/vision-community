@@ -82,6 +82,8 @@ function expectedObjects(sql, notBefore, now, environment) {
     && sql.prepare("SELECT count(*) AS n FROM accounts WHERE deleted_at IS NOT NULL").get().n <= 10000, "storage_object_limit");
   // This checker has account-deletion authority only. A remembered completed
   // cancellation does not independently attest its current native/R2 recovery.
+  require(!sql.prepare("SELECT 1 FROM sqlite_master WHERE name='object_cancellation_tombstones'").get()
+    || !sql.prepare('SELECT 1 FROM object_cancellation_tombstones LIMIT 1').get(), 'object_cancellation_recovery_required');
   require(!sql.prepare("SELECT 1 FROM sqlite_master WHERE name='object_audit_cancellations'").get()
     || !sql.prepare('SELECT 1 FROM object_audit_cancellations LIMIT 1').get(), 'object_cancellation_recovery_required');
   const ledger = exportDeletionLedger(sql, now, environment), objects = [];

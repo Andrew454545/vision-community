@@ -317,3 +317,12 @@ freshness, rollback, candidate/journal cleanup ownership, journaled uploads
 without candidates, private-byte removal, explicit staging admission, rejection
 of mixed resource profiles and both CLI profiles. They
 are offline privacy-repair evidence, not a live backup/restore acceptance test.
+
+## Object submission cancellations
+
+Object recovery must also reapply independently current submission cancellations,
+including active accounts. Follow the [older-database cancellation procedure](OBJECT_CANCELLATION_D1_RECOVERY_20261011.md)
+and [native-spool authority procedure](OBJECT_CANCELLATION_NATIVE_RECOVERY_20261011.md).
+Their pending-cleanup reports do not certify provider, account-deletion or
+financial reconciliation. The account-only SQL preparer and R2-only checker
+intentionally refuse incomplete Object recovery.

@@ -7,7 +7,7 @@ import {pathToFileURL} from 'node:url';
 import {parseArgs} from 'node:util';
 import {DatabaseSync} from 'node:sqlite';
 import { validateLedger, RESOURCE_PROFILES } from './account-restore.mjs';
-import {reconcileObjectCancellations} from './object-cancellation-authority.mjs';
+import {reconcileObjectCancellations,readCancellationTombstones} from './object-cancellation-authority.mjs';
 
 const HEX = /^[0-9a-f]{64}$/, ID = /^[0-9a-f]{32}$/;
 const sha = raw => createHash('sha256').update(raw).digest('hex');
@@ -47,7 +47,7 @@ export function exportObjectErasureAuthority(sql, { registryRaw, registrySha256,
     if (cancellationLedgerRaw !== null) {
       const independent = JSON.parse(cancellationLedgerRaw.toString('utf8'));
       cancellations = reconcileObjectCancellations(sql, independent, notBefore, now, environment);
-    } else if (sql.prepare("SELECT 1 FROM sqlite_master WHERE name='object_audit_cancellations'").get()
+    } else if (readCancellationTombstones(sql).length || sql.prepare("SELECT 1 FROM sqlite_master WHERE name='object_audit_cancellations'").get()
         && sql.prepare('SELECT 1 FROM object_audit_cancellations LIMIT 1').get()) {
       throw Error('object_cancellation_recovery_required');
     }
@@ -65,7 +65,12 @@ export function exportObjectErasureAuthority(sql, { registryRaw, registrySha256,
     const revocations = [];
     for (const entry of registry.assignments) {
       const lease = sql.prepare('SELECT id,account_id,lane FROM leases WHERE id=?').get(entry.leaseId);
-      require(lease && lease.lane === 'object' && ID.test(lease.account_id));
+      if (!lease) {
+        const cancelled=cancellations?.get(entry.leaseId);
+        require(cancelled && cancelled.policyId===registry.policyId && cancelled.assignmentSha256===entry.assignment.sha256);
+        continue; // The independently revoked assignment can predate this D1 backup.
+      }
+      require(lease.lane === 'object' && ID.test(lease.account_id));
       const account = sql.prepare('SELECT id,deleted_at FROM accounts WHERE id=?').get(lease.account_id);
       require(account);
       const cleanup = sql.prepare('SELECT account_id,state FROM account_cleanup WHERE artifact_key=?')

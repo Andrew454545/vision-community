@@ -92,3 +92,12 @@ Object qualification/publication/credit/search, older-D1 cancellation replay,
 complete provider/secret/financial reconciliation, Mac/signed-device acceptance
 and full accepted-work soaks remain launch tasks. Andrew's narrow fresh-origin
 export request remains unchanged.
+
+## Older-D1 follow-up
+
+The [older-database recovery component](OBJECT_CANCELLATION_D1_RECOVERY_20261011.md)
+now replays independently current cancellations, including missing leases, into
+immutable D1 tombstones and a private native/R2 cleanup plan. Actual local
+Cloudflare restarts and repaired-D1-to-Python-spool recovery pass. Complete live
+provider/secret/deletion/financial recovery and authentic Object acceptance remain
+open; this supplements the earlier evidence above.
