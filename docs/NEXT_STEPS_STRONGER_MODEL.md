@@ -1,5 +1,14 @@
 # Remaining launch work
 
+The [older-D1 cancellation recovery component](OBJECT_CANCELLATION_D1_RECOVERY_20261011.md)
+now reapplies current cancellations even when a backup predates the lease, and
+blocks late uploads/publication while preserving accepted records and units.
+Windows passes 231/234 JavaScript checks (three existing file-link skips), five
+Python recovery cases and 24 actual local Cloudflare cases across three processes.
+Actual repaired-D1-to-native-spool recovery passes with synthetic inference.
+Real provider/secret/deletion/financial reconciliation, authentic Object admission
+and other launch gates remain open. The frozen Scene pilot is unchanged.
+
 The [current Object cancellation recovery follow-up](OBJECT_CANCELLATION_NATIVE_RECOVERY_20261011.md)
 now binds native backup startup to an independently pinned current cancellation
 ledger, including active accounts. Windows passes 211/214 JavaScript checks

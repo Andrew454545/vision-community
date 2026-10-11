@@ -135,7 +135,7 @@ async function owned(env,row) {
     JOIN published_index p ON p.location_id=i.location_id WHERE i.lease_id=?`).bind(row.lease_id).all()).results;
   return publications.every(p=>objectCancellationPublicationSafe(p,row.lease_id,row.created_at));
 }
-async function fence(env,row,deadline) {
+export async function fenceObjectCancellationArtifact(env,row,deadline) {
   const written=await Promise.race([env.INDEX.put(row.artifact_key,PRIVACY_FENCE,{
     customMetadata:{visionPrivacyFence:'1'},httpMetadata:{contentType:'application/x-vision-privacy-fence',cacheControl:'no-store'},
   }),deadline]);
@@ -190,7 +190,7 @@ export async function advanceObjectCancellation(env,account,lease,now=Math.floor
     }
     if(row.r2_fenced_at===null) {
       if(!env.INDEX)throw Error('index_unavailable');
-      await fence(env,row,deadline);
+      await fenceObjectCancellationArtifact(env,row,deadline);
       await env.DB.prepare('UPDATE object_audit_cancellations SET r2_fenced_at=? WHERE lease_id=? AND claim_token=? AND state=\'pending\'')
         .bind(now,lease,claim).run();
     }

@@ -80,6 +80,7 @@ class ObjectCancellationRecoveryTests(unittest.TestCase):
             shutil.copyfile(stdout,evidence/'node.stdout.private.log');shutil.copyfile(stderr,evidence/'node.stderr.private.log')
         self.assertEqual(completed.returncode,0,stderr.read_text(encoding='utf-8')[-10000:])
         exported=json.loads(stdout.read_bytes());self.assertEqual(exported['cancelledAssignments'],1)
+        self.assertTrue(exported['oldHostedCopyRepairedBeforeNativeExport']);self.assertTrue(exported['sameAuthorityAsIndependentCurrent'])
         self.document=json.loads((output/'export/object-erasure-authority.private.json').read_bytes())
         self.assertEqual(self.document['revocations'],[]);self.assertEqual(len(self.document['cancellations']),1)
         self.h.now=1002;target=self.h.root/'restored-spool';shutil.copytree(backup,target);self.h.work=target
@@ -102,7 +103,8 @@ class ObjectCancellationRecoveryTests(unittest.TestCase):
               'originalBackupReportSha256':digest(original_bytes),'originalBackupPreserved':True,'extraNativeAttempts':0,
               'assignmentRevocations':len(self.rows('assignment_revocations')),'savedAttempts':len(self.rows('attempts')),
               'completedErasures':sum(row['completed'] is not None for row in self.rows('erasures')),
-              'accountActive':True,'bankedUnits':10,'earnedCredits':0,'liveCalls':0,'syntheticInference':True,'nativeInferences':0}
+              'oldHostedCopyRepairedBeforeNativeExport':True,'sameAuthorityAsIndependentCurrent':True,
+              'oldHostedBackupSha256':exported['oldHostedBackupSha256'],'accountActive':True,'bankedUnits':10,'earnedCredits':0,'liveCalls':0,'syntheticInference':True,'nativeInferences':0}
             (Path(evidence_root)/'restore.private.json').write_bytes(encoded(result))
 
 if __name__=='__main__':unittest.main()

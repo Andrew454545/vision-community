@@ -68,7 +68,8 @@ async function writeOwnedArtifact(env, account, lease, key, bytes, now, lane) {
       WHERE l.id=? AND l.account_id=? AND l.lane=? AND l.state IN ('active','submitted') AND a.deleted_at IS NULL)
     ON CONFLICT(artifact_key) DO NOTHING`).bind(key, account, lease, digest, bytes.length, now, lease, account, lane).run();
   const intent = await env.DB.prepare(`SELECT w.* FROM account_artifact_writes w JOIN accounts a ON a.id=w.account_id
-    WHERE w.artifact_key=? AND a.deleted_at IS NULL`).bind(key).first();
+    JOIN leases l ON l.id=w.lease_id AND l.account_id=w.account_id
+    WHERE w.artifact_key=? AND a.deleted_at IS NULL AND l.lane=? AND l.state IN ('active','submitted')`).bind(key,lane).first();
   if (!intent) {
     const active = await env.DB.prepare("SELECT 1 FROM accounts WHERE id=? AND deleted_at IS NULL").bind(account).first();
     throw new ArtifactWriteError(active ? "lease_lost" : "account_not_active", active ? 409 : 401);
@@ -93,5 +94,7 @@ async function writeOwnedArtifact(env, account, lease, key, bytes, now, lane) {
   }
   const active = await env.DB.prepare("SELECT 1 FROM accounts WHERE id=? AND deleted_at IS NULL").bind(account).first();
   if (!active) throw new ArtifactWriteError("account_not_active", 401);
+  if (!await env.DB.prepare("SELECT 1 FROM leases WHERE id=? AND account_id=? AND lane=? AND state IN ('active','submitted')")
+      .bind(lease,account,lane).first()) throw new ArtifactWriteError("lease_lost");
   return digest;
 }

@@ -1,5 +1,6 @@
 // Offline current authority only; no provider binding, uploads or mutation.
 import {RESOURCE_PROFILES} from './account-restore.mjs';
+import {OBJECT_CANCEL_RESTORE_SCHEMA,OBJECT_CANCEL_RESTORE_CONTRACT} from '../src/objectCancellationRestore.js';
 import {indexArtifactIdentity} from '../src/artifactWrites.js';
 import {objectCancellationPublicationSafe} from '../src/objectAuditCancellation.js';
 const ID=/^[0-9a-f]{32}$/,HEX=/^[0-9a-f]{64}$/;
@@ -33,12 +34,39 @@ export function validateObjectCancellationLedger(value,notBefore,now,environment
   }
   return value;
 }
+// A restored database may predate even the cancelled lease. Retain the
+// independently pinned event without inventing an account, job or credit.
+export function readCancellationTombstones(sql){
+  const table=sql.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='object_cancellation_tombstones'").get();
+  if(!table){require(!sql.prepare("SELECT 1 FROM sqlite_master WHERE name LIKE 'object_cancel_restore_%' LIMIT 1").get());return [];}
+  const normalized=value=>value.replace(/IF NOT EXISTS/ig,'').replace(/[\s;]/g,'').toLowerCase();
+  for(const expected of OBJECT_CANCEL_RESTORE_SCHEMA){
+    const [,kind,name]=expected.match(/^CREATE (TABLE|INDEX|TRIGGER) IF NOT EXISTS (\w+)/);
+    const actual=sql.prepare('SELECT type,sql FROM sqlite_master WHERE name=?').get(name);
+    require(actual?.type===kind.toLowerCase() && normalized(actual.sql)===normalized(expected));
+  }
+  require(sql.prepare('SELECT contract FROM object_cancel_restore_revision WHERE slot=1').get()?.contract===OBJECT_CANCEL_RESTORE_CONTRACT);
+  const rows=sql.prepare('SELECT * FROM object_cancellation_tombstones ORDER BY lease_id LIMIT 4097').all();require(rows.length<=4096);
+  return rows.map(row=>{
+    require(typeof row.source_ledger_sha256==='string' && HEX.test(row.source_ledger_sha256));
+    const lease=sql.prepare('SELECT account_id,lane,state FROM leases WHERE id=?').get(row.lease_id);
+    const candidate=sql.prepare('SELECT * FROM object_audit_candidates WHERE lease_id=?').get(row.lease_id);
+    require(!lease || lease.account_id===row.account_id && lease.lane==='object' && lease.state==='expired');
+    require(!candidate || candidate.state==='cancelled' && candidate.account_id===row.account_id && candidate.policy_id===row.policy_id
+      && candidate.assignment_sha256===row.assignment_sha256 && candidate.submission_sha256===row.submission_sha256
+      && candidate.artifact_key===row.artifact_key && candidate.payload_bytes===row.payload_bytes && candidate.receipt_sha256===null
+      && candidate.claim_token===null && candidate.claim_until===0 && candidate.next_attempt===0);
+    return {requestId:row.request_id,leaseId:row.lease_id,accountId:row.account_id,policyId:row.policy_id,
+      assignmentSha256:row.assignment_sha256,submissionSha256:row.submission_sha256,artifactKey:row.artifact_key,
+      payloadBytes:row.payload_bytes,cancelledAt:row.cancelled_at};
+  });
+}
 function currentRows(sql){
   const table=sql.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='object_audit_cancellations'").get();
   const revision=sql.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='object_cancel_revision'").get();
-  if(!table){require(!revision);return [];}
-  require(revision && sql.prepare('SELECT contract FROM object_cancel_revision WHERE slot=1').get()?.contract==='private-object-cancellation-v1-20261011');
-  const rows=sql.prepare('SELECT * FROM object_audit_cancellations ORDER BY lease_id LIMIT 4097').all();require(rows.length<=4096);
+  require(table || !revision);
+  if(table)require(revision && sql.prepare('SELECT contract FROM object_cancel_revision WHERE slot=1').get()?.contract==='private-object-cancellation-v1-20261011');
+  const rows=table ? sql.prepare('SELECT * FROM object_audit_cancellations ORDER BY lease_id LIMIT 4097').all() : [];require(rows.length<=4096);
   for(const row of rows){
     const candidate=sql.prepare('SELECT * FROM object_audit_candidates WHERE lease_id=?').get(row.lease_id);
     const lease=sql.prepare('SELECT account_id,lane,state FROM leases WHERE id=?').get(row.lease_id);
@@ -55,12 +83,17 @@ function currentRows(sql){
     const published=sql.prepare('SELECT p.object_index_key,p.published_at FROM lease_items i JOIN published_index p ON p.location_id=i.location_id WHERE i.lease_id=?').all(row.lease_id);
     require(published.every(p=>objectCancellationPublicationSafe(p,row.lease_id,row.created_at)));
   }
-  require(!sql.prepare(`SELECT 1 FROM object_audit_candidates c JOIN accounts a ON a.id=c.account_id
+  const tombstones=readCancellationTombstones(sql);
+  if(table)require(sql.prepare(`SELECT c.lease_id FROM object_audit_candidates c JOIN accounts a ON a.id=c.account_id
     WHERE c.state='cancelled' AND a.deleted_at IS NULL AND NOT EXISTS
-    (SELECT 1 FROM object_audit_cancellations r WHERE r.lease_id=c.lease_id) LIMIT 1`).get());
-  return rows.map(row=>({requestId:row.request_id,leaseId:row.lease_id,accountId:row.account_id,policyId:row.policy_id,
+    (SELECT 1 FROM object_audit_cancellations r WHERE r.lease_id=c.lease_id)`).all()
+    .every(row=>tombstones.some(t=>t.leaseId===row.lease_id)));
+  const merged=new Map(tombstones.map(row=>[row.leaseId,row]));
+  const original=rows.map(row=>({requestId:row.request_id,leaseId:row.lease_id,accountId:row.account_id,policyId:row.policy_id,
     assignmentSha256:row.assignment_sha256,submissionSha256:row.submission_sha256,artifactKey:row.artifact_key,
     payloadBytes:row.payload_bytes,cancelledAt:row.created_at}));
+  for(const row of original){const prior=merged.get(row.leaseId);require(!prior || Object.entries(row).every(([key,value])=>prior[key]===value));merged.set(row.leaseId,row);}
+  require(merged.size<=4096);return [...merged.values()].sort((a,b)=>a.leaseId.localeCompare(b.leaseId));
 }
 export function exportObjectCancellationLedger(sql,exportedAt,environment){
   sql.exec('BEGIN');
