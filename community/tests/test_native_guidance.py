@@ -78,15 +78,14 @@ class NativeGuidanceTests(unittest.TestCase):
         self.assertIn('byId(`${platform}-background-native`).hidden = state.nativeApp !== true', script)
         self.assertIn('byId(`${platform}-background-folder`).hidden = state.nativeApp === true', script)
 
-    def test_public_download_links_use_one_pinned_preview(self):
+    def test_paused_public_guides_do_not_offer_an_old_download(self):
         sources = [ROOT / name for name in ('README.md', 'START-HERE.md', 'START HERE.html')]
         sources += [ROOT / 'community' / 'web' / name for name in ('index.html', 'getting-started.html')]
         links = set()
         pattern = re.compile(r'https://github\.com/Andrew454545/vision-community/releases/download/[^)" ]+')
         for path in sources:
             links.update(pattern.findall(path.read_text(encoding='utf-8')))
-        self.assertEqual(len(links), 1)
-        self.assertIn('windows-starter-preview-20261004-recovery', next(iter(links)))
+        self.assertEqual(links, set(), 'A paused entry point must not invite an installer download')
 
     def test_public_instructions_do_not_request_global_installs_or_security_bypasses(self):
         sources = [ROOT / name for name in ('README.md', 'START-HERE.md', 'START HERE.html')]
@@ -96,18 +95,23 @@ class NativeGuidanceTests(unittest.TestCase):
                           'spctl --master-disable', '--no-verify'):
             self.assertNotIn(forbidden, text)
 
-    def test_closed_preview_does_not_invite_processing(self):
+    def test_paused_guides_preserve_saved_work_without_reinstalling(self):
         sources = [ROOT / 'START-HERE.md', ROOT / 'START HERE.html',
                    ROOT / 'community' / 'web' / 'getting-started.html']
         for path in sources:
             text = path.read_text(encoding='utf-8').lower()
-            self.assertIn('this preview is closed', text)
-            self.assertIn('when contributions open', text)
+            self.assertIn('processing and online search are paused', text)
+            self.assertIn('private account code', text)
+            self.assertIn('vision folder', text)
+            self.assertIn('do not need to reinstall', text)
+            self.assertNotIn('save and enable', text)
+            self.assertNotIn('wait for <strong>pc approved</strong>', text)
 
-    def test_home_page_has_a_closed_preview_fallback_before_javascript(self):
+    def test_home_page_explains_the_pause_before_javascript(self):
         page = (ROOT / 'community' / 'web' / 'index.html').read_text(encoding='utf-8').lower()
         self.assertIn('id="welcome-status"', page)
-        self.assertIn('preview: processing and search are closed for now.', page)
+        self.assertIn('processing and search are paused.', page)
+        self.assertIn('saved work and credits are being preserved', page)
 
 
 if __name__ == '__main__':

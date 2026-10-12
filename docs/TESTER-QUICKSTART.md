@@ -1,5 +1,9 @@
 # Help test VISION
 
+**Testing is paused with the service.** You can volunteer a computer now, but
+wait for a new maintainer invitation before downloading, setting up or running
+checks. Keep any existing VISION folder and private account code.
+
 We need one Windows 11 Intel/AMD PC and one Apple-silicon Mac. A fresh standard
 user account on an existing computer is enough to begin; do not erase it.
 Someone who does not normally use technical tools should try the setup too.

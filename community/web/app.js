@@ -752,7 +752,7 @@ function updateQueue() {
   updateProcessHelp();
   const available = serviceReadiness.canContribute(selectedProcessLanes());
   $("service-status").textContent = serviceReadiness.message(selectedProcessLanes());
-  $("welcome-status").textContent = !serviceReadiness.checked ? "Checking whether contributions are open…" : !serviceReadiness.connected ? "VISION cannot connect right now. Please come back later." : serviceReadiness.canContribute(["scene"]) ? "Windows setup is available. Follow the four steps in the PC app." : "Preview: contributions are not open yet. You have done nothing wrong; please come back later.";
+  $("welcome-status").textContent = !serviceReadiness.checked ? "Checking service availability…" : !serviceReadiness.connected ? "VISION cannot connect right now. Keep your account code and VISION folder; you do not need to reinstall." : serviceReadiness.canContribute(["scene"]) ? "Read Start here for the current setup instructions." : "Contributions are closed. Keep your account code and VISION folder; you do not need to reinstall.";
   if (!available || lastProcessAvailability !== available) $("process-status").textContent = processPrompt();
   lastProcessAvailability = available;
   const canProcess = available && signedIn && pendingForSelection() > 0 && !$("process").dataset.busy;
