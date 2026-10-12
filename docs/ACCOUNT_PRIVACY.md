@@ -1,5 +1,13 @@
 # Account deletion and retained contributions
 
+The [current operational cost hold](COST_STOP_20261012.md) supersedes the historical
+live checks below. New [queued-search support](QUEUED_SEARCH_DELIVERY.md) is source-only:
+its optional deletion trigger erases all owned jobs, including raw waiting queries
+and claim tokens, in the same account-revocation transaction. Late owner results
+cannot charge or recreate deleted private results. Saved paid maps/names follow
+the existing account deletion policy; downloading a map or owner-side in-flight
+memory cannot be remotely undone.
+
 This feature is deployed on the isolated Community staging site. Disposable
 live checks passed account recovery, session revocation, deletion and lost-response
 receipt recovery. Production rollout, retention and a complete restore exercise

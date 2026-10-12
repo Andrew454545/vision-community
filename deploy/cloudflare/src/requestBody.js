@@ -11,9 +11,10 @@ function cancel(body) {
   try { void body?.cancel().catch(() => {}); } catch {}
 }
 
-export async function readRequestJson(request, timeoutMs = 60000) {
+export async function readRequestJson(request, timeoutMs = 60000, maxBytes = MAX_JSON_BODY_BYTES) {
+  if (!Number.isSafeInteger(maxBytes) || maxBytes < 1 || maxBytes > MAX_JSON_BODY_BYTES) throw new RequestBodyError('invalid_request_limit', 500);
   const declared = request.headers.get('Content-Length');
-  if (declared !== null && (!/^\d+$/.test(declared) || Number(declared) > MAX_JSON_BODY_BYTES)) {
+  if (declared !== null && (!/^\d+$/.test(declared) || Number(declared) > maxBytes)) {
     cancel(request.body);
     throw new RequestBodyError('request_too_large', 413);
   }
@@ -24,7 +25,7 @@ export async function readRequestJson(request, timeoutMs = 60000) {
   const deadline = new Promise((_, reject) => {
     timer = setTimeout(() => reject(new RequestBodyError('request_timeout', 408)), timeoutMs);
   });
-  let bytes = new Uint8Array(65536), length = 0, reads = 0;
+  let bytes = new Uint8Array(Math.min(65536, maxBytes)), length = 0, reads = 0;
   try {
     while (true) {
       if (++reads > MAX_READS || Date.now() >= end) throw new RequestBodyError('request_timeout', 408);
@@ -32,10 +33,10 @@ export async function readRequestJson(request, timeoutMs = 60000) {
       if (Date.now() >= end) throw new RequestBodyError('request_timeout', 408);
       if (done) break;
       if (!(value instanceof Uint8Array)) throw new RequestBodyError('invalid_json', 400);
-      if (length + value.length > MAX_JSON_BODY_BYTES) throw new RequestBodyError('request_too_large', 413);
+      if (length + value.length > maxBytes) throw new RequestBodyError('request_too_large', 413);
       if (length + value.length > bytes.length) {
         let size = bytes.length;
-        while (size < length + value.length) size = Math.min(MAX_JSON_BODY_BYTES, size * 2);
+        while (size < length + value.length) size = Math.min(maxBytes, size * 2);
         const grown = new Uint8Array(size);
         grown.set(bytes.subarray(0, length)); bytes = grown;
       }

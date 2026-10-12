@@ -1,5 +1,11 @@
 # Cost recommendation for owner discussion
 
+**Current decision:** the laptop user approved implementing the recommended
+design **locally** on 12 October. The first [queued-search component](QUEUED_SEARCH_DELIVERY.md)
+is built in source. Cloud/account migration, deployment, budget and restarting
+work remain undecided; Andrew's operational cost hold continues. The comparison
+below records the recommendation that preceded this offline approval.
+
 **Recommend free-tier coordination + R2 + Andrew's existing computer for trusted
 verification and search.** Contributors still index locally. This removes hosted
 model execution, retains online banked-credit searches, and gives a small pilot

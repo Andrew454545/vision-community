@@ -3,8 +3,11 @@
 **First resolve the [owner cost hold](COST_STOP_20261012.md).** The pilot,
 refresher and background indexing task are disabled. Cloud execution,
 deployments, provider checks and Actions remain forbidden. The requested
-[cost recommendation](COST_OPTIONS_20261012.md) is for discussion before a
-migration decision; the work below is queued, not permission to restart it.
+[cost recommendation](COST_OPTIONS_20261012.md) now has the laptop user's approval
+for **local implementation only**. [Queued search delivery](QUEUED_SEARCH_DELIVERY.md)
+is implemented in source. Continue offline owner verification/import and bounded
+catalog integration; account/resource migration and activation remain undecided.
+The work below is not permission to restart cloud execution or indexing.
 
 Use the [five acceptance gates](PRODUCTION_ACCEPTANCE.md) as the release boundary.
 The engineering checkpoint before this session is `1a1f845`: hosted Object slots

@@ -19,6 +19,9 @@ import { advanceObjectContribution } from './objectAuditFlow.js';
 import { retireAcceptedObjectAudits } from './objectAuditRetention.js';
 import { onlineSearch, onlineSearchConfigured, INDEX_DOWNLOAD_ROUTES } from "./onlineSearch.js";
 import { SearchError } from "./searchLedger.js";
+import { queueSearch, queuedSearchConfigured, requireSearchQueue, maintainSearchQueue, searchCredit,
+  queuedSearchStatus, recoverSearch, cancelQueuedSearch, requireSearchAgent, claimQueuedSearch,
+  renewQueuedSearch, failQueuedSearch, completeQueuedSearch, SEARCH_QUEUE_RESULT_BYTES } from './searchQueue.js';
 import { searchCost } from "./searchPricing.js";
 import { sceneCohortAllows } from "./sceneCohort.js";
 import { deleteAccount, cleanupAccountArtifacts, archiveAccountDeletionReceipts } from "./accountPrivacy.js";
@@ -210,6 +213,7 @@ async function accountId(env, request) {
 
 async function status(env, account, options = {}) {
   const cost = searchCost(env);
+  if (env.SEARCH_DELIVERY === 'queued-v1') await requireSearchQueue(env.DB);
   const cohortAllowed = await sceneCohortAllows(env, account);
   const lite = Boolean(options.lite);
   const rows = await env.DB.prepare(
@@ -248,8 +252,9 @@ async function status(env, account, options = {}) {
       : await r2Status(env),
     searchCost: cost,
     searchBackend: "online",
-    searchOnSite: cohortAllowed && cost !== null && onlineSearchConfigured(env),
-    searchReady: cohortAllowed && cost !== null && onlineSearchConfigured(env),
+    searchOnSite: cohortAllowed && cost !== null && (env.SEARCH_DELIVERY === undefined ? onlineSearchConfigured(env) : queuedSearchConfigured(env)),
+    searchReady: cohortAllowed && cost !== null && (env.SEARCH_DELIVERY === undefined ? onlineSearchConfigured(env) : queuedSearchConfigured(env)),
+    searchDelivery: env.SEARCH_DELIVERY === 'queued-v1' ? 'queued' : 'immediate',
     indexDownloads: false,
     accountDeletionAvailable: true,
     model: MODEL_ID,
@@ -276,6 +281,10 @@ async function status(env, account, options = {}) {
     const row = await env.DB.prepare("SELECT units FROM accounts WHERE id=?").bind(account).first();
     result.accountId = account;
     result.units = row?.units || 0;
+    if (env.SEARCH_DELIVERY === 'queued-v1') {
+      await maintainSearchQueue(env.DB);
+      Object.assign(result, await searchCredit(env.DB, account));
+    }
     result.searchesAvailable = cost === null ? 0 : Math.floor(result.units / cost);
     if (!lite) {
       const sceneWork = await workStatus(env, account, "scene");
@@ -1173,8 +1182,12 @@ async function search(env, account, body, objectPrototype = false) {
     filters, objectConfidence: ["balanced", "precise", "highRecall"].includes(body.objectConfidence) ? body.objectConfidence : "balanced",
     rejectRoadNames: body.rejectRoadNames === true, minimumGlobalLocation: body.minimumGlobalLocation ?? null,
   };
-  try { return json(await onlineSearch(env, account, body.idempotencyKey, query,
-    { allowNew: lane !== "object" || objectPrototype, maxCostUnits: body.maxCostUnits })); }
+  try {
+    const execute = env.SEARCH_DELIVERY === undefined ? onlineSearch : queueSearch;
+    const result = await execute(env, account, body.idempotencyKey, query,
+      { allowNew: lane !== "object" || objectPrototype, maxCostUnits: body.maxCostUnits });
+    return json(result, result.queued ? 202 : 200);
+  }
   catch (failure) {
     if (failure instanceof SearchError) return error(failure.code, failure.status);
     throw failure;
@@ -1186,7 +1199,11 @@ const API_METHODS = new Map([
   ["/api/capabilities","GET"],["/api/status","GET"],["/api/me","GET"],["/api/views","GET"],
   ["/api/scene-qualifications","GET,POST"],["/api/object-qualifications","GET,POST"],["/api/accounts","POST"],["/api/recovery","POST"],
   ["/api/account/delete","POST"],["/api/scene-audits","POST"],["/api/object-audits","POST"],["/api/leases/release","POST"],
-  ["/api/leases/renew","POST"],["/api/leases","POST"],["/api/submissions","POST"],["/api/searches","POST"]
+  ["/api/leases/renew","POST"],["/api/leases","POST"],["/api/submissions","POST"],["/api/searches","POST"],
+  ['/api/search-jobs','GET'],['/api/search-jobs/cancel','POST'],
+  ['/api/searches/recover','GET'],
+  ['/api/search-agent/claim','POST'],['/api/search-agent/renew','POST'],
+  ['/api/search-agent/complete','POST'],['/api/search-agent/fail','POST']
 ]);
 export default {
   async scheduled(_event, env) {
@@ -1219,6 +1236,19 @@ export default {
     if (!sameOrigin(request)) return error("cross_origin_request",403);
     try {
       await ingressLimit(env,request);
+      if (url.pathname.startsWith('/api/search-agent/')) {
+        // An outbound owner agent uses a separate secret, never account codes.
+        // Authenticate before reading its body or touching the database.
+        await requireSearchAgent(env, request);
+        if (!env.DB) return error('control_plane_unprovisioned',503);
+        await requireSchema(env);
+        const body = await readRequestJson(request, 30000,
+          url.pathname.endsWith('/complete') ? SEARCH_QUEUE_RESULT_BYTES + 8192 : 4096);
+        if (url.pathname.endsWith('/claim')) return json(await claimQueuedSearch(env, undefined, body.lanes));
+        if (url.pathname.endsWith('/renew')) return json(await renewQueuedSearch(env, body.jobId, body.claimToken));
+        if (url.pathname.endsWith('/fail')) return json(await failQueuedSearch(env, body.jobId, body.claimToken));
+        return json(await completeQueuedSearch(env, body.jobId, body.claimToken, body.result));
+      }
       const anonymous=["/api/capabilities","/api/status","/api/accounts","/api/recovery"].includes(url.pathname);
       if (anonymous) await accountLimit(env,request,null);
       if (!env.DB) return error("control_plane_unprovisioned",503);
@@ -1247,6 +1277,8 @@ export default {
         return error("object_verification_unavailable",503,{"retry-after":"1800"});
       }
       if (url.pathname === "/api/me") return json(await status(env, account, { lite: url.searchParams.get("lite") === "1" }));
+      if (url.pathname === '/api/search-jobs') return json(await queuedSearchStatus(env, account, url.searchParams.get('jobId')));
+      if (url.pathname === '/api/searches/recover') return json(await recoverSearch(env, account, url.searchParams.get('idempotencyKey')));
       if (url.pathname === "/api/scene-qualifications" && request.method==="GET") {
         if (!verifierConfigured(env)) return error("scene_verification_unavailable",503);
         return json(await qualificationStatus(env,account,url.searchParams.get("profileId")));
@@ -1255,7 +1287,12 @@ export default {
         await viewLimit(env,account);
         return views(request);
       }
-      const body=await readRequestJson(request);
+      const body=await readRequestJson(request, 60000,
+        url.pathname === '/api/searches' && env.SEARCH_DELIVERY !== undefined ? 81920 : undefined);
+      if (url.pathname === '/api/search-jobs/cancel') {
+        if (body.accountId !== account) return error('account_changed',409);
+        return json(await cancelQueuedSearch(env, account, body.idempotencyKey));
+      }
       if (url.pathname === "/api/accounts") return await createAccount(env,request);
       if (url.pathname === "/api/recovery") return await recover(env,request,body);
       if (url.pathname === "/api/account/delete") {
