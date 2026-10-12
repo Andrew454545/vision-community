@@ -115,6 +115,9 @@ sync/GitHub, with normal OS access protection and a deliberate retention policy.
   provide enqueue/status/cancel and separately authenticated owner claim/renew/fail/
   completion routes. `SEARCH_DELIVERY=queued-v1`, a 64-hex-character
   `SEARCH_AGENT_SECRET`, and exact existing search pins are required for new work.
+  Optional [independent lane bindings](OWNER_SEARCH_BINDINGS.md) let one coordinator
+  serve separately pinned Scene and Object engines. Owner capabilities must match
+  each lane before its query is disclosed; saved work is never retargeted.
   Dynamic snapshot lookup is refused in this first version; changing the snapshot
   never silently retargets an already waiting job.
 - [`owner_search_agent.py`](../community/owner_search_agent.py) accepts separately
@@ -176,5 +179,5 @@ still use per-location D1 records; result validation and the historical catalog
 need measured Free-plan adaptation. Durable paid replies also consume growing
 storage and need an authorized retention/storage design. Next: outbound trusted
 verification/import jobs and sealed-batch membership, owner startup/credential
-provisioning and joint Scene/Object runtime binding; then the approved migration,
+provisioning; then the approved migration,
 real acceptance/capacity evidence and [remaining launch gates](PRODUCTION_ACCEPTANCE.md).

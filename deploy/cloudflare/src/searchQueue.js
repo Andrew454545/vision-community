@@ -16,18 +16,53 @@ const ID = /^[0-9a-f]{32}$/;
 const ACTIVE = "state IN ('queued','claimed')";
 const clock = () => Math.floor(Date.now() / 1000);
 
-function binding(env) {
-  if (env.SEARCH_DELIVERY !== 'queued-v1' || env.SEARCH_DYNAMIC_SNAPSHOT === '1'
-      || ![undefined, '0'].includes(env.SEARCH_DYNAMIC_SNAPSHOT)
-      || typeof env.SEARCH_POLICY_ID !== 'string' || !env.SEARCH_POLICY_ID || env.SEARCH_POLICY_ID.length > 200
-      || !HEX.test(env.SEARCH_RUNTIME_SHA256 || '') || !HEX.test(env.SEARCH_SNAPSHOT_SHA256 || '')
-      || !HEX.test(env.SEARCH_AGENT_SECRET || '')) throw new SearchError('search_unavailable');
-  return { contractVersion: SEARCH_CONTRACT_VERSION, policyId: env.SEARCH_POLICY_ID,
-    runtimeSha256: env.SEARCH_RUNTIME_SHA256, snapshotSha256: env.SEARCH_SNAPSHOT_SHA256 };
+function canonicalBinding(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)
+      || Object.keys(value).sort().join(',') !== 'contractVersion,policyId,runtimeSha256,snapshotSha256'
+      || value.contractVersion !== SEARCH_CONTRACT_VERSION
+      || typeof value.policyId !== 'string' || !/^[A-Za-z0-9_.-]{1,128}$/.test(value.policyId)
+      || typeof value.runtimeSha256 !== 'string' || typeof value.snapshotSha256 !== 'string'
+      || !HEX.test(value.runtimeSha256) || !HEX.test(value.snapshotSha256))
+    throw new SearchError('invalid_search_binding', 400);
+  return { contractVersion: SEARCH_CONTRACT_VERSION, policyId: value.policyId,
+    runtimeSha256: value.runtimeSha256, snapshotSha256: value.snapshotSha256 };
 }
 
-export function queuedSearchConfigured(env) {
-  try { binding(env); return true; } catch { return false; }
+function bindings(env) {
+  if (env.SEARCH_DELIVERY !== 'queued-v1' || env.SEARCH_DYNAMIC_SNAPSHOT === '1'
+      || ![undefined, '0'].includes(env.SEARCH_DYNAMIC_SNAPSHOT)
+      || !HEX.test(env.SEARCH_AGENT_SECRET || '')) throw new SearchError('search_unavailable');
+  if (env.SEARCH_QUEUE_BINDINGS !== undefined) {
+    try {
+      // Explicit lane pins cannot coexist with legacy global pins: rollback or
+      // a partial edit must not silently select a different engine/catalog.
+      if (typeof env.SEARCH_QUEUE_BINDINGS !== 'string' || env.SEARCH_QUEUE_BINDINGS.length > 2048
+          || [env.SEARCH_POLICY_ID, env.SEARCH_RUNTIME_SHA256, env.SEARCH_SNAPSHOT_SHA256].some(v => v !== undefined)) throw Error();
+      const value = JSON.parse(env.SEARCH_QUEUE_BINDINGS);
+      if (!value || Object.keys(value).sort().join(',') !== 'lanes,version' || value.version !== 1
+          || !value.lanes || typeof value.lanes !== 'object' || Array.isArray(value.lanes)
+          || !Object.keys(value.lanes).length || Object.keys(value.lanes).some(lane => !['scene', 'object'].includes(lane))) throw Error();
+      return Object.fromEntries(Object.entries(value.lanes).map(([lane, pin]) => [lane, canonicalBinding(pin)]));
+    } catch { throw new SearchError('search_unavailable'); }
+  }
+  // Preserve historical single-binding requests and saved rows unchanged.
+  if (typeof env.SEARCH_POLICY_ID !== 'string' || !env.SEARCH_POLICY_ID || env.SEARCH_POLICY_ID.length > 200
+      || !HEX.test(env.SEARCH_RUNTIME_SHA256 || '') || !HEX.test(env.SEARCH_SNAPSHOT_SHA256 || ''))
+    throw new SearchError('search_unavailable');
+  const pin = { contractVersion: SEARCH_CONTRACT_VERSION, policyId: env.SEARCH_POLICY_ID,
+    runtimeSha256: env.SEARCH_RUNTIME_SHA256, snapshotSha256: env.SEARCH_SNAPSHOT_SHA256 };
+  return { scene: pin, object: pin };
+}
+
+function binding(env, lane) {
+  if (!['scene', 'object'].includes(lane)) throw new SearchError('search_unavailable');
+  const pin = bindings(env)[lane];
+  if (!pin) throw new SearchError('search_unavailable');
+  return pin;
+}
+
+export function queuedSearchConfigured(env, lane) {
+  try { return lane === undefined ? !!bindings(env) : !!binding(env, lane); } catch { return false; }
 }
 
 export async function requireSearchAgent(env, request) {
@@ -110,7 +145,7 @@ export async function queueSearch(env, account, key, query, { allowNew = true, m
   // Terminal job metadata is finite. An expired key can still replay a paid
   // result above, but can never silently become new work after pruning.
   requireFreshSearchRequest(key, now);
-  const identity = binding(env);
+  const identity = binding(env, query.lane);
   if (!await sceneCohortAllows(env, account)) throw new SearchError('search_unavailable');
   if (!allowNew) throw new SearchError('object_verification_unavailable');
   const cost = searchCost(env), maximum = maxCostUnits === undefined ? SEARCH_COST : maxCostUnits;
@@ -181,19 +216,36 @@ export async function cancelQueuedSearch(env, account, key, now = clock()) {
   return queuedSearchStatus(env, account, row.id, now);
 }
 
-export async function claimQueuedSearch(env, now = clock(), lanes = ['scene']) {
+export async function claimQueuedSearch(env, now = clock(), lanes = ['scene'], capabilities) {
   if (!Array.isArray(lanes) || !lanes.length || lanes.length > 2 || new Set(lanes).size !== lanes.length
       || lanes.some(lane => !['scene', 'object'].includes(lane))) throw new SearchError('invalid_search_lane', 400);
-  const identity = JSON.stringify(binding(env));
+  const configured = bindings(env), supported = {};
+  if (capabilities !== undefined) {
+    if (!capabilities || typeof capabilities !== 'object' || Array.isArray(capabilities)
+        || Object.keys(capabilities).sort().join(',') !== [...lanes].sort().join(','))
+      throw new SearchError('invalid_search_binding', 400);
+    for (const lane of lanes) {
+      const advertised = JSON.stringify(canonicalBinding(capabilities[lane]));
+      if (configured[lane] && advertised === JSON.stringify(configured[lane])) supported[lane] = advertised;
+    }
+    if (!Object.keys(supported).length && lanes.some(lane => configured[lane]))
+      throw new SearchError('search_binding_changed', 409);
+  } else {
+    // Old agents advertise only lane names. They cannot safely consume a new
+    // deployment with independent runtime pins, so never receive its queries.
+    if (env.SEARCH_QUEUE_BINDINGS !== undefined) throw new SearchError('search_binding_required', 409);
+    for (const lane of lanes) supported[lane] = JSON.stringify(configured[lane]);
+  }
+  validTime(now);
   await requireSearchQueue(env.DB);
   await maintainSearchQueue(env.DB, now);
   // One SQL write chooses and fences the claim; two agents cannot own it.
   const job = await env.DB.prepare(`UPDATE search_jobs SET state='claimed',claim_token=?,claim_until=MIN(?,expires_at),attempts=attempts+1
     WHERE id=(SELECT j.id FROM search_jobs j JOIN accounts a ON a.id=j.account_id WHERE a.deleted_at IS NULL
-      AND j.binding_json=? AND j.expires_at>? AND j.attempts<3 AND j.lane IN (SELECT value FROM json_each(?))
+      AND j.binding_json=json_extract(?, '$.' || j.lane) AND j.expires_at>? AND j.attempts<3
       AND (j.state='queued' OR (j.state='claimed' AND j.claim_until<=?)) ORDER BY j.created_at,j.id LIMIT 1)
     RETURNING id,account_id,query_json,query_digest,binding_json,claim_token,claim_until,expires_at`)
-    .bind(randomHex(32), now + SEARCH_CLAIM_SECONDS, identity, now, JSON.stringify(lanes), now).first();
+    .bind(randomHex(32), now + SEARCH_CLAIM_SECONDS, JSON.stringify(supported), now, now).first();
   if (!job) return { job: null, retryAfterSeconds: 30 };
   if (!await sceneCohortAllows(env, job.account_id)) {
     await failQueuedSearch(env, job.id, job.claim_token, now);
@@ -212,11 +264,12 @@ function validClaim(id, token) {
 
 export async function renewQueuedSearch(env, id, token, now = clock()) {
   validClaim(id, token); validTime(now);
-  const identity = JSON.stringify(binding(env));
+  const identities = Object.fromEntries(Object.entries(bindings(env)).map(([lane, pin]) => [lane, JSON.stringify(pin)]));
   await requireSearchQueue(env.DB);
   const saved = await env.DB.prepare(`UPDATE search_jobs SET claim_until=MIN(?,expires_at)
-    WHERE id=? AND claim_token=? AND state='claimed' AND claim_until>? AND expires_at>? AND binding_json=?
-    RETURNING claim_until`).bind(now + SEARCH_CLAIM_SECONDS, id, token, now, now, identity).first();
+    WHERE id=? AND claim_token=? AND state='claimed' AND claim_until>? AND expires_at>?
+      AND binding_json=json_extract(?, '$.' || lane)
+    RETURNING claim_until`).bind(now + SEARCH_CLAIM_SECONDS, id, token, now, now, JSON.stringify(identities)).first();
   if (!saved) throw new SearchError('search_claim_lost', 409);
   return { claimUntil: saved.claim_until };
 }
@@ -243,10 +296,13 @@ export async function completeQueuedSearch(env, id, token, computed, now) {
   if (paid) return { completed: true, searchId: paid.searchId };
   if (job.state !== 'claimed' || job.claim_token !== token || job.claim_until <= startedAt || job.expires_at <= startedAt)
     throw new SearchError('search_claim_lost', 409);
-  if (job.binding_json !== JSON.stringify(binding(env)) || !await sceneCohortAllows(env, job.account_id))
+  const identity = binding(env, job.lane);
+  if (job.binding_json !== JSON.stringify(identity) || !await sceneCohortAllows(env, job.account_id))
     throw new SearchError('search_unavailable');
   const query = JSON.parse(job.query_json);
-  const result = await verifiedSearchResult(env, query, job.query_digest, computed, env.SEARCH_SNAPSHOT_SHA256, id, job.cost_units);
+  if (query.lane !== job.lane) throw new SearchError('search_unavailable');
+  const result = await verifiedSearchResult({ ...env, SEARCH_POLICY_ID: identity.policyId,
+    SEARCH_RUNTIME_SHA256: identity.runtimeSha256 }, query, job.query_digest, computed, identity.snapshotSha256, id, job.cost_units);
   if (encodeUtf8(JSON.stringify(result)).length > SEARCH_QUEUE_RESULT_BYTES) throw new SearchError('search_result_too_large', 413);
   const nonce = randomHex(32), reference = `search:${id}`;
   const settledAt = now ?? clock();

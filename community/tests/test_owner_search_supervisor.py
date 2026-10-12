@@ -96,6 +96,18 @@ class OwnerSearchSupervisorTests(unittest.TestCase):
         self.assertEqual(self.supervisor().step()["status"], "operator_required")
         self.assertEqual(self.agent.calls, 1)
 
+    def test_stale_owner_bindings_latch_across_restart_without_repeated_probes(self):
+        self.agent.error = OwnerSearchError('owner_binding_configuration_required', 409)
+        self.assertEqual(self.supervisor().step()['status'], 'operator_required')
+        self.assertEqual(self.state()['lastError'], 'owner_configuration_required')
+        self.clock.advance(86400)
+        self.assertEqual(self.supervisor().step()['status'], 'operator_required')
+        self.assertEqual(self.agent.calls, 1)
+        self.agent.error = None
+        self.supervisor().resume_after_operator_fix()
+        self.assertEqual(self.supervisor().step()['status'], 'idle')
+        self.assertEqual(self.agent.calls, 2)
+
     def test_native_failures_back_off_and_idle_success_resets_failure_count(self):
         self.agent.result = {"status": "failed"}
         self.assertEqual(self.supervisor().step()["waitSeconds"], 60)

@@ -72,7 +72,12 @@ class HTTPSCoordinator:
                 raise OwnerSearchError("invalid_owner_reply")
             if response.status != 200:
                 # Never echo an arbitrary upstream error body, URL or credential.
-                code = "search_claim_lost" if response.status == 409 and document.get("error") == "search_claim_lost" else "coordinator_unavailable"
+                code = "coordinator_unavailable"
+                if response.status == 409:
+                    if document.get("error") == "search_claim_lost":
+                        code = "search_claim_lost"
+                    elif document.get("error") in {"search_binding_required", "search_binding_changed"}:
+                        code = "owner_binding_configuration_required"
                 raise OwnerSearchError(code, response.status)
             return document
         except OwnerSearchError:
@@ -123,14 +128,31 @@ class OwnerSearchAgent:
     no prompt, account code or exception detail enters a diagnostic report.
     """
 
-    def __init__(self, coordinator, engines: dict, state: Path):
+    def __init__(self, coordinator, engines: dict, state: Path, *, bindings=None):
         if (not isinstance(engines, dict) or not engines or set(engines) - {"scene", "object"}
                 or any(not callable(getattr(engine, "search", None)) for engine in engines.values())):
             raise OwnerSearchError("invalid_owner_engines")
         self.coordinator, self.engines = coordinator, dict(engines)
+        self.bindings = self._bindings(bindings, set(engines)) if bindings is not None else None
         self.state = plain_path(Path(state), directory=True)
         self.outbox = self.state / "outbox.json"
         self.pending = self.state / "outbox.pending"
+
+    @staticmethod
+    def _bindings(value, lanes):
+        if not isinstance(value, dict) or set(value) != lanes:
+            raise OwnerSearchError("invalid_owner_bindings")
+        saved = {}
+        for lane, pin in value.items():
+            if (not isinstance(pin, dict) or set(pin) != {
+                    "contractVersion", "policyId", "runtimeSha256", "snapshotSha256"}
+                    or type(pin["contractVersion"]) is not int or pin["contractVersion"] != 2
+                    or not isinstance(pin["policyId"], str) or not re.fullmatch(r"[A-Za-z0-9_.-]{1,128}", pin["policyId"])
+                    or any(not isinstance(pin[key], str) or not TOKEN.fullmatch(pin[key])
+                           for key in ("runtimeSha256", "snapshotSha256"))):
+                raise OwnerSearchError("invalid_owner_bindings")
+            saved[lane] = dict(pin)
+        return saved
 
     def _report(self, code):
         # Finite allowlist and first evidence only; failures cannot grow logs.
@@ -211,7 +233,8 @@ class OwnerSearchAgent:
             self._recover_pending()
             if self.outbox.exists():
                 return self._deliver()
-            reply = self.coordinator.post("claim", {"lanes": sorted(self.engines)})
+            reply = self.coordinator.post("claim", {"lanes": sorted(self.engines),
+                **({"bindings": self.bindings} if self.bindings is not None else {})})
             job = reply.get("job")
             if job is None:
                 if set(reply) != {"job", "retryAfterSeconds"} or reply["retryAfterSeconds"] != 30:
@@ -228,13 +251,19 @@ class OwnerSearchAgent:
             try:
                 raw = job["requestJson"].encode("utf-8")
                 request = strict_json(raw)
-                engine = self.engines[request["query"]["lane"]]
+                lane = request["query"]["lane"]
+                engine = self.engines[lane]
+                if self.bindings is not None and {key: request.get(key) for key in self.bindings[lane]} != self.bindings[lane]:
+                    raise OwnerSearchError("invalid_owner_binding")
                 result = engine.search(request, raw_query=query_bytes(raw))
                 # Never retain an engine's echoed prompt; the contract excludes query.
                 if not isinstance(result, dict) or set(result) != {
                     "contractVersion", "policyId", "runtimeSha256", "snapshotSha256", "requestSha256", "processedLocations", "hits"
                 } or len(encoded(result)) > 1024 * 1024:
                     raise OwnerSearchError("invalid_owner_result")
+                if self.bindings is not None and ({key: result.get(key) for key in self.bindings[lane]} != self.bindings[lane]
+                        or result.get("requestSha256") != request.get("requestSha256")):
+                    raise OwnerSearchError("invalid_owner_binding")
                 self._save("complete", {**body, "result": result})
             except Exception:
                 # A disk write may have completed before acknowledgement failed;

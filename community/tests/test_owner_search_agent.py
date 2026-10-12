@@ -62,6 +62,85 @@ class OwnerSearchAgentTest(unittest.TestCase):
     def agent(self):
         return OwnerSearchAgent(self.coordinator, {"scene": self.engine}, self.state)
 
+    @staticmethod
+    def binding(value=None):
+        request = json.loads((value or job())["requestJson"])
+        return {key: request[key] for key in ("contractVersion", "policyId", "runtimeSha256", "snapshotSha256")}
+
+    def test_explicit_bindings_are_copied_and_advertised_without_changing_query_bytes(self):
+        pin = self.binding()
+        agent = OwnerSearchAgent(self.coordinator, {"scene": self.engine}, self.state, bindings={"scene": pin})
+        pin["policyId"] = "changed-after-construction"
+        self.assertEqual(agent.run_once(), {"status": "completed"})
+        self.assertEqual(self.coordinator.calls[0], ("claim", {"lanes": ["scene"], "bindings": {"scene": self.binding()}}))
+        self.assertIn(b'"lat":1e-7', self.engine.calls[0][1])
+
+    def test_both_engines_route_with_distinct_independently_pinned_bindings(self):
+        object_job = job()
+        object_request = json.loads(object_job["requestJson"])
+        object_request.update(policyId="objects.fixture", runtimeSha256="1"*64, snapshotSha256="2"*64)
+        object_request["query"]["lane"] = "object"
+        object_job.update(jobId="c"*32, requestJson=json.dumps(object_request))
+        object_engine = Engine()
+        pins = {"scene": self.binding(), "object": self.binding(object_job)}
+        agent = OwnerSearchAgent(self.coordinator, {"scene": self.engine, "object": object_engine}, self.state, bindings=pins)
+        self.assertEqual(agent.run_once(), {"status": "completed"})
+        self.coordinator.job = object_job
+        self.assertEqual(agent.run_once(), {"status": "completed"})
+        self.assertEqual(len(self.engine.calls), 1)
+        self.assertEqual(len(object_engine.calls), 1)
+        self.assertEqual(self.coordinator.calls[0], ("claim", {"lanes": ["object", "scene"], "bindings": pins}))
+        self.assertEqual(object_engine.calls[0][0]["policyId"], "objects.fixture")
+
+    def test_wrong_claim_identity_is_failed_without_invoking_either_engine(self):
+        for field, wrong in (("policyId", "wrong"), ("runtimeSha256", "0"*64), ("snapshotSha256", "0"*64), ("contractVersion", 1)):
+            with self.subTest(field=field):
+                pins = {"scene": self.binding()}
+                self.coordinator.job = job()
+                value = json.loads(self.coordinator.job["requestJson"])
+                value[field] = wrong
+                self.coordinator.job["requestJson"] = json.dumps(value)
+                agent = OwnerSearchAgent(self.coordinator, {"scene": self.engine}, self.state, bindings=pins)
+                self.assertEqual(agent.run_once(), {"status": "failed"})
+                self.assertEqual(self.coordinator.calls[-1][0], "fail")
+        self.assertEqual(self.engine.calls, [])
+
+    def test_wrong_result_binding_or_digest_never_reaches_a_completion_outbox(self):
+        for field in ("policyId", "runtimeSha256", "snapshotSha256", "requestSha256"):
+            with self.subTest(field=field):
+                self.coordinator.job = job()
+                original = self.engine.search
+                def changed(request, *, raw_query, selected=field):
+                    return {**original(request, raw_query=raw_query), selected: "wrong"}
+                with patch.object(self.engine, "search", changed):
+                    agent = OwnerSearchAgent(self.coordinator, {"scene": self.engine}, self.state, bindings={"scene": self.binding()})
+                    self.assertEqual(agent.run_once(), {"status": "failed"})
+                self.assertEqual(self.coordinator.calls[-1][0], "fail")
+                self.assertFalse((self.state / "outbox.json").exists())
+
+    def test_malformed_or_partial_binding_configuration_never_contacts_the_coordinator(self):
+        pin = self.binding()
+        invalid = [[], {}, {"object": pin}, {"scene": pin, "object": pin}, {"scene": {}},
+                   {"scene": {**pin, "contractVersion": 2.0}}, {"scene": {**pin, "policyId": "space invalid"}},
+                   {"scene": {**pin, "runtimeSha256": [pin["runtimeSha256"]]}},
+                   {"scene": {**pin, "snapshotSha256": "A"*64}}, {"scene": {**pin, "extra": True}}]
+        for value in invalid:
+            with self.subTest(value=value), self.assertRaisesRegex(OwnerSearchError, "invalid_owner_bindings"):
+                OwnerSearchAgent(self.coordinator, {"scene": self.engine}, self.state, bindings=value)
+        self.assertEqual(self.coordinator.calls, [])
+
+    def test_saved_completion_replays_unchanged_before_claiming_with_new_pins(self):
+        self.coordinator.lose_reply = True
+        with self.assertRaises(OwnerSearchError):
+            OwnerSearchAgent(self.coordinator, {"scene": self.engine}, self.state, bindings={"scene": self.binding()}).run_once()
+        pins = {"scene": {**self.binding(), "snapshotSha256": "9"*64}}
+        saved = (self.state / "outbox.json").read_bytes()
+        self.assertEqual(OwnerSearchAgent(self.coordinator, {"scene": self.engine}, self.state, bindings=pins).run_once(),
+                         {"status": "completed"})
+        self.assertEqual(encoded({"action": "complete", "body": self.coordinator.calls[-1][1]}), saved)
+        self.assertEqual(len(self.engine.calls), 1)
+        self.assertEqual([action for action, _ in self.coordinator.calls], ["claim", "complete", "complete"])
+
     def test_claim_computes_locally_retains_exact_json_spelling_and_sends_no_account_credentials(self):
         self.assertEqual(self.agent().run_once(), {"status": "completed"})
         request, raw = self.engine.calls[0]
@@ -216,6 +295,18 @@ class OwnerSearchAgentTest(unittest.TestCase):
             response.read.return_value = b"x"*81921
             with self.assertRaisesRegex(OwnerSearchError, "owner_reply_limit"):
                 coordinator.post("claim", {})
+
+    def test_https_binding_configuration_errors_request_operator_repair_without_forwarding_details(self):
+        coordinator = HTTPSCoordinator("https://fixture.invalid", "f"*64)
+        with patch('community.owner_search_agent.http.client.HTTPSConnection') as factory:
+            response = factory.return_value.getresponse.return_value
+            response.status = 409
+            for code in ("search_binding_required", "search_binding_changed"):
+                response.read.return_value = json.dumps({"error": code, "details": "PRIVATE SECRET"}).encode()
+                with self.assertRaisesRegex(OwnerSearchError, "owner_binding_configuration_required") as failure:
+                    coordinator.post("claim", {})
+                self.assertEqual(failure.exception.status, 409)
+                self.assertNotIn("PRIVATE", str(failure.exception))
 
 
 if __name__ == "__main__":

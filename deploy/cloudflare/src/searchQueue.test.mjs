@@ -413,3 +413,182 @@ test('rollback to synchronous delivery cannot execute a pruned unpaid request; o
   assert.equal((await onlineSearch(f.env, ACCOUNT, keyFor('paid-before-rollback'), f.query)).searchId, job.jobId);
   assert.equal(f.balance(), 100); assert.equal(f.debits(), 1);
 });
+
+function independentBindings(f, lanes = ['scene', 'object']) {
+  const pins = { scene: { contractVersion: 2, policyId: 'scene.fixture', runtimeSha256: '1'.repeat(64), snapshotSha256: '2'.repeat(64) },
+    object: { contractVersion: 2, policyId: 'object.fixture', runtimeSha256: '3'.repeat(64), snapshotSha256: '4'.repeat(64) } };
+  for (const key of ['SEARCH_POLICY_ID', 'SEARCH_RUNTIME_SHA256', 'SEARCH_SNAPSHOT_SHA256']) delete f.env[key];
+  const selected = Object.fromEntries(lanes.map(lane => [lane, pins[lane]]));
+  f.env.SEARCH_QUEUE_BINDINGS = JSON.stringify({ version: 1, lanes: selected });
+  return selected;
+}
+
+function objectMember(f) {
+  f.sql.exec(`INSERT INTO locations(id,asset_id,capture,lane,model,state,contributor_id,lat,lon,heading,country,camera_generation)
+    VALUES(2,'zyxwvutsrqponmlkjihgfe','2026-01','object','object-model','published','contributor',11,21,90,'Italy','gen4');
+    INSERT INTO published_index(location_id,index_text,output_sha256,published_at,object_index_key)
+    VALUES(2,'','${'b'.repeat(64)}',0,'object-index-v4/fixture/');
+    INSERT INTO object_coverage VALUES(2,'official-gen4-historical-v2-exact-pano','${'a'.repeat(64)}',0);`);
+}
+
+function laneResult(job) {
+  const result = computed(job);
+  if (JSON.parse(job.requestJson).query.lane === 'object') result.hits[0] = {
+    locationId: 2, outputSha256: 'b'.repeat(64), sourceIndex: 0, score: 0.8, viewOffset: 0, heading: 45, pitch: 5, zoom: 1,
+    object: { lane: 'common', className: 'car', classId: 3, confidence: 0.8, supportCount: 2, bboxArea: 0.1 } };
+  return result;
+}
+
+test('independent Scene/Object pins route, validate and settle both lanes without combining runtime identities', async t => {
+  const f = await fixture(t); objectMember(f); const pins = independentBindings(f);
+  await f.enqueue('scene-lane');
+  await f.enqueue('object-lane', { lane: 'object', filters: { mode: 'all', countries: [], generations: ['gen4'] } });
+  assert.deepEqual(await searchCredit(f.env.DB, ACCOUNT), { bankedUnits: 200, reservedUnits: 200, units: 0 });
+  for (const lane of ['scene', 'object']) {
+    const { job } = await claimQueuedSearch(f.env, NOW, [lane], { [lane]: pins[lane] });
+    const { query, requestSha256, ...identity } = JSON.parse(job.requestJson);
+    assert.equal(query.lane, lane); assert.deepEqual(identity, pins[lane]);
+    const other = pins[lane === 'scene' ? 'object' : 'scene'];
+    await assert.rejects(completeQueuedSearch(f.env, job.jobId, job.claimToken,
+      { ...laneResult(job), ...other }, NOW + 1), code('search_unavailable'));
+    const reply = await completeQueuedSearch(f.env, job.jobId, job.claimToken, laneResult(job), NOW + 1);
+    assert.deepEqual(await completeQueuedSearch(f.env, job.jobId, job.claimToken, {}, NOW + 2), reply);
+    assert.equal((await recoverSearch(f.env, ACCOUNT, keyFor(lane + '-lane'), NOW + 3)).lane, lane);
+  }
+  assert.equal(f.balance(), 0); assert.equal(f.debits(), 2);
+  assert.equal((await searchCredit(f.env.DB, ACCOUNT)).reservedUnits, 0);
+});
+
+test('unconfigured lanes refuse admission without a reservation; legacy agents cannot claim independent pins', async t => {
+  const f = await fixture(t); const pins = independentBindings(f, ['scene']);
+  assert.equal(queuedSearchConfigured(f.env), true); assert.equal(queuedSearchConfigured(f.env, 'object'), false);
+  await assert.rejects(f.enqueue('disabled-lane', { lane: 'object' }), code('search_unavailable'));
+  const saved = await f.enqueue();
+  await assert.rejects(claimQueuedSearch(f.env, NOW), code('search_binding_required'));
+  assert.equal(f.sql.prepare('SELECT state,attempts FROM search_jobs').get().attempts, 0);
+  assert.equal((await claimQueuedSearch(f.env, NOW, ['scene'], pins)).job.jobId, saved.jobId);
+  assert.equal(f.debits(), 0);
+});
+
+test('a stale owner capability never receives that lane query or consumes an attempt; another lane still runs', async t => {
+  const f = await fixture(t); const pins = independentBindings(f);
+  await f.enqueue('scene'); await f.enqueue('object', { lane: 'object' });
+  const stale = { ...pins, scene: { ...pins.scene, snapshotSha256: '0'.repeat(64) } };
+  const { job } = await claimQueuedSearch(f.env, NOW, ['scene', 'object'], stale);
+  assert.equal(JSON.parse(job.requestJson).query.lane, 'object');
+  assert.deepEqual(f.sql.prepare("SELECT state,attempts FROM search_jobs WHERE lane='scene'").get(),
+    Object.assign(Object.create(null), { state: 'queued', attempts: 0 }));
+  await assert.rejects(claimQueuedSearch(f.env, NOW, ['scene'], { scene: stale.scene }), code('search_binding_changed'));
+  assert.equal(f.debits(), 0);
+});
+
+test('changing Object pins cannot renew or retarget old Object work and does not interrupt a Scene claim', async t => {
+  const f = await fixture(t); const pins = independentBindings(f);
+  await f.enqueue('scene'); await f.enqueue('object', { lane: 'object' });
+  const scene = (await claimQueuedSearch(f.env, NOW, ['scene'], { scene: pins.scene })).job;
+  const object = (await claimQueuedSearch(f.env, NOW, ['object'], { object: pins.object })).job;
+  const updated = { ...pins, object: { ...pins.object, snapshotSha256: '9'.repeat(64) } };
+  f.env.SEARCH_QUEUE_BINDINGS = JSON.stringify({ version: 1, lanes: updated });
+  await assert.rejects(renewQueuedSearch(f.env, object.jobId, object.claimToken, NOW + 1), code('search_claim_lost'));
+  await assert.rejects(completeQueuedSearch(f.env, object.jobId, object.claimToken, laneResult(object), NOW + 1), code('search_unavailable'));
+  assert.equal((await renewQueuedSearch(f.env, scene.jobId, scene.claimToken, NOW + 1)).claimUntil, NOW + 301);
+  await completeQueuedSearch(f.env, scene.jobId, scene.claimToken, computed(scene), NOW + 2);
+  assert.equal((await claimQueuedSearch(f.env, NOW + 302, ['object'], { object: updated.object })).job, null);
+  assert.equal((await searchCredit(f.env.DB, ACCOUNT)).reservedUnits, 100);
+  assert.equal(f.debits(), 1);
+  await cancelQueuedSearch(f.env, ACCOUNT, keyFor('object'), NOW + 303);
+  assert.equal((await searchCredit(f.env.DB, ACCOUNT)).reservedUnits, 0);
+});
+
+test('equivalent explicit lane pins preserve legacy saved jobs; formatting and lane order do not change identities', async t => {
+  const f = await fixture(t); const queued = await f.enqueue();
+  const pin = { snapshotSha256: f.env.SEARCH_SNAPSHOT_SHA256, policyId: f.env.SEARCH_POLICY_ID,
+    runtimeSha256: f.env.SEARCH_RUNTIME_SHA256, contractVersion: 2 };
+  independentBindings(f);
+  f.env.SEARCH_QUEUE_BINDINGS = JSON.stringify({ lanes: { object: pin, scene: pin }, version: 1 }, null, 2);
+  const { job } = await claimQueuedSearch(f.env, NOW, ['scene'], { scene: pin });
+  assert.equal(job.jobId, queued.jobId);
+  await completeQueuedSearch(f.env, job.jobId, job.claimToken, computed(job), NOW + 1);
+  delete f.env.SEARCH_QUEUE_BINDINGS; delete f.env.SEARCH_AGENT_SECRET;
+  assert.equal((await f.enqueue()).searchId, queued.jobId);
+  assert.equal((await recoverSearch(f.env, ACCOUNT, keyFor('saved-request-key'), NOW + 2)).searchId, queued.jobId);
+  assert.equal(f.debits(), 1);
+});
+
+test('rolling back to a single binding cannot claim work saved with different independent pins', async t => {
+  const f = await fixture(t); const pins = independentBindings(f); await f.enqueue();
+  delete f.env.SEARCH_QUEUE_BINDINGS;
+  Object.assign(f.env, { SEARCH_POLICY_ID: pins.object.policyId, SEARCH_RUNTIME_SHA256: pins.object.runtimeSha256,
+    SEARCH_SNAPSHOT_SHA256: pins.object.snapshotSha256 });
+  assert.equal((await claimQueuedSearch(f.env, NOW)).job, null);
+  assert.equal((await searchCredit(f.env.DB, ACCOUNT)).reservedUnits, 100);
+  await maintainSearchQueue(f.env.DB, NOW + SEARCH_JOB_SECONDS);
+  assert.equal((await searchCredit(f.env.DB, ACCOUNT)).reservedUnits, 0); assert.equal(f.debits(), 0);
+});
+
+test('independent Object settlement still needs current official Gen4 contributor membership', async t => {
+  const f = await fixture(t); objectMember(f); const pins = independentBindings(f);
+  await f.enqueue('object', { lane: 'object', filters: { mode: 'all', countries: [], generations: ['gen4'] } });
+  const { job } = await claimQueuedSearch(f.env, NOW, ['object'], { object: pins.object });
+  f.sql.exec("UPDATE locations SET camera_generation='gen3' WHERE id=2");
+  await assert.rejects(completeQueuedSearch(f.env, job.jobId, job.claimToken, laneResult(job), NOW + 1), code('search_unavailable'));
+  f.sql.exec("UPDATE locations SET camera_generation='gen4',contributor_id='' WHERE id=2");
+  await assert.rejects(completeQueuedSearch(f.env, job.jobId, job.claimToken, laneResult(job), NOW + 1), code('search_unavailable'));
+  assert.equal(f.debits(), 0); assert.equal(f.balance(), 200);
+});
+
+test('malformed independent configuration and ambiguous global pins fail closed without reserving credit', async t => {
+  const f = await fixture(t); const pins = independentBindings(f);
+  const invalid = [null, [], {}, { version: 2, lanes: pins }, { version: 1, lanes: {} },
+    { version: 1, lanes: [] }, { version: 1, lanes: { both: pins.scene } },
+    { version: 1, lanes: pins, extra: true }, { version: 1, lanes: { scene: { ...pins.scene, contractVersion: '2' } } },
+    { version: 1, lanes: { scene: { ...pins.scene, policyId: 'spaces not allowed' } } },
+    { version: 1, lanes: { scene: { ...pins.scene, runtimeSha256: [pins.scene.runtimeSha256] } } },
+    { version: 1, lanes: { scene: { ...pins.scene, snapshotSha256: 'A'.repeat(64) } } },
+    { version: 1, lanes: { scene: { ...pins.scene, extra: 'x' } } }];
+  for (const value of invalid) {
+    f.env.SEARCH_QUEUE_BINDINGS = JSON.stringify(value);
+    assert.equal(queuedSearchConfigured(f.env), false);
+    await assert.rejects(f.enqueue(), code('search_unavailable'));
+  }
+  for (const value of [false, '{broken', ' '.repeat(2049)]) {
+    f.env.SEARCH_QUEUE_BINDINGS = value; assert.equal(queuedSearchConfigured(f.env), false);
+  }
+  f.env.SEARCH_QUEUE_BINDINGS = JSON.stringify({ version: 1, lanes: pins });
+  for (const field of ['SEARCH_POLICY_ID', 'SEARCH_RUNTIME_SHA256', 'SEARCH_SNAPSHOT_SHA256']) {
+    f.env[field] = ''; assert.equal(queuedSearchConfigured(f.env), false); delete f.env[field];
+  }
+  assert.equal(queuedSearchConfigured({ ...f.env, SEARCH_DYNAMIC_SNAPSHOT: '1' }), false);
+  assert.equal(f.sql.prepare('SELECT COUNT(*) AS n FROM search_jobs').get().n, 0);
+  assert.equal(f.balance(), 200); assert.equal(f.debits(), 0);
+});
+
+test('malformed owner capabilities are rejected before database access', async t => {
+  const f = await fixture(t); const pins = independentBindings(f);
+  f.env.DB = { prepare() { throw Error('Database must not be touched'); } };
+  for (const capability of [null, [], {}, { scene: pins.scene, object: pins.object },
+    { scene: { ...pins.scene, contractVersion: 1 } }, { scene: { ...pins.scene, policyId: '' } }])
+    await assert.rejects(claimQueuedSearch(f.env, NOW, ['scene'], capability), code('invalid_search_binding'));
+});
+
+test('authenticated HTTP owner claims carry independent capabilities; public Object admission stays closed', async t => {
+  const f = await fixture(t); const pins = independentBindings(f); await prepareDatabase(f.env.DB);
+  const now = Math.floor(Date.now()/1000);
+  const queued = await queueSearch(f.env, ACCOUNT, keyFor('http-lane', now), f.query, { now, maxCostUnits: 100 });
+  const request = (path, value) => new Request('https://fixture.invalid' + path, { method: 'POST',
+    headers: { authorization: `Bearer ${f.env.SEARCH_AGENT_SECRET}`, 'content-type': 'application/json' }, body: JSON.stringify(value) });
+  assert.equal((await worker.fetch(request('/api/search-agent/claim', { lanes: ['scene'] }), f.env)).status, 409);
+  const response = await worker.fetch(request('/api/search-agent/claim', { lanes: ['scene'], bindings: { scene: pins.scene } }), f.env);
+  assert.equal(response.status, 200); const { job } = await response.json(); assert.equal(job.jobId, queued.jobId);
+  assert.deepEqual(await worker.fetch(request('/api/search-agent/complete', {
+    jobId: job.jobId, claimToken: job.claimToken, result: computed(job) }), f.env).then(r => r.json()),
+    { completed: true, searchId: queued.jobId });
+  // Adding Object delivery pins never opens the independent admission gate.
+  f.sql.prepare('UPDATE accounts SET token_hash=? WHERE id=?').run(await sha256Hex(encodeUtf8('user-token')), ACCOUNT);
+  const forbidden = new Request('https://fixture.invalid/api/searches', { method: 'POST', headers: {
+    authorization: 'Bearer user-token', 'content-type': 'application/json' }, body: JSON.stringify({
+    accountId: ACCOUNT, idempotencyKey: keyFor('closed-object', now), lane: 'object', prompt: 'car', maxCostUnits: 100 }) });
+  const denied = await worker.fetch(forbidden, f.env);
+  assert.equal(denied.status, 503); assert.equal((await denied.json()).error, 'object_verification_unavailable');
+  assert.equal(f.debits(), 1); assert.equal((await searchCredit(f.env.DB, ACCOUNT)).reservedUnits, 0);
+});

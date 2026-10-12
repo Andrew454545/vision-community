@@ -1244,7 +1244,7 @@ export default {
         await requireSchema(env);
         const body = await readRequestJson(request, 30000,
           url.pathname.endsWith('/complete') ? SEARCH_QUEUE_RESULT_BYTES + 8192 : 4096);
-        if (url.pathname.endsWith('/claim')) return json(await claimQueuedSearch(env, undefined, body.lanes));
+        if (url.pathname.endsWith('/claim')) return json(await claimQueuedSearch(env, undefined, body.lanes, body.bindings));
         if (url.pathname.endsWith('/renew')) return json(await renewQueuedSearch(env, body.jobId, body.claimToken));
         if (url.pathname.endsWith('/fail')) return json(await failQueuedSearch(env, body.jobId, body.claimToken));
         return json(await completeQueuedSearch(env, body.jobId, body.claimToken, body.result));
