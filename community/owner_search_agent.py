@@ -39,6 +39,17 @@ class HTTPSCoordinator:
             raise OwnerSearchError("invalid_owner_connection")
         self.host, self.secret = parts.hostname, secret
 
+    @classmethod
+    def from_os_credentials(cls, origin):
+        # Explicit future operator action only. No secret in CLI arguments,
+        # environment or project configuration; no OS vault enumeration.
+        from .owner_search_credentials import canonical_origin, read_owner_search_secret
+        try:
+            origin = canonical_origin(origin)
+            return cls(origin, read_owner_search_secret(origin))
+        except Exception:
+            raise OwnerSearchError("owner_credentials_unavailable") from None
+
     def post(self, action, value):
         if action not in ROUTES:
             raise OwnerSearchError("invalid_owner_route")
@@ -73,8 +84,10 @@ class HTTPSCoordinator:
 
 
 @contextmanager
-def _exclusive(root):
-    path = root / "agent.lock"
+def _exclusive(root, *, name="agent.lock"):
+    if name not in {"agent.lock", "supervisor.lock"}:
+        raise OwnerSearchError("invalid_owner_lock")
+    path = root / name
     if path.exists():
         plain_path(path)
     descriptor = os.open(path, os.O_RDWR | os.O_CREAT, 0o600)
