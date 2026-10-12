@@ -119,8 +119,11 @@ sync/GitHub, with normal OS access protection and a deliberate retention policy.
   never silently retargets an already waiting job.
 - [`owner_search_agent.py`](../community/owner_search_agent.py) accepts separately
   trusted engines implementing `search(request, raw_query=bytes)`. The current
-  `NativeSceneEngine` has that interface. No Object native executor, OS startup
-  registration, secret provisioning or activation was fabricated here. HTTPS
+  `NativeSceneEngine` and the new inert [Object engine](OWNER_OBJECT_SEARCH.md)
+  have that interface. The Object engine runs separately pinned accepted batches
+  and maps their local IDs to stable snapshot ordinals before global selection.
+  Its synthetic verification does not approve an authentic runtime. OS startup
+  registration, secret provisioning and activation remain unfinished. HTTPS
   transport refuses redirects; a file lock prevents competing local outbox writers.
 - The browser's existing journal/recovery flow handles queued responses. The
   optional mode is absent from every checked-in deployment configuration.
@@ -173,5 +176,5 @@ still use per-location D1 records; result validation and the historical catalog
 need measured Free-plan adaptation. Durable paid replies also consume growing
 storage and need an authorized retention/storage design. Next: outbound trusted
 verification/import jobs and sealed-batch membership, owner startup/credential
-provisioning and Object search engine integration; then the approved migration,
+provisioning and joint Scene/Object runtime binding; then the approved migration,
 real acceptance/capacity evidence and [remaining launch gates](PRODUCTION_ACCEPTANCE.md).

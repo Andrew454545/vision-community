@@ -491,14 +491,14 @@ def run_native(command, job: Path, timeout: float):
             while child.poll() is None:
                 if time.monotonic() >= deadline:
                     raise NativeSearchError("native_search_timeout")
-                for name in ("stdout.log", "stderr.log", "output.json", "output.tmp"):
+                for name in ("stdout.log", "stderr.log", "output.json", "output.tmp", f"output.{child.pid}.tmp"):
                     path = job / name
                     if path.exists() and path.stat().st_size > (MAX_NATIVE_OUTPUT if name.startswith("output") else 1024*1024):
                         raise NativeSearchError("native_output_limit")
                 time.sleep(.05)
             if child.returncode:
                 raise NativeSearchError("native_search_failed")
-            for name in ("stdout.log", "stderr.log", "output.json", "output.tmp"):
+            for name in ("stdout.log", "stderr.log", "output.json", "output.tmp", f"output.{child.pid}.tmp"):
                 path = job / name
                 if path.exists() and path.stat().st_size > (MAX_NATIVE_OUTPUT if name.startswith("output") else 1024*1024):
                     raise NativeSearchError("native_output_limit")
