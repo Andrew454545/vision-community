@@ -4,10 +4,11 @@ Read [current acceptance](PRODUCTION_ACCEPTANCE.md) and [remaining work](LAUNCH_
 Do not infer current state from old “pending” paragraphs in the
 [preserved historical handoff](NEXT_STEPS_STRONGER_MODEL_HISTORY_20261012.md).
 
-1. Finish portable/live protection and trusted Object assignment/registry
-   rotation/native retention. Hosted publication, once-only credit, restart-safe
-   delivery, separate waiting slots and temporary queue waits are implemented.
-   Synthetic checks do not qualify real model output.
+1. Finish portable/live protection, automatic trusted Object assignments and
+   native terminal retention. Bounded append-only registry rollover, hosted
+   publication, once-only credit, restart-safe delivery, separate waiting slots
+   and temporary queue waits are implemented. Synthetic checks do not qualify
+   real model output.
 2. Use the [single source-side work card](ANDREW_SOURCE_HANDOFF.md) for Andrew's
    current MMA capture. Its origin proof requires original live files and expires
    after one hour; it is not portable import approval. Do not request another

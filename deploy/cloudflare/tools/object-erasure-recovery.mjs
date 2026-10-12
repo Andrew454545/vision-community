@@ -2,7 +2,7 @@
 // freshly pinned deletion ledger. Never reads a live binding or uploads data.
 import { createHash } from 'node:crypto';
 import {closeSync,constants,copyFileSync,existsSync,fsyncSync,lstatSync,mkdirSync,openSync,readFileSync,readSync,writeFileSync} from 'node:fs';
-import {dirname,join,resolve} from 'node:path';
+import {dirname,isAbsolute,join,resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {parseArgs} from 'node:util';
 import {DatabaseSync} from 'node:sqlite';
@@ -16,7 +16,7 @@ function require(value) { if (!value) throw Error('invalid_object_erasure_recove
 export function exportObjectErasureAuthority(sql, { registryRaw, registrySha256, policySha256,
   deletionLedgerRaw, deletionLedgerSha256, cancellationLedgerRaw = null, cancellationLedgerSha256 = null,
   notBefore, now = Math.floor(Date.now()/1000), environment }) {
-  require(Buffer.isBuffer(registryRaw) && registryRaw.length <= 1024*1024 && HEX.test(registrySha256)
+  require(Buffer.isBuffer(registryRaw) && registryRaw.length <= 8*1024*1024 && HEX.test(registrySha256)
     && sha(registryRaw) === registrySha256 && typeof policySha256 === 'string' && HEX.test(policySha256)
     && Buffer.isBuffer(deletionLedgerRaw) && deletionLedgerRaw.length <= 4*1024*1024
     && HEX.test(deletionLedgerSha256) && sha(deletionLedgerRaw) === deletionLedgerSha256
@@ -27,13 +27,22 @@ export function exportObjectErasureAuthority(sql, { registryRaw, registrySha256,
     && HEX.test(cancellationLedgerSha256) && sha(cancellationLedgerRaw) === cancellationLedgerSha256);
   const registry = JSON.parse(registryRaw.toString('utf8'));
   const ledger = validateLedger(JSON.parse(deletionLedgerRaw.toString('utf8')), notBefore, now, environment);
-  require(now-ledger.exportedAt < 600 && registry.version === 1
+  require(now-ledger.exportedAt < 600 && [1,2].includes(registry.version)
     && registry.scope === 'private-object-audit-registry'
     && typeof registry.policyId === 'string' && /^[A-Za-z0-9_.-]{1,128}$/.test(registry.policyId)
     && (environment !== 'production' || !registry.policyId.startsWith('staging.'))
     && registry.resource && Object.keys(registry.resource).length === 3
     && Object.entries(RESOURCE_PROFILES[environment]).every(([k,v]) => registry.resource[k] === v)
-    && Array.isArray(registry.assignments) && registry.assignments.length > 0 && registry.assignments.length <= 64);
+    && Array.isArray(registry.assignments) && registry.assignments.length > 0
+    && registry.assignments.length <= (registry.version===1 ? 64 : 4096));
+  if(registry.version===2){
+    const previous=registry.previousRegistry;
+    require(previous && typeof previous==='object' && !Array.isArray(previous)
+      && Object.keys(previous).sort().join(',')==='bytes,path,sha256'
+      && typeof previous.path==='string' && isAbsolute(previous.path)
+      && typeof previous.sha256==='string' && HEX.test(previous.sha256)
+      && Number.isSafeInteger(previous.bytes) && previous.bytes>0 && previous.bytes<=8*1024*1024);
+  }
   const seen = new Set();
   for (const entry of registry.assignments) {
     require(entry && typeof entry.leaseId === 'string' && ID.test(entry.leaseId)
@@ -131,7 +140,7 @@ export function prepareObjectErasureRecovery({current,currentSha256,registry,reg
     current=regular(current);registry=regular(registry);deletions=regular(deletions);
     if(cancellations !== null)cancellations=regular(cancellations);
     const check=()=>{closed(current);pinned(current,currentSha256,512*1024**2);
-      pinned(registry,registrySha256,1024**2);pinned(deletions,deletionsSha256,4*1024**2);
+      pinned(registry,registrySha256,8*1024**2);pinned(deletions,deletionsSha256,4*1024**2);
       if(cancellations !== null)pinned(cancellations,cancellationsSha256,4*1024**2);};
     check();
     const copy=join(out,'current.sqlite');copyFileSync(current,copy,constants.COPYFILE_EXCL);
@@ -147,6 +156,7 @@ export function prepareObjectErasureRecovery({current,currentSha256,registry,reg
       cancellationLedgerSha256:cancellationsSha256,notBefore,now,environment});
     sql.close();sql=null;check();pinned(copy,currentSha256,512*1024**2);
     const raw=Buffer.from(JSON.stringify(authority)+'\n');
+    require(raw.length<=1024*1024); // Match the native consumer's finite authority budget.
     writeNew(join(out,'object-erasure-authority.private.json'),raw);
     const report={complete:true,scope:authority.version === 2 ? 'offline-object-erasure-recovery-export-v2' : 'offline-object-erasure-recovery-export-v1',currentSha256,
       authoritySha256:sha(raw),registrySha256,deletionLedgerSha256:deletionsSha256,

@@ -24,6 +24,7 @@ from .native_object_verifier import NativeObjectVerifier, MAX_MANIFEST, MAX_FILE
 from .native_scene_search import strict_json
 from .object_canary import regular
 from .object_index import decode_object_submission
+from .object_audit_registry import read_registry, previous_registry, MAX_ASSIGNMENTS, MAX_REGISTRY_BYTES
 from .search_snapshot import digest, encoded, pinned_read, bounded_read
 from .vision_index import VisionIndexError
 
@@ -65,13 +66,12 @@ class ObjectAuditJobs:
         self.registry_path = regular(registry)
         self.registry_sha256 = registry_sha256
         require((recovery_authority is None) == (recovery_sha256 is None), 'object_recovery_authority_required')
-        document = strict_json(pinned_read(self.registry_path, registry_sha256, MAX_MANIFEST))
-        require(isinstance(document, dict) and set(document) == {'version', 'scope', 'policyId', 'resource', 'assignments'}
-                and document['version'] == 1 and document['scope'] == 'private-object-audit-registry'
-                and document['policyId'] == verifier.document['policyId']
+        document = read_registry(self.registry_path, registry_sha256)
+        previous = previous_registry(document)
+        self.registry_version = document['version']
+        require(document['policyId'] == verifier.document['policyId']
                 and document['resource'] == verifier.document['resource'], 'invalid_object_job_registry')
         entries = document['assignments']
-        require(isinstance(entries, list) and 1 <= len(entries) <= MAX_JOBS, 'invalid_object_job_registry')
         self.entries = {}
         for entry in entries:
             require(isinstance(entry, dict) and set(entry) == {'leaseId', 'profileId', 'assignment', 'source'}
@@ -97,6 +97,8 @@ class ObjectAuditJobs:
         # Registry/runtime/operator inputs must not be inside the mutable spool.
         roots = [self.registry_path, verifier.policy_path, verifier.binary, verifier.models,
                  verifier.authority_path, verifier.snapshot_path]
+        if previous is not None:
+            roots.append(regular(document['previousRegistry']['path']))
         roots += [Path(entry['path']) for entry in verifier.authority_doc['protectedDatabase'].values()]
         roots += [Path(entry[key]['path']) for entry in entries for key in ('assignment', 'source')]
         if recovery_authority is not None:
@@ -144,11 +146,35 @@ class ObjectAuditJobs:
                   CREATE TABLE IF NOT EXISTS assignment_revocations (
                     lease TEXT PRIMARY KEY, requested INTEGER NOT NULL);
                   CREATE TABLE IF NOT EXISTS recovery_authorities (
-                    sha256 TEXT PRIMARY KEY, captured INTEGER NOT NULL, applied INTEGER NOT NULL);''')
+                    sha256 TEXT PRIMARY KEY, captured INTEGER NOT NULL, applied INTEGER NOT NULL);
+                  CREATE TABLE IF NOT EXISTS registry_extensions (
+                    next_registry TEXT PRIMARY KEY, previous_registry TEXT UNIQUE NOT NULL,
+                    policy TEXT NOT NULL, previous_count INTEGER NOT NULL,
+                    next_count INTEGER NOT NULL, applied INTEGER NOT NULL);''')
+                db.execute('BEGIN IMMEDIATE')
+                # Assignment validation can take time. Recheck both immutable
+                # registry inputs before committing an identity transition.
+                pinned_read(self.registry_path, registry_sha256, MAX_REGISTRY_BYTES)
+                if previous is not None:
+                    pinned_read(regular(document['previousRegistry']['path']),
+                                document['previousRegistry']['sha256'], MAX_REGISTRY_BYTES)
                 identity = db.execute('SELECT * FROM identity').fetchall()
                 wanted = (registry_sha256, verifier.policy_sha256)
-                require(not identity or (len(identity) == 1 and tuple(identity[0]) == wanted),
+                require(not identity or len(identity) == 1, 'object_job_service_identity_changed', 503)
+                if identity and tuple(identity[0]) != wanted:
+                    require(previous is not None and tuple(identity[0]) == (
+                        document['previousRegistry']['sha256'], verifier.policy_sha256),
                         'object_job_service_identity_changed', 503)
+                    # A previously installed registry cannot be replayed to
+                    # roll authority backwards or fork a committed extension.
+                    require(not db.execute('SELECT 1 FROM registry_extensions WHERE next_registry=? OR previous_registry=?',
+                        (registry_sha256, document['previousRegistry']['sha256'])).fetchone(),
+                        'object_job_registry_extension_conflict', 503)
+                    db.execute('INSERT INTO registry_extensions VALUES (?,?,?,?,?,?)', (
+                        registry_sha256, document['previousRegistry']['sha256'], verifier.policy_sha256,
+                        len(previous['assignments']), len(entries), int(self.clock())))
+                    db.execute('UPDATE identity SET registry=? WHERE registry=? AND policy=?', (
+                        registry_sha256, document['previousRegistry']['sha256'], verifier.policy_sha256))
                 if not identity:
                     db.execute('INSERT INTO identity VALUES (?,?)', wanted)
             if recovery_authority is not None:
@@ -187,7 +213,7 @@ class ObjectAuditJobs:
             authority = recovery_revocations(path, sha256, registry_sha256=self.registry_sha256,
                 verifier=self.verifier, entries=self.entries, now=now)
             # A fresh manifest cannot reinterpret a changed registry/policy.
-            pinned_read(self.registry_path, self.registry_sha256, MAX_MANIFEST)
+            pinned_read(self.registry_path, self.registry_sha256, MAX_REGISTRY_BYTES)
             self.verifier.verify_inputs()
             revocations = {row['leaseId']: row['deletedAt'] for row in authority['revocations']}
             for row in authority.get('cancellations', []):
@@ -218,7 +244,7 @@ class ObjectAuditJobs:
                     'cleanupComplete': False, 'serverAuthorization': False, 'productionQualified': False}
 
     def entry(self, row):
-        pinned_read(self.registry_path, self.registry_sha256, MAX_MANIFEST)
+        pinned_read(self.registry_path, self.registry_sha256, MAX_REGISTRY_BYTES)
         entry = self.entries[row['lease']]
         self.verifier.assignment(entry['assignment']['path'], entry['assignment']['sha256'], self.source(entry))
         return entry
@@ -311,7 +337,8 @@ class ObjectAuditJobs:
             size = len(manifest_raw) + len(source) + sum(map(len, files.values()))
             usage = db.execute("SELECT COUNT(*),COALESCE(SUM(input_bytes),0),"
                                "COALESCE(SUM(state IN ('staging','queued','running')),0) FROM jobs").fetchone()
-            require(usage[0] < MAX_JOBS and usage[1] + size <= MAX_INPUT_BYTES,
+            job_limit = MAX_JOBS if self.registry_version == 1 else MAX_ASSIGNMENTS
+            require(usage[0] < job_limit and usage[1] + size <= MAX_INPUT_BYTES,
                     'object_job_capacity_reached', 503)
             require(usage[2] < MAX_QUEUED, 'object_job_queue_full', 503)
             require(shutil.disk_usage(self.work).free >= MIN_FREE_BYTES + size, 'object_job_disk_budget', 503)

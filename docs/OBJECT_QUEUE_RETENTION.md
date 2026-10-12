@@ -32,8 +32,9 @@ Seventy terminal synthetic batches preserve their history without filling the
 queue. All model decisions, locations and credits in these checks are synthetic.
 See the [machine-readable evidence](evidence/object-queue-retention-20261012.json).
 
-Nothing is deployed and public Object admission remains closed. Next: trusted
-assignment/registry rotation and native terminal-job retention, then authentic
+Nothing is deployed and public Object admission remains closed. [Bounded native
+registry rollover](OBJECT_REGISTRY_ROLLOVER.md) is implemented. Next: automatic
+trusted assignment delivery and native terminal-job retention, then authentic
 Mac/Windows score qualification, first real accepted batch and earned-credit
 search, followed by the remaining [launch gates](PRODUCTION_ACCEPTANCE.md).
 The frozen Windows Scene pilot and its refresher are unchanged.
