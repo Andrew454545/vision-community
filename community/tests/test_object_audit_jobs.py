@@ -604,10 +604,31 @@ class ObjectAuditJobTests(unittest.TestCase):
             with self.assertRaisesRegex(jobs.JobError, 'object_job_disk_budget'):
                 self.submit()
         with patch.object(jobs, 'MAX_QUEUED', 0):
-            with self.assertRaisesRegex(jobs.JobError, 'object_job_capacity_reached'):
+            with self.assertRaisesRegex(jobs.JobError, 'object_job_queue_full'):
                 self.submit()
+        for name in ('MAX_JOBS', 'MAX_INPUT_BYTES'):
+            with patch.object(jobs, name, 0):
+                with self.assertRaisesRegex(jobs.JobError, 'object_job_capacity_reached'):
+                    self.submit()
         with self.service.connect() as db:
             self.assertEqual(db.execute('SELECT COUNT(*) FROM jobs').fetchone()[0], 0)
+
+    def test_retry_queue_wait_does_not_consume_the_explicit_nonce_or_attempt(self):
+        job = self.submit()['jobId']
+        with self.service.connect() as db:
+            db.execute("UPDATE jobs SET state='failed',attempts=1,retry_at=0 WHERE id=?", (job,))
+        request = {'requestId': 'e' * 64, 'expectedAttempts': 1}
+        with patch.object(jobs, 'MAX_QUEUED', 0):
+            with self.assertRaisesRegex(jobs.JobError, 'object_job_queue_full'):
+                self.service.control(job, 'retry', request)
+        with self.service.connect() as db:
+            self.assertEqual(db.execute('SELECT COUNT(*) FROM retry_intents').fetchone()[0], 0)
+            row = db.execute('SELECT state,attempts FROM jobs WHERE id=?', (job,)).fetchone()
+            self.assertEqual(tuple(row), ('failed', 1))
+        self.assertEqual(self.service.control(job, 'retry', request)['state'], 'queued')
+        self.assertEqual(self.service.control(job, 'retry', request)['state'], 'queued')
+        with self.service.connect() as db:
+            self.assertEqual(db.execute('SELECT COUNT(*) FROM retry_intents').fetchone()[0], 1)
 
     def test_real_http_acknowledges_pending_and_recovers_lost_reply(self):
         secret = 'synthetic-transport-secret-never-used-for-live'
@@ -624,8 +645,17 @@ class ObjectAuditJobTests(unittest.TestCase):
             finally:
                 connection.close()
         try:
-            self.assertEqual(request('POST', '/object-audits', b'not json', auth='wrong')[0], 401)
-            self.assertEqual(request('POST', '/unknown', b'{}')[0], 404)
+            # These early refusals intentionally do not consume input. Send no
+            # payload so Windows does not reset a socket with unread bytes;
+            # the missing JSON/length still proves auth/route refusal comes first.
+            self.assertEqual(request('POST', '/object-audits', auth='wrong')[0], 401)
+            self.assertEqual(request('POST', '/unknown')[0], 404)
+            with patch.object(jobs, 'MAX_QUEUED', 0):
+                self.assertEqual(request('POST', '/object-audits', encoded(self.body)),
+                                 (503, {'error': 'object_job_queue_full'}))
+            with patch.object(jobs, 'MAX_JOBS', 0):
+                self.assertEqual(request('POST', '/object-audits', encoded(self.body)),
+                                 (503, {'error': 'object_job_capacity_reached'}))
             status, first = request('POST', '/object-audits', encoded(self.body))
             self.assertEqual((status, first['state']), (200, 'queued'))
             self.assertEqual(self.native.calls, [])
@@ -635,12 +665,12 @@ class ObjectAuditJobTests(unittest.TestCase):
             status, result = request('GET', '/object-audits/' + first['jobId'])
             self.assertEqual((status, result['state']), (200, 'approved'))
             self.assertEqual(request('POST', '/object-audits/' + first['jobId'] + '/cancel', b'{}')[1]['state'], 'cancelled')
-            self.assertEqual(request('POST', '/object-audits/' + first['jobId'] + '/erase', b'{}', auth='wrong')[0], 401)
+            self.assertEqual(request('POST', '/object-audits/' + first['jobId'] + '/erase', auth='wrong')[0], 401)
             self.assertEqual(request('POST', '/object-audits/' + first['jobId'] + '/erase', b'{}')[1]['state'], 'erasing')
             self.run_next()
             self.assertEqual(request('GET', '/object-audits/' + first['jobId'])[1]['state'], 'erased')
             path = '/object-assignments/' + self.body['leaseId'] + '/erase'
-            self.assertEqual(request('POST', path, b'{}', auth='wrong')[0], 401)
+            self.assertEqual(request('POST', path, auth='wrong')[0], 401)
             self.assertEqual(request('POST', path, b'[]')[0], 400)
             self.assertEqual(request('GET', path)[0], 404)
             self.assertEqual(request('POST', path, b'{}')[1]['state'], 'erased')

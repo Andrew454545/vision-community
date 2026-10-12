@@ -1,0 +1,209 @@
+{
+  "version": 1,
+  "scope": "temporary-private-native-object-queue-waits",
+  "recordedAt": "2026-10-12T05:12:08.912532+00:00",
+  "parentCommit": "1a1f8451ff54130644246c1631232e98f76c104b",
+  "platform": "Windows",
+  "waitSeconds": 900,
+  "syntheticInference": true,
+  "realAcceptedContributions": 0,
+  "realEarnedCredits": 0,
+  "liveCalls": 0,
+  "deployed": false,
+  "productionQualified": false,
+  "publicObjectAdmission": false,
+  "githubActionsRunsStarted": 0,
+  "installedNativeRuntimeOrSpoolChanged": false,
+  "frozenScenePilotChanged": false,
+  "verification": [
+    {
+      "group": "regression",
+      "exitCode": 0,
+      "wallSeconds": 2.75,
+      "windowless": true,
+      "owned": true,
+      "syntheticInference": true,
+      "liveCalls": 0,
+      "realAcceptedContributions": 0,
+      "realEarnedCredits": 0,
+      "tests": 151,
+      "pass": 151,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "privateEvidenceSha256": {
+        "stdout": "cca68ba469f7cc3a09aa93c8c5642328337ffa0363d74b93b0708a2dccc1deb1",
+        "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "receipt": "f1cdcbcc69c6891a3e0811ce5a57691157a7ad2e987daff999705551bd0bf4bc"
+      }
+    },
+    {
+      "group": "worker",
+      "exitCode": 0,
+      "wallSeconds": 12.811999999976251,
+      "windowless": true,
+      "owned": true,
+      "syntheticInference": true,
+      "liveCalls": 0,
+      "realAcceptedContributions": 0,
+      "realEarnedCredits": 0,
+      "localCloudflare": {
+        "status": "ACTUAL_WORKERD_OBJECT_ACCEPTANCE_PASSED",
+        "cases": 13,
+        "separateProcesses": 4,
+        "syntheticInference": true,
+        "syntheticAcceptedLocations": 2,
+        "syntheticCreditAward": 20,
+        "publicAdmission": false,
+        "realAcceptedContributions": 0,
+        "realEarnedCredits": 0,
+        "liveCalls": 0
+      },
+      "privateEvidenceSha256": {
+        "stdout": "7ab9c8ac0c3c04ebd326e175b19cc78a818a397b3e86cadef0864ddbb9486f26",
+        "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "receipt": "7c65ae2ac1e8aa6d2a027092af3577e3bf8ce6631042e174d93f9e059f46335d"
+      }
+    },
+    {
+      "group": "focused-native-final",
+      "exitCode": 0,
+      "wallSeconds": 40.65600000001723,
+      "windowless": true,
+      "owned": true,
+      "syntheticInference": true,
+      "liveCalls": 0,
+      "realAcceptedContributions": 0,
+      "realEarnedCredits": 0,
+      "tests": 5,
+      "pass": 5,
+      "fail": 0,
+      "skipped": 0,
+      "privateEvidenceSha256": {
+        "stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr": "734e999ef3ec9471d73c3d228a77dbcc0e8a152357c655a72cd5dab002773081",
+        "receipt": "b60b1998484f0199e4a02c7d51288b36359034df99537e09fe267a4abbd8980f"
+      }
+    }
+  ],
+  "preservedFailures": [
+    {
+      "group": "broad-native-first-attempt",
+      "status": "TIMEOUT",
+      "deadlineSeconds": 240,
+      "fullSuitePassClaimed": false,
+      "privateEvidenceSha256": {
+        "stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr": "687bf812370c321f57a92ec0ace7693963a0aad8aae2c7afe400b7700944f4be",
+        "timeout": "a2289144f09d24ddec9b6506d34f0f7d1a51fdbb7bf832ee7d088161afe3edfa"
+      },
+      "followup": "Finite focused changed-behavior selection; original broad selection remains incomplete."
+    },
+    {
+      "group": "focused-native-second-attempt",
+      "exitCode": 1,
+      "wallSeconds": 40.64000000001397,
+      "windowless": true,
+      "owned": true,
+      "syntheticInference": true,
+      "liveCalls": 0,
+      "realAcceptedContributions": 0,
+      "realEarnedCredits": 0,
+      "tests": 5,
+      "pass": 4,
+      "errors": 1,
+      "error": "WinError 10053 on an early unauthenticated HTTP refusal with an unread request body.",
+      "privateEvidenceSha256": {
+        "stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr": "dc30c21f6e239b9a7f2ae757f6392ec7256501b06cf7e6e52945dde138db4d06",
+        "receipt": "66431221b325cdd6655b95ee97a9af34e40ac134371423ecb1a5bc069091c7dc"
+      },
+      "followup": "Request-body diagnostic and corrected negative-request fixture; no native authentication/body policy changed."
+    }
+  ],
+  "httpDiagnostic": {
+    "rejectedRequestsWithUnreadBody": {
+      "requests": 100,
+      "completed": 95,
+      "capacityRejects": 0,
+      "errors": [
+        {
+          "index": 41,
+          "type": "ConnectionAbortedError",
+          "winerror": 10053,
+          "capacityRejectsSoFar": 0
+        },
+        {
+          "index": 81,
+          "type": "ConnectionAbortedError",
+          "winerror": 10053,
+          "capacityRejectsSoFar": 0
+        },
+        {
+          "index": 83,
+          "type": "ConnectionAbortedError",
+          "winerror": 10053,
+          "capacityRejectsSoFar": 0
+        },
+        {
+          "index": 90,
+          "type": "ConnectionAbortedError",
+          "winerror": 10053,
+          "capacityRejectsSoFar": 0
+        },
+        {
+          "index": 97,
+          "type": "ConnectionAbortedError",
+          "winerror": 10053,
+          "capacityRejectsSoFar": 0
+        }
+      ]
+    },
+    "rejectedRequestsWithoutBody": {
+      "requests": 100,
+      "completed": 100,
+      "capacityRejects": 0,
+      "errors": []
+    },
+    "interpretation": "Windows reset correlates with an unread body on early refusal; zero two-handler-limit rejections were observed. The fixture now sends no payload for early auth/route refusals; missing valid JSON still tests refusal ordering.",
+    "privateEvidenceSha256": {
+      "withBody": {
+        "stdout": "4557430abca10a07a904b295cd1f581c34a2a7994d7464f7dad1a35e7533f8cb",
+        "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "receipt": "43714bd3611cbc56d28c0ed9be0f625ba08d5fb0ab566d102fde4bc888c94612"
+      },
+      "withoutBody": {
+        "stdout": "0124d3e320864798b48901a3b7ab1fb6d66ffbdcdf77c10ef0a5b08eed639f2b",
+        "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "receipt": "1eb47fbff305efebe2e4213c31d63944121519d7000391f6158dfc43aad18ad9"
+      }
+    },
+    "initialSandboxProbe": "Loopback connections denied with WinError 10013; subsequent finite owned diagnostics used approved elevated loopback access."
+  },
+  "results": {
+    "tenConsecutiveBusyRepliesDoNotConsumeTransportAllowance": true,
+    "waitSurvivesFreshCloudflareProcess": true,
+    "noNativeCallBeforeDeadline": true,
+    "sameUploadAndAuthorizedRetryNonceResume": true,
+    "waitingDoesNotAuthorizeInferenceOrAwardCredit": true,
+    "onlyExactBounded503QueueFullReceivesWait": true,
+    "permanentDiskHistoryAndFaultAttentionThresholdUnchanged": true,
+    "native64JobRetainedLimitUnchanged": true,
+    "nativeQueueRefusalConsumesNoRetryIntentOrAttempt": true,
+    "sourcePolicyMustBeRepinnedBeforeFutureNativeDeployment": true
+  },
+  "sourceSha256": {
+    "community/object_audit_jobs.py": "a6d6fbb54fb692de5167d29bcd04ed744e6cecb5eebeddaabd82219be604dfe4",
+    "community/tests/test_object_audit_jobs.py": "ebace5cb7d74da0ef3d2bec788fe9fde752a11e53db061d415f3ab1c97026159",
+    "deploy/cloudflare/native-object-verifier-bridge/worker.js": "2487f9d21ee00cc05148779b5645ff9efecbdaef66f901239476c2a786e32f76",
+    "deploy/cloudflare/native-object-verifier-bridge/worker.test.mjs": "a921a9d42fa3eba09ae4738da32355580ff24fcd24ff9ad5e01dceb6c0776ebc",
+    "deploy/cloudflare/src/objectAuditDispatch.js": "696a3e732f4e826585bd5f426fdc8db1e1429cd5109c24f59e9259605bd80e88",
+    "deploy/cloudflare/src/objectAuditDispatch.test.mjs": "8b11aa93cf7a48d410b1bda57a6e0d571ddab026f31d09f4cbc3f86057a38d7e",
+    "deploy/cloudflare/src/objectAuditFlow.js": "8e51da8d1e54ad834cf276e2c220ba815c4aa7667dce87420d84c75f776dcd2e",
+    "deploy/cloudflare/src/objectAuditRecovery.js": "45caaf743669d752421a04433ccf6bd92034dc5d849aa695b92212e169ba1797",
+    "deploy/cloudflare/src/objectAuditRecovery.test.mjs": "21c662eed6aedc2e5bc9a49378d2c2dcdebf68e65db7cf6236462651f1c1c5d9",
+    "deploy/cloudflare/tools/check-local-object-acceptance.mjs": "1e7ef02b7a2c6b4de7157b007c45fe1f57e61d70dd70523539819a4d8628d7d5",
+    "deploy/cloudflare/tools/object-acceptance.fixture.mjs": "7168417c5fb082b66118e2fece0dbaa2cc73b81ee3326d5a20848b25781bb0e8"
+  },
+  "limits": "Synthetic queue/coordination/HTTP recovery evidence only. The broad native selection timed out and is not a full-suite pass. No Mac execution, actual model parity, real Object contribution or launch approval is established."
+}

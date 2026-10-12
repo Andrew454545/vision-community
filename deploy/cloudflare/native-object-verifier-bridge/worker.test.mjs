@@ -80,7 +80,7 @@ test('only correlated native decisions with a durable receipt can complete', asy
 
 test('unavailable, conflict and retry bounds remain distinct without private diagnostics', async () => {
   for (const [error, code] of [['object_job_conflict',409],['object_job_retry_limited',429],
-    ['object_job_capacity_reached',503],['unknown_object_job',404]]) {
+    ['object_job_capacity_reached',503],['object_job_queue_full',503],['unknown_object_job',404]]) {
     const response = await handleObjectAuditJobs(status(),env,()=>Response.json({error},{status:code}));
     assert.equal(response.status,code);
     assert.deepEqual(await response.json(),{error});

@@ -311,8 +311,9 @@ class ObjectAuditJobs:
             size = len(manifest_raw) + len(source) + sum(map(len, files.values()))
             usage = db.execute("SELECT COUNT(*),COALESCE(SUM(input_bytes),0),"
                                "COALESCE(SUM(state IN ('staging','queued','running')),0) FROM jobs").fetchone()
-            require(usage[0] < MAX_JOBS and usage[1] + size <= MAX_INPUT_BYTES and usage[2] < MAX_QUEUED,
+            require(usage[0] < MAX_JOBS and usage[1] + size <= MAX_INPUT_BYTES,
                     'object_job_capacity_reached', 503)
+            require(usage[2] < MAX_QUEUED, 'object_job_queue_full', 503)
             require(shutil.disk_usage(self.work).free >= MIN_FREE_BYTES + size, 'object_job_disk_budget', 503)
             job, now = secrets.token_hex(16), int(self.clock())
             folder = self.work / job
@@ -403,7 +404,7 @@ class ObjectAuditJobs:
             elif row['state'] == 'failed':
                 require(row['attempts'] < MAX_ATTEMPTS and self.clock() >= row['retry_at'], 'object_job_retry_limited', 429)
                 active = db.execute("SELECT COUNT(*) FROM jobs WHERE state IN ('queued','running','staging')").fetchone()[0]
-                require(active < MAX_QUEUED, 'object_job_capacity_reached', 503)
+                require(active < MAX_QUEUED, 'object_job_queue_full', 503)
                 # A partial stage is never repaired/reinterpreted as a complete candidate.
                 entry = self.entry(row)
                 source = self.source(entry)

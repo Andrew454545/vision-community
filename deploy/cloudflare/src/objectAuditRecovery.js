@@ -2,7 +2,7 @@
 // work, award credit or install schema from an HTTP request.
 import {ObjectDispatchError,objectAuditDispatchResult} from './objectAuditDispatch.js';
 import {randomHex} from './model.js';
-import {objectAuditResult} from '../native-object-verifier-bridge/worker.js';
+import {objectAuditResult,objectAuditQueueFull} from '../native-object-verifier-bridge/worker.js';
 import {readVerifierJson} from './scenePipeline.js';
 const CONTRACT='private-object-recovery-v1-20261011',ID=/^[0-9a-f]{32}$/,HEX=/^[0-9a-f]{64}$/;
 const CLAIM=30,MAX_DELAY=900;
@@ -140,7 +140,7 @@ export async function recoverObjectAudit(env,account,lease,request,now=Math.floo
     ]);
     await active(env,account);return response(await readCandidate(env,account,lease),await readIntent(env,request.requestId));
   }
-  let timer,checked,applied=false;const abort=new AbortController();
+  let timer,checked,applied=false,queueWait=false;const abort=new AbortController();
   const deadline=new Promise((_,reject)=>{timer=setTimeout(()=>{abort.abort();reject(Error('recovery_timeout'));},timeoutMs);});
   void deadline.catch(()=>{});
   try {
@@ -149,7 +149,12 @@ export async function recoverObjectAudit(env,account,lease,request,now=Math.floo
         headers:{'content-type':'application/json'},body:JSON.stringify({requestId:intent.request_id,expectedAttempts:intent.expected_attempts})})))
       .then(value=>{if(abort.signal.aborted){if(value.body)void value.body.cancel().catch(()=>{});throw Error('late_reply');}return value;});
     const reply=await Promise.race([transfer,deadline]);
-    if(reply.status!==200){if(reply.body)void reply.body.cancel().catch(()=>{});throw Error('unavailable');}
+    if(reply.status!==200){
+      if(reply.status===503)queueWait=objectAuditQueueFull(await Promise.race([
+        readVerifierJson(reply,Math.min(timeoutMs,10000)),deadline]));
+      else if(reply.body)void reply.body.cancel().catch(()=>{});
+      throw Error('unavailable');
+    }
     checked=objectAuditResult(await Promise.race([readVerifierJson(reply,Math.min(timeoutMs,10000)),deadline]),{
       jobId:row.job_id,leaseId:lease,profileId:row.profile_id,policyId:row.policy_id,assignmentSha256:row.assignment_sha256,
       submissionSha256:row.submission_sha256,candidateManifestSha256:row.candidate_manifest_sha256});
@@ -169,7 +174,10 @@ export async function recoverObjectAudit(env,account,lease,request,now=Math.floo
     ]);
     applied=updates[1].meta?.changes===1;
   } catch {
-    const failures=intent.transport_failures+1,delay=Math.min(MAX_DELAY,30*2**Math.min(failures-1,5));
+    // Preserve the same explicitly authorized retry nonce while the native
+    // queue drains; waiting never authorizes an additional inference attempt.
+    const failures=intent.transport_failures+(queueWait?0:1),
+      delay=queueWait?MAX_DELAY:Math.min(MAX_DELAY,30*2**Math.min(failures-1,5));
     await env.DB.batch([
       env.DB.prepare(`UPDATE object_audit_recoveries SET transport_failures=?,next_attempt=? WHERE request_id=? AND state='pending'
         AND EXISTS (SELECT 1 FROM object_audit_candidates WHERE lease_id=? AND claim_token=?)`)

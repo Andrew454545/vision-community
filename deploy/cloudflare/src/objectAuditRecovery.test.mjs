@@ -63,6 +63,23 @@ test('explicit transport resume preserves the failure and replay cannot reset an
   s.paused();await s.recover();assert.equal(s.row().transport_failures,8);assert.equal(s.histories().length,1);s.noCredit();
   assert.throws(()=>s.sql.exec("UPDATE object_audit_recoveries SET prior_error='rewritten'"),/object_recovery_immutable/);
 });
+
+test('an explicitly authorized native retry keeps its one nonce while the queue drains',async t=>{
+  const s=await setup(t);s.failed();let calls=0;
+  s.sql.prepare('UPDATE leases SET expires_at=?').run(now+20000);
+  s.env.OBJECT_VERIFIER={async fetch(request){calls++;assert.deepEqual(await request.json(),{requestId:key(1),expectedAttempts:1});
+    return Response.json({error:'object_job_queue_full'},{status:503});}};
+  for(let i=0;i<10;i++){
+    const at=now+i*900,result=await s.recover('retry-native',key(1),at);
+    assert.equal(result.recoveryState,'pending');assert.equal(result.recoveryNeedsAttention,false);
+    assert.equal(result.recoveryRetryAt,at+900);assert.equal(s.histories().length,1);
+    assert.equal(s.histories()[0].transport_failures,0);assert.equal(s.row().native_attempts,1);
+    await s.recover('retry-native',key(1),at+1);assert.equal(calls,i+1);s.noCredit();
+  }
+  s.env.OBJECT_VERIFIER={async fetch(request){assert.deepEqual(await request.json(),{requestId:key(1),expectedAttempts:1});return Response.json(s.reply());}};
+  const resumed=await s.recover('retry-native',key(1),s.histories()[0].next_attempt);
+  assert.equal(resumed.recoveryState,'applied');assert.equal(s.histories().length,1);s.noCredit();
+});
 test('transport resume allowance is finite and each paused episode requires a new explicit nonce',async t=>{
   const s=await setup(t);
   for(let i=1;i<=4;i++){s.paused();await s.recover('resume-transport',key(i),now+i);}

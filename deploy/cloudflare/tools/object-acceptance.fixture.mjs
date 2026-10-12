@@ -21,6 +21,7 @@ export default {async fetch(request,env){
   const provider={async fetch(r){
     const full=r.url.endsWith('/settlement-evidence');
     await env.DB.prepare('UPDATE synthetic_acceptance_calls SET calls=calls+1,full=full+?').bind(full?1:0).run();
+    if(mode==='queue-full')return Response.json({error:'object_job_queue_full'},{status:503});
     const c=await env.DB.prepare('SELECT * FROM object_audit_candidates WHERE lease_id=?').bind(lease).first();
     const audit={version:1,jobId:job,leaseId:lease,profileId:c.profile_id,policyId:c.policy_id,
       assignmentSha256:c.assignment_sha256,submissionSha256:c.submission_sha256,candidateManifestSha256:'3'.repeat(64),
@@ -42,7 +43,7 @@ export default {async fetch(request,env){
   try {
     if(mode==='seed')value={seeded:true};
     else if(mode==='delete'){value=await deleteAccount(bound,account,{accountId:account,idempotencyKey:'8'.repeat(64),confirmation:'DELETE'},now+1);}
-    else if(mode==='advance')value=await advanceObjectContribution(bound,account,lease,now);
+    else if(['advance','queue-full'].includes(mode))value=await advanceObjectContribution(bound,account,lease,now);
     else value=await settleObjectAudit(bound,account,lease,now);
   }catch(error){value={error:error.message,status:error.status};}
   const manifest=await env.INDEX.get(`object-index-v4/${lease}/manifest.json`);

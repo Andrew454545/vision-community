@@ -11,8 +11,10 @@ const ERRORS = new Map([
   ['object_job_identity_mismatch', 409], ['object_job_conflict', 409], ['object_job_control_conflict', 409], ['object_job_source_mismatch', 409],
   ['object_assignment_revoked', 409],
   ['object_job_candidate_incomplete', 409], ['object_job_retry_limited', 429],
-  ['object_job_capacity_reached', 503], ['object_job_disk_budget', 503],
+  ['object_job_capacity_reached', 503], ['object_job_disk_budget', 503], ['object_job_queue_full', 503],
 ]);
+export const objectAuditQueueFull = value => !!value && typeof value==='object' && !Array.isArray(value)
+  && Object.keys(value).join(',')==='error' && value.error==='object_job_queue_full';
 const reply = (status, error) => Response.json({error}, {status, headers:{'cache-control':'no-store'}});
 
 async function bounded(stream, maximum, deadline) {

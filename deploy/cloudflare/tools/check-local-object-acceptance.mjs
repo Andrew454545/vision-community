@@ -11,11 +11,11 @@ import {OBJECT_DISPATCH_LEGACY_SCHEMA,OBJECT_DISPATCH_LEGACY_CONTRACT,OBJECT_DIS
 const [mfPath,persistence,phase]=process.argv.slice(2),script=fileURLToPath(import.meta.url);
 if(!phase){
   let cases=0;
-  for(const stage of ['seed','recover','deleted']){
+  for(const stage of ['seed','wait-recover','recover','deleted']){
     const child=spawnSync(process.execPath,[script,mfPath,persistence,stage],{env:process.env,windowsHide:true,timeout:90000,encoding:'utf8'});
     assert.equal(child.status,0,child.stderr||child.stdout);cases+=JSON.parse(child.stdout.trim()).cases;
   }
-  console.log(JSON.stringify({status:'ACTUAL_WORKERD_OBJECT_ACCEPTANCE_PASSED',cases,separateProcesses:3,
+  console.log(JSON.stringify({status:'ACTUAL_WORKERD_OBJECT_ACCEPTANCE_PASSED',cases,separateProcesses:4,
     syntheticInference:true,syntheticAcceptedLocations:2,syntheticCreditAward:20,publicAdmission:false,
     realAcceptedContributions:0,realEarnedCredits:0,liveCalls:0}));
 }else{
@@ -43,7 +43,17 @@ if(!phase){
       assert.equal(r.waitingSlots,0);assert.equal(r.retainedCandidates,1);};
     if(phase==='seed'){
       await prepareDatabase(db);await prepareObjectAuditDispatch(db);await prepareObjectSettlement(db);
-      zero(await call('seed'));const partial=await call('partial');zero(partial);assert.equal(partial.value.status,503);assert.equal(partial.sanitized,true);
+      zero(await call('seed'));
+      const waiting=await call('queue-full');zero(waiting);assert.equal(waiting.value.waitingForCapacity,true);
+      assert.equal(waiting.value.needsAttention,false);assert.ok(waiting.value.retryAt>Math.floor(Date.now()/1000));
+    }else if(phase==='wait-recover'){
+      const before=await db.prepare('SELECT * FROM synthetic_acceptance_calls').first();
+      const waiting=await call('advance');zero(waiting);assert.equal(waiting.value.waitingForCapacity,true);
+      assert.deepEqual(waiting.calls,before);
+      assert.equal((await db.prepare('SELECT transport_failures FROM object_audit_candidates').first()).transport_failures,0);
+      await db.prepare('UPDATE object_audit_candidates SET next_attempt=0').run();
+      // The fixture advances the durable due time instead of sleeping 15 minutes.
+      const partial=await call('partial');zero(partial);assert.equal(partial.value.status,503);assert.equal(partial.sanitized,true);
       const pose=await call('pose-late');zero(pose);assert.equal(pose.value.status,409);
       await db.prepare('UPDATE locations SET heading=heading-1').run();
       const wrong=await call('wrong-policy');zero(wrong);assert.equal(wrong.value.error,'object_settlement_policy_mismatch');
