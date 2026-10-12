@@ -49,7 +49,7 @@ const checks=OBJECT_CANCELLATION_SCHEMA.map(sql=>{
 }).join(' AND ');
 export const OBJECT_CANCELLATION_CONTRACT_SQL=`INSERT INTO object_cancel_revision
   SELECT 1,CASE WHEN (${checks}) AND EXISTS (SELECT 1 FROM object_dispatch_revision
-    WHERE slot=1 AND contract='private-object-dispatch-v1-20261011') THEN '${CONTRACT}' ELSE NULL END
+    WHERE slot=1 AND contract='private-object-dispatch-v2-20261012') THEN '${CONTRACT}' ELSE NULL END
   ON CONFLICT(slot) DO UPDATE SET contract=CASE WHEN contract=excluded.contract THEN contract ELSE NULL END`;
 async function ready(env) {
   try {if((await env.DB.prepare('SELECT contract FROM object_cancel_revision WHERE slot=1').first())?.contract!==CONTRACT)throw Error('missing');}

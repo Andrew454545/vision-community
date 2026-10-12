@@ -6,8 +6,9 @@ import {makeFixture,ledgerArgs,account,other,lease,sha,now} from './objectCancel
 import {prepareObjectCancellationRestore} from '../tools/object-cancellation-restore.mjs';
 import {prepareObjectAuditRecovery} from '../tools/prepare-object-audit-recovery.mjs';
 import {recoverObjectAudit} from './objectAuditRecovery.js';
+import {prepareObjectSettlement} from '../tools/prepare-object-settlement.mjs';
 export {account,other,lease,sha,now};
-export async function makeObjectSqlFixture(root,phase='submitted',recovery=false,captureTime=now+2){
+export async function makeObjectSqlFixture(root,phase='submitted',recovery=false,captureTime=now+2,accepted=false){
   const current=new DatabaseSync(':memory:');await makeFixture(current,'cancelled');const args=ledgerArgs(current);current.close();
   const ledger=JSON.parse(args.ledgerRaw);ledger.exportedAt=captureTime;args.ledgerRaw=Buffer.from(JSON.stringify(ledger)+'\n');
   args.ledgerSha256=sha(args.ledgerRaw);args.notBefore=captureTime;args.now=captureTime;
@@ -28,6 +29,26 @@ export async function makeObjectSqlFixture(root,phase='submitted',recovery=false
       sql.prepare("INSERT INTO ledger(account_id,units,reason,reference) VALUES (?,-10,'synthetic search','synthetic-debit')").run(other);
       sql.prepare("INSERT INTO searches VALUES ('kept',?,'kept',?,X'00FF27')").run(other,"synthetic private ' quote;\nNUL\0 🍀");
       sql.exec("UPDATE sqlite_sequence SET seq=9007199254740993 WHERE name='locations'");
+      if(accepted){
+        await prepareObjectSettlement(fixture.env.DB);
+        sql.prepare("INSERT INTO leases(id,account_id,lane,state,expires_at) VALUES (?,?,'object','active',999999)").run(other,other);
+        sql.prepare('INSERT INTO lease_items VALUES (?,2)').run(other);
+        sql.prepare(`INSERT INTO object_audit_candidates(lease_id,account_id,profile_id,policy_id,assignment_sha256,
+          source_sha256,submission_sha256,artifact_key,payload_bytes,location_count,created_at,state,
+          job_id,candidate_manifest_sha256,native_state,receipt_sha256,native_attempts,last_error)
+          VALUES (?,?,'saved-profile','saved-policy','saved-assignment','saved-source','saved-submission',
+          'retained-private-key',1,1,?,'pending','saved-job','saved-candidate','approved','saved-receipt',1,'original failure retained')`)
+          .run(other,other,now);
+        sql.prepare("UPDATE leases SET state='submitted' WHERE id=?").run(other);
+        sql.prepare(`INSERT INTO object_acceptances SELECT lease_id,account_id,?,1,10,?,profile_id,policy_id,
+          'saved-policy-pin','saved-runtime-pin','saved-quality-pin','saved-protected-pin','saved-origin-pin',
+          assignment_sha256,source_sha256,submission_sha256,candidate_manifest_sha256,job_id,native_attempts,
+          receipt_sha256,'saved-snapshot-pin','saved-artifacts-pin' FROM object_audit_candidates WHERE lease_id=?`)
+          .run('e'.repeat(32),now,other);
+        sql.prepare("INSERT INTO ledger(account_id,units,reason,reference) VALUES (?,10,'verified_work',?)").run(other,'lease:'+other);
+        sql.prepare('UPDATE accounts SET units=units+10 WHERE id=?').run(other);
+        sql.prepare('DELETE FROM object_dispatch_slots WHERE lease_id=?').run(other);
+      }
     }
   }finally{sql.close();}
   const backupSha256=sha(readFileSync(backup)),repairedDir=join(root,'repaired');

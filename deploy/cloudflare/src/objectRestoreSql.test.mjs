@@ -14,6 +14,23 @@ function pins(options){
   report.planSha256=sha(readFileSync(join(options.repairedDir,'object-cancellation-plan.private.json')));
   writeFileSync(reportPath,JSON.stringify(report)+'\n');options.reportSha256=sha(readFileSync(reportPath));
 }
+test('exact SQL recovery retains accepted Object evidence, released slots and earned credit',async t=>{
+  const root=temporary(t),options=await makeObjectSqlFixture(root,'submitted',true,now+2,true),out=join(root,'sql');
+  const original=new DatabaseSync(options.backup,{readOnly:true});let acceptance;
+  try{acceptance=original.prepare('SELECT * FROM object_acceptances').all();}finally{original.close();}
+  const report=await prepareObjectRestoreSql({...options,out});assert.equal(report.localRoundtripPassed,true);
+  const sql=new DatabaseSync(join(out,'roundtrip.sqlite'));
+  try{
+    assert.deepEqual(sql.prepare('SELECT * FROM object_acceptances').all(),acceptance);
+    assert.equal(sql.prepare('SELECT units FROM accounts WHERE id=?').get(other).units,17);
+    assert.equal(sql.prepare("SELECT units FROM ledger WHERE reference=?").get('lease:'+other).units,10);
+    assert.equal(sql.prepare('SELECT last_error FROM object_audit_candidates WHERE lease_id=?').get(other).last_error,'original failure retained');
+    assert.equal(sql.prepare('SELECT count(*) n FROM object_dispatch_slots').get().n,0);
+    assert.equal(sql.prepare('PRAGMA foreign_key_check').all().length,0);
+    assert.throws(()=>sql.exec('DELETE FROM object_acceptances'),/object_acceptance_retained/);
+  }finally{sql.close();}
+  assert.equal(sha(readFileSync(options.backup)),options.backupSha256);
+});
 for(const [phase,recovery] of [['submitted',false],['submitted',true],['empty',false]])test(`exact SQL preparation retains ${phase}, retry history=${recovery}`,async t=>{
   const root=temporary(t),options=await makeObjectSqlFixture(root,phase,recovery),out=join(root,'sql'),report=await prepareObjectRestoreSql({...options,out});
   assert.equal(report.localRoundtripPassed,true);assert.equal(report.liveReady,false);assert.equal(report.productionQualified,false);

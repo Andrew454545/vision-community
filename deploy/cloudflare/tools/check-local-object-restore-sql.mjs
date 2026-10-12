@@ -16,7 +16,7 @@ if(!phase){
   const originals=[];
   for(const kind of ['submitted','empty']){
     const fixture=join(inputs,kind);mkdirSync(fixture);
-    const options=await makeObjectSqlFixture(fixture,kind,kind==='submitted'),out=join(fixture,'sql');
+    const options=await makeObjectSqlFixture(fixture,kind,kind==='submitted',undefined,kind==='submitted'),out=join(fixture,'sql');
     const report=await prepareObjectRestoreSql({...options,out});
     assert.equal(report.nativeCleanupPending,true);assert.equal(report.providerFencesPending,true);assert.equal(report.liveReady,false);
     originals.push({backup:options.backup,pin:options.backupSha256});
@@ -53,6 +53,8 @@ if(!phase){
         accounts:(await db.prepare('SELECT id,units,deleted_at FROM accounts ORDER BY id').all()).results,
         candidate:await db.prepare('SELECT state,receipt_sha256,last_error,native_attempts FROM object_audit_candidates').first(),
         money:(await db.prepare('SELECT * FROM ledger ORDER BY id').all()).results,
+        acceptances:kind==='submitted'?(await db.prepare('SELECT * FROM object_acceptances').all()).results:[],
+        waitingSlots:(await db.prepare('SELECT * FROM object_dispatch_slots').all()).results,
         search:await db.prepare('SELECT hex(CAST(query AS BLOB)) AS query,hex(result_json) AS reply FROM searches').first(),
         coordinates:await db.prepare('SELECT lat,lon,heading FROM locations WHERE id=2').first(),
         highWater:await db.prepare("SELECT CAST(seq AS TEXT) AS seq FROM sqlite_sequence WHERE name='locations'").first(),
@@ -61,7 +63,9 @@ if(!phase){
       const before=await snapshot();
       if(kind==='submitted'){
         assert.deepEqual(before.coordinates,{lat:1.0000000000000002,lon:0.10000000000000002,heading:Math.PI});
-        assert.equal(before.highWater.seq,'9007199254740993');assert.equal(before.money.length,2);assert.equal(before.search.reply,'00FF27');
+        assert.equal(before.highWater.seq,'9007199254740993');assert.equal(before.money.length,3);assert.equal(before.search.reply,'00FF27');
+        assert.equal(before.acceptances.length,1);assert.equal(before.acceptances[0].receipt_sha256,'saved-receipt');
+        assert.equal(before.waitingSlots.length,0);
         assert.equal(before.search.query,Buffer.from("synthetic private ' quote;\nNUL\0 🍀").toString('hex').toUpperCase());
         assert.equal((await db.prepare('SELECT prior_error,state FROM object_audit_recoveries').first()).prior_error,'preserved-original-connection-failure');cases++;
       }
@@ -80,7 +84,10 @@ if(!phase){
       {lat:1.0000000000000002,lon:0.10000000000000002,heading:Math.PI});
     assert.equal((await restored.prepare("SELECT CAST(seq AS TEXT) AS seq FROM sqlite_sequence WHERE name='locations'").first()).seq,'9007199254740993');
     assert.equal((await restored.prepare('SELECT hex(result_json) AS value FROM searches').first()).value,'00FF27');
-    assert.equal((await restored.prepare('SELECT COUNT(*) AS n FROM ledger').first()).n,2);cases++;
+    assert.equal((await restored.prepare('SELECT COUNT(*) AS n FROM ledger').first()).n,3);
+    assert.equal((await restored.prepare('SELECT receipt_sha256 FROM object_acceptances').first()).receipt_sha256,'saved-receipt');
+    assert.equal((await restored.prepare('SELECT units FROM accounts WHERE id=?').bind(other).first()).units,17);
+    assert.equal((await restored.prepare('SELECT COUNT(*) n FROM object_dispatch_slots').first()).n,0);cases++;
     // /early/late deliberately registers an account before trying the revoked
     // lease. Registration is allowed; recovery itself created no account, and
     // the subsequent new account still cannot resurrect that assignment.
@@ -93,7 +100,7 @@ if(!phase){
     const call=async path=>{
       const response=await mf.dispatchFetch('https://community.test'+path,{signal:AbortSignal.timeout(15000)});
       assert.equal(response.status,200,path+' '+(response.status===200?'':await response.text()));const value=await response.json();
-      assert.equal(value.liveCalls,0);assert.equal(value.nativeInferences,0);assert.equal(value.ledgerEntries,value.early?0:2);assert.equal(value.otherBundlePreserved,true);
+      assert.equal(value.liveCalls,0);assert.equal(value.nativeInferences,0);assert.equal(value.ledgerEntries,value.early?0:3);assert.equal(value.otherBundlePreserved,true);
       assert.equal(value.publications,value.early?0:1);
       if(!value.early){assert.equal(value.owner.units,10);assert.equal(value.owner.deleted_at,null);assert.equal(value.candidate.state,'cancelled');
         assert.equal(value.candidate.receipt_sha256,null);assert.equal(value.candidate.last_error,'preserved-native-failure');assert.equal(value.candidate.native_attempts,1);assert.equal(value.lease.state,'expired');}

@@ -52,11 +52,11 @@ unknown pending protocols preserve the original upload for retry.
 Supply the fresh matching authentic protected handoff, qualify the exact real
 Mac/Windows profiles, connect the first real trusted assignment and exercise
 earned-credit Object search. Measure full native revalidation within the
-20-second handoff budget. Finish registry rotation and terminal-job retention:
-the existing private dispatch/spool deliberately has finite capacity (including
-eight candidate rows in pending audit state and 64 retained jobs); a published
-acceptance does not yet archive those rows. This is a bounded trial coordinator,
-not an indefinite public Object queue.
+20-second handoff budget. Hosted [queue continuity](OBJECT_QUEUE_RETENTION.md)
+now releases completed slots while preserving candidate/acceptance history;
+eight unfinished batches may wait at once. Native registry rotation and
+terminal-job retention remain open: its separate spool still has a 64-job limit.
+This is a bounded trial coordinator, not an indefinite public Object queue.
 
 Complete the platform, recovery, capacity, seven-day and signing gates in the
 [launch checklist](PRODUCTION_ACCEPTANCE.md). Nothing here starts those clocks

@@ -139,9 +139,11 @@ Capacity exhaustion stops new work safely. Evidence is retained, rather than
 automatically deleted or recycled. A changed registry or policy requires a
 separate spool; it cannot silently reinterpret old jobs.
 
-These limits support a controlled integration cohort, not indefinite public
-capacity. Before deployment, connect authenticated hosted qualification,
-quarantine ownership, publication and credit settlement. Verify account cleanup
+These native limits support a controlled integration cohort, not indefinite
+public capacity. The hosted [contribution flow](OBJECT_CONTRIBUTION_FLOW.md) now
+connects quarantine, publication and credit; its [waiting slots](OBJECT_QUEUE_RETENTION.md)
+are separate from retained history. Native registry/job retention and authentic
+qualification remain open. Before deployment, verify account cleanup
 against the authentic native host and independent spool recovery; add measured
 retention/cost/capacity and provider restart tests.
 No bridge binding, public route or readiness flag was enabled by this change.

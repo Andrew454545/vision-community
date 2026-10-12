@@ -13,6 +13,7 @@ import {sqliteLiteralRows} from './sqlite-value-literals.mjs';
 import {OBJECT_DISPATCH_SCHEMA,OBJECT_DISPATCH_CONTRACT_SQL} from '../src/objectAuditDispatch.js';
 import {OBJECT_CANCELLATION_SCHEMA,OBJECT_CANCELLATION_CONTRACT_SQL} from '../src/objectAuditCancellation.js';
 import {OBJECT_RECOVERY_SCHEMA,OBJECT_RECOVERY_CONTRACT_SQL} from '../src/objectAuditRecovery.js';
+import {OBJECT_SETTLEMENT_SCHEMA,OBJECT_SETTLEMENT_CONTRACT_SQL,OBJECT_SETTLEMENT_CONTRACT} from '../src/objectSettlement.js';
 import {OBJECT_CANCEL_RESTORE_SCHEMA,OBJECT_CANCEL_RESTORE_CONTRACT} from '../src/objectCancellationRestore.js';
 import {applyObjectCancellationLedger} from './object-cancellation-restore.mjs';
 import {validateObjectCancellationLedger} from './object-cancellation-authority.mjs';
@@ -73,6 +74,9 @@ async function canonicalSchema(source){
     if(source.some(row=>row.name==='object_recovery_revision')){
       for(const statement of OBJECT_RECOVERY_SCHEMA)reference.exec(statement);reference.exec(OBJECT_RECOVERY_CONTRACT_SQL);
     }
+    if(source.some(row=>row.name==='object_settlement_revision')){
+      for(const statement of OBJECT_SETTLEMENT_SCHEMA)reference.exec(statement);reference.exec(OBJECT_SETTLEMENT_CONTRACT_SQL);
+    }
     const wanted=schema(reference);
     require(source.length===wanted.length && source.every((row,i)=>row.type===wanted[i].type && row.name===wanted[i].name
       && row.tbl_name===wanted[i].tbl_name && typeof row.sql==='string' && normalize(row.sql)===normalize(wanted[i].sql)), 'unsupported_object_restore_schema');
@@ -118,13 +122,15 @@ export async function prepareObjectRestoreSql({repairedDir,reportSha256,cancella
     source=new DatabaseSync(input,{readOnly:true,allowExtension:false});source.exec('PRAGMA trusted_schema=OFF; BEGIN');
     integrity(source);const objects=schema(source),canonical=await canonicalSchema(objects),tables=objects.filter(row=>row.type==='table').map(row=>row.name);
     for(const revision of ['community_schema_revision','object_dispatch_revision','object_cancel_revision','object_cancel_restore_revision',
-      ...(tables.includes('object_recovery_revision')?['object_recovery_revision']:[])]){
+      ...(tables.includes('object_recovery_revision')?['object_recovery_revision']:[]),
+      ...(tables.includes('object_settlement_revision')?['object_settlement_revision']:[])]){
       // installed_at is a historical receipt; contract/revision/slot are exact.
       const row=source.prepare('SELECT * FROM '+quote(revision)).all();
       require(row.length===1 && row[0].slot===1,'invalid_object_restore_revision');
       if(revision==='community_schema_revision')require(row[0].revision===1 && row[0].contract==='vision-community-d1-v1-20261004','invalid_object_restore_revision');
-      else require(row[0].contract===({object_dispatch_revision:'private-object-dispatch-v1-20261011',object_cancel_revision:'private-object-cancellation-v1-20261011',
-        object_cancel_restore_revision:OBJECT_CANCEL_RESTORE_CONTRACT,object_recovery_revision:'private-object-recovery-v1-20261011'})[revision],'invalid_object_restore_revision');
+      else require(row[0].contract===({object_dispatch_revision:'private-object-dispatch-v2-20261012',object_cancel_revision:'private-object-cancellation-v1-20261011',
+        object_cancel_restore_revision:OBJECT_CANCEL_RESTORE_CONTRACT,object_recovery_revision:'private-object-recovery-v1-20261011',
+        object_settlement_revision:OBJECT_SETTLEMENT_CONTRACT})[revision],'invalid_object_restore_revision');
     }
     const preserved=image(source,tables);
     copyFileSync(input,verification,constants.COPYFILE_EXCL);checked=new DatabaseSync(verification,{allowExtension:false});checked.exec('PRAGMA trusted_schema=OFF');

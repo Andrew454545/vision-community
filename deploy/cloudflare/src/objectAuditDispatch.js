@@ -7,7 +7,9 @@ import {objectCoverageComplete, COVERAGE_VALIDATOR} from './objectCoverage.js';
 import {objectAuditResult, MAX_REQUEST} from '../native-object-verifier-bridge/worker.js';
 import {readVerifierJson} from './scenePipeline.js';
 
-const CONTRACT = 'private-object-dispatch-v1-20261011';
+export const OBJECT_DISPATCH_CONTRACT = 'private-object-dispatch-v2-20261012';
+export const OBJECT_DISPATCH_LEGACY_CONTRACT = 'private-object-dispatch-v1-20261011';
+const CONTRACT = OBJECT_DISPATCH_CONTRACT;
 const ID = /^[0-9a-f]{32}$/, HEX = /^[0-9a-f]{64}$/;
 const POLICY = /^[A-Za-z0-9_.-]{1,128}$/;
 const CLAIM_SECONDS = 30, MAX_FAILURES = 8, MAX_BACKOFF = 900;
@@ -17,7 +19,7 @@ export class ObjectDispatchError extends Error {
 
 // Optional, explicit operator migration. It does not alter the deployed schema
 // revision or open admission. All publication/credit fields are absent.
-export const OBJECT_DISPATCH_SCHEMA = [
+export const OBJECT_DISPATCH_LEGACY_SCHEMA = [
   `CREATE TABLE IF NOT EXISTS object_dispatch_revision (
     slot INTEGER PRIMARY KEY CHECK(slot=1), contract TEXT NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS object_audit_candidates (
@@ -66,17 +68,69 @@ export const OBJECT_DISPATCH_SCHEMA = [
       UPDATE locations SET state='pending',queue_state='pending',active_lease=NULL,lease_until=NULL
         WHERE active_lease=NEW.id AND state!='published' AND queue_state='quarantined'; END`,
 ];
+// Historical candidates/receipts remain intact. Only unfinished work occupies
+// a queue slot. A native approval alone cannot release one: publication and the
+// unique earned-work ledger entry must both exist for the exact owned lease.
+const settled = alias => `EXISTS (SELECT 1 FROM ledger g WHERE g.reference='lease:'||${alias}.lease_id
+  AND g.account_id=${alias}.account_id AND g.reason='verified_work' AND g.units=${alias}.location_count*10)
+  AND (SELECT COUNT(*) FROM lease_items WHERE lease_id=${alias}.lease_id)=${alias}.location_count
+  AND (SELECT COUNT(*) FROM lease_items i JOIN locations l ON l.id=i.location_id
+    JOIN published_index p ON p.location_id=l.id WHERE i.lease_id=${alias}.lease_id AND l.state='published'
+      AND l.contributor_id=${alias}.account_id AND p.object_index_key='object-index-v4/'||${alias}.lease_id||'/')=${alias}.location_count`;
+export const OBJECT_DISPATCH_SCHEMA = [
+  ...OBJECT_DISPATCH_LEGACY_SCHEMA.filter(sql=>!sql.startsWith('CREATE TRIGGER IF NOT EXISTS object_dispatch_capacity')),
+  `CREATE TABLE IF NOT EXISTS object_dispatch_slots (lease_id TEXT PRIMARY KEY REFERENCES object_audit_candidates(lease_id))`,
+  `CREATE TRIGGER IF NOT EXISTS object_dispatch_capacity BEFORE INSERT ON object_audit_candidates
+    WHEN NOT EXISTS (SELECT 1 FROM object_audit_candidates WHERE lease_id=NEW.lease_id)
+      AND (SELECT COUNT(*) FROM object_dispatch_slots)>=8
+    BEGIN SELECT RAISE(ABORT,'object_dispatch_capacity'); END`,
+  `CREATE TRIGGER IF NOT EXISTS object_dispatch_slot_insert BEFORE INSERT ON object_dispatch_slots
+    WHEN NOT EXISTS (SELECT 1 FROM object_dispatch_slots WHERE lease_id=NEW.lease_id)
+      AND ((SELECT COUNT(*) FROM object_dispatch_slots)>=8 OR NOT EXISTS
+        (SELECT 1 FROM object_audit_candidates c WHERE c.lease_id=NEW.lease_id AND c.state='pending' AND NOT (${settled('c')})))
+    BEGIN SELECT RAISE(ABORT,'object_dispatch_slot_invalid'); END`,
+  `CREATE TRIGGER IF NOT EXISTS object_dispatch_slot_immutable BEFORE UPDATE ON object_dispatch_slots
+    BEGIN SELECT RAISE(ABORT,'object_dispatch_slot_immutable'); END`,
+  `CREATE TRIGGER IF NOT EXISTS object_dispatch_slot_delete BEFORE DELETE ON object_dispatch_slots
+    WHEN EXISTS (SELECT 1 FROM object_audit_candidates c WHERE c.lease_id=OLD.lease_id
+      AND c.state='pending' AND NOT (${settled('c')}))
+    BEGIN SELECT RAISE(ABORT,'object_dispatch_slot_unfinished'); END`,
+  `CREATE TRIGGER IF NOT EXISTS object_dispatch_slot_reserve AFTER INSERT ON object_audit_candidates
+    BEGIN INSERT INTO object_dispatch_slots VALUES (NEW.lease_id); END`,
+  `CREATE TRIGGER IF NOT EXISTS object_dispatch_slot_terminal AFTER UPDATE OF state ON object_audit_candidates
+    WHEN NEW.state!='pending'
+    BEGIN DELETE FROM object_dispatch_slots WHERE lease_id=NEW.lease_id; END`,
+];
+const backfill = `INSERT INTO object_dispatch_slots SELECT c.lease_id FROM object_audit_candidates c
+  WHERE c.state='pending' AND NOT (${settled('c')})
+    AND NOT EXISTS (SELECT 1 FROM object_dispatch_slots s WHERE s.lease_id=c.lease_id)`;
 const normalized = sql => sql.replace(/IF NOT EXISTS/ig,'').replace(/[\s;]/g,'').toLowerCase();
 const quote = value => "'"+value.replaceAll("'","''")+"'";
 const stored = "lower(replace(replace(replace(replace(replace(replace(replace(sql,'IF NOT EXISTS',''),'if not exists',''),' ',''),char(10),''),char(13),''),char(9),''),';',''))";
-const checks=OBJECT_DISPATCH_SCHEMA.map(sql=>{
+const checks=definitions=>definitions.map(sql=>{
   const [,kind,name]=sql.match(/^CREATE (TABLE|INDEX|TRIGGER) IF NOT EXISTS (\w+)/);
   return `EXISTS (SELECT 1 FROM sqlite_master WHERE type=${quote(kind.toLowerCase())} AND name=${quote(name)}
     AND ${stored}=${quote(normalized(sql))})`;
 }).join(' AND ');
-export const OBJECT_DISPATCH_CONTRACT_SQL = `INSERT INTO object_dispatch_revision
-  SELECT 1,CASE WHEN (${checks}) THEN '${CONTRACT}' ELSE NULL END
+export const OBJECT_DISPATCH_LEGACY_CONTRACT_SQL = `INSERT INTO object_dispatch_revision
+  SELECT 1,CASE WHEN (${checks(OBJECT_DISPATCH_LEGACY_SCHEMA)}) THEN '${OBJECT_DISPATCH_LEGACY_CONTRACT}' ELSE NULL END
   ON CONFLICT(slot) DO UPDATE SET contract=CASE WHEN contract=excluded.contract THEN contract ELSE NULL END`;
+export const OBJECT_DISPATCH_CONTRACT_SQL = `INSERT INTO object_dispatch_revision
+  SELECT 1,CASE WHEN (${checks(OBJECT_DISPATCH_SCHEMA)}) THEN '${CONTRACT}' ELSE NULL END
+  ON CONFLICT(slot) DO UPDATE SET contract=CASE WHEN contract IN ('${OBJECT_DISPATCH_LEGACY_CONTRACT}','${CONTRACT}')
+    THEN excluded.contract ELSE NULL END`;
+
+// One operator transaction, shared by D1 setup and offline recovery. Validate
+// every original fence before changing the v1 capacity trigger; never rebuild
+// candidate tables or their dependent acceptance/cancellation/retry journals.
+export function objectDispatchMigration(contract=null) {
+  if(contract!==null && ![CONTRACT,OBJECT_DISPATCH_LEGACY_CONTRACT].includes(contract)) {
+    throw new ObjectDispatchError('object_dispatch_setup_required',503);
+  }
+  return [...(contract===OBJECT_DISPATCH_LEGACY_CONTRACT
+    ? [OBJECT_DISPATCH_LEGACY_CONTRACT_SQL,'DROP TRIGGER object_dispatch_capacity']:[]),
+    ...OBJECT_DISPATCH_SCHEMA,backfill,OBJECT_DISPATCH_CONTRACT_SQL];
+}
 
 async function schema(env) {
   try {
@@ -161,9 +215,8 @@ export async function stageObjectAudit(env, account, authority, objectIndex, now
     (SELECT location_id FROM lease_items WHERE lease_id=?) AND validator=? AND validated_at<=? AND validated_at>?`)
     .bind(lease,COVERAGE_VALIDATOR,now,now-86400).first();
   if (fresh?.n !== rows.length) throw new ObjectDispatchError('object_coverage_expired');
-  const capacity=await env.DB.prepare(`SELECT COUNT(*) AS total,
-    COALESCE(SUM(state='pending'),0) AS pending FROM object_audit_candidates`).first();
-  if(capacity.total>=64 || capacity.pending>=8) throw new ObjectDispatchError('object_dispatch_capacity',503);
+  const capacity=await env.DB.prepare('SELECT COUNT(*) AS pending FROM object_dispatch_slots').first();
+  if(capacity.pending>=8) throw new ObjectDispatchError('object_dispatch_capacity',503);
   await writeObjectArtifact(env,account,lease,key,payload,now);
   try {
     await env.DB.batch([

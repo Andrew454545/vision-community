@@ -9,7 +9,7 @@ import {applyObjectCancellationLedger,prepareObjectCancellationRestore,main} fro
 import {exportObjectCancellationLedger,readCancellationTombstones} from '../tools/object-cancellation-authority.mjs';
 import {fenceRestoredObjectArtifact} from './objectCancellationRestore.js';
 import {writeObjectArtifact,PRIVACY_FENCE} from './artifactWrites.js';
-import {stageObjectAudit,advanceObjectAudit} from './objectAuditDispatch.js';
+import {stageObjectAudit,advanceObjectAudit,OBJECT_DISPATCH_LEGACY_SCHEMA,OBJECT_DISPATCH_LEGACY_CONTRACT,OBJECT_DISPATCH_CONTRACT} from './objectAuditDispatch.js';
 import {exportDeletionLedger,RESOURCE_PROFILES} from '../tools/account-restore.mjs';
 import {exportObjectErasureAuthority} from '../tools/object-erasure-recovery.mjs';
 import {planPrivacyStorage} from '../tools/privacy-storage-restore.mjs';
@@ -34,6 +34,20 @@ test('current cancellation revokes an old native approval without changing accou
   assert.equal(image(s.sql),before);assert.equal(plan.existingCandidates,1);assert.equal(plan.nativeCleanupPending,true);
   assert.equal(plan.providerFencesPending,true);assert.equal(plan.liveReady,false);assert.equal(plan.r2Fences.length,1);
   const late=await advanceObjectAudit(s.env,account,lease,now+3);assert.equal(late.cancelled,true);assert.equal(late.freshAuditReply,false);
+});
+
+test('offline cancellation repairs an exact v1 backup through the shared slot migration',async t=>{
+  const s=await pair(t),before=image(s.sql);
+  const names=s.sql.prepare("SELECT name FROM sqlite_master WHERE type='trigger' AND name LIKE 'object_dispatch_slot_%'").all();
+  for(const {name} of names)s.sql.exec('DROP TRIGGER '+name);
+  s.sql.exec('DROP TRIGGER object_dispatch_capacity;DROP TABLE object_dispatch_slots');
+  s.sql.exec(OBJECT_DISPATCH_LEGACY_SCHEMA.find(sql=>sql.startsWith('CREATE TRIGGER IF NOT EXISTS object_dispatch_capacity')));
+  s.sql.prepare('UPDATE object_dispatch_revision SET contract=?').run(OBJECT_DISPATCH_LEGACY_CONTRACT);
+  applyObjectCancellationLedger(s.sql,s.args);
+  assert.equal(s.sql.prepare('SELECT contract FROM object_dispatch_revision').get().contract,OBJECT_DISPATCH_CONTRACT);
+  assert.equal(s.sql.prepare('SELECT count(*) n FROM object_dispatch_slots').get().n,0);
+  assert.equal(s.sql.prepare('SELECT state FROM object_audit_candidates').get().state,'cancelled');
+  assert.equal(image(s.sql),before);assert.equal(s.sql.prepare('PRAGMA foreign_key_check').all().length,0);
 });
 
 test('backup before candidate records revocation and expires its active lease without inventing a job or accepted work',async t=>{

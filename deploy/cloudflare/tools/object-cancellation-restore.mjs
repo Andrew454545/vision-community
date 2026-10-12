@@ -7,7 +7,7 @@ import {dirname,join,resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {parseArgs} from 'node:util';
 import {SCHEMA_CHECK} from '../src/schemaRevision.js';
-import {OBJECT_DISPATCH_SCHEMA,OBJECT_DISPATCH_CONTRACT_SQL} from '../src/objectAuditDispatch.js';
+import {objectDispatchMigration} from '../src/objectAuditDispatch.js';
 import {OBJECT_CANCELLATION_SCHEMA,OBJECT_CANCELLATION_CONTRACT_SQL,objectCancellationPublicationSafe} from '../src/objectAuditCancellation.js';
 import {OBJECT_CANCEL_RESTORE_SCHEMA,OBJECT_CANCEL_RESTORE_CONTRACT} from '../src/objectCancellationRestore.js';
 import {indexArtifactIdentity,PRIVACY_FENCE} from '../src/artifactWrites.js';
@@ -40,7 +40,9 @@ function install(sql,statements){
 function protectedState(sql){
   const hash=createHash('sha256');
   for(const [table,order,where] of [['accounts','id',''],['ledger','id',''],['searches','id',''],
-    ['published_index','location_id',''],['index_shards','r2_key',''],['locations','id',"WHERE state='published'"]]){
+    ['published_index','location_id',''],['index_shards','r2_key',''],['locations','id',"WHERE state='published'"],
+    ...(sql.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='object_acceptances'").get()
+      ? [['object_acceptances','lease_id','']]:[])]){
     const columns=sql.prepare('PRAGMA table_info('+table+')').all().map(row=>row.name);
     require(columns.length>0 && columns.every(name=>/^[a-z_][a-z_0-9]*$/.test(name)));
     const selected=columns.map(name=>"typeof("+name+")||':'||CASE WHEN typeof("+name+")='real' THEN printf('%!.26g',"+name+") ELSE hex(CAST("+name+" AS BLOB)) END AS "+name).join(',');
@@ -62,7 +64,10 @@ export function applyObjectCancellationLedger(sql,{ledgerRaw,ledgerSha256,notBef
       wanted=new Map(ledger.cancellations.map(row=>[row.leaseId,row]));
     for(const event of historical)require(wanted.has(event.leaseId)
       && Object.entries(event).every(([key,value])=>wanted.get(event.leaseId)[key]===value));
-    install(sql,OBJECT_DISPATCH_SCHEMA);sql.exec(OBJECT_DISPATCH_CONTRACT_SQL);
+    const hasDispatch=sql.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='object_dispatch_revision'").get();
+    const dispatch=hasDispatch?sql.prepare('SELECT contract FROM object_dispatch_revision WHERE slot=1').get():null;
+    require(!hasDispatch || dispatch);
+    for(const statement of objectDispatchMigration(dispatch?.contract??null))sql.exec(statement);
     install(sql,OBJECT_CANCELLATION_SCHEMA);sql.exec(OBJECT_CANCELLATION_CONTRACT_SQL);
     for(const old of sql.prepare('SELECT * FROM object_audit_cancellations ORDER BY lease_id LIMIT 4097').all()){
       require(wanted.has(old.lease_id) && matches(old,wanted.get(old.lease_id)));
