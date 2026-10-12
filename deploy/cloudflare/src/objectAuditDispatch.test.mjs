@@ -5,7 +5,8 @@ import {DatabaseSync} from 'node:sqlite';
 import {prepareDatabase} from '../tools/initialize-schema.mjs';
 import {prepareObjectAuditDispatch} from '../tools/prepare-object-audit-dispatch.mjs';
 import {sqliteD1} from '../tools/sqlite-d1.mjs';
-import {stageObjectAudit,advanceObjectAudit} from './objectAuditDispatch.js';
+import {stageObjectAudit,advanceObjectAudit,OBJECT_DISPATCH_LEGACY_SCHEMA,OBJECT_DISPATCH_LEGACY_CONTRACT_SQL,
+  OBJECT_DISPATCH_CONTRACT,OBJECT_DISPATCH_LEGACY_CONTRACT} from './objectAuditDispatch.js';
 import {objectAuditResult} from '../native-object-verifier-bridge/worker.js';
 import {sha256Hex,encodeUtf8} from './model.js';
 import {syntheticR2} from './syntheticR2.mjs';
@@ -266,6 +267,64 @@ test('eight retained pending assignments bound capacity before extra storage; no
   }
   assert.equal(objects.size,8);assert.equal(sql.prepare('SELECT count(*) AS n FROM object_audit_candidates').get().n,8);
   assert.equal(sql.prepare('SELECT count(*) AS n FROM ledger').get().n,0);
+});
+
+test('more than 64 terminal batches retain their evidence without consuming waiting slots',async t=>{
+  const {sql,env,authority}=await setup(t);
+  for(let i=2;i<=71;i++) {
+    const next=i.toString(16).padStart(32,'0');
+    sql.prepare("INSERT INTO leases(id,account_id,lane,state,expires_at) VALUES (?,?,'object','active',?)").run(next,account,now+1000);
+    sql.prepare("INSERT INTO locations(id,asset_id,capture,lane,model,state,active_lease,camera_generation) VALUES (?,?,'fixture','object','synthetic','leased',?,'gen4')").run(i,'synthetic-'+i,next);
+    sql.prepare('INSERT INTO lease_items VALUES (?,?)').run(next,i);
+    sql.prepare('INSERT INTO object_coverage VALUES (?,?,?,?)').run(i,COVERAGE_VALIDATOR,'f'.repeat(64),now);
+    await stageObjectAudit(env,account,{...authority,leaseId:next},objectIndex,now);
+    assert.equal(sql.prepare('SELECT count(*) n FROM object_dispatch_slots').get().n,1);
+    sql.prepare("UPDATE leases SET state='expired' WHERE id=?").run(next);
+    assert.equal(sql.prepare('SELECT count(*) n FROM object_dispatch_slots').get().n,0);
+  }
+  assert.equal(sql.prepare('SELECT count(*) n FROM object_audit_candidates').get().n,70);
+  assert.equal(sql.prepare("SELECT count(*) n FROM object_audit_candidates WHERE state='cancelled'").get().n,70);
+  assert.equal(sql.prepare('SELECT count(*) n FROM ledger').get().n,0);
+});
+
+test('approval or a ledger entry alone cannot discard a waiting slot',async t=>{
+  const {sql,env,stage,reply}=await setup(t);await stage();
+  env.OBJECT_VERIFIER={fetch:()=>Response.json(reply({state:'approved',decision:'approved',attempts:1,receiptSha256:'6'.repeat(64)}))};
+  await advanceObjectAudit(env,account,lease,now);
+  assert.throws(()=>sql.exec('DELETE FROM object_dispatch_slots'),/object_dispatch_slot_unfinished/);
+  sql.prepare("INSERT INTO ledger(account_id,units,reason,reference) VALUES (?,10,'verified_work',?)").run(account,'lease:'+lease);
+  assert.throws(()=>sql.exec('DELETE FROM object_dispatch_slots'),/object_dispatch_slot_unfinished/);
+  assert.throws(()=>sql.exec("UPDATE object_dispatch_slots SET lease_id='changed'"),/object_dispatch_slot_immutable/);
+});
+
+test('exact v1 upgrade preserves candidate and receipt bytes and reserves unfinished slots',async t=>{
+  const {sql,env}=await setup(t,false);
+  for(const statement of OBJECT_DISPATCH_LEGACY_SCHEMA)sql.exec(statement);
+  sql.exec(OBJECT_DISPATCH_LEGACY_CONTRACT_SQL);
+  sql.prepare(`INSERT INTO object_audit_candidates(lease_id,account_id,profile_id,policy_id,assignment_sha256,
+    source_sha256,submission_sha256,artifact_key,payload_bytes,location_count,created_at,state,
+    job_id,candidate_manifest_sha256,native_state,receipt_sha256,native_attempts,last_error)
+    VALUES (?,?,'profile','policy','assignment','source','submission','private-key',1,1,?,'pending',
+    'saved-job','saved-candidate','approved','original-receipt',2,'original failure')`).run(lease,account,now);
+  sql.exec("UPDATE leases SET state='submitted'");
+  const before=sql.prepare('SELECT * FROM object_audit_candidates').all();
+  await prepareObjectAuditDispatch(env.DB);await prepareObjectAuditDispatch(env.DB);
+  assert.deepEqual(sql.prepare('SELECT * FROM object_audit_candidates').all(),before);
+  assert.equal(sql.prepare('SELECT contract FROM object_dispatch_revision').get().contract,OBJECT_DISPATCH_CONTRACT);
+  assert.equal(sql.prepare('SELECT count(*) n FROM object_dispatch_slots').get().n,1);
+  assert.equal(sql.prepare('PRAGMA foreign_key_check').all().length,0);
+});
+
+test('v1 upgrade refuses altered fences and rolls back without relabelling the old contract',async t=>{
+  const {sql,env}=await setup(t,false);
+  for(const statement of OBJECT_DISPATCH_LEGACY_SCHEMA)sql.exec(statement);
+  sql.exec(OBJECT_DISPATCH_LEGACY_CONTRACT_SQL);
+  sql.exec('DROP TRIGGER object_dispatch_deleted');
+  sql.exec('CREATE TRIGGER object_dispatch_deleted AFTER UPDATE ON accounts BEGIN SELECT 1; END');
+  await assert.rejects(prepareObjectAuditDispatch(env.DB));
+  assert.equal(sql.prepare('SELECT contract FROM object_dispatch_revision').get().contract,OBJECT_DISPATCH_LEGACY_CONTRACT);
+  assert.equal(sql.prepare("SELECT count(*) n FROM sqlite_master WHERE name='object_dispatch_slots'").get().n,0);
+  assert.match(sql.prepare("SELECT sql FROM sqlite_master WHERE name='object_dispatch_capacity'").get().sql,/>=64/);
 });
 test('a pending Scene retry also reports audit waiting, never the number of leased items as accepted',async t=>{
   const {sql,env}=await setup(t);

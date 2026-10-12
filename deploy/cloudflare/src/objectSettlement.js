@@ -7,7 +7,8 @@ import {writeObjectArtifact} from './artifactWrites.js';
 import {readVerifierJson} from './scenePipeline.js';
 import {sha256Hex,encodeUtf8,randomHex,UNITS} from './model.js';
 const ID=/^[a-f0-9]{32}$/,HEX=/^[a-f0-9]{64}$/;
-const CONTRACT='private-object-settlement-v1-20261012';
+export const OBJECT_SETTLEMENT_CONTRACT='private-object-settlement-v1-20261012';
+const CONTRACT=OBJECT_SETTLEMENT_CONTRACT;
 const fail=(code='object_settlement_unavailable',status=503)=>{throw new ObjectDispatchError(code,status);};
 export const OBJECT_SETTLEMENT_SCHEMA=[
   `CREATE TABLE IF NOT EXISTS object_settlement_revision (slot INTEGER PRIMARY KEY CHECK(slot=1),contract TEXT NOT NULL)`,
@@ -42,7 +43,7 @@ const checks=OBJECT_SETTLEMENT_SCHEMA.map(sql=>{
 }).join(' AND ');
 export const OBJECT_SETTLEMENT_CONTRACT_SQL=`INSERT INTO object_settlement_revision
   SELECT 1,CASE WHEN (${checks}) AND EXISTS (SELECT 1 FROM object_dispatch_revision
-    WHERE slot=1 AND contract='private-object-dispatch-v1-20261011') THEN '${CONTRACT}' ELSE NULL END
+    WHERE slot=1 AND contract='private-object-dispatch-v2-20261012') THEN '${CONTRACT}' ELSE NULL END
   ON CONFLICT(slot) DO UPDATE SET contract=CASE WHEN contract=excluded.contract THEN contract ELSE NULL END`;
 
 function policy(env) {
@@ -167,6 +168,10 @@ export async function settleObjectAudit(env,account,lease,now=Math.floor(Date.no
         object_index_sha256,object_index_key) SELECT ?,'',?,?,NULL,?,? WHERE ${own}`)
         .bind(record.locationId,record.outputSha256,at,row.source_sha256,prefix,lease,account,token));
     }
+    // Releasing the slot is part of the same transaction as acceptance, all
+    // publications and credit. Its database fence refuses unfinished work.
+    statements.push(env.DB.prepare(`DELETE FROM object_dispatch_slots WHERE lease_id=? AND ${own}`)
+      .bind(lease,lease,account,token));
     // A lost database reply is safe: the immutable acceptance plus unique lease
     // ledger reference is the durable acknowledgement on the next invocation.
     const result=await race(()=>env.DB.batch(statements));

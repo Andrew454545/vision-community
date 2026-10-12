@@ -47,6 +47,8 @@ export default {async fetch(request,env){
   }catch(error){value={error:error.message,status:error.status};}
   const manifest=await env.INDEX.get(`object-index-v4/${lease}/manifest.json`);
   return Response.json({value,publications:(await env.DB.prepare('SELECT count(*) AS n FROM published_index').first()).n,
+    waitingSlots:(await env.DB.prepare('SELECT count(*) n FROM object_dispatch_slots').first()).n,
+    retainedCandidates:(await env.DB.prepare('SELECT count(*) n FROM object_audit_candidates').first()).n,
     ledger:(await env.DB.prepare("SELECT count(*) AS n FROM ledger WHERE reason='verified_work'").first()).n,
     acceptances:(await env.DB.prepare('SELECT count(*) AS n FROM object_acceptances').first()).n,
     owner:await env.DB.prepare('SELECT units,deleted_at FROM accounts WHERE id=?').bind(account).first(),

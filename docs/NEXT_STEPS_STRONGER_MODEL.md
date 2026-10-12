@@ -1,8 +1,11 @@
 # Remaining launch work
 
 Continue from the connected [Object contribution flow](OBJECT_CONTRIBUTION_FLOW.md).
-Next engineering work is trusted assignment/registry rotation and terminal-job
-retention, then the first authentic qualified batch and earned-credit search
+Hosted [queue continuity](OBJECT_QUEUE_RETENTION.md) is implemented: eight
+unfinished slots are separate from retained history; acceptance and credit
+survive upgrade and SQL recovery. Next engineering work is trusted
+assignment/registry rotation and native terminal-job retention, then the first
+authentic qualified batch and earned-credit search
 when matching protected authority is available. Do not repeat the completed
 synthetic settlement checks without a relevant change or unresolved failure.
 

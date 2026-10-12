@@ -2,8 +2,10 @@
 
 Current integration: [Object auditing now connects to atomic publication,
 once-only credit and saved client delivery](OBJECT_CONTRIBUTION_FLOW.md).
-Authentic qualification, first real assignment/search, terminal-job retention
-and deployment remain open; this does not open public Object admission.
+Hosted [queue retention](OBJECT_QUEUE_RETENTION.md) now preserves history while
+freeing finished slots, including upgrade and SQL recovery. Authentic
+qualification, first real assignment/search, native registry/job retention and
+deployment remain open; public Object admission is unchanged.
 
 The [Object publication metadata fix](OBJECT_PUBLIC_MANIFEST_20261012.md) now
 removes private manifest extensions and checks current quality semantics before

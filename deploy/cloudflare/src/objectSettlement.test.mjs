@@ -64,15 +64,28 @@ async function setup(t,install=true) {
 }
 const zero=f=>assert.deepEqual(f.counts(),{publications:0,ledger:0,accepted:0,units:0});
 test('audited batch publishes sanitized files and awards once; replay skips native service',async t=>{
-  const f=await setup(t);const accepted=await advanceObjectContribution(f.env,account,lease,now);
+  const f=await setup(t);assert.equal(f.sql.prepare('SELECT count(*) n FROM object_dispatch_slots').get().n,1);
+  const accepted=await advanceObjectContribution(f.env,account,lease,now);
   assert.equal(accepted.accepted,2);assert.equal(accepted.unitsEarned,20);assert.equal(accepted.replayed,false);
   assert.deepEqual(f.counts(),{publications:2,ledger:1,accepted:1,units:20});
+  assert.equal(f.sql.prepare('SELECT count(*) n FROM object_dispatch_slots').get().n,0);
+  assert.equal(f.sql.prepare('SELECT receipt_sha256 FROM object_audit_candidates').get().receipt_sha256,'4'.repeat(64));
   const manifest=new TextDecoder().decode(f.objects.get(`object-index-v4/${lease}/manifest.json`));
   assert.equal(manifest.includes('SYNTHETIC-PRIVATE'),false);assert.equal(JSON.parse(manifest).sourceTsv,'locations.tsv');
   const before=f.calls();const replay=await f.settle();assert.equal(replay.accepted,2);assert.equal(replay.unitsEarned,0);
   assert.equal(replay.replayed,true);assert.deepEqual(f.calls(),before);
   const advanced=await advanceObjectAudit(f.env,account,lease,now+500);assert.equal(advanced.auditState,'published');assert.equal(advanced.pendingAudit,false);
   assert.deepEqual(f.calls(),before);assert.equal(objectCapabilities(f.env).objectContributions.ready,false);
+});
+
+test('a failed slot release rolls back acceptance, publications and credit together',async t=>{
+  const f=await setup(t);
+  f.sql.exec("CREATE TRIGGER injected_slot_failure BEFORE DELETE ON object_dispatch_slots BEGIN SELECT RAISE(ABORT,'synthetic slot failure'); END");
+  await assert.rejects(f.settle());zero(f);
+  assert.equal(f.sql.prepare('SELECT count(*) n FROM object_dispatch_slots').get().n,1);
+  f.sql.exec('DROP TRIGGER injected_slot_failure');
+  assert.equal((await f.settle()).unitsEarned,20);
+  assert.equal(f.sql.prepare('SELECT count(*) n FROM object_dispatch_slots').get().n,0);
 });
 test('two concurrent settlements produce one durable acceptance and one award',async t=>{
   const f=await setup(t),results=await Promise.allSettled([f.settle(),f.settle()]);

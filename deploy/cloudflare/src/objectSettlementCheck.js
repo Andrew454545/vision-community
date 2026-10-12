@@ -19,7 +19,7 @@ async function snapshot(env,account,lease,now,race) {
     JOIN leases l ON l.id=c.lease_id AND l.account_id=c.account_id
     JOIN account_artifact_writes w ON w.artifact_key=c.artifact_key
     WHERE c.account_id=? AND c.lease_id=? AND EXISTS (SELECT 1 FROM object_dispatch_revision
-      WHERE slot=1 AND contract='private-object-dispatch-v1-20261011')`).bind(account,lease).first());
+      WHERE slot=1 AND contract='private-object-dispatch-v2-20261012')`).bind(account,lease).first());
   if(!row || row.deleted_at!==null || row.state!=='pending' || row.native_state!=='approved'
       || row.lease_lane!=='object' || row.lease_state!=='submitted' || row.lease_expires<=now
       || row.artifact_owner!==account || row.artifact_lease!==lease

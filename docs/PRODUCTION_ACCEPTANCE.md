@@ -1,5 +1,11 @@
 # Production acceptance
 
+Hosted [Object queue continuity](OBJECT_QUEUE_RETENTION.md) now releases finished
+slots and preserves accepted evidence/credit through upgrade and SQL recovery.
+Windows passes 148 contribution checks, 269/275 wider checks (six privilege skips;
+overlapping groups) and 48 local Cloudflare cases. Native registry/job retention,
+authentic qualification and deployment remain open. The Scene pilot is unchanged.
+
 The [Object contribution handoff](OBJECT_CONTRIBUTION_FLOW.md) now connects saved
 native auditing, guarded atomic publication/credit and restart-safe client
 delivery. Windows passes 142 JavaScript, 50 Python and 10 local Cloudflare cases;

@@ -45,7 +45,7 @@ const checks=OBJECT_RECOVERY_SCHEMA.map(sql=>{
 }).join(' AND ');
 export const OBJECT_RECOVERY_CONTRACT_SQL=`INSERT INTO object_recovery_revision
   SELECT 1,CASE WHEN (${checks}) AND EXISTS (SELECT 1 FROM object_dispatch_revision
-    WHERE slot=1 AND contract='private-object-dispatch-v1-20261011') THEN '${CONTRACT}' ELSE NULL END
+    WHERE slot=1 AND contract='private-object-dispatch-v2-20261012') THEN '${CONTRACT}' ELSE NULL END
   ON CONFLICT(slot) DO UPDATE SET contract=CASE WHEN contract=excluded.contract THEN contract ELSE NULL END`;
 const readCandidate=(env,account,lease)=>env.DB.prepare('SELECT * FROM object_audit_candidates WHERE lease_id=? AND account_id=?').bind(lease,account).first();
 const readIntent=(env,id)=>env.DB.prepare('SELECT * FROM object_audit_recoveries WHERE request_id=?').bind(id).first();
