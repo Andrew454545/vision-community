@@ -1,5 +1,11 @@
 # Production acceptance
 
+Object accuracy acceptance compares Mac/Windows scores and indexed results with
+Andrew's reference on identical images and settings, using explicit measured
+bounds. It requires no human object labelling or visual confirmation. See the
+[release decisions](LAUNCH_PLAN.md#decisions-made); location eligibility,
+publication and once-only credit remain separate checks.
+
 The [Object publication metadata fix](OBJECT_PUBLIC_MANIFEST_20261012.md) now
 removes private manifest extensions and checks current quality semantics before
 writes. Windows passes 203 JavaScript checks, 114 distinct Python checks and

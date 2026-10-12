@@ -6,6 +6,13 @@ selection, quality masks, search hit sets and order agree. Stored PQ codes also
 agree. Floating-point scores and aiming differ slightly, so the outputs are
 not byte-identical. These are exploratory measurements, not production approval.
 
+The acceptance target is automatic agreement with Andrew's reference for the
+same images and settings, including scores within measured numerical bounds.
+Human annotation or confirmation that objects are visually present is not a
+release requirement. Missing/extra detections below describe differences between
+program outputs, not a comparison with human-labelled images. Coverage and
+protected-location eligibility remain separate contribution rules.
+
 ## What ran
 
 The private Mac handoff includes 27 one-location cases: CPU build/CPU,

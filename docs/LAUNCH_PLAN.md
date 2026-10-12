@@ -16,7 +16,7 @@ resources do not suspend independent engineering work.
 
 | Exit gate | Work to finish | Evidence required to close it |
 |---|---|---|
-| Trusted contributions | Finalize measured Scene/runtime policies; connect Object qualification, quarantine and native auditing to publication. Bind official Gen4 Objects to trusted server assignments and real quality authority. | Fresh qualified contributions in both lanes from Windows and Mac; incorrect or unqualified work refused; retries award credit once. |
+| Trusted contributions | Finalize measured Scene/runtime policies; connect Object qualification, quarantine and native auditing to publication. Bind official Gen4 Objects to trusted server assignments and real quality authority. | Fresh qualified contributions in both lanes from Windows and Mac; outputs outside the reference policy or from unqualified runtimes refused; retries award credit once. |
 | Earned-credit search | Publish only accepted contributor indexes, serve both native search modes and settle online searches against banked credit. Resolve early-user pricing without fake contributions. | A search paid with genuinely earned credit; exact retry/recovery without another debit; every result belongs to current authorized publication. |
 | Unattended operation | Select verified parallel profiles for Maximum; finish accepted-work restart/sign-in, sleep/wake, network-loss and schedule-boundary checks; set measured CPU/RAM/disk retention budgets. | Seven days of qualified accepted work on each OS, both lanes represented, with recorded resource bounds and real interruptions. No assumption that a powered-off or sleeping computer can compute. |
 | Beginner downloads | Pin native/model assets, sign and package both platforms, and complete clean-device setup/update/removal and a nontechnical walkthrough. | Genuine signed Windows/Mac downloads; clean-device tests of Scenes, Objects and Both; one simple setup path. |
@@ -24,6 +24,12 @@ resources do not suspend independent engineering work.
 
 ## Decisions made
 
+- Object accuracy is an automated Mac/Windows comparison with Andrew's reference
+  using identical images, models and settings. Scores must agree within explicit
+  measured bounds; no human object labelling or visual true-positive review is
+  required. Record identities and feature/quality behavior must remain consistent
+  with that reference. Location eligibility and safe credit settlement are
+  separate checks.
 - Preserve Andrew's verified model, geometry and ranking behavior. Byte equality
   across platforms is not required when a measured policy explicitly permits
   a numerical difference. No broad Object tolerance is inferred from three
