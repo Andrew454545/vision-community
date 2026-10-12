@@ -6,8 +6,10 @@ an instruction for volunteers. Hosted Object admission remains closed.
 
 The [saved-job service](NATIVE_OBJECT_AUDIT_JOBS.md) now runs this component
 outside a website request, preserves attempts across restarts and provides
-bounded private status/retry/cancellation transport. Hosted qualification and
-publication still need to be connected.
+bounded private status/retry/cancellation transport. The
+[contribution handoff](OBJECT_CONTRIBUTION_FLOW.md) now connects batch-scoped
+comparison, guarded publication, once-only credit and restart-safe client
+delivery in source. Authentic qualification and hosted rollout remain open.
 
 The component requires independently pinned operator policy, runtime and
 assignment files. Never generate those pins from an uploader's claimed policy

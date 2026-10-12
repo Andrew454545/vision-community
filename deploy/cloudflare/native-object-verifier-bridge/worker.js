@@ -80,9 +80,27 @@ export function assignmentErasureResult(value, leaseId) {
   return value;
 }
 
+export function objectSettlementEvidence(value, expected, now = Math.floor(Date.now()/1000)) {
+  const keys = ['audit','policySha256','runtimeProfileSha256','qualityImplementationIdentity',
+    'protectedAuthoritySha256','protectedOriginHandoffSha256','resource','qualificationScope','issuedAt','expiresAt'];
+  if (!value || typeof value !== 'object' || Array.isArray(value)
+      || Object.keys(value).sort().join(',') !== keys.sort().join(',')
+      || !keys.filter(k=>k.endsWith('Sha256') || k==='qualityImplementationIdentity')
+        .every(k=>typeof value[k]==='string' && HEX.test(value[k]))
+      || value.qualificationScope!=='batch-only' || !Number.isSafeInteger(value.issuedAt) || value.issuedAt<0
+      || !Number.isSafeInteger(value.expiresAt) || value.expiresAt!==value.issuedAt+30
+      || value.issuedAt>now || value.expiresAt<=now
+      || !value.resource || Object.keys(value.resource).sort().join(',')!=='accountId,bucket,databaseId'
+      || typeof value.resource.accountId!=='string' || !ID.test(value.resource.accountId)
+      || typeof value.resource.databaseId!=='string' || !/^[a-f0-9-]{36}$/.test(value.resource.databaseId)
+      || !['vision-community','vision-community-staging'].includes(value.resource.bucket)) throw Error('invalid_settlement_response');
+  objectAuditResult(value.audit,{...expected,state:'approved',decision:'approved'});
+  return value;
+}
+
 export async function handleObjectAuditJobs(request, env, fetcher = fetch, timeoutMs = 20000) {
   const url = new URL(request.url), path = url.pathname;
-  const route = /^\/object-audits\/([0-9a-f]{32})(?:\/(cancel|retry|erase))?$/.exec(path);
+  const route = /^\/object-audits\/([0-9a-f]{32})(?:\/(cancel|retry|erase|settlement-evidence))?$/.exec(path);
   const erasure = /^\/object-assignments\/([0-9a-f]{32})\/erase$/.exec(path);
   if (url.search || !(request.method === 'POST' && (path === '/object-audits' || route?.[2] || erasure)
       || request.method === 'GET' && route && !route[2])) return reply(404, 'not_found');
@@ -149,7 +167,8 @@ export async function handleObjectAuditJobs(request, env, fetcher = fetch, timeo
         }
         throw Error('unavailable');
       }
-      const checked = erasure ? assignmentErasureResult(value, erasure[1]) : objectAuditResult(value, expected);
+      const checked = erasure ? assignmentErasureResult(value, erasure[1])
+        : route?.[2]==='settlement-evidence' ? objectSettlementEvidence(value,expected) : objectAuditResult(value, expected);
       if (!erasure && (route?.[2] === 'cancel' && !['cancelled','erasing','erased'].includes(checked.state)
           || route?.[2] === 'erase' && !['erasing','erased'].includes(checked.state)
           || ['erasing','erased'].includes(checked.state) && (checked.receiptSha256 !== null || checked.retryAt !== 0))) {

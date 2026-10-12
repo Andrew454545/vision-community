@@ -91,15 +91,25 @@ function identity(account, lease, now) {
   }
 }
 export function objectAuditDispatchResult(row, fresh = false) {
+  if(row.settled_count===row.location_count && row.settled_units===row.location_count*10) {
+    return {submissionId:row.lease_id,accepted:row.location_count,unitsEarned:0,replayed:true,pendingAudit:false,
+      pending:0,rejected:false,cancelled:false,auditState:'published',freshAuditReply:false,
+      retryAt:0,needsAttention:false,qualificationScope:'batch-only'};
+  }
   return {submissionId:row.lease_id, accepted:0, unitsEarned:0, pendingAudit:row.state === 'pending',
     pending:row.state === 'pending' ? row.location_count : 0, rejected:row.state === 'rejected',
     cancelled:row.state === 'cancelled', auditState:row.native_state, freshAuditReply:fresh,
     retryAt:row.next_attempt, needsAttention:row.transport_failures >= MAX_FAILURES || row.native_state === 'failed',
+    auditProtocol:'object-saved-audit-v1',
     productionQualified:false, serverAuthorization:false};
 }
 const result=objectAuditDispatchResult;
 const readRow = (env, account, lease) => env.DB.prepare(
-  'SELECT * FROM object_audit_candidates WHERE lease_id=? AND account_id=?').bind(lease,account).first();
+  `SELECT c.*,(SELECT COUNT(*) FROM lease_items i JOIN locations l ON l.id=i.location_id
+    JOIN published_index p ON p.location_id=l.id WHERE i.lease_id=c.lease_id AND l.state='published'
+      AND l.contributor_id=c.account_id AND p.object_index_key='object-index-v4/'||c.lease_id||'/') AS settled_count,
+    (SELECT units FROM ledger WHERE reference='lease:'||c.lease_id AND account_id=c.account_id AND reason='verified_work') AS settled_units
+    FROM object_audit_candidates c WHERE c.lease_id=? AND c.account_id=?`).bind(lease,account).first();
 
 // authority is supplied by the trusted qualification/assignment caller, never
 // copied from an HTTP uploader. A saved native approval still cannot authorize
@@ -224,7 +234,7 @@ export async function advanceObjectAudit(env,account,lease,now=Math.floor(Date.n
   if(!initial) throw new ObjectDispatchError('unknown_object_candidate',404);
   const owner=await env.DB.prepare('SELECT 1 FROM accounts WHERE id=? AND deleted_at IS NULL').bind(account).first();
   if(!owner) throw new ObjectDispatchError('account_not_active',401);
-  if(initial.state!=='pending' || initial.transport_failures>=MAX_FAILURES) return result(initial);
+  if(initial.state!=='pending' || initial.transport_failures>=MAX_FAILURES || result(initial).accepted) return result(initial);
   const claim=randomHex(16);
   // Durable per-candidate lease prevents simultaneous status reads/starts from
   // racing saved state. Repeated POST after a lost reply uses identical bytes;

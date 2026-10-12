@@ -138,10 +138,11 @@ class SubmissionOutbox:
                     (self.origin, self.account_id, lease_id)).fetchone()
             if saved:
                 payload = self.decode_delivery(saved)
-                # Objects has no asynchronous audit protocol yet. Keep a
-                # surprising pending reply ready for exact resubmission;
-                # never route it to the Scene audit endpoint.
-                if saved["lane"] == "object" and state == "pending":
+                # Only the explicit Object saved-job protocol may quarantine
+                # delivery. Legacy/unknown pending replies stay ready for an
+                # exact resubmission and never enter the Scene audit route.
+                if saved["lane"] == "object" and state == "pending" and (
+                        result.get("auditProtocol") != "object-saved-audit-v1" or result.get("submissionId") != lease_id):
                     raise ValueError("invalid_submission_result")
                 if state == "accepted":
                     outputs = payload["outputs"] if saved["lane"] == "object" else payload

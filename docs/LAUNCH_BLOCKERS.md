@@ -1,5 +1,10 @@
 # Launch work and dependencies — 10 October 2026
 
+Current integration: [Object auditing now connects to atomic publication,
+once-only credit and saved client delivery](OBJECT_CONTRIBUTION_FLOW.md).
+Authentic qualification, first real assignment/search, terminal-job retention
+and deployment remain open; this does not open public Object admission.
+
 The [Object publication metadata fix](OBJECT_PUBLIC_MANIFEST_20261012.md) now
 removes private manifest extensions and checks current quality semantics before
 writes. Windows passes 203 JavaScript checks, 114 distinct Python checks and

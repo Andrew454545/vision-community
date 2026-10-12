@@ -15,6 +15,7 @@ import { availableCatalogSql, availableLocationSql, freshLeaseItemSql } from './
 import { ingressLimit, accountLimit, viewLimit, ApiLimitError } from './apiRateLimit.js';
 import { OBJECT_INDEX_MODEL, validateObjectIndex } from "./objectIndex.js";
 import { publicObjectManifest } from "./objectPublicManifest.js";
+import { advanceObjectContribution } from './objectAuditFlow.js';
 import { onlineSearch, onlineSearchConfigured, INDEX_DOWNLOAD_ROUTES } from "./onlineSearch.js";
 import { SearchError } from "./searchLedger.js";
 import { searchCost } from "./searchPricing.js";
@@ -836,6 +837,12 @@ async function submit(env, account, body, objectPrototype = false) {
   const leaseRow = await env.DB.prepare("SELECT * FROM leases WHERE id=? AND account_id=?").bind(leaseId, account).first();
   if (!leaseRow) return error("unknown_lease", 404);
   if (leaseRow.state === "submitted") {
+    // A trusted operator stages the exact assignment before this path can
+    // exist. Replayed uploads advance that saved job and recover its once-only
+    // settlement; an HTTP caller cannot choose policy or qualification pins.
+    if(leaseRow.lane==='object' && !objectPrototype && env.OBJECT_SETTLEMENT_POLICY!==undefined) {
+      return json(await advanceObjectContribution(env,account,leaseId,now));
+    }
     // Submitted means uploaded, including quarantine awaiting native audit.
     // A replay must count actual publications rather than promise lease items.
     const receipt = await env.DB.prepare(`SELECT
@@ -1177,7 +1184,7 @@ async function search(env, account, body, objectPrototype = false) {
 const API_METHODS = new Map([
   ["/api/capabilities","GET"],["/api/status","GET"],["/api/me","GET"],["/api/views","GET"],
   ["/api/scene-qualifications","GET,POST"],["/api/object-qualifications","GET,POST"],["/api/accounts","POST"],["/api/recovery","POST"],
-  ["/api/account/delete","POST"],["/api/scene-audits","POST"],["/api/leases/release","POST"],
+  ["/api/account/delete","POST"],["/api/scene-audits","POST"],["/api/object-audits","POST"],["/api/leases/release","POST"],
   ["/api/leases/renew","POST"],["/api/leases","POST"],["/api/submissions","POST"],["/api/searches","POST"]
 ]);
 export default {
@@ -1226,7 +1233,7 @@ export default {
       // Deleted accounts may still replay their own saved deletion receipt.
       if (!anonymous && !account && url.pathname!=="/api/account/delete") return error("unauthorized",401);
       if (!anonymous) await accountLimit(env,request,account);
-      if (["/api/scene-qualifications","/api/scene-audits","/api/leases","/api/submissions","/api/views"].includes(url.pathname)
+      if (["/api/scene-qualifications","/api/scene-audits","/api/object-audits","/api/leases","/api/submissions","/api/views"].includes(url.pathname)
           && !await sceneCohortAllows(env,account)) {
         if (request.body) void request.body.cancel().catch(() => {});
         return error("scene_verification_unavailable",503,{"retry-after":"1800"});
@@ -1259,6 +1266,10 @@ export default {
         return json(await qualifyDevice(env,account,body,validFourViewRecord));
       }
       if (url.pathname === "/api/scene-audits") return json(await auditScene(env,account,body.submissionId));
+      if (url.pathname === "/api/object-audits") {
+        if(env.OBJECT_SETTLEMENT_POLICY===undefined)return error('object_verification_unavailable',503);
+        return json(await advanceObjectContribution(env,account,body.submissionId));
+      }
       if (url.pathname === "/api/leases/release") return await releaseLease(env,account,body);
       if (url.pathname === "/api/leases/renew") return await renewLease(env,account,body);
       const objectPrototype=localObjectPrototype(request,env);
