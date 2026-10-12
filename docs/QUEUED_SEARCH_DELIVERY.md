@@ -56,8 +56,42 @@ Expiry releases holds on the next queue/status/owner interaction; it needs no
 cron. A completely stopped service does not perform background database cleanup.
 The browser adds no automatic search polling: recovery is an explicit user action.
 The transport exposes a finite `run_once()` method, not an installed supervisor.
-Future approved supervision must back off at least 30 seconds when idle and longer
-on quota/outage/auth failures; it must not spin or add a paid fallback.
+The optional [owner supervisor library](../community/owner_search_supervisor.py)
+now supplies durable pacing, but has not been activated or registered with either
+OS. Its idle delay is 30–38 seconds, successful work waits at least five seconds,
+and quota/outage/native-failure retries double from 60 seconds to a one-hour cap,
+with additive jitter. Crashes also preserve and increase the retry timer across
+restart. Success resets transient failure counts. No paid fallback exists.
+
+The supervisor saves a conservative retry deadline **before** network/native work,
+uses a separate writer lock and never holds it while sleeping. Fully written
+pending timer state recovers an interrupted rename; corrupt/partial state remains
+preserved and stops execution. PAUSE/STOP win over timers, an intentional pause
+is not reported as a crash, and the explicit loop uses interruptible waits.
+Authentication and malformed configuration/replies latch for operator repair
+instead of repeatedly probing a bad connection. An explicit connection reset
+preserves the completion outbox, first fixed-code failure report and pause/stop
+markers. Diagnostics contain no arbitrary exception text, query or credential.
+This library has no command-line entry point, listener, startup installer or import
+side effects. No real owner loop or background task was started.
+
+The optional [OS credential reader](../community/owner_search_credentials.py)
+and `HTTPSCoordinator.from_os_credentials(origin)` read only a deliberately
+provisioned owner-search entry for that exact HTTPS origin. The service/target is
+`VISIONCommunity.OwnerSearch.` followed by SHA-256 of the canonical origin; the
+entry account is `owner-search-agent`. Windows uses one generic `CredReadW`
+lookup and frees the native buffer. Mac uses Apple's fixed `/usr/bin/security`
+binary for one service/account in the current user's login keychain, bounded
+private stdout and a ten-second owned-child timeout. It never enumerates, writes,
+unlocks or changes vault permissions, and has no plaintext/file/environment
+fallback. Missing, denied or malformed entries fail with a fixed error. The secret
+is used in process memory for HTTPS; this is not protection against an attacker
+already controlling that OS user or process. No real OS vault was accessed or
+credential provisioned during implementation. Future provisioning must use the
+normal OS interface, without passing secrets in command arguments or this chat.
+References: [Microsoft CredReadW](https://learn.microsoft.com/en-us/windows/win32/api/wincred/nf-wincred-credreadw),
+[CREDENTIALW](https://learn.microsoft.com/en-us/windows/win32/api/wincred/ns-wincred-credentialw),
+[Apple security manual](https://github.com/apple-oss-distributions/Security/blob/main/SecurityTool/macOS/security.1).
 
 The website discloses owner-side processing when queued mode is advertised.
 Waiting raw query JSON is cleared at terminal transitions. Saved paid maps and
@@ -117,12 +151,27 @@ skips** (Node 24.19.0, Python 3.12.14). Browser script syntax, unique HTML IDs a
 local script links also passed. The native engine and outbound transport were
 fixtures; no real inference, provider request or cloud activation occurred.
 
+The subsequent supervision change passed **31 Windows Python checks, no skips**:
+17 new pacing/restart/locking/pause/storage/authentication checks plus the existing
+14 transport checks. Its clocks, native engine, coordinator and stop event were
+fixtures; tests neither waited in real time nor contacted an external service.
+Logs and hashes are private in `work/owner-supervision-20261012/receipt.json`.
+This evidence does not establish Mac OS locking, credential storage, startup after
+reboot or a running month-long service. OS startup integration and secure credential
+provisioning still require implementation and approved activation.
+
+The combined follow-up passed **40 Windows Python checks, no skips** (nine
+credential-reader checks, 17 supervisor checks and 14 transport checks). Both OS
+vault APIs, the Mac child process and all network/model interfaces were mocked;
+no live credential access or Mac execution is claimed. The same private evidence
+folder retains the earlier 30/31-check runs and the final combined receipt.
+
 These are offline protocol/accounting checks. They do **not** prove real Mac/PC
 inference, accepted contributions, live owner execution, Free-plan CPU/row budgets,
 signing or a continuous soak. In particular, existing gateway membership checks
 still use per-location D1 records; result validation and the historical catalog
 need measured Free-plan adaptation. Durable paid replies also consume growing
 storage and need an authorized retention/storage design. Next: outbound trusted
-verification/import jobs and sealed-batch membership, owner supervision/secure
-credentials and Object search engine integration; then the approved migration,
+verification/import jobs and sealed-batch membership, owner startup/credential
+provisioning and Object search engine integration; then the approved migration,
 real acceptance/capacity evidence and [remaining launch gates](PRODUCTION_ACCEPTANCE.md).
