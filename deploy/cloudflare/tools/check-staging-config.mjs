@@ -28,8 +28,9 @@ export function checkStagingConfig(config) {
     html_handling: 'auto-trailing-slash', not_found_handling: '404-page', run_worker_first: true });
   assert.equal(config.preview_urls, false);
   assert.deepEqual(config.observability, { enabled: false });
-  assert.equal(config.workers_dev, true);
-  assert.deepEqual(config.triggers, { crons: ['0 * * * *'] });
+  // Preserve the owner's 2026-10-12 cost stop, including after a later deploy.
+  assert.equal(config.workers_dev, false);
+  assert.deepEqual(config.triggers, { crons: [] });
   const allowed = new Set(['name', 'account_id', 'main', 'compatibility_date', 'compatibility_flags',
     'workers_dev', 'preview_urls', 'observability', 'triggers', 'd1_databases', 'r2_buckets',
     'ratelimits', 'services', 'vars', 'assets', '$schema']);

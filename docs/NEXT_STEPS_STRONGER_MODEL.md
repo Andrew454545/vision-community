@@ -1,5 +1,11 @@
 # Continue the release
 
+**Current priority:** the [owner cost hold](COST_STOP_20261012.md) and
+[architecture recommendation](COST_OPTIONS_20261012.md). Andrew asked for
+discussion before implementation. Do not execute the queued launch steps below,
+deploy, access cloud resources or restart indexing/pilots while that hold remains.
+Offline analysis and source maintenance preserving the hold may continue.
+
 Read [current acceptance](PRODUCTION_ACCEPTANCE.md) and [remaining work](LAUNCH_BLOCKERS.md).
 Do not infer current state from old “pending” paragraphs in the
 [preserved historical handoff](NEXT_STEPS_STRONGER_MODEL_HISTORY_20261012.md).
@@ -20,9 +26,9 @@ Do not infer current state from old “pending” paragraphs in the
 4. Complete independent recovery/capacity and signing/package preparation while
    external material is pending. Signing accounts and test devices cannot be
    invented or replaced by source checks. The user offered to recruit testers.
-5. Preserve the frozen Windows Scene-only pilot/refresher. Inspect meaningful
-   new receipts or final receipts after their deadlines; do not spend runs
-   polling healthy work. Full Windows/Mac accepted-work soaks remain unstarted.
+5. Preserve the intentionally stopped Windows Scene-only pilot/refresher and
+   their original deadline/pins/evidence. Do not restart or call this a continuous
+   pass. Full Windows/Mac accepted-work soaks remain unstarted.
 6. Freeze and roll out only with evidence for all five gates and a rollback that
    preserves accepted work, deletion authority, balances and saved paid replies.
 

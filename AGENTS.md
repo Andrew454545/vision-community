@@ -1,5 +1,19 @@
 # Development constraints
 
+## Current owner cost hold (12 October 2026)
+
+Read [the recorded stop](docs/COST_STOP_20261012.md) and
+[the options awaiting a decision](docs/COST_OPTIONS_20261012.md) first.
+Andrew paused all Community cloud compute and requested an architecture
+recommendation before implementation. Do not restart local indexing, the Scene
+pilot/refresher, cloud services, provider tests, deployments or Actions. Do not
+make Cloudflare account reads or account-wide changes. Offline analysis and
+source maintenance preserving the hold are allowed. Keep native allowances at
+zero, workers.dev/previews off and crons empty; preserve data, credentials and
+all evidence. Ordinary requests to continue do not lift this specific hold.
+The three recorded Windows tasks remain disabled; this supersedes the general
+instruction below to keep the contributor recovery task enabled.
+
 GitHub Actions spending is on hold at the user's request (8 October 2026).
 Until that restriction is explicitly lifted:
 
