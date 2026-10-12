@@ -3,36 +3,30 @@
 Process Street View locations on your computer. Accepted contributions earn
 credits for visual searches.
 
-Processing and online search are currently closed.
-The current download is a **Windows Scenes preview**. The public release will
-also offer Mac, Objects and Both when those options are ready.
+**Processing and online search are paused.** Please wait before downloading,
+setting up or restarting VISION. Download links will return when the service is
+ready. [Current guidance](START-HERE.md).
 
-Contribution batches exclude locations already indexed or reserved locally.
-[How locations are allocated](docs/CONTRIBUTOR_POOL.md).
+## Already have VISION?
 
-## Get started on Windows
+Keep your VISION folder and private account code. If automatic processing is
+still running, choose **Pause after batch** and leave it paused. Saved work and
+previously earned credits are being preserved; you do not need to reinstall.
 
-1. [Download VISION](https://github.com/Andrew454545/vision-community/releases/download/windows-starter-preview-20261004-recovery/VISION-Community-Windows.zip).
-2. Right-click the ZIP → **Extract All**. Open **VISION Community** → **Start VISION.cmd**.
-3. Type **Y** and press **Enter** when asked. Follow the four steps in VISION.
+## When the service opens
 
-For Intel or AMD Windows PCs. No Python, Git or administrator password needed.
+The release is intended for Windows PCs and Apple-silicon Macs, with **Scenes**,
+**Objects** or **Both**. Setup will guide you through installation, saving your
+account code and checking your computer before processing.
 
-[Setup guide](START-HERE.md) · The download includes **START HERE.html**.
-
-## Automatic processing
-
-Open **Background VISION.cmd**, enter your saved account code and choose your
-daytime and nighttime speeds. Select **Save and enable**.
-
-[Automatic processing guide](START-HERE.md#automatic-processing)
-
-## Search credits
+Automatic processing supports daytime and nighttime speeds. The default is
+**Medium during the day** and **Maximum from midnight to 6 am**. A sleeping or
+switched-off computer cannot process; recovery resumes saved work when it is
+awake, signed in and online.
 
 Each accepted Scene location earns **1 unit**; an accepted Object location earns
-**10 units**. A search costs **100,000 units**.
-Unused credits stay saved. Keep your account code private; lost codes cannot be recovered.
+**10 units**. Unused credits stay saved. The account shows the search price before
+you confirm. Keep your account code private; lost codes cannot be recovered.
 
-[Open the website](https://vision-community.visioncommunity.workers.dev) ·
-[Developer guide](https://github.com/Andrew454545/vision-community/blob/codex/windows-production-readiness/docs/DEVELOPER_GUIDE.md) ·
-[Contributing](CONTRIBUTING.md)
+[How locations are allocated](docs/CONTRIBUTOR_POOL.md) ·
+[Developer guide](docs/DEVELOPER_GUIDE.md) · [Contributing](CONTRIBUTING.md)
