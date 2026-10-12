@@ -6,6 +6,12 @@ and [cost options awaiting discussion](COST_OPTIONS_20261012.md). No deployment,
 paid test or restart is authorized; earlier operating instructions do not lift
 this hold. The launch gates below remain open.
 
+**Offline build approved:** the laptop user subsequently authorized implementing
+the recommended cheaper design locally. [Queued search delivery](QUEUED_SEARCH_DELIVERY.md)
+now has source-level reservations, owner-outbound delivery, once-only settlement
+and browser recovery/cancellation. It is disabled and undeployed; the operational
+hold and all authentic/platform acceptance requirements remain in force.
+
 **Public launch remains closed.** The release covers Windows and Apple-silicon
 Mac, Scenes / Objects / Both, online search with banked credits, and unattended
 processing. A full corpus is not required before launch. These five gates define

@@ -1,5 +1,5 @@
 import { randomHex, sha256Hex, encodeUtf8, SEARCH_COST, viewOffsetsFor, wrapHeading } from "./model.js";
-import { replaySearch, settleSearch, SearchError } from "./searchLedger.js";
+import { replaySearch, settleSearch, SearchError, requireFreshSearchRequest } from "./searchLedger.js";
 import { SEARCH_CONTRACT_VERSION, querySemantics, validHitObject, exportSearchMap } from "./searchExport.js";
 import { officialGen4Coverage } from "./objectCoverage.js";
 import { searchCost, validSearchQuote } from "./searchPricing.js";
@@ -80,12 +80,7 @@ async function engineResult(env, query, digest) {
   for (const chunk of chunks) { bytes.set(chunk, position); position += chunk.byteLength; }
   let result;
   try { result = JSON.parse(new TextDecoder().decode(bytes)); } catch { throw new SearchError("search_unavailable"); }
-  if (result?.contractVersion !== SEARCH_CONTRACT_VERSION || result.policyId !== env.SEARCH_POLICY_ID
-      || result.runtimeSha256 !== env.SEARCH_RUNTIME_SHA256 || result.snapshotSha256 !== snapshotSha256
-      || result.requestSha256 !== digest.slice(7) || !Array.isArray(result.hits)
-      || result.hits.length > query.resultCount || !Number.isSafeInteger(result.processedLocations)
-      || result.processedLocations < result.hits.length) throw new SearchError("search_unavailable");
-  return result;
+  return { result, snapshotSha256 };
 }
 
 function distance(a, b) {
@@ -160,11 +155,26 @@ async function verifiedHits(db, query, hits, processedLocations) {
   return verified;
 }
 
+// Both delivery paths use the same contributor membership, strict official
+// Gen4 Object, pose, ordering, score and request/runtime/snapshot checks.
+export async function verifiedSearchResult(env, query, digest, result, snapshotSha256, searchId, cost) {
+  if (result?.contractVersion !== SEARCH_CONTRACT_VERSION || result.policyId !== env.SEARCH_POLICY_ID
+      || result.runtimeSha256 !== env.SEARCH_RUNTIME_SHA256 || result.snapshotSha256 !== snapshotSha256
+      || result.requestSha256 !== digest.slice(7) || !Array.isArray(result.hits)
+      || result.hits.length > query.resultCount || !Number.isSafeInteger(result.processedLocations)
+      || result.processedLocations < result.hits.length) throw new SearchError("search_unavailable");
+  const hits = await verifiedHits(env.DB, query, result.hits, result.processedLocations);
+  return { searchId, query: query.queryName, lane: query.lane, results: hits, costUnits: cost,
+    demo: false, persistImagery: false, local: false,
+    map: exportSearchMap(query, hits, result.processedLocations) };
+}
+
 export async function onlineSearch(env, account, key, query, { allowNew = true, maxCostUnits } = {}) {
   if (typeof key !== "string" || key.length < 8 || key.length > 100) throw new SearchError("invalid_idempotency_key", 400);
   const digest = await searchDigest(query);
   const replay = await replaySearch(env.DB, account, key, digest);
   if (replay) return replay;
+  requireFreshSearchRequest(key, undefined, { allowLegacy: true });
   // Expired/removed invitations cannot incur new work or debit, but must not
   // hide a reply that this account already paid for.
   if (!await sceneCohortAllows(env, account)) throw new SearchError("search_unavailable");
@@ -182,10 +192,6 @@ export async function onlineSearch(env, account, key, query, { allowNew = true, 
   if (!owner) throw new SearchError("unauthorized", 401);
   if (owner.units < cost) throw new SearchError("insufficient_credit", 402);
   const computed = await engineResult(env, query, digest);
-  const hits = await verifiedHits(env.DB, query, computed.hits, computed.processedLocations);
-  return settleSearch(env.DB, account, key, digest, {
-    searchId: randomHex(16), query: query.queryName, lane: query.lane, results: hits, costUnits: cost,
-    demo: false, persistImagery: false, local: false,
-    map: exportSearchMap(query, hits, computed.processedLocations),
-  }, cost);
+  const result = await verifiedSearchResult(env, query, digest, computed.result, computed.snapshotSha256, randomHex(16), cost);
+  return settleSearch(env.DB, account, key, digest, result, cost);
 }

@@ -3,7 +3,7 @@
 ## Current owner cost hold (12 October 2026)
 
 Read [the recorded stop](docs/COST_STOP_20261012.md) and
-[the options awaiting a decision](docs/COST_OPTIONS_20261012.md) first.
+[the cost architecture](docs/COST_OPTIONS_20261012.md) first.
 Andrew paused all Community cloud compute and requested an architecture
 recommendation before implementation. Do not restart local indexing, the Scene
 pilot/refresher, cloud services, provider tests, deployments or Actions. Do not
@@ -13,6 +13,15 @@ zero, workers.dev/previews off and crons empty; preserve data, credentials and
 all evidence. Ordinary requests to continue do not lift this specific hold.
 The three recorded Windows tasks remain disabled; this supersedes the general
 instruction below to keep the contributor recovery task enabled.
+
+The laptop user explicitly approved implementing the recommended cheaper design
+**locally** on 12 October, after being asked about that specific scope. Offline
+architecture implementation and meaningful local synthetic verification may
+proceed. This does not authorize cloud access, resource/account/data migration,
+deployment, paid tests, Actions or restarting indexing/pilots. Preserve the
+operational hold, signing requirements and authentic release gates. Start from
+[queued search delivery](docs/QUEUED_SEARCH_DELIVERY.md); do not mistake its offline
+accounting evidence for real inference qualification or Free-plan capacity.
 
 GitHub Actions spending is on hold at the user's request (8 October 2026).
 Until that restriction is explicitly lifted:

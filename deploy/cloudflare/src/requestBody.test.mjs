@@ -37,6 +37,15 @@ test('invalid UTF-8, JSON shapes and mismatched lengths are not accepted', async
     await assert.rejects(readRequestJson(request(body)),{status:400});
   await assert.rejects(readRequestJson(request('{}',{'content-length':'1'})),{status:400});
 });
+
+test('route-specific budgets reject oversized streams and declarations without changing the normal limit', async () => {
+  assert.deepEqual(await readRequestJson(request('{}'), 1000, 2), {});
+  await assert.rejects(readRequestJson(request('{} '), 1000, 2), { status: 413 });
+  await assert.rejects(readRequestJson(request('{}', { 'content-length': '3' }), 1000, 2), { status: 413 });
+  for (const limit of [0, -1, 1.5, MAX_JSON_BODY_BYTES + 1])
+    await assert.rejects(readRequestJson(request('{}'), 1000, limit), { status: 500 });
+  assert.deepEqual(await readRequestJson(request('{} ')), {});
+});
 test('stalled reads have a deadline even when cancellation never finishes', async () => {
   let cancelled=false;
   const body=new ReadableStream({cancel() {cancelled=true;return new Promise(()=>{});}});

@@ -30,6 +30,10 @@ const ERRORS = {
   cross_origin_request: "That request was blocked.",
   internal_error: "Something went wrong. Try again in a moment.",
   search_unavailable: "Online search is unavailable right now. Your search credits are safe. Try again later.",
+  search_queue_full: "Search is busy. Your credits are safe. Try Recover search later.",
+  search_request_expired: "This saved request expired without spending credits. Choose Run Search to start again.",
+  search_query_too_large: "Use a smaller map or at most 1,000 results for this search. No credits were spent.",
+  request_too_large: "That request is too large. Use a smaller map. No credits were spent.",
   invalid_service_response: "The service response could not be read. Try again. Any pending search stays saved for recovery.",
   service_unavailable: "The service is unavailable. Check again later.",
   online_search_required: "Shared searches now run here in your browser using your banked credits.",
@@ -838,6 +842,8 @@ function updateReady() {
   $("ready-badge").classList.toggle("ok", hasInput);
   $("run-search").disabled = !ready || deletionBlocksSearch();
   $("run-search").textContent = pending ? "Recover search" : "Run Search";
+  if ($('cancel-search')) $('cancel-search').hidden = !pending || state?.searchDelivery !== 'queued' || deletionBlocksSearch();
+  if ($('search-delivery-note')) $('search-delivery-note').hidden = state?.searchDelivery !== 'queued';
   if (!signedIn) {
     $("run-search").title = "Get a private account to use your banked search credits";
   } else if (!onSite && !pending) {
@@ -1595,7 +1601,28 @@ $("run-search").addEventListener("click", async () => {
       minimumGlobalLocation: selectedImportCutoff(),
     });
     $("search-status").textContent = savedRequest.recovering ? "Recovering your previous search…" : "Searching online…";
-    const result = await api("/api/searches", "POST", savedRequest.body);
+    let result;
+    if (savedRequest.recovering) {
+      try { result = await api(`/api/searches/recover?idempotencyKey=${encodeURIComponent(savedRequest.body.idempotencyKey)}`); }
+      catch (error) { if (error.status !== 404) throw error; }
+    }
+    if (!result) result = await api("/api/searches", "POST", savedRequest.body);
+    if (result.queued) {
+      if (state.accountId !== searchAccount) return;
+      const active = ['queued', 'claimed'].includes(result.state);
+      $('cancel-search').hidden = !active;
+      if (active) {
+        $('search-status').textContent = result.state === 'claimed'
+          ? 'Your search is running. You can close this page and choose Recover search later.'
+          : 'Your search is waiting. You can close this page and choose Recover search later. Credits are reserved until it finishes.';
+      } else {
+        searchJournal.complete(searchAccount, savedRequest.body.idempotencyKey);
+        $('search-status').textContent = 'This search did not finish. No credits were spent. You can run a new search.';
+      }
+      await refresh();
+      return;
+    }
+    $('cancel-search').hidden = true;
     if (state.accountId !== searchAccount) {
       searchJournal.complete(searchAccount, savedRequest.body.idempotencyKey, result);
       return;
@@ -1636,11 +1663,32 @@ $("run-search").addEventListener("click", async () => {
       $("search-status").textContent = `${explain(error)} ${VisionSearchPricing.message(state)} Choose Recover search to review the price.`;
       return;
     }
-    if (error.status === 400 && savedRequest) searchJournal.complete(searchAccount, savedRequest.body.idempotencyKey);
+    if ([400, 413].includes(error.status) && savedRequest) searchJournal.complete(searchAccount, savedRequest.body.idempotencyKey);
     $("search-status").textContent = `Search stopped: ${explain(error)}`;
   } finally {
     updateReady();
   }
+});
+
+$('cancel-search')?.addEventListener('click', async () => {
+  const account = state?.accountId;
+  const button = $('cancel-search');
+  button.disabled = true;
+  try {
+    const pending = searchJournal.read(account);
+    if (!pending) { button.hidden = true; return; }
+    const result = await api('/api/search-jobs/cancel', 'POST', { accountId: account, idempotencyKey: pending.idempotencyKey });
+    if (state?.accountId !== account) return;
+    if (result.queued && ['cancelled', 'expired', 'failed'].includes(result.state)) {
+      searchJournal.complete(account, pending.idempotencyKey);
+      $('search-status').textContent = 'Search cancelled. No credits were spent.';
+    } else {
+      $('search-status').textContent = 'Your search already finished. Choose Recover search to get your results.';
+    }
+    button.hidden = true;
+    await refresh();
+  } catch (error) { $('search-status').textContent = explain(error); }
+  finally { button.disabled = false; updateReady(); }
 });
 
 $("download-map").addEventListener("click", downloadMap);

@@ -45,6 +45,7 @@ test("lost search response is recovered with the same key and exact original que
   assert.equal(restarted.recovering, true);
   assert.equal(JSON.stringify(restarted.body), JSON.stringify(first.body));
   assert.equal(restarted.body.idempotencyKey, first.body.idempotencyKey);
+  assert.match(first.body.idempotencyKey, /^q1\.[0-9]{10}\.[0-9a-f]{32}$/);
 });
 
 test("accounts cannot recover each other's query or results", () => {

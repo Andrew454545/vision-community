@@ -1,10 +1,13 @@
 # Continue the release
 
 **Current priority:** the [owner cost hold](COST_STOP_20261012.md) and
-[architecture recommendation](COST_OPTIONS_20261012.md). Andrew asked for
-discussion before implementation. Do not execute the queued launch steps below,
+[architecture recommendation](COST_OPTIONS_20261012.md). The laptop user approved
+building that design locally. [Queued search delivery](QUEUED_SEARCH_DELIVERY.md)
+is now implemented and synthetically checked, disabled and undeployed. Continue
+offline trusted owner verification/import and sealed-batch membership; do not
+repeat the completed queue checks without a new change/failure. Do not execute live launch steps,
 deploy, access cloud resources or restart indexing/pilots while that hold remains.
-Offline analysis and source maintenance preserving the hold may continue.
+Offline implementation and meaningful local verification preserving the hold may continue.
 
 Read [current acceptance](PRODUCTION_ACCEPTANCE.md) and [remaining work](LAUNCH_BLOCKERS.md).
 Do not infer current state from old “pending” paragraphs in the

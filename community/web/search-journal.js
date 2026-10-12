@@ -33,7 +33,10 @@ globalThis.VisionSearchJournal = class {
   prepare(account, query) {
     const pending = this.read(account);
     if (pending) return { body: pending, recovering: true };
-    const body = { ...query, accountId: account, idempotencyKey: crypto.randomUUID() };
+    // The timestamp is part of the immutable key. After a cancelled/failed
+    // queue tombstone is pruned, a months-old recovery cannot become new work.
+    const idempotencyKey = `q1.${Math.floor(Date.now() / 1000)}.${crypto.randomUUID().replaceAll('-', '')}`;
+    const body = { ...query, accountId: account, idempotencyKey };
     try { this.storage.setItem(this.key(account), JSON.stringify(body)); }
     catch { throw new Error("search_storage_unavailable"); }
     return { body, recovering: false };
