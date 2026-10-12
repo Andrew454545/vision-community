@@ -1,12 +1,18 @@
 # Private native scene host
 
+**Owner cost hold, 12 October 2026:** this service is paused. Do not deploy,
+start diagnostics, restore crons or raise either zero native allowance. The
+procedures below are retained for future authorized operation. See the
+[stop record](../../../docs/COST_STOP_20261012.md) and
+[architecture options](../../../docs/COST_OPTIONS_20261012.md).
+
 Runs the pinned Linux VISION image inside the existing private staging Container. The public website cannot call native search, audit or qualification directly.
 
 - Bind `NativeSceneSearch` for search and `NativeSceneVerification` for audit/qualification.
 - Use `NativeSceneOperator` only through an account-private operator service binding. A one-time staging check can use `tools/private-native-host-check.js` while all public routes remain disabled. It refuses an existing sealed bundle, persists a redacted report and stops compute. Remove its trigger after the check.
 - Set separate `VISION_HOST_SECRET` and `VISION_HOST_OPERATOR_SECRET` secrets. Operator HTTP access also requires `HOST_OPERATOR_INGRESS_SECRET` (existing staging `PROBE_SECRET` is supported).
 - Keep `NATIVE_IMAGE` digest-pinned and `NATIVE_RUNTIME_SHA256` matched to its verified runtime.
-- Set `NATIVE_DAILY_COMPUTE_REQUESTS` and `NATIVE_DAILY_CONTAINER_STARTS` explicitly. The private staging defaults are 48 operations and 12 starts per UTC day. Missing or invalid values block compute.
+- Both `NATIVE_DAILY_COMPUTE_REQUESTS` and `NATIVE_DAILY_CONTAINER_STARTS` are now `0`. The unchanged guard rejects zero before native side effects; this deliberately blocks compute. The former 48/12 allowances must not be restored without Andrew's explicit budget/restart decision.
 - Deploy the complete `wrangler.jsonc` with `--keep-vars`. Preserve both the named `exports.NativeHostProbe.container` attachment and `containers[].images`; a code-only upload can remove the runtime image map while leaving environment bindings intact.
 - Store sealed operator bundles only under `vision-community-staging/native-host/bundles/<sha256>.zip`. POST `/operator/bundle` with `{ "version": 1, "key": "native-host/bundles/<sha256>.zip", "sha256": "<sha256>", "bytes": 123 }`.
 

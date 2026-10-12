@@ -1,7 +1,10 @@
 # Architecture decision (2026-09-19)
 
-> Historical design notes. The current requirements and unresolved local-search
-> credit-enforcement tradeoff are in [Production acceptance](docs/PRODUCTION_ACCEPTANCE.md).
+> Historical design notes. The user chose online searches with banked credits.
+> Current requirements are in [Production acceptance](docs/PRODUCTION_ACCEPTANCE.md).
+> The [owner cost hold](docs/COST_STOP_20261012.md) supersedes earlier operating
+> instructions; [replacement architecture options](docs/COST_OPTIONS_20261012.md)
+> await a decision and have not been implemented.
 > Capacity and cost statements below are estimates, not verified launch claims.
 
 The public site is a **shared indexing queue**. Place indexing runs

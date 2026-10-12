@@ -3,15 +3,16 @@ account_id = "272760294910ef0b246980278aeb36e2"
 main = "src/worker.js"
 compatibility_date = "2026-09-19"
 compatibility_flags = ["nodejs_compat"]
-workers_dev = true
+workers_dev = false
 preview_urls = false
 
 [observability]
 enabled = false
 
-# Bounded retries for unpublished artifacts after an account deletion.
+# Owner cost hold, 2026-10-12: no deployment or schedule restart is authorized.
+# Pending deletion cleanup remains preserved and must resume after a decision.
 [triggers]
-crons = ["0 * * * *"]
+crons = []
 
 # D1 holds the prototype ledger. INDEX is the durable sealed-segment copy.
 # Production 200M search will not run in this Worker. Do not bind any other bucket.

@@ -1,5 +1,11 @@
 # Production acceptance
 
+**Owner cost hold, 12 October:** all Community cloud execution and the local
+pilot/refresher/indexing tasks are paused. Read the [stop record](COST_STOP_20261012.md)
+and [cost options awaiting discussion](COST_OPTIONS_20261012.md). No deployment,
+paid test or restart is authorized; earlier operating instructions do not lift
+this hold. The launch gates below remain open.
+
 **Public launch remains closed.** The release covers Windows and Apple-silicon
 Mac, Scenes / Objects / Both, online search with banked credits, and unattended
 processing. A full corpus is not required before launch. These five gates define
@@ -15,7 +21,7 @@ status. Use [next actions](LAUNCH_BLOCKERS.md) to continue work.
 |---|---|---|
 | Trusted contributions | Real restricted Windows CPU1 Scene publication; complete fixed-input Scene comparisons; three-location exploratory Mac/PC Object comparison; Object quarantine, independent audit, publication and once-only credit connected in source. | Fresh legitimate protected-source authority, exact measured runtime policies, trusted rotating Object assignments, and real qualified Windows/Mac Scenes / Objects / Both admission. |
 | Earned-credit search | Real Windows Scene searches funded by accepted contributions; exact paid-result recovery without another debit; contributor-only index authority. | Real Object and equivalent Mac earned-credit search, automatic publication refresh after future real work, and measured initial pricing/capacity. |
-| Unattended operation | Native startup/recovery controls, saved uploads, day/night scheduling, descendant ownership; bounded append-only Object registry rollover and published-job cleanup in source; separate Windows Scene pilot started. | Trusted Object assignment automation and verified deployment, verified parallel Maximum profiles, real interruption/schedule checks and seven-day accepted work on each OS with both lanes. |
+| Unattended operation | Native startup/recovery controls, saved uploads, day/night scheduling, descendant ownership; bounded append-only Object registry rollover and published-job cleanup in source; separate Windows Scene pilot intentionally stopped under the cost hold. | An approved affordable architecture, trusted Object assignment automation and verified deployment, verified parallel Maximum profiles, real interruption/schedule checks and seven-day accepted work on each OS with both lanes. |
 | Beginner downloads | Guided lane choices, private runtime/model setup, platform packaging and lifecycle source checks. | Legitimate organization signing accounts, trusted immutable downloads, clean Windows/Mac installation/update/removal and nontechnical-user acceptance. |
 | Production operations | Consented full historical database rehearsal; offline deletion/financial recovery; Object acceptance and credit survive local upgrade/SQL restore; durable native compute allowance. | Full provider/R2/native-bundle/secret recovery with independent current deletion/financial authority, a fresh consistent cutoff, measured load/storage costs and enforceable spending bounds. |
 
@@ -26,10 +32,11 @@ bypassed.
 
 ## Current processing and verification
 
-- The frozen Windows **Scene-only** pilot targets **17 October, 07:27:14 UTC**
-  (02:27:14 CDT). Its hourly refresher ends at 06:27 UTC. Preserve source/config
-  pins and shared writer lock; these jobs run independently of Codex. Do not
-  routinely poll or restart them. Their final reconciliation is still pending.
+- The frozen Windows **Scene-only** pilot and hourly refresher were disabled
+  and stopped at **12 October, 08:56:39 UTC**, at Andrew's request. Preserve their
+  original 17 October target, source/config pins, writer lock and receipts.
+  No uninterrupted seven-day pass can be claimed. Saved acceptance totals still
+  need independent reconciliation after the cost hold permits it.
 - The full Windows and Mac Scenes / Objects / Both seven-day clocks have **not
   started**. They require authentic qualified work and genuinely earned search
   credit first. The Scene pilot does not replace them.
@@ -53,7 +60,7 @@ bypassed.
 | Completed component | Evidence and limits |
 |---|---|
 | Windows real Scene publication/search | [Finite controlled cohort](WINDOWS_SCENE_COHORT_20261010.md); [automatic refresh](SCENE_AUTOMATIC_REFRESH_20261010.md). The first future real append and equivalent Mac/Object work remain open. |
-| Current Scene endurance pilot | [Start and frozen configuration](WINDOWS_SCENE_WEEK_PILOT_20261010.md). No final seven-day success is claimed. |
+| Interrupted Scene endurance pilot | [Start and frozen configuration](WINDOWS_SCENE_WEEK_PILOT_20261010.md); [intentional cost stop](COST_STOP_20261012.md). No final seven-day success is claimed. |
 | Failed offline diagnostic | [Terminal result](WINDOWS_WINDOWLESS_ENDURANCE_20261009.md). Original failed attempts remain preserved. |
 | Object comparison | [Mac/Windows exploration](OBJECT_CROSS_PLATFORM_20261009.md). Three saved locations are not general production qualification. |
 | Scene/protection source bridge | [Community Scene bridge](NATIVE_COMMUNITY_SCENE_BRIDGE_20261010.md); [received protected capture](PROTECTED_CAPTURE_CONSUMPTION.md); [origin audit](OBJECT_ORIGIN_AUDIT_20261011.md). The original capture expiry is preserved; portable live protection remains open. |
