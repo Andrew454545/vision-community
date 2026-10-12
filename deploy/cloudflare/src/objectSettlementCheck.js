@@ -117,7 +117,7 @@ export async function checkObjectSettlement(env,account,lease,now=Math.floor(Dat
     if(performance.now()-started>=timeoutMs) fail();
     // Private in-memory bytes for the eventual guarded writer, never an HTTP
     // reply or portable approval. No R2/D1 mutation occurs in this function.
-    return {leaseId:lease,records,objectIndex:index,publicManifest,source,files,receipt,evidenceSha256,
+    return {leaseId:lease,records,objectIndex:index,publicManifest,source,files,receipt,evidenceSha256,databaseSnapshot:after,
       verificationScope:'object-candidate-integrity-only',serverAuthorization:false,
       productionQualified:false,acceptedContributions:0,searchCreditsCreated:0};
   } catch(error) {

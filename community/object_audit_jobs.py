@@ -256,6 +256,28 @@ class ObjectAuditJobs:
             require(row is not None, 'unknown_object_job', 404)
             return self.response(row)
 
+    def settlement_evidence(self, job):
+        # Fresh, batch-scoped evidence only. Publication and financial authority
+        # stay in the coordinator. Rehash inputs, but never run inference here.
+        with self.lock, self.connect() as db:
+            require(not self.stop.is_set(), 'object_verifier_unavailable', 503)
+            row = db.execute('SELECT * FROM jobs WHERE id=?', (job,)).fetchone()
+            require(row is not None, 'unknown_object_job', 404)
+            require(row['state'] == 'approved' and self.verifier.origin_path is not None,
+                    'object_verifier_unavailable', 503)
+            decision, receipt = self.receipt(row, full=True)
+            require(decision == 'approved' and receipt == row['receipt'],
+                    'object_verifier_unavailable', 503)
+            issued = int(self.clock())
+            policy = self.verifier.document
+            return {'audit': self.response(row), 'policySha256': self.verifier.policy_sha256,
+                'runtimeProfileSha256': self.verifier.profile['sha256'],
+                'qualityImplementationIdentity': policy['qualityImplementationIdentity'],
+                'protectedAuthoritySha256': policy['protectedAuthority']['sha256'],
+                'protectedOriginHandoffSha256': policy['protectedOriginHandoffSha256'],
+                'resource': policy['resource'], 'qualificationScope': 'batch-only',
+                'issuedAt': issued, 'expiresAt': issued + 30}
+
     def submit(self, raw):
         require(isinstance(raw, bytes) and 0 < len(raw) <= MAX_REQUEST)
         body = strict_json(raw)
@@ -594,7 +616,7 @@ def make_server(jobs, secret, *, port=0):
         def dispatch(self):
             if not hmac.compare_digest(self.headers.get('Authorization', '').encode(), ('Bearer ' + secret).encode()):
                 return self.reply(401, {'error': 'unauthorized'})
-            route = re.fullmatch(r'/object-audits/([0-9a-f]{32})(?:/(cancel|retry|erase))?', self.path)
+            route = re.fullmatch(r'/object-audits/([0-9a-f]{32})(?:/(cancel|retry|erase|settlement-evidence))?', self.path)
             erasure = re.fullmatch(r'/object-assignments/([0-9a-f]{32})/erase', self.path)
             try:
                 if self.command == 'GET' and route and route[2] is None:
@@ -612,7 +634,8 @@ def make_server(jobs, secret, *, port=0):
                 elif route:
                     control = strict_json(raw)
                     require(control == {} or route[2] == 'retry' and isinstance(control, dict))
-                    value = jobs.control(route[1], route[2], control if control else None)
+                    value = (jobs.settlement_evidence(route[1]) if route[2] == 'settlement-evidence'
+                             else jobs.control(route[1], route[2], control if control else None))
                 else:
                     value = jobs.submit(raw)
                 self.reply(200, value)

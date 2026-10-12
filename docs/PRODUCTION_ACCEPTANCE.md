@@ -1,5 +1,10 @@
 # Production acceptance
 
+The [Object contribution handoff](OBJECT_CONTRIBUTION_FLOW.md) now connects saved
+native auditing, guarded atomic publication/credit and restart-safe client
+delivery. Windows passes 142 JavaScript, 50 Python and 10 local Cloudflare cases;
+inference is synthetic. Authentic admission and all launch gates remain open.
+
 Object accuracy acceptance compares Mac/Windows scores and indexed results with
 Andrew's reference on identical images and settings, using explicit measured
 bounds. It requires no human object labelling or visual confirmation. See the

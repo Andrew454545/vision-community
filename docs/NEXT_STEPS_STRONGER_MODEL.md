@@ -1,5 +1,11 @@
 # Remaining launch work
 
+Continue from the connected [Object contribution flow](OBJECT_CONTRIBUTION_FLOW.md).
+Next engineering work is trusted assignment/registry rotation and terminal-job
+retention, then the first authentic qualified batch and earned-credit search
+when matching protected authority is available. Do not repeat the completed
+synthetic settlement checks without a relevant change or unresolved failure.
+
 The [Object publication metadata fix](OBJECT_PUBLIC_MANIFEST_20261012.md) now
 removes private manifest extensions and checks current quality semantics before
 writes. Windows passes 203 JavaScript checks, 114 distinct Python checks and

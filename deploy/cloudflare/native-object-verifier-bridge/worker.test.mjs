@@ -17,6 +17,23 @@ const start = (options={}) => new Request('https://object-verifier.internal/obje
 const status = (tail='', method='GET') => new Request('https://object-verifier.internal/object-audits/'+receipt.jobId+tail,
   {method,...(method === 'POST' ? {headers:{'content-type':'application/json'},body:'{}'} : {})});
 
+test('full settlement evidence is private, fresh, batch-scoped and cannot grant public authority', async()=>{
+  const now=Math.floor(Date.now()/1000),evidence={audit:{...receipt,state:'approved',decision:'approved',attempts:1,receiptSha256:'1'.repeat(64)},
+    policySha256:'2'.repeat(64),runtimeProfileSha256:'3'.repeat(64),qualityImplementationIdentity:'4'.repeat(64),
+    protectedAuthoritySha256:'5'.repeat(64),protectedOriginHandoffSha256:'6'.repeat(64),
+    resource:{accountId:'272760294910ef0b246980278aeb36e2',databaseId:'17043cb7-5dab-4a6f-84ca-19ae1c14cc05',bucket:'vision-community-staging'},
+    qualificationScope:'batch-only',issuedAt:now,expiresAt:now+30};
+  const call=value=>handleObjectAuditJobs(status('/settlement-evidence','POST'),env,()=>Response.json(value));
+  assert.deepEqual(await (await call(evidence)).json(),evidence);
+  for(const changes of [{qualificationScope:'device-approved'},{issuedAt:now-31,expiresAt:now-1},
+    {issuedAt:now+20,expiresAt:now+50},{policySha256:'caller'},{privatePath:'secret'},
+    {audit:{...evidence.audit,serverAuthorization:true}},{audit:{...evidence.audit,jobId:'9'.repeat(32)}}]) {
+    assert.equal((await call({...evidence,...changes})).status,503);
+  }
+  assert.equal((await handleObjectAuditJobs(new Request(status('/settlement-evidence','POST'),{body:'{"policySha256":"caller"}'}),env,
+    ()=>assert.fail('forwarded caller authority'))).status,400);
+});
+
 test('start acknowledges a pending saved job without waiting for native inference', async () => {
   const raw = JSON.stringify(body);
   const response = await handleObjectAuditJobs(start({headers:{'content-type':'application/json',

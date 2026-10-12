@@ -47,7 +47,8 @@ class DurableCommunityClient(CommunityClient):
         if self.outbox:
             self.outbox.remember_object(lease_id, outputs, object_index)
         result = super().submit_object(lease_id, outputs, object_index)
-        if isinstance(result, dict) and result.get("pendingAudit"):
+        if isinstance(result, dict) and result.get("pendingAudit") and (
+                result.get("auditProtocol") != "object-saved-audit-v1" or result.get("submissionId") != lease_id):
             raise ContributeError("invalid_submission_result", 503)
         self.save_submission_result(lease_id, result, expected_count=len(outputs))
         if result.get("rejected"):
@@ -72,13 +73,19 @@ class DurableCommunityClient(CommunityClient):
             self._pending += int(response[1].get("pending", 0))
         return response
 
-    def audit_submission(self, submission_id):
-        status, data, _ = super().request("POST", "/api/scene-audits", {"submissionId": submission_id})
+    def audit_submission(self, submission_id, lane="scene"):
+        if lane not in ("scene", "object"):
+            raise ValueError("invalid_submission_lane")
+        path = "/api/object-audits" if lane == "object" else "/api/scene-audits"
+        status, data, _ = super().request("POST", path, {"submissionId": submission_id})
         if status != 200:
             raise ContributeError(service_error_code(data, "verification_failed"), status)
+        if lane == "object" and isinstance(data, dict) and data.get("pendingAudit") and (
+                data.get("auditProtocol") != "object-saved-audit-v1" or data.get("submissionId") != submission_id):
+            raise ContributeError("invalid_submission_result", 503)
         self.save_submission_result(submission_id, data)
         if data.get("rejected"):
-            raise ContributeError("scene_submission_rejected", 422)
+            raise ContributeError("object_submission_rejected" if lane == "object" else "scene_submission_rejected", 422)
         return data
 
     def resume_submissions(self):
@@ -108,12 +115,12 @@ class DurableCommunityClient(CommunityClient):
                         raise
                     lost += 1
                     continue
-            elif delivery["lane"] == "scene":
-                result = self.audit_submission(lease_id)
+            elif delivery["lane"] in ("scene", "object"):
+                result = self.audit_submission(lease_id, delivery["lane"])
             else:
                 raise ValueError("invalid_saved_submission")
             if result.get("pendingAudit") and delivery["state"] == "ready":
-                result = self.audit_submission(lease_id)
+                result = self.audit_submission(lease_id, delivery["lane"])
             accepted += int(result.get("accepted", 0))
             earned += int(result.get("unitsEarned", 0))
         result = {"accepted": accepted, "unitsEarned": earned}

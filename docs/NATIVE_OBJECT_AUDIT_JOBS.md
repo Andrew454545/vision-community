@@ -6,8 +6,9 @@ native verification separately, and returns its decision through short status
 requests. `deploy/cloudflare/native-object-verifier-bridge/worker.js` transports
 that protocol through a private service binding. It does not expose a public API.
 
-This is a tested operator component. Object device qualification, public
-quarantine, publication and once-only credit settlement still need to be connected.
+The [contribution handoff](OBJECT_CONTRIBUTION_FLOW.md) connects this operator
+component to guarded publication, once-only credit and the client upload queue
+in source. Real qualified admission and hosted rollout remain open.
 The [account-cleanup follow-up](NATIVE_OBJECT_ACCOUNT_CLEANUP_20261010.md) connects
 durable hosted assignment erasure in source, including lost start acknowledgements;
 it is not deployed native-host acceptance. Neither a saved job nor an `approved` audit grants
