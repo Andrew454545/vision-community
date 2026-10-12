@@ -6,6 +6,7 @@ import {objectAuditResult,MAX_REQUEST} from '../native-object-verifier-bridge/wo
 import {readVerifierJson} from './scenePipeline.js';
 import {validateObjectIndex,OBJECT_INDEX_MODEL} from './objectIndex.js';
 import {COVERAGE_VALIDATOR} from './objectCoverage.js';
+import {publicObjectManifest} from './objectPublicManifest.js';
 import {base64ToBytes,sha256Hex,encodeUtf8} from './model.js';
 const ID=/^[a-f0-9]{32}$/,HEX=/^[a-f0-9]{64}$/;
 const fail=(code='object_settlement_evidence_unavailable',status=503)=>{throw new ObjectDispatchError(code,status);};
@@ -91,6 +92,7 @@ export async function checkObjectSettlement(env,account,lease,now=Math.floor(Dat
     const files=Object.fromEntries(Object.entries(index.files).map(([name,bytes])=>[name,base64ToBytes(bytes)]));
     const records=await race(()=>validateObjectIndex(index.manifest,files,source,before.rows.map(v=>({
       locationId:v.id,panoId:v.asset_id,lat:v.lat,lng:v.lon})),lease));
+    const publicManifest=publicObjectManifest(index.manifest);
     // This is a fresh GET, never the cached approved D1 state or an upload's
     // replay acknowledgement. The host guards live inputs and saved receipts.
     const request=new Request(`https://object-verifier.internal/object-audits/${row.job_id}`,{signal:abort.signal});
@@ -115,7 +117,7 @@ export async function checkObjectSettlement(env,account,lease,now=Math.floor(Dat
     if(performance.now()-started>=timeoutMs) fail();
     // Private in-memory bytes for the eventual guarded writer, never an HTTP
     // reply or portable approval. No R2/D1 mutation occurs in this function.
-    return {leaseId:lease,records,objectIndex:index,source,files,receipt,evidenceSha256,
+    return {leaseId:lease,records,objectIndex:index,publicManifest,source,files,receipt,evidenceSha256,
       verificationScope:'object-candidate-integrity-only',serverAuthorization:false,
       productionQualified:false,acceptedContributions:0,searchCreditsCreated:0};
   } catch(error) {

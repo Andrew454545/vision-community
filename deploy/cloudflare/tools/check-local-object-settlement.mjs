@@ -19,7 +19,7 @@ if(!phase){
   const {Miniflare,convertV4MiniflareOptions}=await import(pathToFileURL(resolve(mfPath)).href);
   const root=dirname(dirname(script)),paths=['tools/object-settlement.fixture.mjs','src/objectSettlementCheck.js',
     'src/objectAuditDispatch.js','src/artifactWrites.js','src/scenePipeline.js','src/sceneQuality.js',
-    'src/objectIndex.js','src/objectFeatures.js','src/objectCoverage.js','src/model.js','src/objectAdmission.js',
+    'src/objectIndex.js','src/objectFeatures.js','src/objectPublicManifest.js','src/objectCoverage.js','src/model.js','src/objectAdmission.js',
     'native-object-verifier-bridge/worker.js'];
   const options={modules:paths.map(path=>({type:'ESModule',path:resolve(root,path)})),modulesRoot:root,
     compatibilityDate:'2026-09-19',d1Databases:{DB:'00000000-0000-4000-8000-000000000332'},r2Buckets:['INDEX'],
@@ -36,7 +36,9 @@ if(!phase){
     };
     const refused=r=>assert.deepEqual(r.value,{error:'object_settlement_evidence_unavailable',status:503});
     const checked=r=>{assert.equal(r.value.status,'CHECKED_NOT_AUTHORIZED');assert.equal(r.value.records,2);
-      assert.equal(r.value.serverAuthorization,false);assert.equal(r.value.accepted,0);assert.equal(r.value.credits,0);};
+      assert.equal(r.value.serverAuthorization,false);assert.equal(r.value.accepted,0);assert.equal(r.value.credits,0);
+      assert.equal(r.value.publicMetadataOnly,true);assert.equal(r.value.publicSource,'locations.tsv');
+      assert.equal(r.value.privateCandidatePreserved,true);};
     if(phase==='seed'){
       await prepareDatabase(db);await prepareObjectAuditDispatch(db);
       assert.equal((await call('seed')).value.freshAuditReply,true);checked(await call('good'));
