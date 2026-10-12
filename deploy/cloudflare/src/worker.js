@@ -14,6 +14,7 @@ import { requireSchema } from "./schemaRevision.js";
 import { availableCatalogSql, availableLocationSql, freshLeaseItemSql } from './catalogAllocation.js';
 import { ingressLimit, accountLimit, viewLimit, ApiLimitError } from './apiRateLimit.js';
 import { OBJECT_INDEX_MODEL, validateObjectIndex } from "./objectIndex.js";
+import { publicObjectManifest } from "./objectPublicManifest.js";
 import { onlineSearch, onlineSearchConfigured, INDEX_DOWNLOAD_ROUTES } from "./onlineSearch.js";
 import { SearchError } from "./searchLedger.js";
 import { searchCost } from "./searchPricing.js";
@@ -786,9 +787,10 @@ async function submitObjectIndex(env, account, leaseId, items, supplied, objectI
     lat: row.lat,
     lng: row.lon,
   }));
-  let expected;
+  let expected, publicManifest;
   try {
     expected = await validateObjectIndex(objectIndex.manifest, files, sourceTsv, leaseItems, leaseId);
+    publicManifest = publicObjectManifest(objectIndex.manifest);
   } catch {
     return error("verification_failed", 422);
   }
@@ -801,7 +803,7 @@ async function submitObjectIndex(env, account, leaseId, items, supplied, objectI
   }
   const prefix = `object-index-v4/${leaseId}/`;
   await writeObjectArtifact(env, account, leaseId, `${prefix}manifest.json`,
-    encodeUtf8(JSON.stringify({ ...objectIndex.manifest, sourceTsv: "locations.tsv" })), now);
+    encodeUtf8(JSON.stringify(publicManifest)), now);
   await writeObjectArtifact(env, account, leaseId, `${prefix}locations.tsv`, sourceTsv, now);
   for (const [name, bytes] of Object.entries(files)) {
     await writeObjectArtifact(env, account, leaseId, `${prefix}${name}`, bytes, now);

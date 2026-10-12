@@ -31,6 +31,12 @@ async function setup(t) {
     sql.prepare('INSERT INTO object_coverage VALUES (?,?,?,?)').run(item.locationId,COVERAGE_VALIDATOR,'d'.repeat(64),now);
   }
   const index={manifest:structuredClone(doc.baseline.manifest),sourceTsv:doc.baseline.sourceBase64,files:doc.baseline.filesBase64};
+  Object.assign(index.manifest.viewQuality,{policy:'vision-per-view-quality-v1',implementationIdentity:'1'.repeat(64),viewCount:6,
+    blurAreaFractionExclusive:0.5,tileGrid:8,tunnelVisionProbabilityInclusive:0.85,
+    tunnelEvidencePolicy:'none-darkness-never-rejects-v1',protectedAuthorityManifestSha256:'2'.repeat(64)});
+  index.manifest.sourceTsv='C:/SYNTHETIC-PRIVATE/source.tsv';
+  index.manifest.privateExtension={account:'SYNTHETIC-PRIVATE'};
+  index.manifest.viewQuality.privateExtension={path:'SYNTHETIC-PRIVATE'};
   const authority={leaseId:lease,profileId:'1'.repeat(64),policyId:'staging.synthetic',assignmentSha256:'2'.repeat(64),
     sourceSha256:await sha256Hex(new Uint8Array(Buffer.from(index.sourceTsv,'base64')))};
   const row=()=>sql.prepare('SELECT * FROM object_audit_candidates WHERE lease_id=?').get(lease);
@@ -53,6 +59,9 @@ test('fresh correlated receipt and exact stored features pass without writes, ac
   const value=await f.check();assert.equal(value.records.length,2);assert.equal(value.receipt.state,'approved');
   assert.match(value.evidenceSha256,/^[a-f0-9]{64}$/);assert.equal(value.serverAuthorization,false);
   assert.equal(value.productionQualified,false);assert.equal(value.acceptedContributions,0);assert.equal(value.searchCreditsCreated,0);
+  assert.equal(JSON.stringify(value.publicManifest).includes('SYNTHETIC-PRIVATE'),false);
+  assert.equal(value.publicManifest.sourceTsv,'locations.tsv');
+  assert.equal(value.objectIndex.manifest.privateExtension.account,'SYNTHETIC-PRIVATE');
   assert.equal(f.state(),before);assert.deepEqual(f.calls(),{posts:1,gets:1});
   assert.deepEqual([...f.objects].map(([k,v])=>[k,Buffer.from(v).toString('base64')]),bytes);
   assert.equal(objectCapabilities().objectContributions.ready,false);
@@ -135,13 +144,15 @@ test('ownership, cancellation, publication, expired coverage, changed pose/model
 });
 
 test('owned R2 body, checksum, privacy fence and binary contents must agree with the saved submission',async t=>{
-  for(const mode of ['missing','fence','size','checksum','stream-size','stream-hang','no-body','manifest','lane','source']) {
+  for(const mode of ['missing','fence','size','checksum','stream-size','stream-hang','no-body','manifest','lane','source','quality-policy','quality-authority']) {
     const f=await setup(t),key=f.row().artifact_key,get=f.env.INDEX.get;
     if(mode==='missing')f.objects.delete(key);
     if(mode==='checksum')f.objects.set(key,encodeUtf8(' '.repeat(f.row().payload_bytes)));
-    if(['manifest','lane','source'].includes(mode)) {
+    if(['manifest','lane','source','quality-policy','quality-authority'].includes(mode)) {
       const changed=structuredClone(f.index);
       if(mode==='manifest')changed.manifest.completed=false;
+      if(mode==='quality-policy')changed.manifest.viewQuality.tunnelEvidencePolicy='none-darkness-kept-v1';
+      if(mode==='quality-authority')delete changed.manifest.viewQuality.protectedAuthorityManifestSha256;
       if(mode==='lane')changed.files['semantic-pq128.bin']='';
       if(mode==='source')changed.sourceTsv=Buffer.from('changed').toString('base64');
       const raw=encodeUtf8(JSON.stringify(changed)),sha=await sha256Hex(raw),newKey=`object-quarantine/${lease}/${sha}.json`;

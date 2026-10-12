@@ -24,6 +24,12 @@ export default {async fetch(request,env){
   const bound={...env,OBJECT_VERIFIER:provider};let value;
   if(mode==='seed'){
     const doc=await request.json(),index={manifest:doc.baseline.manifest,sourceTsv:doc.baseline.sourceBase64,files:doc.baseline.filesBase64};
+    Object.assign(index.manifest.viewQuality,{policy:'vision-per-view-quality-v1',implementationIdentity:'1'.repeat(64),viewCount:6,
+    blurAreaFractionExclusive:0.5,tileGrid:8,tunnelVisionProbabilityInclusive:0.85,
+    tunnelEvidencePolicy:'none-darkness-never-rejects-v1',protectedAuthorityManifestSha256:'2'.repeat(64)});
+    index.manifest.sourceTsv='C:/SYNTHETIC-PRIVATE/source.tsv';
+    index.manifest.privateExtension={account:'SYNTHETIC-PRIVATE'};
+    index.manifest.viewQuality.privateExtension={path:'SYNTHETIC-PRIVATE'};
     await env.DB.batch([
       env.DB.prepare("INSERT INTO accounts(id,token_hash,units) VALUES (?,'synthetic',0)").bind(account),
       env.DB.prepare("INSERT INTO leases(id,account_id,lane,state,expires_at) VALUES (?,?,'object','active',101000)").bind(lease,account),
@@ -54,7 +60,9 @@ export default {async fetch(request,env){
     try{
       const check=await checkObjectSettlement(bound,account,lease,now);
       value={status:'CHECKED_NOT_AUTHORIZED',records:check.records.length,evidenceSha256:check.evidenceSha256,
-        accepted:check.acceptedContributions,credits:check.searchCreditsCreated,serverAuthorization:check.serverAuthorization};
+        accepted:check.acceptedContributions,credits:check.searchCreditsCreated,serverAuthorization:check.serverAuthorization,
+        publicMetadataOnly:!JSON.stringify(check.publicManifest).includes('SYNTHETIC-PRIVATE'),
+        publicSource:check.publicManifest.sourceTsv,privateCandidatePreserved:check.objectIndex.manifest.privateExtension.account==='SYNTHETIC-PRIVATE'};
     }catch(error){value={error:error.message,status:error.status};}
   }
   return Response.json({value,gets:(await env.DB.prepare('SELECT gets FROM synthetic_settlement').first()).gets,

@@ -66,3 +66,8 @@ failure report or protected bucket was read or changed. No Actions job, imagery
 download, private upload or new hosting spend was started. The existing source-
 side origin request remains unchanged. Authentic qualification, guarded
 publication/once-only credit and Object search remain the next integration work.
+
+The [12 October public manifest follow-up](OBJECT_PUBLIC_MANIFEST_20261012.md)
+adds a separate sanitized metadata result and current quality-contract checks;
+the original private candidate is preserved. This still grants no publication
+authority or credit.

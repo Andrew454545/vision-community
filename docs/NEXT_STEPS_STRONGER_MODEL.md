@@ -1,5 +1,12 @@
 # Remaining launch work
 
+The [Object publication metadata fix](OBJECT_PUBLIC_MANIFEST_20261012.md) now
+removes private manifest extensions and checks current quality semantics before
+writes. Windows passes 203 JavaScript checks, 114 distinct Python checks and
+24 local Cloudflare cases across five processes; all inference is synthetic.
+Authentic qualification/atomic settlement remain open; the frozen Scene pilot
+is unchanged.
+
 The [Object pre-publication check](OBJECT_SETTLEMENT_CHECK_20261011.md) now
 joins owned quarantine bytes, a fresh correlated native receipt and current
 lease/coverage/deletion state without granting publication or credit. Windows
