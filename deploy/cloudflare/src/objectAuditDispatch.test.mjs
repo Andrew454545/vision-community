@@ -214,6 +214,36 @@ test('backoff and transport failures are finite; clock rollback cannot trap a sa
     .run('9'.repeat(32),now+99999,now+99999);
   await advanceObjectAudit(env,account,lease,now);assert.equal(calls,9);assert.equal(row().claim_token,null);
 });
+
+test('healthy native queue pressure waits across more than eight replies and resumes the same upload',async t=>{
+  const {sql,env,row,stage,reply}=await setup(t);await stage();let calls=0;
+  sql.prepare('UPDATE leases SET expires_at=?').run(now+20000);
+  env.OBJECT_VERIFIER={fetch(){calls++;return Response.json({error:'object_job_queue_full'},{status:503});}};
+  for(let i=0;i<10;i++){
+    const at=now+i*900,result=await advanceObjectAudit(env,account,lease,at);
+    assert.equal(result.waitingForCapacity,true);assert.equal(result.needsAttention,false);
+    assert.equal(result.retryAt,at+900);assert.equal(row().transport_failures,0);
+    assert.equal(row().job_id,null);assert.equal(row().native_attempts,0);assert.equal(row().claim_token,null);
+    await advanceObjectAudit(env,account,lease,at+1);assert.equal(calls,i+1);
+  }
+  env.OBJECT_VERIFIER={fetch:()=>Response.json(reply())};
+  const resumed=await advanceObjectAudit(env,account,lease,row().next_attempt);
+  assert.equal(resumed.freshAuditReply,true);assert.equal(resumed.waitingForCapacity,false);
+  assert.equal(row().job_id,job);assert.equal(row().transport_failures,0);
+  assert.equal(sql.prepare('SELECT count(*) n FROM ledger').get().n,0);
+});
+
+test('only the exact private queue-full reply waits; faults and permanent capacity retain their attention limit',async t=>{
+  for(const [status,value] of [[503,{error:'object_job_capacity_reached'}],[503,{error:'object_job_disk_budget'}],
+    [429,{error:'object_job_queue_full'}],[503,{error:'object_job_queue_full',private:'untrusted'}],
+    [503,['object_job_queue_full']]]){
+    const {sql,env,row,stage}=await setup(t);await stage();
+    sql.exec('UPDATE object_audit_candidates SET transport_failures=7');
+    env.OBJECT_VERIFIER={fetch:()=>Response.json(value,{status})};
+    const result=await advanceObjectAudit(env,account,lease,now);
+    assert.equal(row().transport_failures,8);assert.equal(result.waitingForCapacity,false);assert.equal(result.needsAttention,true);
+  }
+});
 test('the ordinary upload replay reports pending Object quarantine, never accepted work',async t=>{
   const {env,stage}=await setup(t);await stage();
   const response=await worker.fetch(new Request('https://community.test/api/submissions',{method:'POST',

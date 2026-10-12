@@ -4,7 +4,7 @@
 import {sha256Hex, encodeUtf8, base64ToBytes, randomHex} from './model.js';
 import {writeObjectArtifact} from './artifactWrites.js';
 import {objectCoverageComplete, COVERAGE_VALIDATOR} from './objectCoverage.js';
-import {objectAuditResult, MAX_REQUEST} from '../native-object-verifier-bridge/worker.js';
+import {objectAuditResult, objectAuditQueueFull, MAX_REQUEST} from '../native-object-verifier-bridge/worker.js';
 import {readVerifierJson} from './scenePipeline.js';
 
 export const OBJECT_DISPATCH_CONTRACT = 'private-object-dispatch-v2-20261012';
@@ -154,6 +154,7 @@ export function objectAuditDispatchResult(row, fresh = false) {
     pending:row.state === 'pending' ? row.location_count : 0, rejected:row.state === 'rejected',
     cancelled:row.state === 'cancelled', auditState:row.native_state, freshAuditReply:fresh,
     retryAt:row.next_attempt, needsAttention:row.transport_failures >= MAX_FAILURES || row.native_state === 'failed',
+    waitingForCapacity:row.last_error==='object_audit_queue_wait',
     auditProtocol:'object-saved-audit-v1',
     productionQualified:false, serverAuthorization:false};
 }
@@ -298,7 +299,7 @@ export async function advanceObjectAudit(env,account,lease,now=Math.floor(Date.n
     .bind(claim,now+CLAIM_SECONDS,lease,account,MAX_FAILURES,now,now+CLAIM_SECONDS,now,now+MAX_BACKOFF).run();
   const row=await readRow(env,account,lease);
   if(row.claim_token!==claim) return result(row);
-  const abort=new AbortController();let timer,checked,applied=false;
+  const abort=new AbortController();let timer,checked,applied=false,queueWait=false;
   const deadline=new Promise((_,reject)=>{timer=setTimeout(()=>{abort.abort();reject(Error('object_dispatch_timeout'));},timeoutMs);});
   void deadline.catch(()=>{});
   try {
@@ -315,7 +316,12 @@ export async function advanceObjectAudit(env,account,lease,now=Math.floor(Date.n
       if(abort.signal.aborted){if(response.body)void response.body.cancel().catch(()=>{});throw Error('late_reply');}return response;
     });
     const response=await Promise.race([transfer,deadline]);
-    if(response.status!==200){if(response.body)void response.body.cancel().catch(()=>{});throw Error('object_verifier_unavailable');}
+    if(response.status!==200){
+      if(response.status===503)queueWait=objectAuditQueueFull(await Promise.race([
+        readVerifierJson(response,Math.min(timeoutMs,10000)),deadline]));
+      else if(response.body)void response.body.cancel().catch(()=>{});
+      throw Error('object_verifier_unavailable');
+    }
     const value=await Promise.race([readVerifierJson(response,Math.min(timeoutMs,10000)),deadline]);
     checked=objectAuditResult(value,{leaseId:lease,profileId:row.profile_id,policyId:row.policy_id,
       assignmentSha256:row.assignment_sha256,submissionSha256:row.submission_sha256,
@@ -338,11 +344,15 @@ export async function advanceObjectAudit(env,account,lease,now=Math.floor(Date.n
     ]);
     applied=updates[0].meta?.changes===1;
   } catch {
-    const failures=row.transport_failures+1, delay=Math.min(MAX_BACKOFF,30*2**(failures-1));
+    // Busy slots are healthy backpressure, not eight failed connections. Only
+    // the exact private error receives this treatment; disk/history exhaustion,
+    // malformed replies and real faults keep their finite attention threshold.
+    const failures=row.transport_failures+(queueWait?0:1),
+      delay=queueWait?MAX_BACKOFF:Math.min(MAX_BACKOFF,30*2**(failures-1));
     await env.DB.prepare(`UPDATE object_audit_candidates SET claim_token=NULL,claim_until=0,
-      transport_failures=?,next_attempt=?,last_error='object_audit_transport_unavailable'
+      transport_failures=?,next_attempt=?,last_error=?
       WHERE lease_id=? AND account_id=? AND state='pending' AND claim_token=?`)
-      .bind(failures,now+delay,lease,account,claim).run();
+      .bind(failures,now+delay,queueWait?'object_audit_queue_wait':'object_audit_transport_unavailable',lease,account,claim).run();
   } finally {clearTimeout(timer);abort.abort();}
   const saved=await readRow(env,account,lease);
   const active=await env.DB.prepare('SELECT 1 FROM accounts WHERE id=? AND deleted_at IS NULL').bind(account).first();
