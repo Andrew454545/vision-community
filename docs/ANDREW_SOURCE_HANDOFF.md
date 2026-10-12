@@ -1,11 +1,15 @@
-# One source-side task for Andrew's AI
+# Completed source handoff
 
-**Needed artifact:** a fresh protected-origin capture from the real current MMA
-profile. That source is on Andrew's computer and unavailable on this laptop.
-This consolidates the [existing request](https://github.com/Andrew454545/VISION/pull/17#issuecomment-6102363428);
-it does not add a model matrix, build or general review.
+**Received and verified:** Andrew returned private asset `632770295` in
+[his completion reply](https://github.com/Andrew454545/VISION/pull/17#issuecomment-6118327910).
+Archive SHA-256: `eecd29494d1f8526e2e1af0929fec914430628c1ce7c14bc438c072c82a51dad`.
+Manifest SHA-256: `0c5a4a4115a835677cee2086bcf04bef734014fff114d5fc1c9f1e0966e6b2de`.
+All 13 contained pins and the bundled wrapper match. The original live proof
+expired on 12 October 2026 at 06:27:17.073 UTC. The [Windows consumption check](PROTECTED_CAPTURE_CONSUMPTION.md)
+does not renew it or approve portable imports. No further Andrew-specific task
+is currently requested; integration stays here.
 
-## Execute once
+## Original one-time work card (completed)
 
 Use VISION source revision `e118a442e0123477c4c64c4b0488ccd509548eff`, its
 existing private Node runtime and the existing native exporter. The capture
@@ -22,7 +26,7 @@ existing binary differs, preserve the failure and return its actual build/source
 identity; do not change the expected hash just to pass. Do not rebuild or install
 anything to satisfy this request.
 
-## Return privately
+## Original private return procedure (completed)
 
 Return the complete generated success or failure folder through the existing
 private VISION draft-release handoff (release ID `407402399`), using a new asset

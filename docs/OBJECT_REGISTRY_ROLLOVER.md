@@ -38,9 +38,10 @@ No installed runtime or existing spool is upgraded by this source change.
 Version 1 retains its 64-assignment/job limit. Version 2 supports at most 4,096
 assignments/jobs and an 8 MiB registry. Eight unfinished native jobs, 512 MiB of
 retained input, 1 GiB free-space reserve, two HTTP handlers and three attempts
-remain unchanged. No evidence is automatically deleted to create capacity.
+remain unchanged. [Published-job cleanup](OBJECT_NATIVE_RETENTION.md) releases
+input bytes and successful derived bulk, preserving journals and failed attempts.
 This removes the prototype's immediate 64-job barrier; it is **not indefinite
-storage**. Terminal retention, trusted assignment automation and measured
+storage**. Verified retention deployment, trusted assignment automation and measured
 capacity remain launch work.
 
 Current deletion/cancellation recovery binds the complete extended registry,

@@ -1,0 +1,163 @@
+{
+  "version": 1,
+  "date": "2026-10-12",
+  "parentCommit": "e8cc12f94814f1cd453f2e2430a646cc9c9bd720",
+  "scope": "private-accepted-object-bulk-retirement",
+  "platform": "Windows x64",
+  "implementation": {
+    "hostedAcceptanceAndEarnedLedgerRequired": true,
+    "nativeApprovalAloneInsufficient": true,
+    "durableHostedOutbox": true,
+    "backoffSeconds": [
+      60,
+      3600
+    ],
+    "maximumJobsPerCallback": 2,
+    "callbackDeadlineSeconds": 5,
+    "nativeIntentBeforeAcknowledgement": true,
+    "restartReusesIntentWithoutInference": true,
+    "failedAttemptsAndReportsPreserved": true,
+    "privacyErasureHasPriority": true,
+    "optionalSchemaRequiresExplicitOperatorSetup": true,
+    "optionalOutboxSurvivesOfflineSqlRecovery": true
+  },
+  "python": [
+    {
+      "tests": 7,
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0,
+      "wallSeconds": 79.31300000002375,
+      "owned": true,
+      "windowless": true,
+      "localLoopbackAllowed": true,
+      "receipt": {
+        "sha256": "2acd7e81b26b8861fef3eaaea5e3d84e1f651e4c5c8808cadf2495a5a507f553",
+        "bytes": 179
+      },
+      "stderr": {
+        "sha256": "543b7fdab88311512d8edc91465269039ecdc4bbeabb5a0ebee0e8458c80469a",
+        "bytes": 1564
+      }
+    },
+    {
+      "tests": 37,
+      "passed": 37,
+      "failed": 0,
+      "skipped": 0,
+      "wallSeconds": 209.875,
+      "owned": true,
+      "windowless": true,
+      "localLoopbackAllowed": true,
+      "receipt": {
+        "sha256": "a7993ecefbb7f78add28cf139fb1ef3e309bace35397933994686e718a5aab07",
+        "bytes": 173
+      },
+      "stderr": {
+        "sha256": "f44ae471093ca21001628cc735c9c7913957a8993d733f3e8ea48a1a88f9c31f",
+        "bytes": 7659
+      }
+    }
+  ],
+  "javascript": {
+    "tests": 61,
+    "passed": 60,
+    "failed": 0,
+    "skipped": 1,
+    "skipReason": "Existing Windows file-symlink privilege check",
+    "engine": "Node SQLite, not deployed D1/workerd",
+    "wallSeconds": 21.82800000003772,
+    "receipt": {
+      "sha256": "2f9ef8b1c148395238a293c64166a292cdd0d0c83e57279f5f2f784dce35f166",
+      "bytes": 177
+    },
+    "stdout": {
+      "sha256": "b6a8458a23153283bf9e4922a450da59c354909c969d04965ad5bb469cfafa05",
+      "bytes": 5594
+    },
+    "stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    }
+  },
+  "preservedInitialFailure": {
+    "receipt": {
+      "sha256": "29f551025530b580a670481ac73be6f3a131472a7958d4b2e72904f0a0128e47",
+      "bytes": 180
+    },
+    "stderr": {
+      "sha256": "2e7877d65c8817192503a8985f20db5a84047f59fc9f2c69ca7b5b83e010dd6a",
+      "bytes": 5093
+    },
+    "reasons": [
+      "Sandbox blocked laptop-only HTTP socket",
+      "Test compared Windows separators with POSIX paths"
+    ],
+    "resolution": "Allowed local-loopback test and normalized fixture path labels; no security protection disabled"
+  },
+  "limits": {
+    "version1RetainedJobs": 64,
+    "version2RetainedJobs": 4096,
+    "inputBytes": 536870912,
+    "failedAttemptsStillConsumeStorage": true,
+    "indefiniteCapacityProven": false
+  },
+  "sourceFiles": {
+    "community/object_audit_jobs.py": {
+      "sha256": "06090552714c7c062101665885742f7a060f68e3d36e4f68408eea2172724265",
+      "bytes": 49087
+    },
+    "community/tests/test_object_audit_retention.py": {
+      "sha256": "24a748f5a31c0d061ff2ea590904c89fde6cb3c6a0c78cbb162bb524d8e7b145",
+      "bytes": 8891
+    },
+    "deploy/cloudflare/native-object-verifier-bridge/worker.js": {
+      "sha256": "4de23ebf384de653cdcda525e3d34bcd744f70b7fb97254316c009db040644df",
+      "bytes": 12880
+    },
+    "deploy/cloudflare/native-object-verifier-bridge/worker.test.mjs": {
+      "sha256": "6cd48c58785195e124f5bdf2a9014497ef152a3b4183cb40fb4732953dd95fc0",
+      "bytes": 16200
+    },
+    "deploy/cloudflare/src/objectAuditFlow.js": {
+      "sha256": "a999ef847dd172350a864a67ee80bf9ac4b73eddee3c0743ff0720711483d2f7",
+      "bytes": 858
+    },
+    "deploy/cloudflare/src/objectAuditRetention.js": {
+      "sha256": "fc8bcab17e0a1596642ed3f42702e9da2bf1e5896646561deaf3b4e02489dc8d",
+      "bytes": 8160
+    },
+    "deploy/cloudflare/src/objectSettlement.js": {
+      "sha256": "7e308c5daff732ca9951b60933f418d737dba6cc4c437c5f17aa962f38f0a815",
+      "bytes": 16987
+    },
+    "deploy/cloudflare/src/objectSettlement.test.mjs": {
+      "sha256": "75c9f3a94c778c95132c7cf5a728a6e8b8303b261e1587bfb8940d4eed0cc160",
+      "bytes": 20539
+    },
+    "deploy/cloudflare/src/worker.js": {
+      "sha256": "2bda787a18914f0b296f27c1f9e4dfe4ea4b0380ee6e8489f6cdfbac17a2f820",
+      "bytes": 62365
+    },
+    "deploy/cloudflare/src/objectRestoreSql.test.mjs": {
+      "sha256": "8119f4a061835ec1d2988f5de8e39c07ad4a96bf1696796235dafdba5de947da",
+      "bytes": 13047
+    },
+    "deploy/cloudflare/tools/prepare-object-audit-retention.mjs": {
+      "sha256": "30f8870495cd36ea82724bcae069124d25c86055aead1c1b406edc7a22a789fc",
+      "bytes": 339
+    },
+    "deploy/cloudflare/tools/object-cancellation-restore-sql.mjs": {
+      "sha256": "10ab6bb69871c04ec310873980e0f891d4bdd40bd306a15fb219add1a0f91b64",
+      "bytes": 15339
+    }
+  },
+  "liveCalls": 0,
+  "syntheticNativeInference": true,
+  "realContributionsCreated": 0,
+  "realSearchCreditsCreated": 0,
+  "deployed": false,
+  "publicObjectAdmissionOpened": false,
+  "frozenScenePilotChanged": false,
+  "productionQualified": false
+}

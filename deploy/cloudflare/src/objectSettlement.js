@@ -78,6 +78,27 @@ async function saved(env,account,lease) {
     auditState:'published',qualificationScope:'batch-only'};
 }
 
+// Internal cleanup authority, never an uploader-supplied acknowledgement.
+// A historical audit alone cannot establish current publication and earned credit.
+export async function objectRetirementProof(env,account,lease) {
+  if(typeof account!=='string' || !ID.test(account) || typeof lease!=='string' || !ID.test(lease))fail();
+  if(!await saved(env,account,lease))return null;
+  const row=await env.DB.prepare('SELECT * FROM object_acceptances WHERE lease_id=? AND account_id=?').bind(lease,account).first();
+  const p=policy(env);
+  const pairs={policy_id:'policyId',policy_sha256:'policySha256',runtime_sha256:'runtimeProfileSha256',
+    quality_sha256:'qualityImplementationIdentity',protected_sha256:'protectedAuthoritySha256',origin_sha256:'protectedOriginHandoffSha256'};
+  if(!row || !p.profiles.includes(row.profile_id) || Object.entries(pairs).some(([key,pin])=>row[key]!==p[pin])
+      || !Number.isSafeInteger(row.location_count) || row.location_count<1 || row.units!==row.location_count*UNITS.object
+      || !Number.isSafeInteger(row.attempt) || row.attempt<1 || row.attempt>3
+      || !ID.test(row.job_id) || !ID.test(row.operation_token)
+      || !['assignment_sha256','submission_sha256','candidate_sha256','receipt_sha256','source_sha256','snapshot_sha256','artifacts_sha256']
+        .every(k=>typeof row[k]==='string' && HEX.test(row[k])))fail('object_retirement_reconciliation_required');
+  const identity=Object.fromEntries(Object.keys(row).sort().map(k=>[k,row[k]]));
+  return {jobId:row.job_id,body:{version:1,leaseId:lease,assignmentSha256:row.assignment_sha256,
+    submissionSha256:row.submission_sha256,candidateManifestSha256:row.candidate_sha256,
+    receiptSha256:row.receipt_sha256,attempts:row.attempt,acceptanceSha256:await sha256Hex(encodeUtf8(JSON.stringify(identity)))}};
+}
+
 // SQL identifiers come only from a selected database row, never request JSON.
 // The final transaction compares every captured value, not a checksum-as-lock.
 function exactSnapshot(snapshot) {

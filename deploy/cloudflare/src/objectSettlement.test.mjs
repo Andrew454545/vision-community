@@ -7,6 +7,8 @@ import {sqliteD1} from '../tools/sqlite-d1.mjs';
 import {prepareDatabase} from '../tools/initialize-schema.mjs';
 import {prepareObjectAuditDispatch} from '../tools/prepare-object-audit-dispatch.mjs';
 import {prepareObjectSettlement} from '../tools/prepare-object-settlement.mjs';
+import {prepareObjectAuditRetention} from '../tools/prepare-object-audit-retention.mjs';
+import {retireAcceptedObjectAudits,OBJECT_RETENTION_CONTRACT} from './objectAuditRetention.js';
 import {stageObjectAudit,advanceObjectAudit} from './objectAuditDispatch.js';
 import {advanceObjectContribution} from './objectAuditFlow.js';
 import {settleObjectAudit} from './objectSettlement.js';
@@ -63,6 +65,85 @@ async function setup(t,install=true) {
     settle:(time=now,timeout=20000)=>settleObjectAudit(env,account,lease,time,timeout)};
 }
 const zero=f=>assert.deepEqual(f.counts(),{publications:0,ledger:0,accepted:0,units:0});
+
+const retirementRow=f=>f.sql.prepare('SELECT * FROM object_audit_retirements').get();
+function retirementHost(f,handler=null) {
+  const requests=[];
+  f.env.OBJECT_VERIFIER={async fetch(request){
+    assert(request.url.endsWith(`/object-audits/${job}/retire`));
+    const body=await request.json();requests.push(body);
+    if(handler)return handler(request,body);
+    return Response.json({...f.reply(),state:'retiring',decision:'pending'});
+  }};
+  return requests;
+}
+test('retention is explicit, validates its schema and cannot retire a native approval alone',async t=>{
+  const f=await setup(t),calls=f.calls();
+  assert.equal((await retireAcceptedObjectAudits(f.env)).setupRequired,true);
+  assert.deepEqual(f.calls(),calls);
+  await prepareObjectAuditRetention(f.env.DB);await prepareObjectAuditRetention(f.env.DB);
+  assert.equal(f.sql.prepare('SELECT contract FROM object_retention_revision').get().contract,OBJECT_RETENTION_CONTRACT);
+  assert.equal((await retireAcceptedObjectAudits(f.env)).delivered,0);
+  assert.equal(retirementRow(f),undefined);assert.deepEqual(f.calls(),calls);zero(f);
+  f.sql.exec('DROP TRIGGER object_retirement_immutable');
+  f.sql.exec('CREATE TRIGGER object_retirement_immutable BEFORE UPDATE ON object_audit_retirements BEGIN SELECT 1; END');
+  await assert.rejects(prepareObjectAuditRetention(f.env.DB));
+});
+test('accepted publication delivers one retirement intent without changing credit or replaying inference',async t=>{
+  const f=await setup(t);await prepareObjectAuditRetention(f.env.DB);
+  const fetch=f.env.OBJECT_VERIFIER.fetch,requests=[];
+  f.env.OBJECT_VERIFIER.fetch=async request=>{
+    if(!request.url.endsWith('/retire'))return fetch(request);
+    requests.push(await request.json());return Response.json({...f.reply(),state:'retiring',decision:'pending'});
+  };
+  const first=await advanceObjectContribution(f.env,account,lease,now);
+  assert.equal(first.accepted,2);assert.equal(first.unitsEarned,20);
+  assert.equal(retirementRow(f).state,'delivered');assert.equal(requests.length,1);
+  assert.equal(requests[0].receiptSha256,f.reply().receiptSha256);
+  const before=f.calls();await advanceObjectContribution(f.env,account,lease,now+1);
+  await retireAcceptedObjectAudits(f.env,{now:now+2});
+  assert.deepEqual(f.calls(),before);assert.equal(requests.length,1);
+  assert.deepEqual(f.counts(),{publications:2,ledger:1,accepted:1,units:20});
+  assert.throws(()=>f.sql.exec("UPDATE object_audit_retirements SET request_sha256='changed'"),/object_retirement_immutable/);
+});
+test('lost retirement acknowledgement and fresh coordinator retry the same pinned intent after saved backoff',async t=>{
+  const f=await setup(t);await f.settle();await prepareObjectAuditRetention(f.env.DB);
+  const requests=retirementHost(f,()=>{throw Error('synthetic lost reply after durable native acknowledgement');});
+  assert.equal((await retireAcceptedObjectAudits(f.env,{now})).pending,1);
+  assert.equal(retirementRow(f).next_attempt,now+60);
+  await retireAcceptedObjectAudits(f.env,{now:now+59});assert.equal(requests.length,1);
+  const same=retirementHost(f);
+  await retireAcceptedObjectAudits({...f.env},{now:now+60});
+  assert.deepEqual(same[0],requests[0]);assert.equal(retirementRow(f).state,'delivered');
+  assert.deepEqual(f.counts(),{publications:2,ledger:1,accepted:1,units:20});
+});
+test('retirement timeout persists backoff before contacting a host that ignores abort',async t=>{
+  const f=await setup(t);await f.settle();await prepareObjectAuditRetention(f.env.DB);
+  let signal;retirementHost(f,request=>{signal=request.signal;return new Promise(()=>{});});
+  const start=Date.now();await retireAcceptedObjectAudits(f.env,{now,timeoutMs:30});
+  assert(Date.now()-start<1000);assert.equal(signal.aborted,true);
+  assert.equal(retirementRow(f).state,'pending');assert.equal(retirementRow(f).next_attempt,now+60);
+  assert.deepEqual(f.counts(),{publications:2,ledger:1,accepted:1,units:20});
+});
+test('retirement rechecks published ownership and earned credit before sending any acknowledgement',async t=>{
+  for(const kind of ['publication','credit','policy']) {
+    const f=await setup(t);await f.settle();await prepareObjectAuditRetention(f.env.DB);
+    retirementHost(f,()=>assert.fail('retired without current reconciliation'));
+    if(kind==='publication')f.sql.exec('DELETE FROM published_index');
+    if(kind==='credit')f.sql.exec("UPDATE ledger SET units=19 WHERE reason='verified_work'");
+    if(kind==='policy')f.env.OBJECT_SETTLEMENT_POLICY=JSON.stringify({...JSON.parse(f.env.OBJECT_SETTLEMENT_POLICY),runtimeProfileSha256:'0'.repeat(64)});
+    const result=await retireAcceptedObjectAudits(f.env,{now});assert.equal(result.delivered,0);assert(result.pending>0);
+    assert.equal(retirementRow(f),undefined);
+  }
+});
+test('deleted accounts use privacy erasure and a mismatched native acknowledgement stays pending',async t=>{
+  const f=await setup(t);await f.settle();await prepareObjectAuditRetention(f.env.DB);
+  retirementHost(f,()=>Response.json({...f.reply(),state:'retiring',decision:'pending',receiptSha256:'0'.repeat(64)}));
+  await retireAcceptedObjectAudits(f.env,{now});assert.equal(retirementRow(f).state,'pending');
+  await deleteAccount(f.env,account,{accountId:account,idempotencyKey:'8'.repeat(64),confirmation:'DELETE'},now+1);
+  retirementHost(f,()=>assert.fail('retirement must not compete with account erasure'));
+  await retireAcceptedObjectAudits(f.env,{now:now+61});assert.equal(retirementRow(f).state,'privacy');
+});
 test('audited batch publishes sanitized files and awards once; replay skips native service',async t=>{
   const f=await setup(t);assert.equal(f.sql.prepare('SELECT count(*) n FROM object_dispatch_slots').get().n,1);
   const accepted=await advanceObjectContribution(f.env,account,lease,now);
