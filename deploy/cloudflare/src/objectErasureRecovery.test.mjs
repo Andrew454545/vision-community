@@ -102,6 +102,33 @@ test('production resources cannot relabel a staging policy as production recover
   }finally{f.sql.close();}
 });
 
+test('extended registry recovery includes historical and new deleted owners beyond 64 assignments',()=>{
+  const f=fixture();try{
+    const previous=f.args.registryRaw;
+    f.registry.version=2;
+    f.registry.previousRegistry={path:join(tmpdir(),'preserved-previous-registry.json'),sha256:sha(previous),bytes:previous.length};
+    for(let i=3;i<=70;i++){
+      const lease=i.toString(16).padStart(32,'0');
+      f.sql.prepare("INSERT INTO leases VALUES(?,?,'object')").run(lease,i%2 ? f.owner : f.live);
+      f.registry.assignments.push({leaseId:lease,assignment:{sha256:'d'.repeat(64)}});
+    }
+    const registryRaw=Buffer.from(JSON.stringify(f.registry));
+    const args={...f.args,registryRaw,registrySha256:sha(registryRaw)};
+    const result=exportObjectErasureAuthority(f.sql,args);
+    assert.equal(result.revocations.length,35);
+    assert.equal(result.revocations.some(row=>row.leaseId===f.lease),true);
+    assert.equal(result.revocations.some(row=>row.leaseId===(69).toString(16).padStart(32,'0')),true);
+    assert.equal(result.revocations.some(row=>row.leaseId===(70).toString(16).padStart(32,'0')),false);
+    assert.equal(result.registrySha256,sha(registryRaw));
+    for(const changed of [{version:1},{version:3},{previousRegistry:null},
+      {previousRegistry:{...f.registry.previousRegistry,path:'relative.json'}},
+      {previousRegistry:{...f.registry.previousRegistry,bytes:8*1024*1024+1}}]){
+      const raw=Buffer.from(JSON.stringify({...f.registry,...changed}));
+      assert.throws(()=>exportObjectErasureAuthority(f.sql,{...args,registryRaw:raw,registrySha256:sha(raw)}));
+    }
+  }finally{f.sql.close();}
+});
+
 for(const [name,alter] of [
  ['changed pin',f=>{f.args.registrySha256='0'.repeat(64);}],
  ['stale ledger',f=>{f.args.now=1600;}],

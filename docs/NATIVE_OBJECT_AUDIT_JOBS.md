@@ -51,7 +51,7 @@ Use the existing private Python runtime and an independently approved
 `NativeObjectVerifier` policy, program, models and real protected import authority.
 There are no default production profiles or numerical tolerances.
 
-An independently pinned registry has `version: 1`,
+An independently pinned initial registry has `version: 1`,
 `scope: "private-object-audit-registry"`, matching `policyId` and confirmed
 Community `resource`, and an `assignments` list. Each entry has:
 
@@ -136,14 +136,21 @@ staging/queued/running jobs, 512 MiB of input and two HTTP connections. Bodies
 are limited to 4 MiB; each new job requires at least 1 GiB of free space plus its
 input size. The native auditor separately checks feature and location limits.
 Capacity exhaustion stops new work safely. Evidence is retained, rather than
-automatically deleted or recycled. A changed registry or policy requires a
-separate spool; it cannot silently reinterpret old jobs.
+automatically deleted or recycled. An unapproved registry change or any policy
+change requires a separate spool; it cannot silently reinterpret old jobs.
+
+The [append-only rollover procedure](OBJECT_REGISTRY_ROLLOVER.md) adds a separately
+pinned version-2 registry under the same policy and preserves every historical
+assignment and job. It permits up to 4,096 assignments/jobs in an 8 MiB registry;
+the queue, input-storage, free-space and attempt limits remain unchanged.
+An identity change and its extension receipt commit together. This is a bounded
+extension path, not automatic evidence deletion or indefinite storage.
 
 These native limits support a controlled integration cohort, not indefinite
 public capacity. The hosted [contribution flow](OBJECT_CONTRIBUTION_FLOW.md) now
 connects quarantine, publication and credit; its [waiting slots](OBJECT_QUEUE_RETENTION.md)
-are separate from retained history. Native registry/job retention and authentic
-qualification remain open. Before deployment, verify account cleanup
+are separate from retained history. Automatic trusted assignment delivery,
+native terminal retention and authentic qualification remain open. Before deployment, verify account cleanup
 against the authentic native host and independent spool recovery; add measured
 retention/cost/capacity and provider restart tests.
 No bridge binding, public route or readiness flag was enabled by this change.

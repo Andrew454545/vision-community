@@ -12,6 +12,7 @@ import re
 from .native_scene_search import strict_json
 from .object_canary import regular
 from .search_snapshot import pinned_read
+from .object_audit_registry import MAX_ASSIGNMENTS
 
 MAX_AUTHORITY = 1024 * 1024
 MAX_AGE_SECONDS = 600
@@ -44,7 +45,7 @@ def recovery_revocations(path, sha256, *, registry_sha256, verifier, entries, no
     require(type(captured) is int and type(expires) is int
             and 0 <= captured <= now < expires <= captured + MAX_AGE_SECONDS)
     revocations = authority['revocations']
-    require(isinstance(revocations, list) and len(revocations) <= len(entries) <= 64)
+    require(isinstance(revocations, list) and len(revocations) <= len(entries) <= MAX_ASSIGNMENTS)
     seen = set()
     for entry in revocations:
         require(isinstance(entry, dict) and set(entry) == {'leaseId', 'assignmentSha256', 'deletedAt'}

@@ -11,10 +11,10 @@ while waiting. It does not manufacture another retry authorization. Cancellation
 and account deletion still win over late replies.
 
 Only an exact bounded HTTP 503 queue-full reply receives this treatment. Disk
-limits, the native 64-job/history limit, unknown errors, malformed bodies and
+limits, retained-job/registry limits, unknown errors, malformed bodies and
 connection failures retain their existing finite attention threshold. Those
-limits are not assumed to resolve automatically. Native registry/retention work
-remains a launch dependency.
+limits are not assumed to resolve automatically. [Bounded registry rollover](OBJECT_REGISTRY_ROLLOVER.md)
+is implemented; native terminal retention remains a launch dependency.
 
 The private native service and bridge must both support the new error; older
 generic capacity replies keep the previous behavior. Repin the exact changed
