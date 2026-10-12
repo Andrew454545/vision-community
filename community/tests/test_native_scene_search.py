@@ -71,9 +71,65 @@ class NativeSceneSearchTest(unittest.TestCase):
         self.work.mkdir()
         self.engine = self.start()
 
-    def start(self, work=None):
+    def start(self, work=None, **options):
         return native.NativeSceneEngine(self.config_path, digest(self.config_path.read_bytes()), self.snapshot,
-                                        self.snapshot_pin, work or self.work)
+                                        self.snapshot_pin, work or self.work, **options)
+
+    def test_explicit_restart_reuses_verified_mount_without_changing_any_bytes(self):
+        before = {p.name: p.read_bytes() for p in self.engine.index.iterdir()}
+        resumed = self.start(reuse_mount=True)
+        self.assertEqual(resumed.mount, self.engine.mount)
+        self.assertEqual(before, {p.name: p.read_bytes() for p in resumed.index.iterdir()})
+        with patch.object(native, 'run_native', side_effect=self.fake_native):
+            self.assertEqual(resumed.search(self.request()), self.engine.search(self.request()))
+
+    def test_recovery_derives_hashes_from_sealed_source_instead_of_forged_local_mount(self):
+        for name in ('locations.tsv', 'shard-000000.i8', 'shard-000000.mask', 'manifest.json'):
+            path = self.engine.index / name
+            original, mount = path.read_bytes(), (self.engine.index/'mount.json').read_bytes()
+            changed = original[:-1] + bytes([original[-1] ^ 1])
+            path.write_bytes(changed)
+            forged = json.loads(mount); forged['files'][name]['sha256'] = digest(changed)
+            (self.engine.index/'mount.json').write_bytes(encoded(forged))
+            with self.subTest(name=name), self.assertRaisesRegex(native.NativeSearchError, 'native_mount_recovery_required'):
+                self.start(reuse_mount=True)
+            self.assertEqual(path.read_bytes(), changed)
+            self.assertEqual((self.engine.index/'mount.json').read_bytes(), encoded(forged))
+            path.write_bytes(original); (self.engine.index/'mount.json').write_bytes(mount)
+
+    def test_partial_mount_is_preserved_and_default_constructor_still_requires_new_work(self):
+        with self.assertRaises(FileExistsError): self.start()
+        (self.engine.index/'mount.json').unlink()
+        before = {p.name: p.read_bytes() for p in self.engine.index.iterdir()}
+        with self.assertRaisesRegex(native.NativeSearchError, 'native_mount_recovery_required'):
+            self.start(reuse_mount=True)
+        self.assertEqual(before, {p.name: p.read_bytes() for p in self.engine.index.iterdir()})
+
+    def test_changed_runtime_binding_cannot_reuse_an_old_mount(self):
+        before = {p.name: p.read_bytes() for p in self.engine.index.iterdir()}
+        self.config['policyId'] = 'new-synthetic-policy'; self.config_path.write_bytes(encoded(self.config))
+        with self.assertRaisesRegex(native.NativeSearchError, 'native_mount_recovery_required'):
+            self.start(reuse_mount=True)
+        self.assertEqual(before, {p.name: p.read_bytes() for p in self.engine.index.iterdir()})
+
+    def test_restart_checks_every_shard_and_mask(self):
+        work = self.root / 'multiple-shards'; work.mkdir()
+        with patch.object(native, 'SHARD_LOCATIONS', 2):
+            first = self.start(work); second = self.start(work, reuse_mount=True)
+            self.assertEqual(first.mount, second.mount)
+            path = second.index/'shard-000001.mask'; path.write_bytes(b'\x00\x00')
+            with self.assertRaisesRegex(native.NativeSearchError, 'native_mount_recovery_required'):
+                self.start(work, reuse_mount=True)
+
+    def test_actual_native_child_uses_private_query_temp_without_inheriting_secrets(self):
+        work = self.root/'private-child-temp'; work.mkdir()
+        code = 'import json,os,tempfile; print(json.dumps({"temp":tempfile.gettempdir(),"vars":{k:os.environ.get(k) for k in ("TEMP","TMP","TMPDIR")},"secret":os.environ.get("VISION_PRIVATE_TEST_SECRET")}))'
+        with patch.dict(os.environ, {'VISION_PRIVATE_TEST_SECRET': 'PRIVATE must not reach child'}):
+            native.run_native([sys.executable, '-I', '-c', code], work, 10)
+        result = json.loads((work/'stdout.log').read_bytes())
+        self.assertEqual(Path(result['temp']), work)
+        self.assertEqual(set(result['vars'].values()), {str(work)})
+        self.assertIsNone(result['secret'])
 
     def request(self, q=None):
         q = q or query()

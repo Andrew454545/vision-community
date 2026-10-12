@@ -90,7 +90,7 @@ class HTTPSCoordinator:
 
 @contextmanager
 def _exclusive(root, *, name="agent.lock"):
-    if name not in {"agent.lock", "supervisor.lock"}:
+    if name not in {"agent.lock", "supervisor.lock", "service.lock"}:
         raise OwnerSearchError("invalid_owner_lock")
     path = root / name
     if path.exists():
