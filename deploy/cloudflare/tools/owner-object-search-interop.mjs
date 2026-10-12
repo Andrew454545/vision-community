@@ -50,8 +50,10 @@ try {
   let denied=0;
   for(const [index,entry] of input.cases.entries()) {
     const packet=entry.result;
-    const env={DB:db,SEARCH_DELIVERY:'queued-v1',SEARCH_POLICY_ID:packet.policyId,
-      SEARCH_RUNTIME_SHA256:packet.runtimeSha256,SEARCH_SNAPSHOT_SHA256:packet.snapshotSha256,
+    const pin={contractVersion:packet.contractVersion,policyId:packet.policyId,
+      runtimeSha256:packet.runtimeSha256,snapshotSha256:packet.snapshotSha256};
+    const env={DB:db,SEARCH_DELIVERY:'queued-v1',
+      SEARCH_QUEUE_BINDINGS:JSON.stringify({version:1,lanes:{object:pin}}),
       SEARCH_AGENT_SECRET:'f'.repeat(64),SEARCH_COST_UNITS:'10'};
     const key=`q1.${now}.${String(index+1).padStart(32,'0')}`;
     assert.equal(packet.requestSha256,(await searchDigest(entry.query)).slice(7));
@@ -59,8 +61,8 @@ try {
     await queueSearch(env,account,key,entry.query,{now,maxCostUnits:10});
     assert.equal(balance(),units);
     assert.equal((await searchCredit(db,account)).reservedUnits,10);
-    assert.equal((await claimQueuedSearch(env,now,['scene'])).job,null);
-    const {job}=await claimQueuedSearch(env,now,['object']);
+    assert.equal((await claimQueuedSearch(env,now,['scene'],{scene:pin})).job,null);
+    const {job}=await claimQueuedSearch(env,now,['object'],{object:pin});
     assert.equal(JSON.parse(job.requestJson).requestSha256,packet.requestSha256);
     const id=packet.hits[0].locationId;
     // Live authority can disappear after the owner has computed. No saved

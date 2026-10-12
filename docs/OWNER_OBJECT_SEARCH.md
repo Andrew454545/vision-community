@@ -119,11 +119,11 @@ not rerun. These checks establish protocol behavior, not authentic ranking parit
 
 ## Remaining activation work
 
-This supplies the previously missing Object engine interface. The current queue
-has **one** policy/runtime/snapshot pin set. An Object-only configuration can use
-this adapter; serving both lanes from one coordinator still needs an explicitly
-sealed composite runtime/snapshot contract or separately configured lane pins.
-Do not advertise both lanes with unrelated, incompatible engine identities.
+This supplies the previously missing Object engine interface. The queue now has
+optional [independent Scene/Object bindings](OWNER_SEARCH_BINDINGS.md), including
+exact owner capabilities and separate saved-job pins. Each engine still needs
+its own approved runtime and snapshot. This source integration does not open
+public Object admission or approve either platform's actual runtime.
 
 Outbound trusted verification/import, bounded catalog adaptation, startup and
 credential provisioning, approved isolated resources/migration, authentic
