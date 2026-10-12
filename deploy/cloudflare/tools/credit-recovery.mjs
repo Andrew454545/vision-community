@@ -8,6 +8,7 @@ import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import { RESOURCE_PROFILES } from './account-restore.mjs';
 import { UNITS } from '../src/model.js';
+import {QueueRecoveryError, collectSearchQueue, queueHistory} from './search-queue-recovery.mjs';
 
 export class CreditRecoveryError extends Error {}
 const fail = code => { throw new CreditRecoveryError(code); };
@@ -120,7 +121,7 @@ function collect(db) {
     requireTrue(result?.searchId === s.id, 'saved_search_identity_mismatch');
     requireTrue(searchDebits.get(s.id) === s.account_id, 'unpaid_saved_search');
   }
-  return { accounts,ledger,searches,receipts,publications,leases };
+  return { accounts,ledger,searches,receipts,publications,leases,queue:collectSearchQueue(db) };
 }
 function same(left, right, code) {
   requireTrue(left.size === right.size, code);
@@ -147,15 +148,20 @@ function history(backup, current) {
 export function verifyCreditRecovery(backupDb, currentDb, recoveredDb) {
   const backup = collect(backupDb), current = collect(currentDb), recovered = collect(recoveredDb);
   history(backup, current);
+  queueHistory(backup.queue,current.queue);
   for (const field of ['accounts','ledger','searches','receipts','publications','leases']) {
     same(current[field], recovered[field], `recovered_${field}_mismatch`);
   }
+  requireTrue(current.queue.installed===recovered.queue.installed,'recovered_search_queue_mismatch');
+  same(current.queue.jobs,recovered.queue.jobs,'recovered_search_jobs_mismatch');
   const extra = [...current.ledger.values()].filter(r => !backup.ledger.has(r.id));
   const total = reason => extra.filter(r => r.reason === reason).reduce((n,r) => n + BigInt(r.units), 0n).toString();
   return { accountingCopyVerified: true, liveReady: false, productionQualified: false,
     creditRecoveryVerified: false, providerRecoveryVerified: false,
     accounts: current.accounts.size, ledgerEntries: current.ledger.size,
     savedPaidSearches: current.searches.size, creditedPublications: current.publications.size,
+    queuedSearches: current.queue.jobs.size, activeSearchReservations: current.queue.active,
+    reservedSearchUnits: current.queue.reservedUnits, queuedSearchSchemaPreserved: current.queue.installed,
     deletedAccounts: current.receipts.size, postBackupLedgerEntries: extra.length,
     postBackupEarnedUnits: total('verified_work'), postBackupSearchUnits: total('search'),
     postBackupDeletionUnits: (BigInt(total('account_deleted')) + BigInt(total('account_restore_deleted'))).toString() };
@@ -248,7 +254,7 @@ export function checkCreditRecovery({ backup, current, recovered, authority, aut
     writeReport(join(destination,'credit-recovery-report.json'), report);
     return report;
   } catch (error) {
-    const code = error instanceof CreditRecoveryError ? error.message : 'credit_recovery_check_failed';
+    const code = error instanceof CreditRecoveryError || error instanceof QueueRecoveryError ? error.message : 'credit_recovery_check_failed';
     writeReport(join(destination,'credit-recovery-failure.json'), { complete:false, liveReady:false,error:code });
     throw new CreditRecoveryError(code);
   }

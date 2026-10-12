@@ -10,11 +10,10 @@ export function checkSearchQueue(sql) {
     expected.exec(readFileSync(new URL('../search-queue.sql', import.meta.url), 'utf8'));
     const objects = expected.prepare(`SELECT type,name,tbl_name,sql FROM sqlite_master
       WHERE name LIKE 'search_jobs%' OR name='search_queue_revision' ORDER BY name`).all();
-    for (const object of objects) {
-      const actual = sql.prepare('SELECT type,name,tbl_name,sql FROM sqlite_master WHERE name=?').get(object.name);
-      const normalized = value => value && { ...value, sql: value.sql?.replace(/\s+/g, ' ').trim() };
-      if (JSON.stringify(normalized(actual)) !== JSON.stringify(normalized(object))) throw Error('search_queue_schema_mismatch');
-    }
+    const actual = sql.prepare(`SELECT type,name,tbl_name,sql FROM sqlite_master
+      WHERE name LIKE 'search_jobs%' OR name='search_queue_revision' ORDER BY name`).all();
+    const normalized = rows => rows.map(value => ({ ...value, sql: value.sql?.replace(/\s+/g, ' ').trim() }));
+    if (JSON.stringify(normalized(actual)) !== JSON.stringify(normalized(objects))) throw Error('search_queue_schema_mismatch');
     const revision = sql.prepare('SELECT * FROM search_queue_revision').all();
     if (JSON.stringify(revision) !== JSON.stringify(expected.prepare('SELECT * FROM search_queue_revision').all()))
       throw Error('search_queue_schema_mismatch');

@@ -139,6 +139,10 @@ and independently pinned owner runtime/catalog. Do not change current resources
 or copy private data to a new destination without its specific authorization.
 Rollback must retain the queue table/guards and pending work until holds are
 released or settled; never drop them to make an older writer run.
+The [offline financial recovery checks](CREDIT_RECOVERY.md#recovery-with-queued-delivery)
+now compare reservations, claims, terminal keys and exact private request bytes
+with independent current authority. Balances alone cannot approve a restored
+queue; an older version 1 financial snapshot cannot authorize its recovery.
 
 ## Verification and remaining work
 

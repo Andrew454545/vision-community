@@ -12,6 +12,7 @@ import { RESOURCE_PROFILES } from '../tools/account-restore.mjs';
 import { PRIVACY_TABLES, deleteAccount } from './accountPrivacy.js';
 import { settleSearch, replaySearch } from './searchLedger.js';
 import { sqliteD1 } from '../tools/sqlite-d1.mjs';
+import {queueSearch,claimQueuedSearch} from './searchQueue.js';
 
 const account = 'a'.repeat(32), second = 'b'.repeat(32);
 const sha = p => createHash('sha256').update(readFileSync(p)).digest('hex');
@@ -295,4 +296,116 @@ test('actual command-line entrypoint returns only a private aggregate report',as
     '--environment','staging','--out',f.options.out],{encoding:'utf8',windowsHide:true});
   assert.equal(result.status,0,result.stderr);assert.equal(JSON.parse(result.stdout).accountingCopyVerified,true);
   assert.ok(!result.stdout.includes(account));assert.ok(!result.stdout.includes('private reply'));
+});
+
+const queueSql=readFileSync(new URL('../search-queue.sql',import.meta.url),'utf8');
+async function queuedFixture(t,{claim=false,empty=false}={}) {
+  const f=await fixture(t),sql=open(t,f.current);sql.exec(queueSql);
+  const env={DB:sqliteD1(sql),SEARCH_DELIVERY:'queued-v1',SEARCH_POLICY_ID:'synthetic.queue',
+    SEARCH_RUNTIME_SHA256:'d'.repeat(64),SEARCH_SNAPSHOT_SHA256:'e'.repeat(64),SEARCH_AGENT_SECRET:'f'.repeat(64),SEARCH_COST_UNITS:'2'};
+  const key='q1.0000000190.'+'c'.repeat(32),query={lane:'scene',prompt:'PRIVATE queue prompt',excluded:[{lat:1e-7,lng:2}],resultCount:1};
+  let pending,job;
+  if(!empty) {
+    pending=await queueSearch(env,account,key,query,{now:190,maxCostUnits:2});
+    if(claim)job=(await claimQueuedSearch(env,190)).job;
+  }
+  sql.close();copyFileSync(f.current,f.recovered);repin(f);
+  return {...f,key,query,pending,job};
+}
+
+test('current and recovered queues preserve private holds alongside accepted work and paid replies',async t=>{
+  const f=await queuedFixture(t,{claim:true}),before=[f.backup,f.current,f.recovered].map(sha);
+  const result=checkCreditRecovery(f.options);
+  assert.equal(result.queuedSearches,1);assert.equal(result.activeSearchReservations,1);
+  assert.equal(result.reservedSearchUnits,2);assert.equal(result.queuedSearchSchemaPreserved,true);
+  assert.equal(result.liveReady,false);assert.equal(result.creditRecoveryVerified,false);
+  assert.deepEqual([f.backup,f.current,f.recovered].map(sha),before);
+  const report=readFileSync(join(f.options.out,'credit-recovery-report.json'),'utf8');
+  for(const text of [account,f.key,f.job.claimToken,'PRIVATE queue prompt'])assert.ok(!report.includes(text));
+});
+
+test('lost reservations fail recovery even when all banked balances and ledger entries match',async t=>{
+  const f=await queuedFixture(t);mutate(t,f.recovered,'DELETE FROM search_jobs');
+  assert.throws(()=>audit(f),/recovered_search_jobs_mismatch/);
+});
+
+test('lost or changed claim identity cannot revive an earlier owner after restore',async t=>{
+  const f=await queuedFixture(t,{claim:true});
+  mutate(t,f.recovered,"UPDATE search_jobs SET claim_token='"+'0'.repeat(64)+"'");
+  assert.throws(()=>audit(f),/recovered_search_jobs_mismatch/);
+});
+
+test('invalid raw query digest fails before financial recovery can approve a copied hold',async t=>{
+  const f=await queuedFixture(t);const sql=open(t,f.recovered);
+  const definition=sql.prepare("SELECT sql FROM sqlite_master WHERE name='search_jobs_identity'").get().sql;
+  sql.exec('DROP TRIGGER search_jobs_identity');
+  sql.prepare('UPDATE search_jobs SET query_json=?').run('PRIVATE changed payload');sql.exec(definition);sql.close();
+  assert.throws(()=>audit(f),/invalid_queued_accounting_state/);
+});
+
+test('missing empty queue schema and weakened guards both refuse recovery',async t=>{
+  const f=await queuedFixture(t,{empty:true});
+  const sql=open(t,f.recovered);
+  sql.exec('DROP TRIGGER search_jobs_credit_guard');sql.close();
+  assert.throws(()=>audit(f),/queued_accounting_schema_invalid/);
+  copyFileSync(f.current,f.recovered);const restored=open(t,f.recovered);
+  for(const row of restored.prepare("SELECT name FROM sqlite_master WHERE type='trigger' AND name LIKE 'search_jobs%'").all())
+    restored.exec('DROP TRIGGER '+row.name);
+  restored.exec('DROP TABLE search_jobs;DROP TABLE search_queue_revision');restored.close();
+  assert.throws(()=>audit(f),/recovered_search_queue_mismatch/);
+});
+
+test('durable terminal keys cannot disappear while account balances remain unchanged',async t=>{
+  const f=await queuedFixture(t);
+  mutate(t,f.current,"UPDATE search_jobs SET state='cancelled',query_json=NULL,error_code='search_cancelled'");
+  copyFileSync(f.current,f.recovered);assert.equal(audit(f).reservedSearchUnits,0);
+  mutate(t,f.recovered,'DELETE FROM search_jobs');assert.throws(()=>audit(f),/recovered_search_jobs_mismatch/);
+});
+
+test('settled queue metadata must retain the exact saved price, debit and paid reply',async t=>{
+  const f=await queuedFixture(t,{claim:true}),sql=open(t,f.current);
+  const row=sql.prepare('SELECT * FROM search_jobs').get();
+  sql.exec('BEGIN IMMEDIATE');
+  sql.prepare("UPDATE search_jobs SET state='settled',query_json=NULL,claim_token=NULL,claim_until=NULL,completion_nonce=?")
+    .run('0'.repeat(64));
+  sql.prepare("INSERT INTO ledger(account_id,units,reason,reference) VALUES(?,-2,'search',?)").run(account,'search:'+row.id);
+  sql.prepare('INSERT INTO searches(id,account_id,idempotency_key,query,result_json) VALUES(?,?,?,?,?)')
+    .run(row.id,account,row.idempotency_key,row.query_digest,JSON.stringify({searchId:row.id,costUnits:2,map:{name:'PRIVATE queued paid reply'}}));
+  sql.prepare('UPDATE accounts SET units=units-2 WHERE id=?').run(account);sql.exec('COMMIT');sql.close();
+  copyFileSync(f.current,f.recovered);
+  const result=audit(f);assert.equal(result.reservedSearchUnits,0);assert.equal(result.savedPaidSearches,3);
+  const bad=open(t,f.recovered);bad.prepare('UPDATE searches SET result_json=? WHERE id=?')
+    .run(JSON.stringify({searchId:row.id,costUnits:1}),row.id);bad.close();
+  assert.throws(()=>audit(f),/invalid_queued_accounting_state/);
+});
+
+test('queue immutable identity history cannot be changed between backup and current authority',async t=>{
+  const f=await queuedFixture(t);copyFileSync(f.current,f.backup);
+  const sql=open(t,f.current);const definition=sql.prepare("SELECT sql FROM sqlite_master WHERE name='search_jobs_identity'").get().sql;
+  sql.exec('DROP TRIGGER search_jobs_identity;UPDATE search_jobs SET cost_units=3');sql.exec(definition);sql.close();
+  copyFileSync(f.current,f.recovered);assert.throws(()=>audit(f),/backup_search_job_identity_changed/);
+});
+
+test('a recovery failure keeps fixed private-safe evidence and no success marker',async t=>{
+  const f=await queuedFixture(t);mutate(t,f.recovered,'DROP TRIGGER search_jobs_credit_guard');repin(f);
+  assert.throws(()=>checkCreditRecovery(f.options),/queued_accounting_schema_invalid/);
+  const report=readFileSync(join(f.options.out,'credit-recovery-failure.json'),'utf8');
+  assert.ok(!existsSync(join(f.options.out,'credit-recovery-report.json')));
+  for(const text of [account,f.key,'PRIVATE queue prompt',f.p])assert.ok(!report.includes(text));
+});
+
+test('an unreviewed queue trigger cannot change restored reservation behavior',async t=>{
+  const f=await queuedFixture(t,{empty:true});
+  mutate(t,f.recovered,"CREATE TRIGGER search_jobs_extra AFTER UPDATE ON search_jobs BEGIN DELETE FROM search_jobs; END");
+  assert.throws(()=>audit(f),/queued_accounting_schema_invalid/);
+});
+
+test('retained cancelled and exhausted claim history cannot be revived by a current cutoff',async t=>{
+  const f=await queuedFixture(t);
+  copyFileSync(f.current,f.backup);
+  mutate(t,f.backup,"UPDATE search_jobs SET state='cancelled',query_json=NULL,error_code='search_cancelled'");
+  assert.throws(()=>audit(f),/backup_search_job_identity_changed/);
+  copyFileSync(f.current,f.backup);
+  mutate(t,f.backup,"UPDATE search_jobs SET state='claimed',claim_token='"+'0'.repeat(64)+"',claim_until=300,attempts=2");
+  assert.throws(()=>audit(f),/backup_search_job_identity_changed/);
 });

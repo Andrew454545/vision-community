@@ -88,6 +88,35 @@ It verifies:
   publication metadata and saved results match the independent current state.
   This detects post-backup work or spending omitted from a restored ledger and
   rollback of a rotated session/recovery hash.
+- Queued searches retain their exact private request bytes, runtime/index pins,
+  reserved price, claim identity, attempts and terminal keys. Settlement metadata
+  must match the original debit and saved paid reply. An unchanged bank balance
+  cannot conceal a missing reservation. Even an empty queue must retain its
+  exact schema and all reservation/deletion guards.
+
+## Recovery with queued delivery
+
+The optional queue remains bounded to 512 retained jobs, 128 active jobs and three
+active reservations per account. The checker compares it with the independent
+current database, including terminal rows until they have legitimately been
+pruned there. Retained identities cannot change, attempts cannot decrease and
+terminal jobs cannot become new work. Account deletion still removes private
+jobs; it does not remove accepted contributions or historical debits.
+
+The separate Python `community.financial_restore` exporter now emits a **version
+2** financial snapshot when the queue is installed. It includes hashes and counts
+of the queue schema and exact full rows, alongside the existing account/ledger/
+paid-reply identity. It does not copy raw queries or claim tokens into that JSON.
+The input database and the checker's private working copy still contain them and
+must remain restricted. Version 1 remains valid for older databases without a
+queue; it cannot approve recovery of a database with one. Obtain new independent
+current authority rather than editing an old snapshot's version or timestamp.
+
+Both tools are read-only comparisons. They never release an overdue hold, expire
+a claim, resubmit a query or repair a balance. Restore pending work and its guards
+even if delivery is rolled back to synchronous mode. After approved activation,
+the normal queue service applies deadlines and fences old owners. A passing
+offline result does not authorize activation or prove provider recovery.
 
 The completion report has `accountingCopyVerified: true` but deliberately keeps
 `creditRecoveryVerified`, `providerRecoveryVerified`, `liveReady` and
@@ -146,3 +175,11 @@ copies, closed WAL-mode inputs and escaped paths. The old checker reproduction
 and an intermediate closed-WAL failure remain retained separately. The changed
 component has not been rerun on Mac, and no actual private database was copied.
 See [the supplemental evidence](evidence/credit-recovery-pinned-inputs-20261009.json).
+
+The 12 October queued-recovery extension passed **111 Windows checks**, with one
+existing file-symlink privilege skip and zero failures; see [the separate synthetic
+receipt](evidence/queued-credit-recovery-20261012.json). It covers lost
+holds/claims, raw-query changes, terminal-key loss, invalid saved prices, missing
+or extra guards, historical identity/attempt rollback and the legacy snapshot
+boundary. No production database, cloud operation, real inference or live credit
+was used; the operational cost hold remains in force.
