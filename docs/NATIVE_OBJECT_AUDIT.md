@@ -15,6 +15,14 @@ or accept an uploader's coverage labels as trusted assignment data.
 
 ## What an audit checks
 
+Object accuracy means automatic reproduction of Andrew's reference results on
+the same image bytes, locations, models and settings across Mac and Windows.
+Scores must agree within explicit measured bounds. No person needs to label
+images or confirm that a detected object is really present. Class/record,
+quality-mask and feature comparisons keep the indexed results consistent with
+the reference; they do not establish visual ground truth. Official Gen4 and
+protected-location checks separately determine which locations may contribute.
+
 1. Verify every runtime/model/library and adapter source checksum. Model
    manifests must name the pinned local files; external paths are refused.
 2. Bind the exact source TSV to the trusted assignment: location IDs, poses,
