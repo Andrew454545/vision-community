@@ -7,6 +7,7 @@ reference corpus or distributes indexes. The public gateway owns settlement.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import hmac
 import json
 import math
@@ -220,8 +221,8 @@ class NativeSceneRuntime:
 
 class NativeSceneEngine(NativeSceneRuntime):
     def __init__(self, runtime: Path, runtime_sha256: str, snapshot: Path, snapshot_sha256: str,
-                 work: Path, *, timeout=110):
-        if type(timeout) not in (int, float) or not 0 < timeout <= 110:
+                 work: Path, *, timeout=110, reuse_mount=False):
+        if type(timeout) not in (int, float) or not 0 < timeout <= 110 or type(reuse_mount) is not bool:
             raise NativeSearchError("invalid_native_timeout")
         super().__init__(runtime, runtime_sha256)
         self.snapshot_sha256 = snapshot_sha256
@@ -240,7 +241,66 @@ class NativeSceneEngine(NativeSceneRuntime):
                 raise NativeSearchError("invalid_scene_member")
             validate_pose(member.get("pose"), self.countries, member=True)
         self.index = self.work / "index"
-        self.prepare_index()
+        if reuse_mount and self.index.exists():
+            try:
+                self.recover_mount()
+            except (ValueError, OSError):
+                raise NativeSearchError("native_mount_recovery_required") from None
+        else:
+            self.prepare_index()
+
+    def source_bytes(self):
+        lines = []
+        for member in self.members:
+            p = member["pose"]
+            fields = ["community", member["locationId"], *(p[k] for k in ("lat", "lng", "heading", "pitch", "zoom")),
+                      p["panoId"], p["country"], p["cameraGeneration"], "false"]
+            lines.append("\t".join(str(v) for v in fields) + "\n")
+        return "".join(lines).encode("utf-8")
+
+    def mount_manifest(self, source):
+        return {"version": 4, "runId": self.snapshot_sha256,
+                "modelDir": str(self.models), "sourceTsv": str(source), "sourceBytes": source.stat().st_size,
+                "sourcePrefixHash": fnv_file(source), "inputFingerprint": self.runtime_sha256,
+                "modelIdentity": model_identity(self.models), "totalLocations": len(self.members),
+                "indexedLocations": len(self.members), "embeddingDimension": 768, "viewsPerLocation": 4,
+                "storage": "four quarter-turn scaled int8 vectors; little-endian binary16 scale",
+                "bytesPerLocation": BYTES_PER_LOCATION, "shardLocations": SHARD_LOCATIONS,
+                "completed": True, "updatedAtUnixMs": 0}
+
+    def recover_mount(self):
+        """Rebuild expected identities from the sealed source, never local claims.
+
+        A restart may reuse a complete matching mount. Partial/corrupt mounts
+        remain untouched for operator recovery; no automatic deletion or repair.
+        """
+        plain_path(self.index, directory=True)
+        source = plain_path(self.index / 'locations.tsv')
+        raw_source = self.source_bytes()
+        if bounded_read(source, len(raw_source)) != raw_source:
+            raise NativeSearchError('native_mount_changed')
+        pins = {'locations.tsv': {'bytes': len(raw_source), 'sha256': digest(raw_source)}}
+        with plain_path(self.snapshot / 'scene-records.i8').open('rb') as original:
+            for shard, start in enumerate(range(0, len(self.members), SHARD_LOCATIONS)):
+                count = min(SHARD_LOCATIONS, len(self.members) - start)
+                remaining = size = count * BYTES_PER_LOCATION
+                hashed = hashlib.sha256()
+                while remaining:
+                    chunk = original.read(min(1024 * 1024, remaining))
+                    if not chunk:
+                        raise NativeSearchError('short_snapshot_payload')
+                    hashed.update(chunk); remaining -= len(chunk)
+                pins[f'shard-{shard:06}.i8'] = {'bytes': size, 'sha256': hashed.hexdigest()}
+                pins[f'shard-{shard:06}.mask'] = {'bytes': count, 'sha256': digest(bytes([15]) * count)}
+            if original.read(1):
+                raise NativeSearchError('extra_snapshot_payload')
+        manifest = encoded(self.mount_manifest(source))
+        pins['manifest.json'] = {'bytes': len(manifest), 'sha256': digest(manifest)}
+        self.mount = {'version': 1, 'runtimeSha256': self.runtime_sha256,
+                      'snapshotSha256': self.snapshot_sha256, 'files': pins}
+        self.verify_mount()
+        verify_snapshot(self.snapshot, self.snapshot_sha256)
+        self.verify_runtime()
 
     def prepare_index(self):
         # Entirely new immutable mount. Never copy an existing native manifest or
@@ -248,13 +308,7 @@ class NativeSceneEngine(NativeSceneRuntime):
         self.index.mkdir(mode=0o700, exist_ok=False)
         try:
             source = self.index / "locations.tsv"
-            lines = []
-            for member in self.members:
-                p = member["pose"]
-                fields = ["community", member["locationId"], *(p[k] for k in ("lat", "lng", "heading", "pitch", "zoom")),
-                          p["panoId"], p["country"], p["cameraGeneration"], "false"]
-                lines.append("\t".join(str(v) for v in fields) + "\n")
-            write_file(source, "".join(lines).encode("utf-8"))
+            write_file(source, self.source_bytes())
             pins = {"locations.tsv": {"bytes": source.stat().st_size, "sha256": file_digest(source)}}
             with (self.snapshot / "scene-records.i8").open("rb") as original:
                 for shard, start in enumerate(range(0, len(self.members), SHARD_LOCATIONS)):
@@ -275,14 +329,7 @@ class NativeSceneEngine(NativeSceneRuntime):
                     pins[mask] = write_file(self.index / mask, bytes([15]) * count)
                 if original.read(1):
                     raise NativeSearchError("extra_snapshot_payload")
-            manifest = {"version": 4, "runId": self.snapshot_sha256,
-                        "modelDir": str(self.models), "sourceTsv": str(source), "sourceBytes": source.stat().st_size,
-                        "sourcePrefixHash": fnv_file(source), "inputFingerprint": self.runtime_sha256,
-                        "modelIdentity": model_identity(self.models), "totalLocations": len(self.members),
-                        "indexedLocations": len(self.members), "embeddingDimension": 768, "viewsPerLocation": 4,
-                        "storage": "four quarter-turn scaled int8 vectors; little-endian binary16 scale",
-                        "bytesPerLocation": BYTES_PER_LOCATION, "shardLocations": SHARD_LOCATIONS,
-                        "completed": True, "updatedAtUnixMs": 0}
+            manifest = self.mount_manifest(source)
             pins["manifest.json"] = write_file(self.index / "manifest.json", encoded(manifest))
             verify_snapshot(self.snapshot, self.snapshot_sha256)
             self.verify_runtime()
@@ -479,7 +526,9 @@ def distance(a, b):
 def run_native(command, job: Path, timeout: float):
     # No shell and no inherited credentials/provider overrides. On Windows keep
     # the window hidden; the executable's adjacent, pinned DLLs remain available.
-    environment = {k: os.environ[k] for k in ("SYSTEMROOT", "WINDIR", "TMP", "TEMP", "PATH") if k in os.environ}
+    job = plain_path(job, directory=True)
+    environment = {k: os.environ[k] for k in ("SYSTEMROOT", "WINDIR", "PATH") if k in os.environ}
+    environment.update({key: str(job) for key in ('TEMP', 'TMP', 'TMPDIR')})
     for key in ("RAYON_NUM_THREADS", "VISION_ORT_THREADS", "OMP_NUM_THREADS", "ORT_NUM_THREADS"):
         environment[key] = "1"
     creationflags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0

@@ -74,6 +74,10 @@ preserves the completion outbox, first fixed-code failure report and pause/stop
 markers. Diagnostics contain no arbitrary exception text, query or credential.
 This library has no command-line entry point, listener, startup installer or import
 side effects. No real owner loop or background task was started.
+The separate inert [owner runner](OWNER_SEARCH_SERVICE.md) now assembles the
+libraries behind a pinned configuration and explicit local activation guard.
+It defers vault/model loading, replays saved completions first and supports verified
+Scene mount reuse after restart. No OS startup registration or activation occurred.
 
 The optional [OS credential reader](../community/owner_search_credentials.py)
 and `HTTPSCoordinator.from_os_credentials(origin)` read only a deliberately

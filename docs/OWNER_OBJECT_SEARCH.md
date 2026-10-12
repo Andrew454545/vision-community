@@ -124,6 +124,9 @@ optional [independent Scene/Object bindings](OWNER_SEARCH_BINDINGS.md), includin
 exact owner capabilities and separate saved-job pins. Each engine still needs
 its own approved runtime and snapshot. This source integration does not open
 public Object admission or approve either platform's actual runtime.
+The [owner runner](OWNER_SEARCH_SERVICE.md) now connects this engine and the Scene
+engine to the transport/supervisor with lazy loading and one process lock. It is
+inert until explicitly activated; startup registration/provisioning remain open.
 
 Outbound trusted verification/import, bounded catalog adaptation, startup and
 credential provisioning, approved isolated resources/migration, authentic

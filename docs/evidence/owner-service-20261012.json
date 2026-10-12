@@ -1,0 +1,93 @@
+{
+  "explicitInteropNode": "24.19.0",
+  "initialFocusedSuite": {
+    "failed": 0,
+    "passed": 86,
+    "scope": "Before adding the new shared private-native-temp case and Object compatibility suite.",
+    "skipped": 0,
+    "tests": 86
+  },
+  "interop": {
+    "liveReady": false,
+    "onceOnlyDebits": 3,
+    "routes": 3,
+    "staleAuthorityRefusals": 9,
+    "status": "OWNER_OBJECT_SEARCH_INTEROP_PASSED",
+    "synthetic": true
+  },
+  "limits": {
+    "acceptedWorkEndurance": false,
+    "authenticInferenceOrApprovedRuntime": false,
+    "deploymentOrPrivateDataTransfer": false,
+    "externalNetworkOrProviderCalls": false,
+    "freePlanCapacityMeasured": false,
+    "launchReady": false,
+    "liveEarnedCredit": false,
+    "macExecution": false,
+    "operationalCostHoldPreserved": true,
+    "realVaultAccess": false,
+    "startupRegistrationOrActivation": false,
+    "syntheticNativeOutputsModelsCoverageAndCredentials": true
+  },
+  "logs": {
+    "final-check.log": "ad87ce16fc3137f01ece4e525c7bb036cfc17d3cf85f0ce05fb06a6872d87e29",
+    "first-check.log": "1e5d9bb77ebf3ad10a3c54157006ab72b29a9d48122479232da1f73c4fc14bc4",
+    "interop-check.log": "090e3f5d17d33d737ee6be4a253368715b768e4f65069ac05c2b71f16d9151f5",
+    "interop-evidence/interop-node.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "interop-evidence/interop-node.stdout.log": "a16c1a0bad1dd54d71561c244a9ce6b4ef43097b155f85afbb4e49a518bb5361"
+  },
+  "platform": "Windows-11-10.0.26200-SP0",
+  "processObservation": "Restricted process visibility was unavailable. Exact owned test process and active CPU were confirmed privately. Final suite completed naturally; no test process or paused job was stopped/restarted.",
+  "python": "3.12.14",
+  "recordedAt": "2026-10-12T20:39:17.782302+00:00",
+  "result": {
+    "failed": 0,
+    "finalSuiteSeconds": 292.167,
+    "finalSuiteTests": 132,
+    "passed": 132,
+    "skipped": 0,
+    "supplementalExplicitPrivateNodeInterop": {
+      "failed": 0,
+      "passed": 1,
+      "repeatsOneCaseAlreadyIncludedInFinalSuite": true,
+      "seconds": 16.321,
+      "skipped": 0,
+      "tests": 1
+    }
+  },
+  "scope": "offline-owner-search-service-and-scene-restart",
+  "sourceParent": "e9655d880fb3e97420710a82b2bdd1ee431ff25a",
+  "testSuites": [
+    "community.tests.test_owner_search_service",
+    "community.tests.test_native_scene_search",
+    "community.tests.test_native_object_search",
+    "community.tests.test_owner_search_agent",
+    "community.tests.test_owner_search_supervisor",
+    "community.tests.test_owner_search_credentials"
+  ],
+  "testedWorkingFileSha256": {
+    "community/native_object_search.py": "4eb30aa74a69975a19b764174eac03d426966080e673ba11a52b6c223ee089db",
+    "community/native_scene_search.py": "8156e466a045d2eaa1a31ad69e88715962bb2fe0101a02d5bd6409624201fb55",
+    "community/owner_search_agent.py": "8789da9f90fc0385f7541fad16f6ae95e8c57fbd60200f68459a81db15c450c1",
+    "community/owner_search_credentials.py": "8a3c7f59cc25011eb0bd2ab0d3497356cc51671a7c1ab93cbfa291aad7a05616",
+    "community/owner_search_service.py": "bfde36ea2ac3ce10fb52025ab61cf5d78299f64e42c86a53adde926d1462dc59",
+    "community/owner_search_supervisor.py": "572365d0af1a9cdc68684306e90e70ea057bc9baaa1bae6b74e2442b5021d67f",
+    "community/tests/test_native_object_search.py": "37f8831309cdc445c25715a896447de04b18dc448bd7d4412a802bbadfad14a0",
+    "community/tests/test_native_scene_search.py": "62c3b0821d40170e4f5e66f574b322a3d3634a5eda72160ded394c13a28019ea",
+    "community/tests/test_owner_search_service.py": "67e122cb32a55cbd04875e7d3cff18ebc9433d5d88b07f20c4087727f42bc6a5",
+    "owner-search.py": "4acd50e4f3b58012d6eed30b469ea90e7b95e47a58f608ad130f48a4c3446fb5"
+  },
+  "verification": [
+    "Assembled Scene/Object runner carries independent saved pins and exact original query bytes.",
+    "Whole-process writer locking prevents competing owner runners.",
+    "Missing/stale activation blocks startup; revocation is rechecked before new network/native operations and after vault lookup.",
+    "Revocation during inference preserves completion without delivery; config changes cannot retarget work.",
+    "Deferred and blocked restart paths avoid credential/native loading.",
+    "Lost-ACK restart replays exact completion even with native inputs unavailable and no recomputation.",
+    "Scene mount reuse derives expected source, every shard/mask and manifest from sealed inputs; local self-reported hashes cannot approve corruption.",
+    "Incomplete/stale mounts and first fixed-code failures remain unchanged.",
+    "Actual hidden Python child uses private per-query TEMP/TMP/TMPDIR without inherited test secrets.",
+    "Isolated real CLI ignores poisoned PYTHONPATH and refuses missing activation without printing private configuration."
+  ],
+  "version": 1
+}
