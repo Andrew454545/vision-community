@@ -1,0 +1,78 @@
+{
+  "limits": {
+    "actualPrivateDatabaseReadOrCopied": false,
+    "authenticInference": false,
+    "deploymentOrMigration": false,
+    "launchReady": false,
+    "liveCreditCreated": false,
+    "macExecution": false,
+    "networkOrProviderCalls": false,
+    "operationalHoldPreserved": true,
+    "providerRecoveryVerified": false,
+    "realAcceptedWork": false,
+    "syntheticFixturesOnly": true
+  },
+  "logs": {
+    "node-final.log": "6ba75e0d81c0a0e3baf35e02e64c7a965223098ea0ca9c6e4f698a0ef8598c4a",
+    "node-first.log": "da542dcede881a34405f1b52c43eef64c54f169bf556bf6880535a0896a61422",
+    "python-after-access.log": "fa324a90c200c2db901efe9274f0fe1aea032d91cbdceb36d67ca3fdfa5a0566",
+    "python-final.log": "c761de6ddbd9584dce55b1386e74e800309aa3223ad3d228558054ab7e6ff659",
+    "python-first.log": "e6b7485c9313374b59dc93dbfd55e9fffdbd1d2ab15153c1773c962acfe36a30"
+  },
+  "node": "24.19.0",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "preservedFirstFailure": {
+    "cause": "Sandbox WinError 5 resolving synthetic temporary directories before checks could run.",
+    "errors": 33,
+    "file": "python-first.log",
+    "resolution": "Same offline fixtures passed with authorized access to private project temporary files; no source behavior was changed for this environment failure.",
+    "tests": 33
+  },
+  "python": "3.12.14",
+  "recordedAt": "2026-10-12T18:33:35.677924+00:00",
+  "result": {
+    "failed": 0,
+    "node": {
+      "failed": 0,
+      "passed": 77,
+      "skipped": 1,
+      "tests": 78
+    },
+    "passed": 111,
+    "python": {
+      "failed": 0,
+      "passed": 34,
+      "skipped": 0,
+      "tests": 34
+    },
+    "skipReason": "Existing file-symlink test: Windows file symlink privilege unavailable.",
+    "skipped": 1
+  },
+  "scope": "offline-queued-search-financial-recovery",
+  "sourceParent": "d486524d6ba40d5ef8c2cbc0a4b445a7e472e0aa",
+  "testedWorkingFileSha256": {
+    "community/financial_restore.py": "9f5938f54ef4e39f2df2ef42937dc21e15fe8cc972defac268acd5bfc4eb4bc5",
+    "community/search_queue_restore.py": "9b560238df671d61f23d190b61c163f733e88d27e5346794629f51c0b5ed2018",
+    "community/tests/test_financial_restore.py": "cd10c7c3ac0053cde2e24187779686660e1c1d0b0519db15c1f915fa7d1f8a00",
+    "community/tests/test_search_queue_restore.py": "58092dd7ed13d213431473a485a2624d6d7c203036799d20bde5196dd6e6562e",
+    "deploy/cloudflare/schema.sql": "cf51e33ce481bf9d85106c27d8f94d1103f41931dc8914478eee228fab4662e9",
+    "deploy/cloudflare/search-queue.sql": "5f5ed70ba0da263b0574356a2202e5c2c446e5fd7b60e4c491a2678554c79ad9",
+    "deploy/cloudflare/src/creditRecovery.test.mjs": "46468c92a94dd9ff65601a481817b759c44bb0b0891f39178de0cde71a7e12a6",
+    "deploy/cloudflare/src/searchQueue.js": "80634563bdaaba59123973f71e9fec468cac6b5c686fac085b577abf5ddc1cef",
+    "deploy/cloudflare/src/searchQueue.test.mjs": "2d28cbaf9e5a0b405991dd5c28b283562cc7def477386511f97188484925d4ab",
+    "deploy/cloudflare/tools/check-search-queue.mjs": "07c338985b0cd75582e5175e352873a652dbbc8967029a95919e079fe7a90612",
+    "deploy/cloudflare/tools/credit-recovery.mjs": "555a168f8ec0f3793dda8ef4a5ae7d74130d4b423ff9360d5e6ab1011e16571e",
+    "deploy/cloudflare/tools/search-queue-recovery.mjs": "4f9947063e3b13d92fbd5714b04d59cde9aa643669b1c62c7a47686410ba6196"
+  },
+  "verification": [
+    "Exact current queued holds, private request bytes, claims, attempts and terminal keys survive read-only comparison.",
+    "Settled metadata matches the once-only ledger debit and exact saved price/reply.",
+    "Lost or changed holds are rejected even when balances and ledger rows still match.",
+    "Missing, weakened or extra queue guards and installed-empty schema loss are rejected.",
+    "Legacy version 1 financial snapshots cannot authorize an installed queue; version 2 pins queue identity.",
+    "Historical retained terminal state and attempt counters cannot roll back.",
+    "Overdue jobs are compared without releasing holds or modifying source/copy bytes.",
+    "Failure reports use fixed codes without private query/account/token/path content."
+  ],
+  "version": 1
+}

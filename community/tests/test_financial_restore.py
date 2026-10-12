@@ -1,4 +1,5 @@
 from contextlib import closing
+import os
 import json
 from pathlib import Path
 import shutil
@@ -202,7 +203,8 @@ class FinancialRestoreTest(unittest.TestCase):
             "--repaired-dir", str(self.repaired), "--report-sha256", "0" * 64,
             "--snapshot", str(self.snapshot), "--snapshot-sha256", self.snapshot_pin,
             "--writers-stopped-at", "1900", "--environment", "staging", "--out", str(self.root / "cli-failed")],
-            cwd=ROOT, capture_output=True, text=True, timeout=30)
+            cwd=ROOT, capture_output=True, text=True, timeout=30,
+            creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0)
         self.assertEqual(result.returncode, 1)
         self.assertFalse(json.loads(result.stdout)["complete"])
         for private in (str(self.root), "private-session-one", self.active, "private-repeat-key"):
