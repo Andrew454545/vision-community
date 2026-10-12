@@ -2,7 +2,8 @@
 
 Only the independently pinned operator registry chooses assignments. HTTP callers
 submit candidate bytes, never paths, programs, models, thresholds or authority.
-The existing native auditor owns/kills its children and retains every attempt.
+The existing native auditor owns/kills its children. Accepted-job retirement
+preserves every attempt's report and all failed-attempt files.
 """
 from __future__ import annotations
 
@@ -143,6 +144,10 @@ class ObjectAuditJobs:
                     expected_attempts INTEGER NOT NULL, created INTEGER NOT NULL);
                   CREATE TABLE IF NOT EXISTS erasures (
                     job TEXT PRIMARY KEY REFERENCES jobs(id), requested INTEGER NOT NULL, completed INTEGER);
+                  CREATE TABLE IF NOT EXISTS retirements (
+                    job TEXT PRIMARY KEY REFERENCES jobs(id), request_sha256 TEXT NOT NULL,
+                    acceptance_sha256 TEXT NOT NULL, receipt_sha256 TEXT NOT NULL,
+                    attempt INTEGER NOT NULL, requested INTEGER NOT NULL, completed INTEGER);
                   CREATE TABLE IF NOT EXISTS assignment_revocations (
                     lease TEXT PRIMARY KEY, requested INTEGER NOT NULL);
                   CREATE TABLE IF NOT EXISTS recovery_authorities (
@@ -408,6 +413,8 @@ class ObjectAuditJobs:
             if row['state'] in ('erasing', 'erased'):
                 # An old cancel/retry/start cannot undo a privacy tombstone.
                 return self.response(row)
+            if row['state'] in ('retiring', 'retired') and action != 'erase':
+                return self.response(row)
             if intent is not None:
                 previous = db.execute('SELECT * FROM retry_intents WHERE request_id=?',
                                       (intent['requestId'],)).fetchone()
@@ -448,14 +455,66 @@ class ObjectAuditJobs:
             self.wake.set()
             return self.response(db.execute('SELECT * FROM jobs WHERE id=?', (job,)).fetchone())
 
+    def retire(self, job, body):
+        # Only the authenticated hosted coordinator supplies this acknowledgement
+        # after publication and once-only credit. Native approval is insufficient.
+        keys = {'version', 'leaseId', 'assignmentSha256', 'submissionSha256',
+                'candidateManifestSha256', 'receiptSha256', 'attempts', 'acceptanceSha256'}
+        require(isinstance(job, str) and ID.fullmatch(job), 'unknown_object_job', 404)
+        require(isinstance(body, dict) and set(body) == keys and type(body['version']) is int
+                and body['version'] == 1 and isinstance(body['leaseId'], str) and ID.fullmatch(body['leaseId'])
+                and type(body['attempts']) is int and 1 <= body['attempts'] <= MAX_ATTEMPTS
+                and all(isinstance(body[k], str) and HEX.fullmatch(body[k])
+                        for k in keys if k.endswith('Sha256')))
+        request_sha = digest(encoded(body))
+        with self.lock, self.connect() as db:
+            require(not self.stop.is_set(), 'object_verifier_unavailable', 503)
+            row = db.execute('SELECT * FROM jobs WHERE id=?', (job,)).fetchone()
+            require(row is not None, 'unknown_object_job', 404)
+            entry = self.entries[row['lease']]
+            require(body['leaseId'] == row['lease'] and body['assignmentSha256'] == entry['assignment']['sha256']
+                    and body['submissionSha256'] == row['submission']
+                    and body['candidateManifestSha256'] == row['candidate']
+                    and body['attempts'] == row['attempts'], 'object_job_retirement_conflict', 409)
+            previous = db.execute('SELECT * FROM retirements WHERE job=?', (job,)).fetchone()
+            require(previous is None or previous['request_sha256'] == request_sha,
+                    'object_job_retirement_conflict', 409)
+            # Privacy erasure always wins, including an acknowledgement in flight.
+            if row['state'] in ('erasing', 'erased'):
+                return self.response(row)
+            require(body['receiptSha256'] == row['receipt'], 'object_job_retirement_conflict', 409)
+            if previous is not None:
+                require(row['state'] in ('retiring', 'retired'), 'object_job_retirement_conflict', 409)
+                return self.response(row)
+            require(row['state'] == 'approved', 'object_job_retirement_unavailable', 409)
+            # Pin the preserved report; retirement is not a fresh import decision
+            # and must not renew (or depend on renewing) expired origin authority.
+            report = self.work / ('attempts-' + job) / f"attempt-{row['attempts']}" / 'audit-report.json'
+            pinned_read(regular(report), row['receipt'], MAX_MANIFEST)
+            db.execute('INSERT INTO retirements VALUES (?,?,?,?,?,?,NULL)',
+                       (job, request_sha, body['acceptanceSha256'], row['receipt'], row['attempts'], int(self.clock())))
+            db.execute("UPDATE jobs SET state='retiring',retry_at=0 WHERE id=?", (job,))
+            db.commit()
+            self.wake.set()
+            return self.response(db.execute('SELECT * FROM jobs WHERE id=?', (job,)).fetchone())
+
     def erase_tree(self, name):
         # Only the two exact spool children for a validated opaque job ID may
         # be deleted. Check the full tree before deleting; never follow a link,
         # Windows junction, special file or path into the operator's authority.
         require(re.fullmatch(r'(?:attempts-)?[0-9a-f]{32}', name), 'invalid_object_job')
-        regular(self.work, directory=True)
         target = self.work / name
         require(target.is_absolute() and target.parent == self.work, 'unsafe_object_erasure', 503)
+        self.remove_tree(target)
+
+    def remove_tree(self, target):
+        # Internal callers choose an exact job root or the successful attempt's
+        # cache/reference. Validate every ancestor and member before removal.
+        regular(self.work, directory=True)
+        require(target.is_absolute() and self.work in target.parents, 'unsafe_object_erasure', 503)
+        for parent in reversed(target.parents):
+            if parent != self.work and self.work in parent.parents:
+                regular(parent, directory=True)
         if not os.path.lexists(target):
             return
         regular(target, directory=True)
@@ -475,6 +534,27 @@ class ObjectAuditJobs:
         shutil.rmtree(target)
         require(not os.path.lexists(target), 'object_erasure_unconfirmed', 503)
 
+    def retire_next(self):
+        with self.lock, self.connect() as db:
+            require(self.active_job is None, 'object_job_worker_busy', 409)
+            row = db.execute('SELECT j.* FROM jobs j JOIN retirements r ON r.job=j.id '
+                             "WHERE r.completed IS NULL AND j.state='retiring' ORDER BY r.requested,j.id LIMIT 1").fetchone()
+            if not row:
+                return False
+            require(ID.fullmatch(row['id']) and 1 <= row['attempts'] <= MAX_ATTEMPTS,
+                    'unsafe_object_erasure', 503)
+            attempt = self.work / ('attempts-' + row['id']) / f"attempt-{row['attempts']}"
+            pinned_read(regular(attempt / 'audit-report.json'), row['receipt'], MAX_MANIFEST)
+            # Failed attempts, successful reports, source copies and native logs
+            # survive. Only accepted candidate bytes and recomputable bulk go.
+            self.erase_tree(row['id'])
+            for name in ('cache', 'reference'):
+                self.remove_tree(attempt / name)
+            db.execute("UPDATE jobs SET state='retired',input_bytes=0,retry_at=0 WHERE id=?", (row['id'],))
+            db.execute('UPDATE retirements SET completed=? WHERE job=? AND completed IS NULL',
+                       (int(self.clock()), row['id']))
+            return True
+
     def erase_next(self):
         with self.lock, self.connect() as db:
             require(self.active_job is None, 'object_job_worker_busy', 409)
@@ -489,6 +569,8 @@ class ObjectAuditJobs:
             # exact cleanup is safe, including an already absent first folder.
             db.execute("UPDATE jobs SET state='erased',input_bytes=0,receipt=NULL,retry_at=0 WHERE id=?", (row['id'],))
             db.execute('UPDATE erasures SET completed=? WHERE job=? AND completed IS NULL',
+                       (int(self.clock()), row['id']))
+            db.execute('UPDATE retirements SET completed=? WHERE job=? AND completed IS NULL',
                        (int(self.clock()), row['id']))
             return True
 
@@ -567,6 +649,8 @@ class ObjectAuditJobs:
                 return False
             if self.erase_next():
                 return True
+            if self.retire_next():
+                return True
             # A transient settlement failure may leave a completed native receipt
             # without a committed decision. Recover it without another model run.
             if db.execute("SELECT 1 FROM attempts WHERE state='running'").fetchone():
@@ -644,7 +728,7 @@ def make_server(jobs, secret, *, port=0):
         def dispatch(self):
             if not hmac.compare_digest(self.headers.get('Authorization', '').encode(), ('Bearer ' + secret).encode()):
                 return self.reply(401, {'error': 'unauthorized'})
-            route = re.fullmatch(r'/object-audits/([0-9a-f]{32})(?:/(cancel|retry|erase|settlement-evidence))?', self.path)
+            route = re.fullmatch(r'/object-audits/([0-9a-f]{32})(?:/(cancel|retry|erase|retire|settlement-evidence))?', self.path)
             erasure = re.fullmatch(r'/object-assignments/([0-9a-f]{32})/erase', self.path)
             try:
                 if self.command == 'GET' and route and route[2] is None:
@@ -652,7 +736,8 @@ def make_server(jobs, secret, *, port=0):
                 require(self.command == 'POST' and (self.path == '/object-audits' or (route and route[2]) or erasure), 'not_found', 404)
                 lengths = self.headers.get_all('Content-Length', [])
                 require(len(lengths) == 1 and re.fullmatch('[0-9]+', lengths[0])
-                        and 0 < int(lengths[0]) <= MAX_REQUEST and not self.headers.get('Transfer-Encoding')
+                        and 0 < int(lengths[0]) <= (1024 if route or erasure else MAX_REQUEST)
+                        and not self.headers.get('Transfer-Encoding')
                         and self.headers.get('Content-Type', '').split(';')[0].strip() == 'application/json')
                 raw = self.rfile.read(int(lengths[0]))
                 require(len(raw) == int(lengths[0]))
@@ -661,9 +746,12 @@ def make_server(jobs, secret, *, port=0):
                     value = jobs.erase_assignment(erasure[1])
                 elif route:
                     control = strict_json(raw)
-                    require(control == {} or route[2] == 'retry' and isinstance(control, dict))
-                    value = (jobs.settlement_evidence(route[1]) if route[2] == 'settlement-evidence'
-                             else jobs.control(route[1], route[2], control if control else None))
+                    if route[2] == 'retire':
+                        value = jobs.retire(route[1], control)
+                    else:
+                        require(control == {} or route[2] == 'retry' and isinstance(control, dict))
+                        value = (jobs.settlement_evidence(route[1]) if route[2] == 'settlement-evidence'
+                                 else jobs.control(route[1], route[2], control if control else None))
                 else:
                     value = jobs.submit(raw)
                 self.reply(200, value)

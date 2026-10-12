@@ -4,12 +4,13 @@ export const MAX_REQUEST = 4 * 1024 * 1024;
 export const MAX_RESPONSE = 65536;
 const ID = /^[0-9a-f]{32}$/;
 const HEX = /^[0-9a-f]{64}$/;
-const STATES = new Set(['staging', 'queued', 'running', 'approved', 'rejected', 'failed', 'cancelled', 'erasing', 'erased']);
+const STATES = new Set(['staging', 'queued', 'running', 'approved', 'rejected', 'failed', 'cancelled', 'retiring', 'retired', 'erasing', 'erased']);
 const ERRORS = new Map([
   ['invalid_object_job', 400], ['invalid_object_job_file', 400],
   ['unknown_object_assignment', 403], ['unknown_object_job', 404],
   ['object_job_identity_mismatch', 409], ['object_job_conflict', 409], ['object_job_control_conflict', 409], ['object_job_source_mismatch', 409],
   ['object_assignment_revoked', 409],
+  ['object_job_retirement_conflict', 409], ['object_job_retirement_unavailable', 409],
   ['object_job_candidate_incomplete', 409], ['object_job_retry_limited', 429],
   ['object_job_capacity_reached', 503], ['object_job_disk_budget', 503], ['object_job_queue_full', 503],
 ]);
@@ -64,6 +65,7 @@ export function objectAuditResult(value, expected) {
       || !Number.isSafeInteger(value.retryAt) || value.retryAt < 0
       || !(value.receiptSha256 === null || typeof value.receiptSha256 === 'string' && HEX.test(value.receiptSha256))
       || ['approved','rejected'].includes(value.state) && (value.attempts < 1 || value.receiptSha256 === null)
+      || ['retiring','retired'].includes(value.state) && (value.attempts < 1 || value.receiptSha256 === null || value.retryAt !== 0)
       || ['erasing','erased'].includes(value.state) && (value.receiptSha256 !== null || value.retryAt !== 0)
       || value.serverAuthorization !== false || value.productionQualified !== false
       || value.acceptedContributions !== 0 || value.searchCreditsCreated !== 0
@@ -102,7 +104,7 @@ export function objectSettlementEvidence(value, expected, now = Math.floor(Date.
 
 export async function handleObjectAuditJobs(request, env, fetcher = fetch, timeoutMs = 20000) {
   const url = new URL(request.url), path = url.pathname;
-  const route = /^\/object-audits\/([0-9a-f]{32})(?:\/(cancel|retry|erase|settlement-evidence))?$/.exec(path);
+  const route = /^\/object-audits\/([0-9a-f]{32})(?:\/(cancel|retry|erase|retire|settlement-evidence))?$/.exec(path);
   const erasure = /^\/object-assignments\/([0-9a-f]{32})\/erase$/.exec(path);
   if (url.search || !(request.method === 'POST' && (path === '/object-audits' || route?.[2] || erasure)
       || request.method === 'GET' && route && !route[2])) return reply(404, 'not_found');
@@ -133,7 +135,15 @@ export async function handleObjectAuditJobs(request, env, fetcher = fetch, timeo
         const value = JSON.parse(new TextDecoder('utf-8', {fatal:true}).decode(body));
         if (route || erasure) {
           if (!value || typeof value !== 'object' || Array.isArray(value)) throw Error('invalid_control');
-          if (Object.keys(value).length !== 0 && !(route?.[2] === 'retry'
+          if (route?.[2] === 'retire') {
+            if (Object.keys(value).sort().join(',') !== 'acceptanceSha256,assignmentSha256,attempts,candidateManifestSha256,leaseId,receiptSha256,submissionSha256,version'
+                || value.version !== 1 || typeof value.leaseId !== 'string' || !ID.test(value.leaseId)
+                || !Number.isInteger(value.attempts) || value.attempts < 1 || value.attempts > 3
+                || !['acceptanceSha256','assignmentSha256','candidateManifestSha256','receiptSha256','submissionSha256']
+                  .every(k=>typeof value[k]==='string' && HEX.test(value[k]))) throw Error('invalid_retirement');
+            for (const k of ['leaseId','assignmentSha256','candidateManifestSha256','submissionSha256','attempts']) expected[k]=value[k];
+            expected.retirementReceipt=value.receiptSha256;
+          } else if (Object.keys(value).length !== 0 && !(route?.[2] === 'retry'
               && Object.keys(value).sort().join(',') === 'expectedAttempts,requestId'
               && typeof value.requestId === 'string' && HEX.test(value.requestId)
               && Number.isInteger(value.expectedAttempts) && value.expectedAttempts >= 0 && value.expectedAttempts < 3)) {
@@ -169,9 +179,12 @@ export async function handleObjectAuditJobs(request, env, fetcher = fetch, timeo
         }
         throw Error('unavailable');
       }
+      const {retirementReceipt,...correlation}=expected;
       const checked = erasure ? assignmentErasureResult(value, erasure[1])
-        : route?.[2]==='settlement-evidence' ? objectSettlementEvidence(value,expected) : objectAuditResult(value, expected);
-      if (!erasure && (route?.[2] === 'cancel' && !['cancelled','erasing','erased'].includes(checked.state)
+        : route?.[2]==='settlement-evidence' ? objectSettlementEvidence(value,expected) : objectAuditResult(value, correlation);
+      if (!erasure && (route?.[2] === 'cancel' && !['cancelled','retiring','retired','erasing','erased'].includes(checked.state)
+          || route?.[2] === 'retire' && !['retiring','retired','erasing','erased'].includes(checked.state)
+          || route?.[2] === 'retire' && ['retiring','retired'].includes(checked.state) && checked.receiptSha256!==retirementReceipt
           || route?.[2] === 'erase' && !['erasing','erased'].includes(checked.state)
           || ['erasing','erased'].includes(checked.state) && (checked.receiptSha256 !== null || checked.retryAt !== 0))) {
         throw Error('revocation_unconfirmed');

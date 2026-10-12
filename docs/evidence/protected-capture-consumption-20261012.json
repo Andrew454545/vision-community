@@ -1,0 +1,84 @@
+{
+  "version": 1,
+  "date": "2026-10-12",
+  "parentCommit": "e8cc12f94814f1cd453f2e2430a646cc9c9bd720",
+  "scope": "recorded-protected-origin-capture-inspection",
+  "platform": "Windows x64",
+  "nativeSource": "e118a442e0123477c4c64c4b0488ccd509548eff",
+  "sourceReply": "https://github.com/Andrew454545/VISION/pull/17#issuecomment-6118327910",
+  "privateAssetId": 632770295,
+  "archiveSha256": "eecd29494d1f8526e2e1af0929fec914430628c1ce7c14bc438c072c82a51dad",
+  "manifestSha256": "0c5a4a4115a835677cee2086bcf04bef734014fff114d5fc1c9f1e0966e6b2de",
+  "exporterSha256": "3f021e023263c7e442d28a7f1bce7905f3f4da9ee84a3e6456c1e17c7cac3793",
+  "containedFilesPinned": 13,
+  "wrapperMatchesPinnedSource": true,
+  "capture": {
+    "startedAt": "2026-10-12T05:27:17.073Z",
+    "completedAt": "2026-10-12T05:27:18.055Z",
+    "sourceMaps": 265,
+    "sourceLocations": 18642,
+    "uniqueLocations": 18549,
+    "sourceArtifactMembers": 532,
+    "snapshotSha256": "a774ef39d23f2f377a1b3de633ec2d51aa33d0d67020327952270d6f2ddf7888",
+    "selectionProbeSha256": "a774ef39d23f2f377a1b3de633ec2d51aa33d0d67020327952270d6f2ddf7888"
+  },
+  "originProofExpiresAt": "2026-10-12T06:27:17.073Z",
+  "originProofCurrentlyExpired": true,
+  "inspectionRecordedAt": "2026-10-12T05:58:46.398929+00:00",
+  "expiryNeverExtended": true,
+  "candidate": {
+    "countries": 8,
+    "coverageRevalidatedNow": false,
+    "manifestSha256": "f78da18af2c9e3fae003b9ec271277017760e0803902cb6b60592e8e31704152",
+    "nativeImportSealed": false,
+    "protected": 0,
+    "rows": 8,
+    "sourceGen4MetadataUnchanged": true,
+    "sourceSha256": "183c8782a2e6e660462befad438e269f3c40013c02a89a51590e7190547ab584"
+  },
+  "originalPacketFilesVerified": 76,
+  "originalArchiveMembersCompared": 77,
+  "ownerReceipt": {
+    "sha256": "67c7222235c294e45673c0a20abf627f34783aab0d4bc621e69a6bd54bf17bad",
+    "bytes": 1397
+  },
+  "originalPinSupplement": {
+    "sha256": "349d5b83ffc072ec8393496a1eea7e170abe718ec4c27b4d7dbc1824b0c3d418",
+    "bytes": 519
+  },
+  "tests": {
+    "tests": 17,
+    "passed": 17,
+    "failed": 0,
+    "skipped": 0,
+    "syntheticSourceFixtures": true,
+    "receipt": {
+      "sha256": "0ed26d5744f3b87ef1ae04eb92d1d76722cef971d6718f3cecfdad36b2b02219",
+      "bytes": 172
+    },
+    "stderr": {
+      "sha256": "f658d10b0f032e377af14baa9cd7fe1e8fe3faa098c78ebb5cd9084e4f5197aa",
+      "bytes": 3582
+    }
+  },
+  "sourceFiles": {
+    "community/protected_capture.py": {
+      "sha256": "9996d71618be8a335319abf00ec20fd6cfd55f21b32c6064ac2baf9b67f41031",
+      "bytes": 8540
+    },
+    "community/tests/test_protected_capture.py": {
+      "sha256": "cde917be3eaf2a56b1bad5255350042418ca2ff5ac21c7daf7edb5bcc801c54b",
+      "bytes": 10536
+    }
+  },
+  "databaseBytesCopied": false,
+  "liveSourceFilesVerifiedOnLaptop": false,
+  "sourceContentHashesVerified": false,
+  "portableImportApproved": false,
+  "objectImportApproved": false,
+  "nativeImportSealed": false,
+  "nativeInference": false,
+  "liveCalls": 0,
+  "newCreditGranted": 0,
+  "productionQualified": false
+}

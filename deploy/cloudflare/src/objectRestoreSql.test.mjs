@@ -7,6 +7,8 @@ import {join} from 'node:path';
 import {prepareObjectRestoreSql,main} from '../tools/object-cancellation-restore-sql.mjs';
 import {sqliteLiteralRows} from '../tools/sqlite-value-literals.mjs';
 import {makeObjectSqlFixture,account,other,lease,sha,now} from './objectRestoreSql.fixture.mjs';
+import {prepareObjectAuditRetention} from '../tools/prepare-object-audit-retention.mjs';
+import {sqliteD1} from '../tools/sqlite-d1.mjs';
 function temporary(t){const root=mkdtempSync(join(tmpdir(),'os-'));t.after(()=>rmSync(root,{recursive:true}));return root;}
 function pins(options){
   const reportPath=join(options.repairedDir,'restore-report.json'),report=JSON.parse(readFileSync(reportPath));
@@ -14,6 +16,24 @@ function pins(options){
   report.planSha256=sha(readFileSync(join(options.repairedDir,'object-cancellation-plan.private.json')));
   writeFileSync(reportPath,JSON.stringify(report)+'\n');options.reportSha256=sha(readFileSync(reportPath));
 }
+test('SQL recovery preserves the optional retirement outbox and its accepted-work journal',async t=>{
+  const root=temporary(t),options=await makeObjectSqlFixture(root,'submitted',true,now+2,true);
+  const sql=new DatabaseSync(join(options.repairedDir,'restored.sqlite'));let rows;
+  try {
+    await prepareObjectAuditRetention(sqliteD1(sql));
+    sql.prepare("INSERT INTO object_audit_retirements(lease_id,request_sha256,state,failures,next_attempt) VALUES (?,?,'pending',1,?)")
+      .run(other,'e'.repeat(64),now+60);
+    rows=sql.prepare('SELECT * FROM object_audit_retirements').all();
+  }finally{sql.close();}
+  pins(options);
+  const out=join(root,'sql');assert.equal((await prepareObjectRestoreSql({...options,out})).localRoundtripPassed,true);
+  const recovered=new DatabaseSync(join(out,'roundtrip.sqlite'));
+  try {
+    assert.deepEqual(recovered.prepare('SELECT * FROM object_audit_retirements').all(),rows);
+    assert.equal(recovered.prepare('SELECT units FROM accounts WHERE id=?').get(other).units,17);
+    assert.throws(()=>recovered.exec("UPDATE object_audit_retirements SET request_sha256='changed'"),/object_retirement_immutable/);
+  }finally{recovered.close();}
+});
 test('exact SQL recovery retains accepted Object evidence, released slots and earned credit',async t=>{
   const root=temporary(t),options=await makeObjectSqlFixture(root,'submitted',true,now+2,true),out=join(root,'sql');
   const original=new DatabaseSync(options.backup,{readOnly:true});let acceptance;

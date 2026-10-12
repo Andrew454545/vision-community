@@ -14,6 +14,7 @@ import {OBJECT_DISPATCH_SCHEMA,OBJECT_DISPATCH_CONTRACT_SQL} from '../src/object
 import {OBJECT_CANCELLATION_SCHEMA,OBJECT_CANCELLATION_CONTRACT_SQL} from '../src/objectAuditCancellation.js';
 import {OBJECT_RECOVERY_SCHEMA,OBJECT_RECOVERY_CONTRACT_SQL} from '../src/objectAuditRecovery.js';
 import {OBJECT_SETTLEMENT_SCHEMA,OBJECT_SETTLEMENT_CONTRACT_SQL,OBJECT_SETTLEMENT_CONTRACT} from '../src/objectSettlement.js';
+import {OBJECT_RETENTION_SCHEMA,OBJECT_RETENTION_CONTRACT_SQL} from '../src/objectAuditRetention.js';
 import {OBJECT_CANCEL_RESTORE_SCHEMA,OBJECT_CANCEL_RESTORE_CONTRACT} from '../src/objectCancellationRestore.js';
 import {applyObjectCancellationLedger} from './object-cancellation-restore.mjs';
 import {validateObjectCancellationLedger} from './object-cancellation-authority.mjs';
@@ -76,6 +77,9 @@ async function canonicalSchema(source){
     }
     if(source.some(row=>row.name==='object_settlement_revision')){
       for(const statement of OBJECT_SETTLEMENT_SCHEMA)reference.exec(statement);reference.exec(OBJECT_SETTLEMENT_CONTRACT_SQL);
+    }
+    if(source.some(row=>row.name==='object_retention_revision')){
+      for(const statement of OBJECT_RETENTION_SCHEMA)reference.exec(statement);reference.exec(OBJECT_RETENTION_CONTRACT_SQL);
     }
     const wanted=schema(reference);
     require(source.length===wanted.length && source.every((row,i)=>row.type===wanted[i].type && row.name===wanted[i].name

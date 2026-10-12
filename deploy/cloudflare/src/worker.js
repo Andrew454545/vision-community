@@ -16,6 +16,7 @@ import { ingressLimit, accountLimit, viewLimit, ApiLimitError } from './apiRateL
 import { OBJECT_INDEX_MODEL, validateObjectIndex } from "./objectIndex.js";
 import { publicObjectManifest } from "./objectPublicManifest.js";
 import { advanceObjectContribution } from './objectAuditFlow.js';
+import { retireAcceptedObjectAudits } from './objectAuditRetention.js';
 import { onlineSearch, onlineSearchConfigured, INDEX_DOWNLOAD_ROUTES } from "./onlineSearch.js";
 import { SearchError } from "./searchLedger.js";
 import { searchCost } from "./searchPricing.js";
@@ -1195,6 +1196,7 @@ export default {
     await requireSchema(env);
     await cleanupAccountArtifacts(env, null, 64);
     await archiveAccountDeletionReceipts(env);
+    await retireAcceptedObjectAudits(env);
   },
   async fetch(request, env) {
     const url = new URL(request.url);

@@ -95,6 +95,7 @@ The service's endpoints are:
 | `POST /object-audits/<jobId>/retry` | `{}`; explicitly retries an eligible failed job within backoff and attempt limits. |
 | `POST /object-audits/<jobId>/cancel` | `{}`; revokes the job's decision, including an approval that arrives later. |
 | `POST /object-audits/<jobId>/erase` | `{}`; durably revokes the job and requests removal of its private spool files. Poll the same job until `erased`; `erasing` is not a completed deletion. |
+| `POST /object-audits/<jobId>/retire` | Exact [hosted acceptance acknowledgement](OBJECT_NATIVE_RETENTION.md); saves cleanup intent after publication/credit. Returns `retiring` until bulk removal completes, then `retired`; neither state is approval. |
 | `POST /object-assignments/<leaseId>/erase` | `{}`; durably revokes a registered assignment before or after job creation. Returns `erasing` while an existing job needs cleanup, then `erased`; delayed uploads receive `object_assignment_revoked`. |
 
 The trusted caller must bind `submissionSha256` to its own quarantined payload
@@ -102,8 +103,10 @@ and reconcile every response with that candidate and account before settlement.
 The service also fingerprints the complete request; an uploader-supplied hash
 cannot make changed bytes an idempotent replay.
 
-`cancel` preserves original failures and reports. Only explicit privacy erasure
-removes that job's payload and attempt files. The spool retains opaque IDs,
+`cancel` preserves original failures and reports. [Accepted-job retirement](OBJECT_NATIVE_RETENTION.md)
+can remove the candidate and successful reference/cache after hosted acceptance,
+while retaining reports, logs and all failed-attempt files. Explicit privacy erasure
+removes the whole job's attempt files. The spool retains opaque IDs,
 checksums, attempt states and deletion timestamps to prevent replay; it does
 not retain the submitted bytes in SQLite. Independently supplied assignment,
 policy, model and protected-database files outside the spool are untouched.
@@ -135,8 +138,8 @@ This first private cohort service accepts at most 64 retained jobs, eight
 staging/queued/running jobs, 512 MiB of input and two HTTP connections. Bodies
 are limited to 4 MiB; each new job requires at least 1 GiB of free space plus its
 input size. The native auditor separately checks feature and location limits.
-Capacity exhaustion stops new work safely. Evidence is retained, rather than
-automatically deleted or recycled. An unapproved registry change or any policy
+Capacity exhaustion stops new work safely. Retired published jobs release input
+bytes while preserving their journal and failures. An unapproved registry change or any policy
 change requires a separate spool; it cannot silently reinterpret old jobs.
 
 The [append-only rollover procedure](OBJECT_REGISTRY_ROLLOVER.md) adds a separately
@@ -150,7 +153,7 @@ These native limits support a controlled integration cohort, not indefinite
 public capacity. The hosted [contribution flow](OBJECT_CONTRIBUTION_FLOW.md) now
 connects quarantine, publication and credit; its [waiting slots](OBJECT_QUEUE_RETENTION.md)
 are separate from retained history. Automatic trusted assignment delivery,
-native terminal retention and authentic qualification remain open. Before deployment, verify account cleanup
+verified retention deployment and authentic qualification remain open. Before deployment, verify account cleanup
 against the authentic native host and independent spool recovery; add measured
 retention/cost/capacity and provider restart tests.
 No bridge binding, public route or readiness flag was enabled by this change.

@@ -17,6 +17,29 @@ const start = (options={}) => new Request('https://object-verifier.internal/obje
 const status = (tail='', method='GET') => new Request('https://object-verifier.internal/object-audits/'+receipt.jobId+tail,
   {method,...(method === 'POST' ? {headers:{'content-type':'application/json'},body:'{}'} : {})});
 
+test('retirement forwards only the exact accepted-job acknowledgement and never returns approval',async()=>{
+  const retirement={version:1,leaseId:receipt.leaseId,assignmentSha256:receipt.assignmentSha256,
+    submissionSha256:receipt.submissionSha256,candidateManifestSha256:receipt.candidateManifestSha256,
+    attempts:1,receiptSha256:'1'.repeat(64),acceptanceSha256:'2'.repeat(64)};
+  const request=value=>new Request(status('/retire','POST'),{body:JSON.stringify(value)});
+  const ack={...receipt,state:'retiring',decision:'pending',attempts:1,receiptSha256:retirement.receiptSha256};
+  const good=await handleObjectAuditJobs(request(retirement),env,async(url,init)=>{
+    assert(url.endsWith('/retire'));assert.equal(init.headers.authorization,'Bearer '+env.NATIVE_OBJECT_VERIFIER_SECRET);
+    assert.deepEqual(JSON.parse(new TextDecoder().decode(init.body)),retirement);return Response.json(ack);
+  });
+  assert.equal(good.status,200);assert.deepEqual(await good.json(),ack);
+  for(const changes of [{state:'approved',decision:'approved'},{receiptSha256:'3'.repeat(64)},
+    {state:'retired',receiptSha256:null},{state:'retired',retryAt:1},{leaseId:'0'.repeat(32)},{attempts:2}]) {
+    assert.equal((await handleObjectAuditJobs(request(retirement),env,()=>Response.json({...ack,...changes}))).status,503);
+  }
+  for(const value of [{},{...retirement,path:'private'}, {...retirement,attempts:0},
+    {...retirement,acceptanceSha256:'caller'}, {...retirement,version:true}]) {
+    assert.equal((await handleObjectAuditJobs(request(value),env,()=>assert.fail('forwarded invalid retirement'))).status,400);
+  }
+  const privacy={...ack,state:'erased',receiptSha256:null};
+  assert.equal((await handleObjectAuditJobs(request(retirement),env,()=>Response.json(privacy))).status,200);
+});
+
 test('full settlement evidence is private, fresh, batch-scoped and cannot grant public authority', async()=>{
   const now=Math.floor(Date.now()/1000),evidence={audit:{...receipt,state:'approved',decision:'approved',attempts:1,receiptSha256:'1'.repeat(64)},
     policySha256:'2'.repeat(64),runtimeProfileSha256:'3'.repeat(64),qualityImplementationIdentity:'4'.repeat(64),

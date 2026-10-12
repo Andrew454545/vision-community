@@ -5,13 +5,13 @@ Do not infer current state from old “pending” paragraphs in the
 [preserved historical handoff](NEXT_STEPS_STRONGER_MODEL_HISTORY_20261012.md).
 
 1. Finish portable/live protection, automatic trusted Object assignments and
-   native terminal retention. Bounded append-only registry rollover, hosted
+   verified deployment. [Published native-job cleanup](OBJECT_NATIVE_RETENTION.md), bounded append-only registry rollover, hosted
    publication, once-only credit, restart-safe delivery, separate waiting slots
    and temporary queue waits are implemented. Synthetic checks do not qualify
    real model output.
-2. Use the [single source-side work card](ANDREW_SOURCE_HANDOFF.md) for Andrew's
-   current MMA capture. Its origin proof requires original live files and expires
-   after one hour; it is not portable import approval. Do not request another
+2. Consume Andrew's [completed current MMA capture](PROTECTED_CAPTURE_CONSUMPTION.md).
+   Its original live proof expired at 06:27:17.073 UTC on 12 October;
+   it is not portable import approval. Do not repeat the completed export or request another
    broad review, full MMA database transfer, build or repeated model matrix.
 3. When legitimate authority is available, qualify exact Mac/Windows runtime
    policies on identical inputs; stage the first trusted real Object batch,

@@ -15,7 +15,7 @@ status. Use [next actions](LAUNCH_BLOCKERS.md) to continue work.
 |---|---|---|
 | Trusted contributions | Real restricted Windows CPU1 Scene publication; complete fixed-input Scene comparisons; three-location exploratory Mac/PC Object comparison; Object quarantine, independent audit, publication and once-only credit connected in source. | Fresh legitimate protected-source authority, exact measured runtime policies, trusted rotating Object assignments, and real qualified Windows/Mac Scenes / Objects / Both admission. |
 | Earned-credit search | Real Windows Scene searches funded by accepted contributions; exact paid-result recovery without another debit; contributor-only index authority. | Real Object and equivalent Mac earned-credit search, automatic publication refresh after future real work, and measured initial pricing/capacity. |
-| Unattended operation | Native startup/recovery controls, saved uploads, day/night scheduling, descendant ownership; bounded append-only Object registry rollover; separate Windows Scene pilot started. | Native Object terminal retention/trusted assignment automation, verified parallel Maximum profiles, real interruption/schedule checks and seven-day accepted work on each OS with both lanes. |
+| Unattended operation | Native startup/recovery controls, saved uploads, day/night scheduling, descendant ownership; bounded append-only Object registry rollover and published-job cleanup in source; separate Windows Scene pilot started. | Trusted Object assignment automation and verified deployment, verified parallel Maximum profiles, real interruption/schedule checks and seven-day accepted work on each OS with both lanes. |
 | Beginner downloads | Guided lane choices, private runtime/model setup, platform packaging and lifecycle source checks. | Legitimate organization signing accounts, trusted immutable downloads, clean Windows/Mac installation/update/removal and nontechnical-user acceptance. |
 | Production operations | Consented full historical database rehearsal; offline deletion/financial recovery; Object acceptance and credit survive local upgrade/SQL restore; durable native compute allowance. | Full provider/R2/native-bundle/secret recovery with independent current deletion/financial authority, a fresh consistent cutoff, measured load/storage costs and enforceable spending bounds. |
 
@@ -39,8 +39,9 @@ bypassed.
 - Hosted Object history no longer fills its eight unfinished slots. A temporary
   full native queue now has a distinct timed-wait path; historical/disk limits
   still require operator attention. Append-only native registry rollover now
-  preserves old jobs within finite bounds; terminal retention and automatic
-  trusted assignment delivery remain unfinished. These changes are not deployed.
+  preserves old jobs within finite bounds. Published native jobs now have
+  [restart-safe cleanup](OBJECT_NATIVE_RETENTION.md) in source; automatic trusted
+  assignment delivery and verified deployment remain unfinished.
 - Object accuracy means automated score/index parity against Andrew's reference
   on identical images, models and settings, within explicit measured bounds.
   Human object labels or visual presence checks are unnecessary. Current official
@@ -55,7 +56,7 @@ bypassed.
 | Current Scene endurance pilot | [Start and frozen configuration](WINDOWS_SCENE_WEEK_PILOT_20261010.md). No final seven-day success is claimed. |
 | Failed offline diagnostic | [Terminal result](WINDOWS_WINDOWLESS_ENDURANCE_20261009.md). Original failed attempts remain preserved. |
 | Object comparison | [Mac/Windows exploration](OBJECT_CROSS_PLATFORM_20261009.md). Three saved locations are not general production qualification. |
-| Scene/protection source bridge | [Community Scene bridge](NATIVE_COMMUNITY_SCENE_BRIDGE_20261010.md); [protected-origin capture](PROTECTED_ORIGIN_HANDOFF_20261010.md); [origin audit](OBJECT_ORIGIN_AUDIT_20261011.md). Synthetic/local origin guards do not establish portable live protection authority. |
+| Scene/protection source bridge | [Community Scene bridge](NATIVE_COMMUNITY_SCENE_BRIDGE_20261010.md); [received protected capture](PROTECTED_CAPTURE_CONSUMPTION.md); [origin audit](OBJECT_ORIGIN_AUDIT_20261011.md). The original capture expiry is preserved; portable live protection remains open. |
 | Object publication/recovery | [Contribution flow](OBJECT_CONTRIBUTION_FLOW.md); [hosted queue retention](OBJECT_QUEUE_RETENTION.md); [temporary queue waits](OBJECT_QUEUE_WAIT.md); [bounded native registry rollover](OBJECT_REGISTRY_ROLLOVER.md). Inference is synthetic; real Object work/credit and deployment are not claimed. |
 | Full historical database | [Consented rehearsal](PRODUCTION_DATA_REHEARSAL_20261009.md): 364,056 rows preserved, including injected rollback. This is not a fresh production cutoff or complete provider recovery. |
 | Browser and accounting recovery | [Price review/paid replay](SEARCH_PRICING_RECOVERY_20261009.md); [financial comparison](CREDIT_RECOVERY.md). Full live recovery remains open. |
@@ -64,8 +65,8 @@ bypassed.
 ## Authority and constraints
 
 Routine engineering decisions belong here; another general owner review is not
-required. The [single Andrew work item](ANDREW_SOURCE_HANDOFF.md) requests only
-source material unavailable on this laptop. Keep private data in approved private
+required. Andrew's [source work item is completed](ANDREW_SOURCE_HANDOFF.md).
+Do not repeat it while portable integration is pending. Keep private data in approved private
 channels. The production-database laptop copy has specific consent; the separate
 eight-Scene private upload approval remains pending, and no complete owner MMA
 database transfer is authorized.
