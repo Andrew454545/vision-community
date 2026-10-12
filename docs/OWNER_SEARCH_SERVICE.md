@@ -76,7 +76,9 @@ assembled runner, restart, lazy loading, revocation, process locking, exact quer
 bytes and private child scratch checks. Native outputs and credentials were
 fixtures. No authentic inference, Mac execution, OS startup or endurance is claimed.
 
-OS startup registration/readback, secure credential provisioning, real source
-qualification and approved activation remain open. The computer must be on and
+Explicit [secure credential provisioning](OWNER_CREDENTIAL_SETUP.md) now exists
+in source, with hidden interactive entry and exact local vault readback. It has
+not accessed real vaults. OS startup registration/readback, actual vault consent,
+real source qualification and approved activation remain open. The computer must be on and
 signed in to process; shutdown/sleep cannot perform computation. Outbound trusted
 verification/import and bounded catalog integration also remain source work.

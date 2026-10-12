@@ -57,6 +57,19 @@ class _Credential(ctypes.Structure):
                 ('TargetAlias', ctypes.c_wchar_p), ('UserName', ctypes.c_wchar_p)]
 
 
+def _windows_value(item, target):
+    # Shared by the read-only runner and the explicitly invoked provisioner.
+    # Never interpret a denied, unrelated or oversized credential as missing.
+    if (item.Type != 1 or item.TargetName != target or item.UserName != ACCOUNT
+            or item.CredentialBlobSize not in (64, 128) or not item.CredentialBlob):
+        raise OwnerCredentialError('owner_credentials_unavailable')
+    raw = ctypes.string_at(item.CredentialBlob, item.CredentialBlobSize)
+    value = raw.decode('ascii' if len(raw) == 64 else 'utf-16-le')
+    if not HEX.fullmatch(value):
+        raise OwnerCredentialError('owner_credentials_unavailable')
+    return value
+
+
 def _windows_read(target):
     api = ctypes.WinDLL('Advapi32.dll', use_last_error=True)
     pointer = ctypes.POINTER(_Credential)()
@@ -69,14 +82,9 @@ def _windows_read(target):
     try:
         if not pointer:
             raise OwnerCredentialError('owner_credentials_unavailable')
-        item = pointer.contents
         # Windows' generic-credential UI stores a Unicode password. Accept that
         # exact representation or the explicit 64-byte ASCII application blob.
-        if (item.Type != 1 or item.TargetName != target or item.UserName != ACCOUNT
-                or item.CredentialBlobSize not in (64, 128) or not item.CredentialBlob):
-            raise OwnerCredentialError('owner_credentials_unavailable')
-        raw = ctypes.string_at(item.CredentialBlob, item.CredentialBlobSize)
-        return raw.decode('ascii' if len(raw) == 64 else 'utf-16-le')
+        return _windows_value(pointer.contents, target)
     finally:
         api.CredFree(pointer)
 

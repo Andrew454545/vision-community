@@ -129,8 +129,9 @@ sync/GitHub, with normal OS access protection and a deliberate retention policy.
   `NativeSceneEngine` and the new inert [Object engine](OWNER_OBJECT_SEARCH.md)
   have that interface. The Object engine runs separately pinned accepted batches
   and maps their local IDs to stable snapshot ordinals before global selection.
-  Its synthetic verification does not approve an authentic runtime. OS startup
-  registration, secret provisioning and activation remain unfinished. HTTPS
+  Its synthetic verification does not approve an authentic runtime. Explicit
+  [OS vault provisioning](OWNER_CREDENTIAL_SETUP.md) is now source-only;
+  startup registration, real vault acceptance and activation remain unfinished. HTTPS
   transport refuses redirects; a file lock prevents competing local outbox writers.
 - The browser's existing journal/recovery flow handles queued responses. The
   optional mode is absent from every checked-in deployment configuration.
