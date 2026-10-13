@@ -17,8 +17,10 @@ a relevant change or failure requires it.
 Reuse the new [trusted Object score sample comparator](OBJECT_SCORE_QUALIFICATION.md)
 and its opt-in private diagnostic packet. The [combined sample comparator](OBJECT_INDEX_QUALIFICATION.md)
 now connects full indexed-feature, quantization and quality parity for the same
-sample in source. Next connect reusable account/profile qualification and
-revocation, current Scene/protected eligibility and qualified Object settlement.
+sample in source. The [account registry and saved adapter](OBJECT_ACCOUNT_QUALIFICATION.md)
+now connect optional reusable profile records, expiry and revocation in source.
+Next wire trusted private host/job lookup and approved saved artifact delivery;
+connect current Scene/protected eligibility and qualified Object settlement.
 Both comparators explicitly remain `qualified:false`;
 do not relabel detector parity as full device approval or rerun the completed
 queue/Scene runner checks merely for reassurance.

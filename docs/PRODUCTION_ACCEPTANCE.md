@@ -18,8 +18,10 @@ and undeployed; real provider shutdown, prices, capacity and activation remain g
 The [combined Object sample comparator](OBJECT_INDEX_QUALIFICATION.md) connects
 detector scores, complete indexed features, quantization and quality on the same
 pinned sample in source. It remains a read-only numerical check, not authentic
-platform evidence or reusable account admission. Account qualification/revocation,
-current eligibility and distinct qualified Object publication remain unfinished.
+platform evidence or reusable account admission. An optional [account registry and
+saved adapter](OBJECT_ACCOUNT_QUALIFICATION.md) now implement expiring records and
+revocation in source. Trusted private host/job integration, authentic platform
+evidence, current eligibility and distinct qualified Object publication remain unfinished.
 
 **Owner cost hold, 12 October:** all Community cloud execution and the local
 pilot/refresher/indexing tasks are paused. Read the [stop record](COST_STOP_20261012.md)
