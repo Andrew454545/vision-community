@@ -1,5 +1,10 @@
 # Remaining launch work
 
+The [13 October low-cost plan](LOW_COST_LAUNCH_PLAN_20261013.md) records the
+confirmed demand of one or two searches/day across the application, the R2
+target and additional $10/month ceiling. Follow its focused implementation order;
+the operational hold and five launch gates remain unchanged.
+
 **First resolve the [owner cost hold](COST_STOP_20261012.md).** The pilot,
 refresher and background indexing task are disabled. Cloud execution,
 deployments, provider checks and Actions remain forbidden. The requested
