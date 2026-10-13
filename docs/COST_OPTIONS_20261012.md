@@ -1,5 +1,11 @@
 # Cost recommendation for owner discussion
 
+**13 October clarification:** the user confirmed one or two searches per day
+**across the application**, roughly $10/month for R2 and at most $10/month
+outside it. The [refined delivery plan](LOW_COST_LAUNCH_PLAN_20261013.md) targets
+Free coordination and owner-local compute, with sealed bulk storage and bounded
+contribution admission. It does not activate services or lift the cost hold.
+
 **Current decision:** the laptop user approved implementing the recommended
 design **locally** on 12 October. The first [queued-search component](QUEUED_SEARCH_DELIVERY.md)
 is built in source. Cloud/account migration, deployment, budget and restarting
