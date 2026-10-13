@@ -35,8 +35,8 @@ def _secret(value):
 class WindowsVault:
     """One local-machine generic item in the current user's credential vault."""
 
-    def __init__(self, target):
-        self.target = target
+    def __init__(self, target, *, account=vault.ACCOUNT):
+        self.target, self.account = target, account
 
     def __enter__(self):
         self.api = ctypes.WinDLL('Advapi32.dll', use_last_error=True)
@@ -60,7 +60,7 @@ class WindowsVault:
         try:
             if not pointer:
                 raise CredentialProvisionError('owner_vault_unavailable')
-            return vault._windows_value(pointer.contents, self.target)
+            return vault._windows_value(pointer.contents, self.target, account=self.account)
         finally:
             self.api.CredFree(pointer)
 
@@ -69,7 +69,7 @@ class WindowsVault:
         # The exact item was checked under the same application service lock.
         raw = bytearray(_secret(secret).encode('utf-16-le'))
         blob = (ctypes.c_ubyte * len(raw)).from_buffer(raw)
-        item = vault._Credential(Type=1, TargetName=self.target, UserName=vault.ACCOUNT,
+        item = vault._Credential(Type=1, TargetName=self.target, UserName=self.account,
                                  CredentialBlobSize=len(raw), CredentialBlob=blob, Persist=2)
         try:
             if not self.api.CredWriteW(ctypes.byref(item), 0):
@@ -86,8 +86,8 @@ class MacVault:
     Normal OS consent may still be required on a real Mac.
     """
 
-    def __init__(self, target):
-        self.target = target
+    def __init__(self, target, *, account=vault.ACCOUNT):
+        self.target, self.account = target, account
         self.keychain, self.item = ctypes.c_void_p(), ctypes.c_void_p()
 
     def __enter__(self):
@@ -131,7 +131,7 @@ class MacVault:
         if self.item:
             self.core.CFRelease(self.item)
             self.item = ctypes.c_void_p()
-        target, account = self.target.encode('ascii'), vault.ACCOUNT.encode('ascii')
+        target, account = self.target.encode('ascii'), self.account.encode('ascii')
         length, data = ctypes.c_uint32(), ctypes.c_void_p()
         status = self.api.SecKeychainFindGenericPassword(self.keychain, len(target), target,
             len(account), account, ctypes.byref(length), ctypes.byref(data), ctypes.byref(self.item))
@@ -155,7 +155,7 @@ class MacVault:
                 # NULL attributes preserves the item's service, account and ACL.
                 status = self.api.SecKeychainItemModifyAttributesAndData(self.item, None, len(raw), blob)
             else:
-                target, account = self.target.encode('ascii'), vault.ACCOUNT.encode('ascii')
+                target, account = self.target.encode('ascii'), self.account.encode('ascii')
                 status = self.api.SecKeychainAddGenericPassword(self.keychain, len(target), target,
                     len(account), account, len(raw), blob, ctypes.byref(self.item))
             if status != 0:
@@ -180,19 +180,25 @@ def provision_credential(path, checksum, secret, *, replace_sha256=None):
     provisioner/runner shares service.lock. External OS edits are outside this
     lock; OS vault APIs do not provide an atomic compare-and-swap guarantee.
     """
+    return _provision_credential(path, checksum, secret, replace_sha256=replace_sha256,
+        loader=load_configuration, target_for=vault.credential_target, backend=_backend)
+
+
+def _provision_credential(path, checksum, secret, *, replace_sha256, loader, target_for, backend):
+    """Shared transaction; only fixed-purpose wrappers choose loader/vault scope."""
     _secret(secret)
     if replace_sha256 is not None and (not isinstance(replace_sha256, str) or not vault.HEX.fullmatch(replace_sha256)):
         raise CredentialProvisionError('invalid_owner_replacement_pin')
     try:
-        config = load_configuration(path, checksum)
-        target = vault.credential_target(config['origin'])
+        config = loader(path, checksum)
+        target = target_for(config['origin'])
         state = plain_path(Path(config['state']), directory=True)
         with _exclusive(state, name='service.lock'):
             def guard():
-                if load_configuration(path, checksum) != config:
+                if loader(path, checksum) != config:
                     raise CredentialProvisionError('owner_provision_configuration_required')
             guard()
-            with _backend(target) as selected:
+            with backend(target) as selected:
                 current = selected.read()
                 if current is not None:
                     _secret(current)

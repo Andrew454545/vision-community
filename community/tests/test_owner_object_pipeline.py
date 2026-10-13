@@ -19,6 +19,8 @@ from community.owner_object_verifier import OwnerObjectVerifier
 from community.owner_search_agent import OwnerSearchError
 from community.search_snapshot import digest, encoded
 from community.tests import test_protected_origin as fixtures
+from community import owner_object_service as service
+from community import native_object_verifier as native
 
 NODE_FIXTURE=r'''
 import readline from 'node:readline';
@@ -163,3 +165,30 @@ class OwnerObjectPipelineTests(unittest.TestCase):
         self.assertEqual((self.state/'object-outbox.json').read_bytes(),saved);self.assertEqual(report.read_bytes(),original)
         self.assertEqual(self.counts(),{'publications':0,'ledger':0,'accepted':0,'units':0})
         self.assertFalse((self.state/'object-outbox-before-refresh.private.json').exists())
+
+    def test_configured_runner_constructs_real_saved_auditor_and_replays_committed_reply_lazily(self):
+        self.jobs.close()  # The configured runner acquires/owns this exact spool.
+        f=self.fixture
+        config={'version':1,'scope':service.SCOPE,'origin':'https://fixture.invalid','environment':'staging',
+            'state':str(self.state),'binding':self.binding,'native':{
+                'binary':str(f.binary),'models':str(f.models),'policy':str(f.policy_path),
+                'policySha256':f.verifier.policy_sha256,'registry':str(f.root/'assignment/registry.json'),
+                'registrySha256':digest((f.root/'assignment/registry.json').read_bytes()),'spool':str(self.jobs.work)}}
+        path=f.root/'owner.private.json';path.write_bytes(encoded(config));pin=digest(path.read_bytes())
+        (self.state/service.ACTIVATION).write_bytes(encoded({'version':1,'scope':'explicit-owner-object-audit-activation',
+            'approved':True,'configSha256':pin,'origin':config['origin'],'environment':'staging'}))
+        self.coordinator.error_mode='after'
+        with patch.object(service.HTTPSObjectCoordinator,'from_os_credentials',return_value=self.coordinator),\
+                patch.object(native.NativeObjectVerifier,'validate_model_paths'),\
+                patch.object(native.NativeObjectVerifier,'run',side_effect=f.fake_native):
+            self.assertEqual(service.run_service(path,pin,once=True)['status'],'retry_wait')
+        self.assertEqual(self.counts(),{'publications':2,'ledger':1,'accepted':1,'units':20})
+        saved=(self.state/'object-outbox.json').read_bytes();self.coordinator.error_mode=None
+        deadline=self.state/'supervisor.json';doc=json.loads(deadline.read_bytes());doc['nextAttemptAt']=0;deadline.write_bytes(encoded(doc))
+        f.policy_path.unlink()  # Committed replay requires no new native inputs.
+        with patch.object(service.HTTPSObjectCoordinator,'from_os_credentials',return_value=self.coordinator),\
+                patch.object(service,'NativeObjectVerifier',side_effect=AssertionError('lazy replay')) as constructor:
+            self.assertEqual(service.run_service(path,pin,once=True)['status'],'completed');constructor.assert_not_called()
+        self.assertEqual(self.coordinator.completions[-1],encoded(json.loads(saved)['body']))
+        self.assertEqual(f.calls,['runtime-info','index-segment','verify-index','verify-index'])
+        self.assertEqual(self.counts(),{'publications':2,'ledger':1,'accepted':1,'units':20})

@@ -65,8 +65,9 @@ only their delivery outbox, not native work or receipts.
 origin, refuses redirects and bounds request/reply bytes. Its read-only OS vault
 adapter uses the separate `VISIONCommunity.OwnerObjectAudit.` namespace and
 `owner-object-audit-agent` account, never the search key. No real credential was
-read or written. Dedicated Object key provisioning and a configured launcher
-remain required; the existing search provisioner must not be used for this key.
+read or written. The dedicated [Object provisioner and configured runner](OWNER_OBJECT_SETUP.md)
+are now implemented in source; the existing search provisioner must not be used
+for this key.
 
 The existing durable supervisor accepts a bounded coordinator wait hint and the
 `native_verification_failed` category. Healthy queue capacity waits respect the
@@ -75,7 +76,9 @@ independent-policy errors latch for operator repair; outages back off across
 restart. PAUSE/STOP win before calls. A future launcher must use an activation-only
 guard so committed reply recovery does not require unavailable native assets;
 native/protected-input guards still apply before all new work or proof refresh.
-These finite interfaces install no task, listener or background loop.
+These finite interfaces install no task or listener. The configured runner has
+an explicitly invoked, interruptible supervisor loop; importing it never starts
+work and no operating-system startup registration is installed.
 
 [Windows synthetic evidence](evidence/owner-object-queue-20261013.json) records
 64 passing Node checks with no skips, including real local SQLite transactions
@@ -88,8 +91,8 @@ including lost acknowledgements, fresh proof recovery and changed protected
 files. Its inference, coverage and storage are fictional; it does not qualify
 an authentic Object cohort or replace actual Mac execution.
 
-Still required: dedicated Object key provisioning, configured owner launcher and
-startup, outbound cancellation/deletion/retirement acknowledgement, bounded batch
+Still required: approved actual credential/setup acceptance and owner startup,
+outbound cancellation/deletion/retirement acknowledgement, bounded batch
 metadata, approved migration/recovery and all
 [authentic launch gates](PRODUCTION_ACCEPTANCE.md). Quarantine relay and full
 Object validation still need measured CPU/storage budgets. Nothing here authorizes

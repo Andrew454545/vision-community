@@ -11,9 +11,10 @@ Offline implementation and meaningful local verification preserving the hold may
 
 The [owner Object client](OWNER_OBJECT_DELIVERY.md#owner-delivery-and-restart-recovery)
 now connects the local saved-job auditor to optional coordination, exact reply
-replay and real proof refresh. Next finish its dedicated credential provisioning,
-configured launcher, outbound deletion/retirement, trusted assignments and bounded
-metadata. Reuse the local integration evidence; no activation is authorized.
+replay and real proof refresh. Its [dedicated credential provisioning and configured runner](OWNER_OBJECT_SETUP.md)
+are now built, inactive. Next finish outbound deletion/retirement, trusted assignments,
+bounded metadata and approved actual setup/startup acceptance. Reuse the local
+integration evidence; no activation is authorized.
 
 Read [current acceptance](PRODUCTION_ACCEPTANCE.md) and [remaining work](LAUNCH_BLOCKERS.md).
 Do not infer current state from old “pending” paragraphs in the
