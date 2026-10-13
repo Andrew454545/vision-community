@@ -21,7 +21,7 @@ IDLE_SECONDS = 30
 SUCCESS_SECONDS = 5
 FIRST_RETRY_SECONDS = 60
 MAX_RETRY_SECONDS = 3600
-ERRORS = {None, "attempt_interrupted", "connection_unavailable", "native_search_failed",
+ERRORS = {None, "attempt_interrupted", "connection_unavailable", "native_search_failed", "native_verification_failed",
           "authentication_required", "owner_configuration_required"}
 
 
@@ -55,7 +55,7 @@ class OwnerSearchSupervisor:
     held while sleeping. PAUSE/STOP are checked before state or agent access.
     """
 
-    def __init__(self, agent, *, wall_clock=time.time, jitter=random.random):
+    def __init__(self, agent, *, wall_clock=time.time, jitter=random.random, native_failure="native_search_failed"):
         if not callable(getattr(agent, "run_once", None)):
             raise OwnerSupervisorError("invalid_owner_agent")
         self.agent = agent
@@ -63,6 +63,9 @@ class OwnerSearchSupervisor:
         self.path = self.root / "supervisor.json"
         self.pending = self.root / "supervisor.pending"
         self.wall_clock, self.jitter = wall_clock, jitter
+        if native_failure not in {"native_search_failed", "native_verification_failed"}:
+            raise OwnerSupervisorError("invalid_owner_agent")
+        self.native_failure = native_failure
 
     def _now(self):
         value = self.wall_clock()
@@ -128,9 +131,9 @@ class OwnerSearchSupervisor:
         except OSError:
             raise OwnerSupervisorError("owner_supervision_storage_unavailable") from None
 
-    def _failure(self, state, category, *, blocked=False):
+    def _failure(self, state, category, *, blocked=False, minimum_delay=0):
         failures = min(state["failures"] + 1, 20)
-        delay = self._retry_delay(failures)
+        delay = max(self._retry_delay(failures), minimum_delay)
         saved = {"revision": 1, "mode": "blocked" if blocked else "waiting",
                  "nextAttemptAt": self._now() + delay, "failures": failures, "lastError": category}
         self._save(saved)
@@ -191,10 +194,13 @@ class OwnerSearchSupervisor:
                     "idle", "completed", "failed", "claim_lost", "paused"
                 }:
                     return self._failure(state, "owner_configuration_required", blocked=True)
+                minimum_delay = result.get("retryAfterSeconds", 0)
+                if type(minimum_delay) is not int or not 0 <= minimum_delay <= MAX_RETRY_SECONDS:
+                    return self._failure(state, "owner_configuration_required", blocked=True)
                 if result["status"] == "failed":
-                    return self._failure(state, "native_search_failed")
+                    return self._failure(state, self.native_failure, minimum_delay=minimum_delay)
                 base = SUCCESS_SECONDS if result["status"] == "completed" else IDLE_SECONDS
-                delay = self._delay(base)
+                delay = self._delay(max(base, minimum_delay))
                 self._save({"revision": 1, "mode": "waiting", "nextAttemptAt": self._now() + delay,
                             "failures": 0, "lastError": None})
                 return {"status": result["status"], "waitSeconds": delay}

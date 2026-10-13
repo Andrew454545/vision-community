@@ -57,10 +57,10 @@ class _Credential(ctypes.Structure):
                 ('TargetAlias', ctypes.c_wchar_p), ('UserName', ctypes.c_wchar_p)]
 
 
-def _windows_value(item, target):
+def _windows_value(item, target, *, account=ACCOUNT):
     # Shared by the read-only runner and the explicitly invoked provisioner.
     # Never interpret a denied, unrelated or oversized credential as missing.
-    if (item.Type != 1 or item.TargetName != target or item.UserName != ACCOUNT
+    if (item.Type != 1 or item.TargetName != target or item.UserName != account
             or item.CredentialBlobSize not in (64, 128) or not item.CredentialBlob):
         raise OwnerCredentialError('owner_credentials_unavailable')
     raw = ctypes.string_at(item.CredentialBlob, item.CredentialBlobSize)
@@ -70,7 +70,7 @@ def _windows_value(item, target):
     return value
 
 
-def _windows_read(target):
+def _windows_read(target, *, account=ACCOUNT):
     api = ctypes.WinDLL('Advapi32.dll', use_last_error=True)
     pointer = ctypes.POINTER(_Credential)()
     api.CredReadW.argtypes = [ctypes.c_wchar_p, ctypes.c_uint32, ctypes.c_uint32,
@@ -84,18 +84,18 @@ def _windows_read(target):
             raise OwnerCredentialError('owner_credentials_unavailable')
         # Windows' generic-credential UI stores a Unicode password. Accept that
         # exact representation or the explicit 64-byte ASCII application blob.
-        return _windows_value(pointer.contents, target)
+        return _windows_value(pointer.contents, target, account=account)
     finally:
         api.CredFree(pointer)
 
 
-def _mac_read(target):
+def _mac_read(target, *, account=ACCOUNT):
     # Fixed Apple binary, one service/account and the current user's login
     # keychain only. Never add/unlock/enumerate/change keychain ACLs or pass a
     # password in arguments/environment. stdout is bounded private memory.
     keychain = Path.home() / 'Library/Keychains/login.keychain-db'
     process = subprocess.Popen(['/usr/bin/security', 'find-generic-password', '-s', target,
-                                '-a', ACCOUNT, '-w', str(keychain)],
+                                '-a', account, '-w', str(keychain)],
                                stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
                                env={'PATH': '/usr/bin:/bin', 'LANG': 'C'}, shell=False)
     timed_out = threading.Event()
