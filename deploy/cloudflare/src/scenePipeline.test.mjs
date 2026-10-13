@@ -2,13 +2,104 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
-import { stageScene, auditScene, qualifyDevice, auditBatchLimit, verifierConfigured, pipelineCapabilities } from "./scenePipeline.js";
+import { stageScene, auditScene, qualifyDevice, qualificationStatus, auditBatchLimit, verifierConfigured, contributionConfigured, pipelineCapabilities } from "./scenePipeline.js";
 import { deleteAccount, cleanupAccountArtifacts, migrateAccountPrivacy } from "./accountPrivacy.js";
 import { sha256Hex } from "./model.js";
 import { PRIVACY_FENCE, writeSceneArtifact } from "./artifactWrites.js";
 import { syntheticR2 } from "./syntheticR2.mjs";
 
 const leaseId = "d".repeat(32);
+
+async function qualifiedFixture(t, stage=true) {
+  const f = await fixture(t, 'approved', false);
+  f.env.SCENE_ADMISSION_MODE = 'qualified-device-v1';
+  f.env.SCENE_VERIFIER = {fetch() { throw Error('routine upload must not run paid inference'); }};
+  if (stage) await stageScene(f.env, 'anonymous', leaseId, f.verified, f.now);
+  return f;
+}
+
+test('qualified Scene uploads publish concurrently once without any verifier binding', async t => {
+  const {env,sql}=await qualifiedFixture(t);
+  delete env.SCENE_VERIFIER;
+  assert.equal(contributionConfigured(env),true);
+  assert.equal(verifierConfigured(env),false);
+  assert.equal((await qualificationStatus(env,'anonymous','a'.repeat(64))).qualified,true);
+  const results=await Promise.all([auditScene(env,'anonymous',leaseId),auditScene(env,'anonymous',leaseId)]);
+  assert.equal(results.reduce((sum,r)=>sum+r.unitsEarned,0),1);
+  assert.ok(results.every(r=>r.admissionMode==='qualified-device-v1'));
+  assert.equal(sql.prepare('SELECT reason FROM ledger').get().reason,'qualified_device_work');
+  assert.equal(sql.prepare('SELECT policy_id FROM scene_candidates').get().policy_id,'qualified-device-v1|test-policy');
+  delete env.SCENE_ADMISSION_MODE;delete env.SCENE_POLICY_ID;
+  assert.equal((await auditScene(env,'anonymous',leaseId)).unitsEarned,0);
+  assert.equal(sql.prepare('SELECT units FROM accounts').get().units,1);
+});
+
+test('qualification mode is explicit and retains production/staging policy separation',()=>{
+  const base={SCENE_POLICY_ID:'test',SCENE_ADMISSION_MODE:'qualified-device-v1'};
+  assert.equal(contributionConfigured(base),true);
+  assert.equal(pipelineCapabilities(base).sceneContributions.verification,'trusted-profile-canary-and-upload-integrity');
+  for(const patch of [{SCENE_ADMISSION_MODE:'trusted'}, {SCENE_ADMISSION_MODE:null},
+    {SCENE_POLICY_ID:'qualified-device-v1|test'}, {SCENE_POLICY_ID:'staging.test'}, {SCENE_AUDIT_MAX_LOCATIONS:'999'}])
+    assert.equal(contributionConfigured({...base,...patch}),false,JSON.stringify(patch));
+});
+
+test('changing admission mode cannot relabel an already pending audited candidate',async t=>{
+  const {env,sql}=await fixture(t);
+  env.SCENE_ADMISSION_MODE='qualified-device-v1';
+  env.SCENE_VERIFIER={fetch(){throw Error('must not run');}};
+  await assert.rejects(auditScene(env,'anonymous',leaseId),/scene_policy_changed/);
+  assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM ledger').get().n,0);
+  assert.equal(sql.prepare('SELECT policy_id FROM scene_candidates').get().policy_id,'test-policy');
+});
+
+test('changed runtime policy and expired/revoked qualification refuse routine publication',async t=>{
+  const {env,sql,now}=await qualifiedFixture(t);
+  env.SCENE_POLICY_ID='changed-runtime';
+  await assert.rejects(auditScene(env,'anonymous',leaseId,now),/scene_policy_changed/);
+  env.SCENE_POLICY_ID='test-policy';
+  sql.prepare('UPDATE scene_qualifications SET expires_at=?').run(now);
+  await assert.rejects(auditScene(env,'anonymous',leaseId,now),/scene_device_qualification_required/);
+  assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM ledger').get().n,0);
+});
+
+test('qualification revoked during artifact delivery cannot earn credit',async t=>{
+  const {env,sql}=await qualifiedFixture(t);
+  const put=env.INDEX.put;
+  env.INDEX.put=async(...args)=>{const result=await put(...args);sql.exec('UPDATE scene_qualifications SET expires_at=0');return result;};
+  await assert.rejects(auditScene(env,'anonymous',leaseId),/scene_submission_conflict/);
+  assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM ledger').get().n,0);
+  assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM published_index').get().n,0);
+});
+
+test('changed authoritative pose metadata cannot publish under a qualification-only check',async t=>{
+  const {env,sql}=await qualifiedFixture(t);
+  const put=env.INDEX.put;
+  env.INDEX.put=async(...args)=>{const result=await put(...args);sql.exec('UPDATE locations SET heading=91');return result;};
+  await assert.rejects(auditScene(env,'anonymous',leaseId),/scene_submission_conflict/);
+  assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM ledger').get().n,0);
+});
+
+test('qualified uploads independently recheck per-record digests and finite positive scales',async t=>{
+  for(const corrupt of ['digest','scale']) {
+    const f=await qualifiedFixture(t,false);
+    if(corrupt==='digest')f.verified[0].digest='0'.repeat(64);
+    else {f.verified[0].embedding.fill(0);f.verified[0].digest=await sha256Hex(f.verified[0].embedding);}
+    await stageScene(f.env,'anonymous',leaseId,f.verified,f.now);
+    await assert.rejects(auditScene(f.env,'anonymous',leaseId),/scene_quarantine_corrupt/);
+    assert.equal(f.sql.prepare('SELECT COUNT(*) AS n FROM ledger').get().n,0);
+  }
+});
+
+test('deletion during qualified publication cannot restore the account or award credit',async t=>{
+  const {env,sql}=await qualifiedFixture(t);
+  const put=env.INDEX.put;
+  env.INDEX.put=async(...args)=>{const result=await put(...args);
+    await deleteAccount(env,'anonymous',{accountId:'anonymous',confirmation:'DELETE',idempotencyKey:'c'.repeat(64)});
+    return result;};
+  await assert.rejects(auditScene(env,'anonymous',leaseId),/account_not_active/);
+  assert.equal(sql.prepare("SELECT COUNT(*) AS n FROM ledger WHERE reason='qualified_device_work'").get().n,0);
+  assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM published_index').get().n,0);
+});
 
 test('staging policy identities cannot authorize production or a mixed bucket', async () => {
   let calls = 0;

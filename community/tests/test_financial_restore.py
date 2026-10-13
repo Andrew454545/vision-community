@@ -219,6 +219,16 @@ class FinancialRestoreTest(unittest.TestCase):
         with self.assertRaisesRegex(FinancialRestoreError, "invalid_financial_search_result"):
             self.check("incomplete-response")
 
+    def test_qualified_device_awards_have_the_same_financial_integrity_requirements(self):
+        from community.financial_restore import financial_state
+        with closing(sqlite3.connect(self.current)) as sql, sql:
+            sql.row_factory = sqlite3.Row
+            sql.execute("UPDATE ledger SET reason='qualified_device_work' WHERE id=1")
+            self.assertEqual(financial_state(sql)[0]['units'], 20000)
+            sql.execute("UPDATE ledger SET reason='qualified_device_work' WHERE id=2")
+            with self.assertRaisesRegex(FinancialRestoreError, 'invalid_financial_work_award'):
+                financial_state(sql)
+
     def test_interruption_preserves_redacted_failure_and_no_completion(self):
         with patch("community.financial_restore.financial_state", side_effect=KeyboardInterrupt):
             with self.assertRaises(KeyboardInterrupt):

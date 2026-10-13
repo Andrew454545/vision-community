@@ -1,5 +1,13 @@
 # Continue the release
 
+**Latest priority, 13 October:** follow the [approved hybrid plan](HYBRID_LAUNCH_DECISION_20261013.md).
+The monthly host guard and [qualified Scene uploads](QUALIFIED_SCENE_UPLOADS.md)
+are implemented offline. Next finish equivalent qualified Object admission,
+shared budget/local queue arbitration and bounded catalog/import. Keep online
+search and the $10 processing budget plus R2. Routine uploads no longer require
+full native recomputation; preserve explicit admission provenance, qualification,
+eligibility and credit. The earlier Free-only recommendation below is historical.
+
 **Current priority:** the [owner cost hold](COST_STOP_20261012.md) and
 [architecture recommendation](COST_OPTIONS_20261012.md). The laptop user approved
 building that design locally. [Queued search delivery](QUEUED_SEARCH_DELIVERY.md)

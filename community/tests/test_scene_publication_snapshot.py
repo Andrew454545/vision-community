@@ -81,6 +81,71 @@ class PublicationSnapshotTests(unittest.TestCase):
         repeat = self.seal('repeat')
         self.assertEqual(repeat['snapshotSha256'], result['snapshotSha256'])
 
+    def qualified_mode(self):
+        policy = self.authority['policies'][0]
+        policy['qualificationPolicyId'] = policy['policyId']
+        policy['policyId'] = 'qualified-device-v1|' + policy['qualificationPolicyId']
+        self.authority['scope'] = 'qualified-device-community-scene-publications'
+        self.control['candidates'][0]['policy_id'] = policy['policyId']
+        self.control['ledger'][0]['reason'] = 'qualified_device_work'
+
+    def test_qualified_device_work_seals_without_claiming_native_recomputation(self):
+        self.qualified_mode()
+        result = self.seal()
+        self.assertEqual(result['status'], 'QUALIFIED_DEVICE_PUBLICATIONS_SEALED')
+        self.assertEqual(verify_snapshot(self.root / 'result/snapshot', result['snapshotSha256'],
+                                        environment='staging')['locations'], 1)
+        self.assertEqual((self.root / 'result/snapshot/scene-records.i8').read_bytes(), self.blob)
+        self.assertEqual(result['newCreditGranted'], 0)
+
+    def test_qualified_work_cannot_use_native_audited_authority(self):
+        self.qualified_mode()
+        self.authority['scope'] = 'native-audited-community-scene-publications'
+        self.fails('invalid_publication_authority')
+
+    def test_qualified_work_cannot_claim_an_independently_audited_credit_reason(self):
+        self.qualified_mode()
+        self.control['ledger'][0]['reason'] = 'verified_work'
+        self.fails('publication_audit_not_authoritative')
+
+    def test_qualified_authority_requires_the_exact_underlying_qualification_policy(self):
+        self.qualified_mode()
+        self.authority['policies'][0]['qualificationPolicyId'] = 'wrong-policy'
+        self.fails('invalid_publication_authority')
+
+    def test_mixed_authority_preserves_earlier_audited_work_and_marks_qualified_work(self):
+        old_policy = copy.deepcopy(self.authority['policies'][0])
+        old_policy['admissionMode'] = 'audited-v1'
+        old_candidate = copy.deepcopy(self.control['candidates'][0])
+        old_credit = copy.deepcopy(self.control['ledger'][0])
+        old_row = copy.deepcopy(self.inventory['rows'][0])
+        self.qualified_mode()
+        self.authority['scope'] = 'qualified-and-audited-community-scene-publications'
+        self.authority['policies'][0]['admissionMode'] = 'qualified-device-v1'
+        self.authority['policies'].append(old_policy)
+        lease = 'f' * 32
+        records = json.loads(self.control['candidates'][0]['records_json'])
+        records[0]['locationId'] = 2
+        records[0]['assetId'] = 'synthetic-pano-2'
+        raw = json.dumps(records, separators=(',', ':'))
+        pin = digest(raw.encode() + b'\n' + self.blob)
+        self.control['candidates'][0].update(lease_id=lease, records_json=raw,
+            submission_sha256=pin, artifact_key='scene-quarantine/' + lease + '/' + pin + '.i8')
+        self.control['ledger'][0]['reference'] = 'lease:' + lease
+        key = 'four-view-v4/' + lease + '.i8'
+        self.inventory['rows'][0].update(id=2, asset_id='synthetic-pano-2', four_view_key=key)
+        cache_file(self.cache, key).write_bytes(self.blob)
+        self.control['candidates'].append(old_candidate)
+        self.control['ledger'].append(old_credit)
+        self.inventory['rows'].insert(0, old_row)
+        result = self.seal()
+        self.assertEqual(result['locations'], 2)
+        self.assertEqual(result['status'], 'MIXED_ADMISSION_PUBLICATIONS_SEALED')
+
+    def test_mixed_authority_cannot_infer_or_silently_default_a_policy_admission_mode(self):
+        self.authority['scope'] = 'qualified-and-audited-community-scene-publications'
+        self.fails('invalid_publication_authority')
+
     def test_current_inventory_cannot_change_audited_pose_or_output(self):
         self.inventory['rows'][0]['heading'] = 91
         self.fails('publication_audit_membership_mismatch')

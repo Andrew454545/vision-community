@@ -59,19 +59,35 @@ def approval_from_control(inventory, control, authority, cache, environment):
     resource = resource_for_environment(environment)
     if any(value.get("resource") != resource for value in (inventory, control, authority)):
         raise PublicationSnapshotError("invalid_publication_control_resource")
+    scope = authority.get('scope')
+    mixed = scope == 'qualified-and-audited-community-scene-publications'
     if (not isinstance(authority.get("inputModel"), str) or not authority["inputModel"]
             or not isinstance(authority.get("snapshotPolicyId"), str) or not authority["snapshotPolicyId"]
-            or authority.get("scope") != "native-audited-community-scene-publications"
+            or authority.get("scope") not in {'native-audited-community-scene-publications',
+                                              'qualified-device-community-scene-publications',
+                                              'qualified-and-audited-community-scene-publications'}
             or environment == "production" and authority.get("productionApproved") is not True):
         raise PublicationSnapshotError("invalid_publication_authority")
     policies = indexed(authority.get("policies"), "policyId")
+    policy_modes = {}
     for policy in policies.values():
+        mode = policy.get('admissionMode') if mixed else (
+            'qualified-device-v1' if scope == 'qualified-device-community-scene-publications' else 'audited-v1')
+        if mode not in {'qualified-device-v1', 'audited-v1'}:
+            raise PublicationSnapshotError('invalid_publication_authority')
+        qualified = mode == 'qualified-device-v1'
+        policy_modes[policy['policyId']] = qualified
         profiles = policy.get("profileIds")
+        qualification_policy = policy.get('qualificationPolicyId') if qualified else policy['policyId']
         if (not isinstance(profiles, list) or not profiles or len(profiles) > 16
                 or any(not isinstance(profile, str) or not HEX.fullmatch(profile) for profile in profiles)
                 or len(set(profiles)) != len(profiles)
                 or not isinstance(policy.get("runtimeSha256"), str) or not HEX.fullmatch(policy["runtimeSha256"])
-                or environment == "production" and policy["policyId"].startswith("staging.")):
+                or not isinstance(qualification_policy, str) or not qualification_policy
+                or qualified and (qualification_policy.startswith('qualified-device-v1|')
+                                  or policy['policyId'] != 'qualified-device-v1|' + qualification_policy)
+                or not qualified and policy['policyId'].startswith('qualified-device-v1|')
+                or environment == "production" and qualification_policy.startswith("staging.")):
             raise PublicationSnapshotError("invalid_publication_authority")
     rows = inventory.get("rows")
     if (not isinstance(rows, list) or not 0 < len(rows) <= MAX_LOCATIONS
@@ -91,6 +107,7 @@ def approval_from_control(inventory, control, authority, cache, environment):
     for candidate in candidates.values():
         lease, owner = candidate["lease_id"], candidate.get("account_id")
         policy = policies.get(candidate.get("policy_id"))
+        qualified = policy_modes.get(candidate.get('policy_id')) is True
         qualification = qualifications.get(candidate.get("qualification_id"))
         account = accounts.get(owner)
         credit = credits.get("lease:" + lease)
@@ -107,14 +124,14 @@ def approval_from_control(inventory, control, authority, cache, environment):
         if (candidate.get("state") != "published" or not policy or not qualification or not account
                 or not (active or retained_publication)
                 or qualification.get("account_id") != owner
-                or qualification.get("policy_id") != candidate.get("policy_id")
+                or qualification.get("policy_id") != (policy['qualificationPolicyId'] if qualified else candidate.get("policy_id"))
                 or qualification.get("profile_id") not in policy["profileIds"]
                 or type(created) is not int or created < 0
                 or type(qualification.get("created_at")) is not int
                 or type(qualification.get("expires_at")) is not int
                 or not qualification['created_at'] <= created
                 or not (retained_publication or created < qualification["expires_at"])
-                or not credit or credit.get("reason") != "verified_work" or credit.get("account_id") != owner
+                or not credit or credit.get("reason") != ('qualified_device_work' if qualified else 'verified_work') or credit.get("account_id") != owner
                 or not isinstance(candidate.get("records_json"), str)):
             raise PublicationSnapshotError("publication_audit_not_authoritative")
         records = strict_json(candidate["records_json"])
@@ -179,7 +196,11 @@ def seal_publications(inventory, inventory_sha256, control, control_sha256, auth
         result = build_snapshot(inventory, inventory_sha256, approval_path, digest(raw), cache,
                                 destination / "snapshot", environment=environment,
                                 previous=previous, previous_sha256=previous_sha256)
-        receipt = {"version": 1, "status": "NATIVE_AUDITED_PUBLICATIONS_SEALED", "environment": environment,
+        receipt = {"version": 1, "status": ('QUALIFIED_DEVICE_PUBLICATIONS_SEALED'
+                   if permission.get('scope') == 'qualified-device-community-scene-publications'
+                   else 'MIXED_ADMISSION_PUBLICATIONS_SEALED'
+                   if permission.get('scope') == 'qualified-and-audited-community-scene-publications'
+                   else 'NATIVE_AUDITED_PUBLICATIONS_SEALED'), "environment": environment,
                    "locations": result["locations"], "snapshotSha256": result["snapshotSha256"],
                    "inventorySha256": inventory_sha256, "auditControlSha256": control_sha256,
                    "operatorAuthoritySha256": authority_sha256, "activated": False,

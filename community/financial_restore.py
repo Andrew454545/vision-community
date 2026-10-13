@@ -104,7 +104,7 @@ def financial_state(sql):
             raise FinancialRestoreError("invalid_financial_ledger")
         references.add(row["reference"])
         previous_id = row["id"]
-        if row["reason"] == "verified_work" and (row["units"] <= 0 or not row["reference"].startswith("lease:")):
+        if row["reason"] in {"verified_work", "qualified_device_work"} and (row["units"] <= 0 or not row["reference"].startswith("lease:")):
             raise FinancialRestoreError("invalid_financial_work_award")
         if row["reason"] == "search" and account["deletedAt"] is None:
             if row["units"] >= 0 or not row["reference"].startswith("search:"):
