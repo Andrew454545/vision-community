@@ -5,6 +5,11 @@ credit and the contributor's restart-safe upload queue. This closes the
 publication handoff in source. Public Object assignments and qualification
 remain closed until authentic reference and release evidence exist.
 
+For the approved cheaper architecture, a [direct owner-local interface](OWNER_OBJECT_VERIFICATION.md)
+now reuses the saved auditor without a listener. Authenticated outbound queue
+delivery and guarded import integration remain source work; hosted execution
+stays paused under the [cost hold](COST_STOP_20261012.md).
+
 For the initial restricted Object trial, qualification is **per batch**: every
 batch must pass the independently configured native comparison. It grants no
 reusable device approval. Volunteers do not label objects or run a separate

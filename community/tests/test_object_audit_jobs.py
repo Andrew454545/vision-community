@@ -682,6 +682,13 @@ class ObjectAuditJobTests(unittest.TestCase):
     def test_abrupt_process_exit_and_fresh_http_host_preserve_attempt_and_complete_retry(self):
         self.service.close()
         children = []
+        def preserve_child_evidence():
+            destination = os.environ.get('VISION_TEST_EVIDENCE_DIR')
+            if destination:
+                folder = Path(destination)/'abrupt-object-audit-process'; folder.mkdir(exist_ok=True)
+                for path in self.root.glob('child-*.log'):
+                    (folder/path.name).write_bytes(path.read_bytes())
+        self.addCleanup(preserve_child_evidence)
         def wait_for(condition):
             deadline = time.monotonic() + 15
             while time.monotonic() < deadline:

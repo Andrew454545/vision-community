@@ -1,0 +1,146 @@
+{
+  "version": 1,
+  "scope": "offline-direct-owner-object-verifier-v1",
+  "recordedAtUTC": "2026-10-13T03:19:09.263586+00:00",
+  "sourceParent": "0da895202dccfc9d7705b9586ac95f851cd9924e",
+  "branch": "codex/windows-production-readiness",
+  "platform": {
+    "os": "Windows 11",
+    "machine": "AMD64",
+    "python": "3.12.14",
+    "node": "24.19.0"
+  },
+  "implementation": [
+    "Owner-local saved Object audit interface needs no inbound listener or background thread.",
+    "Private HTTP and direct owner calls share fixed routes, original submission bytes and bounded command parsing.",
+    "Independent registry/native verification, three-attempt limits, original failed reports and 30-second full protection evidence are unchanged.",
+    "New owner retries require a durable nonce and expected-attempt intent; old replies cannot trigger another retry.",
+    "PAUSE/STOP and required activation guard fence commands and finite work; unexpected faults retain one redacted diagnostic.",
+    "Fixed bounded output schemas refuse private echo fields, changed job IDs and claims of publication, device qualification or credit."
+  ],
+  "verification": {
+    "pythonPassed": 26,
+    "failed": 0,
+    "skipped": 0,
+    "cases": {
+      "newOwnerInterfaceAndProtection": 17,
+      "existingRetryIntents": 5,
+      "existingPrivateHttpAndProcessRecovery": 4
+    },
+    "interop": "Actual saved Python settlement evidence passed the existing JavaScript objectSettlementEvidence validator; this is part of one Python case, not an extra counted Node test.",
+    "coverage": [
+      "Real SQLite and saved job files, native inference explicitly mocked.",
+      "Submission restart and exact replay do not rerun an approved native attempt.",
+      "Explicit retry replay does not restart another failed attempt; cancellation and assignment erasure retain authority.",
+      "Current protected-source changes and original-capture expiry refuse fresh evidence without rewriting the original approved report.",
+      "Legacy authenticated private HTTP start/status/cancel/erase/retire/evidence and abrupt-process recovery remain compatible.",
+      "First failure reports and private fixture-child logs are retained; no actual cloud task or provider was run."
+    ],
+    "logs": {
+      "evidence-final/abrupt-object-audit-process/child-complete.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "evidence-final/abrupt-object-audit-process/child-interrupt.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "evidence-final/owner-object-interop.stderr.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "evidence-final/owner-object-interop.stdout.log": {
+        "bytes": 53,
+        "sha256": "332d1222824a8ba8aa82304ae76b172abff1c80850f41a7ccc563355a0986ec3"
+      },
+      "evidence-initial/owner-object-interop.stderr.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "evidence-initial/owner-object-interop.stdout.log": {
+        "bytes": 53,
+        "sha256": "332d1222824a8ba8aa82304ae76b172abff1c80850f41a7ccc563355a0986ec3"
+      },
+      "evidence-process-diagnostic/abrupt-object-audit-process/child-interrupt.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "final.stderr.log": {
+        "bytes": 5969,
+        "sha256": "71a4e7aec492b23e282d97b7f1b521c8cd0719d3ce53a45d5d02c5504e88324d"
+      },
+      "final.stdout.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "initial.stderr.log": {
+        "bytes": 6004,
+        "sha256": "b92f38410386b115530a24964f9f4b83119e8427bb0baa6ddab224bd23bdc24d"
+      },
+      "initial.stdout.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "process-diagnostic.stderr.log": {
+        "bytes": 2942,
+        "sha256": "a8c0baa7937381af6ae0d61f2ce7ba6771b38937b74b496acfd9595868481f59"
+      },
+      "process-diagnostic.stdout.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    "preservedFailures": [
+      {
+        "run": "initial",
+        "status": "incomplete",
+        "driverDeadlineSeconds": 240,
+        "explanation": "The broader synthetic suite exceeded its driver deadline; its partial results and earlier ERROR are preserved, not counted as acceptance."
+      },
+      {
+        "run": "process-diagnostic",
+        "status": "failed",
+        "explanation": "Focused reproduction confirmed Windows sandbox WinError 10013 on a loopback fixture connection. The final scoped run used additional sandbox permission for hidden local fixture processes/sockets. No firewall/security policy or native-policy deadline was changed."
+      }
+    ]
+  },
+  "sourceFiles": {
+    "community/object_audit_protocol.py": {
+      "bytes": 2459,
+      "sha256": "08eef11441e8ade1d8e4291b9b5090a6ecc2601176474218aee14cf7965f5e42"
+    },
+    "community/owner_object_verifier.py": {
+      "bytes": 8071,
+      "sha256": "bfdf83ec51e425f3cc414afc4d1d74b2f9b8204ba91f6af8c9c349bb56a676f5"
+    },
+    "community/object_audit_jobs.py": {
+      "bytes": 48183,
+      "sha256": "a76fcf71d628250b400ec7b403c1dc3f05ab3a9fcfbba71cefe8d1fd3c24ff1b"
+    },
+    "community/tests/test_owner_object_verifier.py": {
+      "bytes": 14528,
+      "sha256": "f145d990f363a45f0be1036f7f1767c75d2c7ae6ce12751572c249daa6159f0b"
+    },
+    "community/tests/test_object_audit_jobs.py": {
+      "bytes": 40138,
+      "sha256": "4363ebfc0b0b7a865d737be8773df238b2060ce897fbd52d8f6c3cac95ca0fdf"
+    }
+  },
+  "boundaries": {
+    "offlineOnly": true,
+    "liveReady": false,
+    "deployed": false,
+    "operationalHoldPreserved": true,
+    "nativeOutputAndProtectedArtifacts": "fictional fixtures; no authentic inference or production database access",
+    "cloudProviderImageryModelRequests": 0,
+    "realCredentialReads": 0,
+    "taskOrPauseMarkerChanges": 0,
+    "macExecution": false,
+    "earnedCreditAcceptance": false,
+    "capacityMeasured": false,
+    "enduranceAcceptance": false,
+    "activation": "No operating CLI, task registration, listener or service was installed. Only finite synthetic checks invoked the adapter.",
+    "existingRuntimePolicies": "Not updated or approved; new source pins require separate authentic qualification."
+  },
+  "remaining": "Authenticated outbound claims/reply replay, independent current deletion propagation, guarded publication/once-only credit integration, bounded metadata, owner startup, approved migration/recovery and authentic launch gates remain unfinished."
+}

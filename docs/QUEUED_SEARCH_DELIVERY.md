@@ -191,6 +191,9 @@ the transport's old result-shape check and verifies the assembled optional proof
 path, lost-acknowledgement recovery and deletion fences with local fictional data.
 Durable paid replies
 also consume growing storage and need an authorized retention/storage design.
+The [direct owner-local Object verifier](OWNER_OBJECT_VERIFICATION.md) now reuses
+the saved auditor without an incoming connection. Outbound authenticated queue
+delivery and guarded import/publication remain unfinished.
 Next: outbound trusted verification/import jobs, bounded admission/catalog metadata
 and owner startup; then the approved migration,
 real acceptance/capacity evidence and [remaining launch gates](PRODUCTION_ACCEPTANCE.md).
