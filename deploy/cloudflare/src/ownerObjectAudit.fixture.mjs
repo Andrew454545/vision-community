@@ -14,7 +14,7 @@ import {OWNER_OBJECT_MODE,ownerObjectBinding,claimOwnerObjectAudit} from './owne
 
 const document=JSON.parse(readFileSync(new URL('../../../community/tests/fixtures/object-feature-content-v1.json',import.meta.url),'utf8'));
 export const ACCOUNT='b'.repeat(32),LEASE=document.leaseId,JOB='c'.repeat(32),SECRET='f'.repeat(64);
-export async function ownerFixture(t) {
+export async function ownerFixture(t, overrides={}) {
   const now=Math.floor(Date.now()/1000),sql=new DatabaseSync(':memory:');t.after(()=>sql.close());
   const objects=new Map(),r2=syntheticR2(objects);
   let reads=0;
@@ -31,14 +31,14 @@ export async function ownerFixture(t) {
     sql.prepare('INSERT INTO lease_items VALUES (?,?)').run(LEASE,item.locationId);
     sql.prepare('INSERT INTO object_coverage VALUES (?,?,?,?)').run(item.locationId,COVERAGE_VALIDATOR,'d'.repeat(64),now);
   }
-  const index={manifest:structuredClone(document.baseline.manifest),sourceTsv:document.baseline.sourceBase64,files:document.baseline.filesBase64};
-  Object.assign(index.manifest.viewQuality,{policy:'vision-per-view-quality-v1',implementationIdentity:'1'.repeat(64),viewCount:6,
+  const index=overrides.index??{manifest:structuredClone(document.baseline.manifest),sourceTsv:document.baseline.sourceBase64,files:document.baseline.filesBase64};
+  if(!overrides.index) Object.assign(index.manifest.viewQuality,{policy:'vision-per-view-quality-v1',implementationIdentity:'1'.repeat(64),viewCount:6,
     blurAreaFractionExclusive:.5,tileGrid:8,tunnelVisionProbabilityInclusive:.85,tunnelEvidencePolicy:'none-darkness-never-rejects-v1',
     protectedAuthorityManifestSha256:'2'.repeat(64)});
   index.manifest.sourceTsv='C:/FICTIONAL-PRIVATE/source.tsv';index.manifest.privateExtension={secret:'FICTIONAL-PRIVATE'};
-  const authority={leaseId:LEASE,profileId:'1'.repeat(64),policyId:'staging.synthetic',assignmentSha256:'2'.repeat(64),
+  const authority=overrides.authority??{leaseId:LEASE,profileId:'1'.repeat(64),policyId:'staging.synthetic',assignmentSha256:'2'.repeat(64),
     sourceSha256:await sha256Hex(new Uint8Array(Buffer.from(index.sourceTsv,'base64')))};
-  const pins={policySha256:'5'.repeat(64),runtimeProfileSha256:'6'.repeat(64),qualityImplementationIdentity:'1'.repeat(64),
+  const pins=overrides.pins??{policySha256:'5'.repeat(64),runtimeProfileSha256:'6'.repeat(64),qualityImplementationIdentity:'1'.repeat(64),
     protectedAuthoritySha256:'2'.repeat(64),protectedOriginHandoffSha256:'7'.repeat(64)};
   const resource={accountId:'272760294910ef0b246980278aeb36e2',databaseId:'17043cb7-5dab-4a6f-84ca-19ae1c14cc05',bucket:'vision-community-staging'};
   env.OBJECT_SETTLEMENT_POLICY=JSON.stringify({version:1,scope:'object-batch-parity-v1',policyId:authority.policyId,

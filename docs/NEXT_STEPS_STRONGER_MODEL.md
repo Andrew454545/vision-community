@@ -9,6 +9,12 @@ repeat the completed queue checks without a new change/failure. Do not execute l
 deploy, access cloud resources or restart indexing/pilots while that hold remains.
 Offline implementation and meaningful local verification preserving the hold may continue.
 
+The [owner Object client](OWNER_OBJECT_DELIVERY.md#owner-delivery-and-restart-recovery)
+now connects the local saved-job auditor to optional coordination, exact reply
+replay and real proof refresh. Next finish its dedicated credential provisioning,
+configured launcher, outbound deletion/retirement, trusted assignments and bounded
+metadata. Reuse the local integration evidence; no activation is authorized.
+
 Read [current acceptance](PRODUCTION_ACCEPTANCE.md) and [remaining work](LAUNCH_BLOCKERS.md).
 Do not infer current state from old “pending” paragraphs in the
 [preserved historical handoff](NEXT_STEPS_STRONGER_MODEL_HISTORY_20261012.md).
