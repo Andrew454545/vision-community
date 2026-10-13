@@ -32,6 +32,11 @@ This mode is a source implementation requirement, not an already-enabled shortcu
 through the current trusted-audit publication path. Do not manufacture an auditor
 receipt or weaken existing SQL guards to get a first contribution through.
 
+**Scene implementation:** the [qualified Scene path](QUALIFIED_SCENE_UPLOADS.md)
+now connects explicit admission, upload integrity, once-only credit, search and
+offline snapshot/financial recovery in source. It is disabled and undeployed;
+equivalent Object admission and the common cloud/local budget router remain work.
+
 ## Cloud first, local overflow
 
 Keep permanent Community indexes in confirmed R2 resources. Cloud search and

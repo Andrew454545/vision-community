@@ -3,7 +3,8 @@
 **Latest decision:** implement the [approved hybrid mode](HYBRID_LAUNCH_DECISION_20261013.md):
 sample qualification, explicitly marked lighter routine upload checks, online
 search, $10/month processing plus R2, and local overflow. Its first monthly host
-guard is implemented offline; full routing/admission and activation remain work.
+guard and [qualified Scene uploads](QUALIFIED_SCENE_UPLOADS.md) are implemented
+offline; Object admission, shared routing/budget and activation remain work.
 This supersedes Free-only owner-local/full-recomputation recommendations below.
 
 The [13 October low-cost plan](LOW_COST_LAUNCH_PLAN_20261013.md) records the

@@ -13,12 +13,34 @@ CREATE TABLE IF NOT EXISTS scene_candidates (
  records_json TEXT NOT NULL, created_at INTEGER NOT NULL, state TEXT NOT NULL
 );`;
 
-export function verifierConfigured(env) {
+export const QUALIFIED_SCENE_MODE = 'qualified-device-v1';
+const QUALIFIED_PREFIX = QUALIFIED_SCENE_MODE + '|';
+
+export function sceneAdmissionMode(env) {
+  const mode = env.SCENE_ADMISSION_MODE === undefined ? 'audited-v1' : env.SCENE_ADMISSION_MODE;
+  return ['audited-v1', QUALIFIED_SCENE_MODE].includes(mode) ? mode : null;
+}
+
+function policyConfigured(env) {
   // Policies reserved for measured staging experiments must never authorize
   // real contributions when their binding/config is copied to production.
   if (typeof env.SCENE_POLICY_ID === "string" && env.SCENE_POLICY_ID.startsWith("staging.") &&
       (env.DEPLOYMENT_ENVIRONMENT !== "staging" || env.INDEX_BUCKET_NAME !== "vision-community-staging")) return false;
-  return typeof env.SCENE_VERIFIER?.fetch === "function" && typeof env.SCENE_POLICY_ID === "string" && !!env.SCENE_POLICY_ID && auditBatchLimit(env) !== null;
+  return typeof env.SCENE_POLICY_ID === 'string' && !!env.SCENE_POLICY_ID
+    && env.SCENE_POLICY_ID.length <= 200 && !env.SCENE_POLICY_ID.startsWith(QUALIFIED_PREFIX)
+    && sceneAdmissionMode(env) !== null && auditBatchLimit(env) !== null;
+}
+
+export function verifierConfigured(env) {
+  return policyConfigured(env) && typeof env.SCENE_VERIFIER?.fetch === 'function';
+}
+
+export function contributionConfigured(env) {
+  return policyConfigured(env) && (sceneAdmissionMode(env) === QUALIFIED_SCENE_MODE || verifierConfigured(env));
+}
+
+function submissionPolicyId(env) {
+  return (sceneAdmissionMode(env) === QUALIFIED_SCENE_MODE ? QUALIFIED_PREFIX : '') + env.SCENE_POLICY_ID;
 }
 
 export function auditBatchLimit(env) {
@@ -32,9 +54,12 @@ export function auditBatchLimit(env) {
 }
 
 export function pipelineCapabilities(env) {
+  const qualified = sceneAdmissionMode(env) === QUALIFIED_SCENE_MODE;
   return { version: 1, sceneContributions: { ready: true, reason: null, model: SCENE_OUTPUT_MODEL,
-    policyId: env.SCENE_POLICY_ID, scope: "audited-new-locations", deviceQualificationRequired: true,
-    canaryLocations: 112, maxBatchLocations: auditBatchLimit(env), verification: "trusted-profile-canary-and-submission-audit" } };
+    policyId: env.SCENE_POLICY_ID, scope: qualified ? 'qualified-new-locations' : 'audited-new-locations',
+    admissionMode: sceneAdmissionMode(env), deviceQualificationRequired: true,
+    canaryLocations: 112, maxBatchLocations: auditBatchLimit(env),
+    verification: qualified ? 'trusted-profile-canary-and-upload-integrity' : 'trusted-profile-canary-and-submission-audit' } };
 }
 
 export class ScenePipelineError extends Error {
@@ -101,7 +126,7 @@ async function callVerifier(env, action, body) {
 }
 
 export async function activeQualification(env, account, now, qualificationId = null, profileId = null) {
-  if (!verifierConfigured(env)) throw new ScenePipelineError("scene_verification_unavailable", 503);
+  if (!contributionConfigured(env)) throw new ScenePipelineError("scene_verification_unavailable", 503);
   const row = await env.DB.prepare(`SELECT * FROM scene_qualifications WHERE account_id=? AND policy_id=?
     AND expires_at>? AND (? IS NULL OR id=?) AND (? IS NULL OR profile_id=?)
     ORDER BY created_at DESC, id DESC LIMIT 1`).bind(account, env.SCENE_POLICY_ID, now,
@@ -144,7 +169,7 @@ export async function qualifyDevice(env, account, body, validRecord, now = Math.
 }
 
 export async function qualificationStatus(env, account, profileId, now = Math.floor(Date.now() / 1000)) {
-  if (!verifierConfigured(env)) throw new ScenePipelineError("scene_verification_unavailable", 503);
+  if (!contributionConfigured(env)) throw new ScenePipelineError("scene_verification_unavailable", 503);
   if (typeof profileId !== "string" || !/^[0-9a-f]{64}$/.test(profileId)) throw new ScenePipelineError("invalid_profile_id");
   const row = await env.DB.prepare(`SELECT * FROM scene_qualifications
     WHERE account_id=? AND policy_id=? AND profile_id=? AND expires_at>?
@@ -163,12 +188,15 @@ async function submissionHash(metadata, blob) {
 
 export function candidateResult(row) {
   return { accepted: 0, unitsEarned: 0, replayed: true, pendingAudit: row.state === "pending",
+    admissionMode: row.policy_id?.startsWith(QUALIFIED_PREFIX) ? QUALIFIED_SCENE_MODE : 'audited-v1',
     pending: row.state === "pending" ? JSON.parse(row.records_json).length : 0,
     rejected: row.state === "rejected", submissionId: row.lease_id, segments: [] };
 }
 
 export async function stageScene(env, account, leaseId, verified, now) {
   if (!env.INDEX) throw new ScenePipelineError("index_unavailable", 503);
+  if (!Array.isArray(verified) || !verified.length || verified.length > auditBatchLimit(env))
+    throw new ScenePipelineError('invalid_scene_batch');
   const lease = await env.DB.prepare("SELECT * FROM leases WHERE id=? AND account_id=?").bind(leaseId, account).first();
   if (!lease?.scene_qualification_id) throw new ScenePipelineError("scene_device_qualification_required", 403);
   const qualification = await activeQualification(env, account, now, lease.scene_qualification_id);
@@ -188,7 +216,7 @@ export async function stageScene(env, account, leaseId, verified, now) {
       WHERE EXISTS (SELECT 1 FROM leases WHERE id=? AND account_id=? AND state='active' AND expires_at>?)
         AND NOT EXISTS (SELECT 1 FROM locations l JOIN lease_items i ON i.location_id=l.id
           WHERE i.lease_id=? AND (l.state!='leased' OR l.active_lease!=?))`)
-      .bind(leaseId, account, qualification.id, qualification.policy_id, digest, key, metadata, now,
+      .bind(leaseId, account, qualification.id, submissionPolicyId(env), digest, key, metadata, now,
         leaseId, account, now, leaseId, leaseId),
     env.DB.prepare(`UPDATE locations SET state='pending', active_lease=NULL, lease_until=NULL, queue_state='quarantined'
       WHERE active_lease=? AND EXISTS (SELECT 1 FROM scene_candidates WHERE lease_id=?)`).bind(leaseId, leaseId),
@@ -197,52 +225,88 @@ export async function stageScene(env, account, leaseId, verified, now) {
   ]);
   if (staged[0].meta?.changes !== 1) throw new ScenePipelineError("lease_lost", 409);
   return { accepted: 0, pending: verified.length, staged: verified.length, unitsEarned: 0,
+    admissionMode: sceneAdmissionMode(env),
     pendingAudit: true, replayed: false, submissionId: leaseId, segments: [] };
 }
 
 export async function auditScene(env, account, leaseId, now = Math.floor(Date.now() / 1000)) {
-  if (!verifierConfigured(env)) throw new ScenePipelineError("scene_verification_unavailable", 503);
   const row = await env.DB.prepare("SELECT * FROM scene_candidates WHERE lease_id=? AND account_id=?").bind(leaseId, account).first();
   if (!row) throw new ScenePipelineError("unknown_scene_submission", 404);
   if (row.state !== "pending") return candidateResult(row);
-  if (row.policy_id !== env.SCENE_POLICY_ID) throw new ScenePipelineError("scene_policy_changed", 409);
+  if (!contributionConfigured(env)) throw new ScenePipelineError("scene_verification_unavailable", 503);
+  if (row.policy_id !== submissionPolicyId(env)) throw new ScenePipelineError("scene_policy_changed", 409);
+  const records = JSON.parse(row.records_json);
+  if (!Array.isArray(records) || !records.length || records.length > 128
+      || new Set(records.map((record) => record.locationId)).size !== records.length
+      || records.some((record) => !Number.isSafeInteger(record.locationId) || record.locationId <= 0))
+    throw new ScenePipelineError('scene_quarantine_corrupt', 500);
   const object = await env.INDEX.get(row.artifact_key);
-  if (!object) throw new ScenePipelineError("scene_quarantine_corrupt", 500);
+  if (!object || object.size !== records.length * 3080) throw new ScenePipelineError("scene_quarantine_corrupt", 500);
   const blob = new Uint8Array(await object.arrayBuffer());
   if (await submissionHash(row.records_json, blob) !== row.submission_sha256) throw new ScenePipelineError("scene_quarantine_corrupt", 500);
   const qualification = await env.DB.prepare("SELECT * FROM scene_qualifications WHERE id=?").bind(row.qualification_id).first();
-  if (!qualification || qualification.account_id !== account || qualification.policy_id !== row.policy_id) {
+  if (!qualification || qualification.account_id !== account || qualification.policy_id !== env.SCENE_POLICY_ID) {
     throw new ScenePipelineError("scene_submission_conflict", 409);
   }
-  const records = JSON.parse(row.records_json);
-  if (!Array.isArray(records) || !records.length || new Set(records.map((record) => record.locationId)).size !== records.length
-      || records.some((record) => !Number.isSafeInteger(record.locationId) || record.locationId <= 0)
-      || blob.length !== records.length * 3080) throw new ScenePipelineError("scene_quarantine_corrupt", 500);
-  const result = await callVerifier(env, "audit", { accountId: account, profileId: qualification.profile_id,
-    policyId: row.policy_id, submissionSha256: row.submission_sha256, records, indexBase64: bytesToBase64(blob) });
-  if (!result || result.policyId !== row.policy_id || result.submissionSha256 !== row.submission_sha256 ||
-      !["approved", "rejected"].includes(result.decision)) return candidateResult(row);
-  if (result.decision === "rejected") {
-    await env.DB.prepare("UPDATE scene_candidates SET state='rejected' WHERE lease_id=? AND state='pending'").bind(leaseId).run();
-    return candidateResult(await env.DB.prepare("SELECT * FROM scene_candidates WHERE lease_id=?").bind(leaseId).first());
+  if (blob.length !== records.length * 3080) throw new ScenePipelineError("scene_quarantine_corrupt", 500);
+  const qualified = sceneAdmissionMode(env) === QUALIFIED_SCENE_MODE;
+  if (qualified) {
+    await activeQualification(env, account, now, row.qualification_id);
+    if (records.length > auditBatchLimit(env)) throw new ScenePipelineError('scene_quarantine_corrupt', 500);
+    for (let i = 0; i < records.length; i++) {
+      const record = blob.subarray(i * 3080, (i + 1) * 3080);
+      for (let view = 0; view < 4; view++) {
+        const offset = view * 770, scale = record[offset] | record[offset + 1] << 8;
+        if (!scale || (scale & 0x8000) || (scale & 0x7c00) === 0x7c00)
+          throw new ScenePipelineError('scene_quarantine_corrupt', 500);
+      }
+      if (await sha256Hex(record) !== records[i].outputSha256)
+        throw new ScenePipelineError('scene_quarantine_corrupt', 500);
+    }
+  } else {
+    const result = await callVerifier(env, "audit", { accountId: account, profileId: qualification.profile_id,
+      policyId: row.policy_id, submissionSha256: row.submission_sha256, records, indexBase64: bytesToBase64(blob) });
+    if (!result || result.policyId !== row.policy_id || result.submissionSha256 !== row.submission_sha256 ||
+        !["approved", "rejected"].includes(result.decision)) return candidateResult(row);
+    if (result.decision === "rejected") {
+      await env.DB.prepare("UPDATE scene_candidates SET state='rejected' WHERE lease_id=? AND state='pending'").bind(leaseId).run();
+      return candidateResult(await env.DB.prepare("SELECT * FROM scene_candidates WHERE lease_id=?").bind(leaseId).first());
+    }
   }
   const key = `four-view-v4/${leaseId}.i8`;
   await writeSceneArtifact(env, account, leaseId, key, blob, now);
   // D1 batch is atomic. The ledger's unique reference makes concurrent
   // approvals roll back rather than credit twice. A retry reads published.
   const reference = `lease:${leaseId}`;
+  const reason = qualified ? 'qualified_device_work' : 'verified_work';
+  // Recheck qualification inside the credit transaction; revocation during
+  // artifact delivery must not mint qualified-device credit.
+  const qualificationFence = qualified ? ` AND EXISTS (SELECT 1 FROM scene_qualifications q
+    WHERE q.id=? AND q.account_id=? AND q.policy_id=? AND q.expires_at>?)
+    AND (SELECT COUNT(*) FROM lease_items i JOIN locations l ON l.id=i.location_id
+      JOIN json_each(?) r ON l.id=json_extract(r.value,'$.locationId')
+      WHERE i.lease_id=? AND l.lane='scene'
+        AND l.asset_id=json_extract(r.value,'$.assetId') AND l.capture=json_extract(r.value,'$.capture')
+        AND l.model=json_extract(r.value,'$.inputModel')
+        AND l.lat=json_extract(r.value,'$.lat') AND l.lon=json_extract(r.value,'$.lng')
+        AND l.heading=json_extract(r.value,'$.heading') AND l.pitch=json_extract(r.value,'$.pitch')
+        AND l.zoom=json_extract(r.value,'$.zoom')
+        AND NULLIF(l.country,'') IS json_extract(r.value,'$.country')
+        AND COALESCE(NULLIF(l.camera_generation,''),'unknown')=json_extract(r.value,'$.cameraGeneration'))=?` : '';
   // Make the ownership check part of the same transaction that grants credit.
   // Every later statement requires the ledger row created by this claim.
   const claimed = `EXISTS (SELECT 1 FROM scene_candidates c JOIN ledger d ON d.reference=?
     WHERE c.lease_id=? AND c.state='pending' AND d.account_id=c.account_id)`;
   const statements = [env.DB.prepare(`INSERT INTO ledger (account_id,units,reason,reference)
-    SELECT ?,?,'verified_work',? WHERE EXISTS (SELECT 1 FROM scene_candidates WHERE lease_id=? AND state='pending')
+    SELECT ?,?,?,? WHERE EXISTS (SELECT 1 FROM scene_candidates WHERE lease_id=? AND state='pending' AND policy_id=?)
       AND (SELECT COUNT(*) FROM lease_items i JOIN locations l ON l.id=i.location_id
         WHERE i.lease_id=? AND l.state='pending' AND l.queue_state='quarantined'
           AND l.id IN (SELECT value FROM json_each(?)))=?
-      AND (SELECT COUNT(*) FROM lease_items WHERE lease_id=?)=?`)
-    .bind(account, records.length, reference, leaseId, leaseId, JSON.stringify(records.map((record) => record.locationId)),
-      records.length, leaseId, records.length)];
+      AND (SELECT COUNT(*) FROM lease_items WHERE lease_id=?)=?${qualificationFence}`)
+    .bind(account, records.length, reason, reference, leaseId, row.policy_id, leaseId, JSON.stringify(records.map((record) => record.locationId)),
+      records.length, leaseId, records.length,
+      ...(qualified ? [row.qualification_id, account, qualification.policy_id, now,
+        row.records_json, leaseId, records.length] : []))];
   for (const record of records) {
     statements.push(env.DB.prepare(`INSERT INTO published_index
       (location_id,index_text,output_sha256,published_at,embedding,four_view_sha256,four_view_key)
@@ -263,5 +327,6 @@ export async function auditScene(env, account, leaseId, now = Math.floor(Date.no
     if (current.state === "pending") throw new ScenePipelineError("scene_submission_conflict", 409);
     return candidateResult(current);
   }
-  return { accepted: earned, unitsEarned: earned, pendingAudit: false, replayed: earned === 0, segments: [] };
+  return { accepted: earned, unitsEarned: earned, pendingAudit: false, replayed: earned === 0,
+    admissionMode: sceneAdmissionMode(env), segments: [] };
 }

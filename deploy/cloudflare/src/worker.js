@@ -34,7 +34,7 @@ import { officialGen4Coverage, objectCoverageComplete } from "./objectCoverage.j
 import { readRequestJson } from "./requestBody.js";
 import { localObjectPrototype, objectCapabilities } from "./objectAdmission.js";
 import { loadSceneReferences, sceneCapabilities } from "./sceneQuality.js";
-import { verifierConfigured, auditBatchLimit, pipelineCapabilities, activeQualification, qualificationStatus, qualifyDevice, auditScene, stageScene } from "./scenePipeline.js";
+import { verifierConfigured, contributionConfigured, sceneAdmissionMode, QUALIFIED_SCENE_MODE, auditBatchLimit, pipelineCapabilities, activeQualification, qualificationStatus, qualifyDevice, auditScene, stageScene } from "./scenePipeline.js";
 
 
 const HEADERS = {
@@ -555,9 +555,11 @@ async function lease(env, account, body, objectPrototype = false) {
   if (lane === "object" && !objectPrototype) return error("object_verification_unavailable", 503);
   const pace = body.pace || "medium";
   if (!UNITS[lane] || typeof body.count !== "number" || body.count < 1 || body.count > MAX_LEASE) return error("invalid_lease_request");
-  const references = lane === "scene" ? await loadSceneReferences(env) : null;
-  if (lane === "scene" && !references && !verifierConfigured(env)) return error("scene_verification_unavailable", 503);
-  const qualification = lane === "scene" && verifierConfigured(env)
+  if (lane === 'scene' && env.SCENE_ADMISSION_MODE !== undefined && !contributionConfigured(env))
+    return error('scene_verification_unavailable', 503);
+  const references = lane === "scene" && sceneAdmissionMode(env) !== QUALIFIED_SCENE_MODE ? await loadSceneReferences(env) : null;
+  if (lane === "scene" && !references && !contributionConfigured(env)) return error("scene_verification_unavailable", 503);
+  const qualification = lane === "scene" && contributionConfigured(env)
     ? await activeQualification(env, account, Math.floor(Date.now() / 1000), null, body.profileId || null)
     : null;
   if (!["slow", "medium", "max"].includes(pace)) return error("invalid_pace");
@@ -719,7 +721,8 @@ async function renewLease(env, account, body) {
 }
 
 async function submitFourView(env, account, leaseId, items, supplied, now) {
-  if (verifierConfigured(env)) {
+  if (env.SCENE_ADMISSION_MODE !== undefined && !contributionConfigured(env)) return error('scene_verification_unavailable',503);
+  if (contributionConfigured(env)) {
     const verified = [];
     for (const row of items) {
       if (row.lane !== "scene" || row.state !== "leased" || row.active_lease !== leaseId) return error("lease_lost", 409);
@@ -1280,7 +1283,8 @@ export default {
         const restricted = env.SCENE_COHORT_ACCOUNTS !== undefined || env.SCENE_COHORT_UNTIL !== undefined;
         const allowed = await sceneCohortAllows(env, restricted ? await accountId(env,request) : null);
         const scene = !allowed ? sceneCapabilities(null)
-          : verifierConfigured(env) ? pipelineCapabilities(env) : sceneCapabilities(await loadSceneReferences(env));
+          : contributionConfigured(env) ? pipelineCapabilities(env)
+          : sceneCapabilities(env.SCENE_ADMISSION_MODE !== undefined ? null : await loadSceneReferences(env));
         return json({...scene,...objectCapabilities()});
       }
       if (url.pathname === "/api/status") return json(await status(env));
@@ -1303,7 +1307,7 @@ export default {
       if (url.pathname === '/api/search-jobs') return json(await queuedSearchStatus(env, account, url.searchParams.get('jobId')));
       if (url.pathname === '/api/searches/recover') return json(await recoverSearch(env, account, url.searchParams.get('idempotencyKey')));
       if (url.pathname === "/api/scene-qualifications" && request.method==="GET") {
-        if (!verifierConfigured(env)) return error("scene_verification_unavailable",503);
+        if (!contributionConfigured(env)) return error("scene_verification_unavailable",503);
         return json(await qualificationStatus(env,account,url.searchParams.get("profileId")));
       }
       if (url.pathname === "/api/views") {

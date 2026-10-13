@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "scope": "offline-qualified-scene-admission",
+  "platform": "Windows",
+  "nodeChecksPassed": 86,
+  "pythonChecksPassed": 42,
+  "skipped": 0,
+  "usesRealWorkerHandlersAndLocalSQLite": true,
+  "routineSceneSettlementCallsNativeVerifier": false,
+  "qualificationStillRequired": true,
+  "qualifiedAndAuditedWorkDistinguished": true,
+  "earnedCreditQueuedSearchAndPaidReplayChecked": true,
+  "nativeInferenceAndR2AreFixtures": true,
+  "originalFailuresPreserved": true,
+  "cloudAccountRead": false,
+  "deployed": false,
+  "localIndexingStarted": false,
+  "productionQualified": false
+}
