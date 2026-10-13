@@ -1,13 +1,15 @@
 // One bounded durable record for the existing single-instance native host.
 // This limits operations and starts, not the entire Cloudflare invoice.
 export const BUDGET_KEY = 'nativeComputeBudgetV1';
+import { MONTHLY_KEY, monthlyPolicy, monthlyRecord, nextMonthSeconds } from './monthly-budget.js';
 const DAY_MS = 86400000;
 const FIELDS = 'day,requestLimit,requests,startLimit,starts,version';
 
 export class ComputeBudgetError extends Error {
   constructor(code, now) {
     super(code);
-    this.retryAfter = code === 'native_compute_budget_exhausted'
+    this.retryAfter = code === 'native_compute_monthly_budget_exhausted' ? nextMonthSeconds(now)
+      : code === 'native_compute_budget_exhausted'
       ? Math.ceil((DAY_MS - now % DAY_MS) / 1000) : 60;
   }
 }
@@ -45,18 +47,34 @@ function current(saved, configured, now) {
 export async function reserveCompute(storage, env, kind, now = Date.now()) {
   try {
     const configured = limits(env);
+    const policy = monthlyPolicy(env);
     if (!['request','start'].includes(kind) || typeof storage?.transaction !== 'function'
         || typeof storage?.sync !== 'function') throw Error('invalid_budget_storage');
     const exhausted = await storage.transaction(async transaction => {
       const saved = await transaction.get(BUDGET_KEY);
       const record = current(saved,configured,now);
       const field = kind === 'request' ? 'requests' : 'starts';
+      const savedMonth = await transaction.get(MONTHLY_KEY);
+      // Once enabled, removing this policy cannot silently reopen the host.
+      if (!policy && savedMonth !== undefined) throw Error('monthly_policy_removed');
+      const monthly = policy ? monthlyRecord(savedMonth, policy, now) : null;
       if (record.requests > record.requestLimit || record.starts > record.startLimit
           || record[field] >= (kind === 'request' ? record.requestLimit : record.startLimit)) {
         // Persist a lowered allowance even when usage already exceeds it. A
         // later config increase cannot reopen this same UTC day's budget.
         if (JSON.stringify(record) !== JSON.stringify(saved)) await transaction.put(BUDGET_KEY,record);
-        return true;
+        if (monthly) await transaction.put(MONTHLY_KEY, monthly);
+        return 'native_compute_budget_exhausted';
+      }
+      if (monthly) {
+        const cents = kind === 'request' ? monthly.requestCents : monthly.startCents;
+        if (monthly.reservedCents + cents > monthly.limitCents) {
+          await transaction.put(BUDGET_KEY, record);
+          await transaction.put(MONTHLY_KEY, monthly);
+          return 'native_compute_monthly_budget_exhausted';
+        }
+        monthly.reservedCents += cents;
+        await transaction.put(MONTHLY_KEY, monthly);
       }
       record[field]++;
       await transaction.put(BUDGET_KEY,record);
@@ -65,7 +83,7 @@ export async function reserveCompute(storage, env, kind, now = Date.now()) {
     // No native side effect before the allowance is durably reserved. Failed or
     // interrupted work is never refunded; an uncertain write cannot grant work.
     await storage.sync();
-    if (exhausted) throw new ComputeBudgetError('native_compute_budget_exhausted',now);
+    if (exhausted) throw new ComputeBudgetError(exhausted,now);
   } catch (error) {
     if (error instanceof ComputeBudgetError) throw error;
     throw new ComputeBudgetError('native_compute_budget_unavailable',now);
@@ -75,10 +93,14 @@ export async function reserveCompute(storage, env, kind, now = Date.now()) {
 export async function computeBudgetStatus(storage, env, now = Date.now()) {
   try {
     const record = current(await storage.get(BUDGET_KEY),limits(env),now);
+    const policy = monthlyPolicy(env), savedMonth = await storage.get(MONTHLY_KEY);
+    if (!policy && savedMonth !== undefined) throw Error('monthly_policy_removed');
+    const monthly = policy ? monthlyRecord(savedMonth, policy, now) : null;
     return {configured:true,utcDay:record.day,requests:record.requests,starts:record.starts,
       requestLimit:record.requestLimit,startLimit:record.startLimit,
       requestsRemaining:Math.max(0,record.requestLimit-record.requests),
-      startsRemaining:Math.max(0,record.startLimit-record.starts)};
+      startsRemaining:Math.max(0,record.startLimit-record.starts),
+      ...(monthly ? {monthly:{...monthly,remainingCents:Math.max(0,monthly.limitCents-monthly.reservedCents)}} : {})};
   } catch {
     return {configured:false,reason:'native_compute_budget_unavailable'};
   }

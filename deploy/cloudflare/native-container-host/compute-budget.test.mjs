@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {BUDGET_KEY,ComputeBudgetError,reserveCompute,computeBudgetStatus} from './compute-budget.js';
+import {MONTHLY_KEY} from './monthly-budget.js';
 
 const NOW=Date.UTC(2026,9,9,12),DAY=86400000;
 const env={NATIVE_DAILY_COMPUTE_REQUESTS:'4',NATIVE_DAILY_CONTAINER_STARTS:'2'};
@@ -110,4 +111,86 @@ test('status is aggregate-only and never writes, refunds or grants a request',as
   assert.equal((await computeBudgetStatus(storage,env,NOW)).requestsRemaining,3);
   assert.deepEqual(await computeBudgetStatus(storage,{},NOW),{configured:false,reason:unavailable.message});
   assert.deepEqual([...values],before);assert.equal(storage.writes,writes);
+});
+
+const monthlyEnv = (changes={}) => ({...env,NATIVE_MONTHLY_COMPUTE_POLICY:JSON.stringify({
+  limitCents:12,openingCents:0,requestCents:5,startCents:2,...changes})});
+const monthlyExhausted={message:'native_compute_monthly_budget_exhausted'};
+
+test('monthly requests and starts consume the same sealed host allocation',async()=>{
+  const {storage,values}=fixture();
+  await reserveCompute(storage,monthlyEnv(),'request',NOW);
+  await reserveCompute(storage,monthlyEnv(),'start',NOW);
+  await reserveCompute(storage,monthlyEnv(),'request',NOW);
+  await assert.rejects(reserveCompute(storage,monthlyEnv(),'start',NOW),monthlyExhausted);
+  assert.equal(values.get(MONTHLY_KEY).reservedCents,12);
+  assert.equal(values.get(BUDGET_KEY).starts,1);
+});
+
+test('midnight and daily redeployment never reset monthly reservations',async()=>{
+  const {storage,values}=fixture();
+  await reserveCompute(storage,monthlyEnv(),'request',NOW);
+  await reserveCompute(storage,monthlyEnv(),'request',NOW+DAY);
+  await assert.rejects(reserveCompute(storage,monthlyEnv(),'request',NOW+2*DAY),monthlyExhausted);
+  assert.equal(values.get(MONTHLY_KEY).reservedCents,10);
+  await reserveCompute(storage,monthlyEnv(),'request',Date.UTC(2026,10,1));
+  assert.equal(values.get(MONTHLY_KEY).reservedCents,5);
+  await assert.rejects(reserveCompute(storage,monthlyEnv(),'request',NOW),unavailable);
+});
+
+test('removal, allowance increases and lowered charge estimates cannot reopen the month',async()=>{
+  const {storage,values}=fixture();
+  await reserveCompute(storage,monthlyEnv(),'request',NOW);
+  await assert.rejects(reserveCompute(storage,monthlyEnv({limitCents:4}),'request',NOW),monthlyExhausted);
+  await assert.rejects(reserveCompute(storage,monthlyEnv({limitCents:100,requestCents:1}),'request',NOW),monthlyExhausted);
+  assert.equal(values.get(MONTHLY_KEY).requestCents,5);
+  await assert.rejects(reserveCompute(storage,env,'request',NOW),unavailable);
+  assert.equal((await computeBudgetStatus(storage,env,NOW)).configured,false);
+});
+
+test('opening reservations account for prior usage and zero allocation refuses starts',async()=>{
+  const {storage,values}=fixture();
+  await reserveCompute(storage,monthlyEnv({openingCents:7}),'request',NOW);
+  await assert.rejects(reserveCompute(storage,monthlyEnv(),'request',NOW),monthlyExhausted);
+  assert.equal(values.get(MONTHLY_KEY).reservedCents,12);
+  const zero=fixture();
+  await assert.rejects(reserveCompute(zero.storage,monthlyEnv({limitCents:0}),'start',NOW),monthlyExhausted);
+  assert.equal(zero.values.get(BUDGET_KEY).starts,0);
+});
+
+test('concurrent reservations cannot overspend a month even with daily headroom',async()=>{
+  const {storage,values}=fixture();
+  const results=await Promise.allSettled(Array.from({length:12},()=>reserveCompute(storage,
+    {...monthlyEnv(),NATIVE_DAILY_COMPUTE_REQUESTS:'20'},'request',NOW)));
+  assert.equal(results.filter(r=>r.status==='fulfilled').length,2);
+  assert.equal(values.get(MONTHLY_KEY).reservedCents,10);
+  assert.equal(values.get(BUDGET_KEY).requests,2);
+});
+
+test('malformed policy, corruption and failed durability cannot authorize cloud work',async()=>{
+  for(const raw of ['null','{}','[]','false','{',JSON.stringify({limitCents:301,openingCents:0,requestCents:1,startCents:1})]){
+    const {storage,values}=fixture();
+    await assert.rejects(reserveCompute(storage,{...env,NATIVE_MONTHLY_COMPUTE_POLICY:raw},'start',NOW),unavailable);
+    assert.equal(values.size,0);
+  }
+  const {storage,values}=fixture();
+  storage.failSync=true;
+  await assert.rejects(reserveCompute(storage,monthlyEnv(),'request',NOW),unavailable);
+  assert.equal(values.get(MONTHLY_KEY).reservedCents,5);
+  storage.failSync=false;
+  values.set(MONTHLY_KEY,{...values.get(MONTHLY_KEY),reservedCents:-1});
+  await assert.rejects(reserveCompute(storage,monthlyEnv(),'request',NOW),unavailable);
+});
+
+test('monthly tightening sticks even when the daily budget is already exhausted',async()=>{
+  const {storage,values}=fixture();
+  const single={...monthlyEnv(),NATIVE_DAILY_COMPUTE_REQUESTS:'1'};
+  await reserveCompute(storage,single,'request',NOW);
+  await assert.rejects(reserveCompute(storage,{...single,...monthlyEnv({limitCents:5}),NATIVE_DAILY_COMPUTE_REQUESTS:'1'},'request',NOW),exhausted);
+  await assert.rejects(reserveCompute(storage,monthlyEnv({limitCents:100}),'request',NOW+DAY),monthlyExhausted);
+  assert.equal(values.get(MONTHLY_KEY).limitCents,5);
+  const before=structuredClone([...values]);
+  const status=await computeBudgetStatus(storage,monthlyEnv(),NOW+DAY);
+  assert.equal(status.monthly.remainingCents,0);
+  assert.deepEqual([...values],before);
 });
