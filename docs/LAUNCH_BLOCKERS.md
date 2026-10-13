@@ -11,8 +11,9 @@ The [trusted Object score sample comparator](OBJECT_SCORE_QUALIFICATION.md) now
 checks raw fixed-input values under pinned policy. The [combined sample check](OBJECT_INDEX_QUALIFICATION.md)
 now connects full index/quality parity in source. The [account registry and saved
 adapter](OBJECT_ACCOUNT_QUALIFICATION.md) add optional reusable records and
-revocation. Trusted private host/job wiring, authentic platform results and
-distinct qualified settlement remain open.
+revocation. [Private owned-sample lookup and local delivery](OBJECT_QUALIFICATION_HOST.md)
+are now implemented and checked offline. Actual approved transport/host setup,
+authentic platform results and distinct qualified settlement remain open.
 The [shared search allocation/router](HYBRID_SEARCH_QUEUE.md) is implemented and
 checked locally. The [finite native Scene runner](NATIVE_QUEUED_SEARCH.md) now has
 durable shutdown/result recovery in source. Its approved trigger/bindings, actual

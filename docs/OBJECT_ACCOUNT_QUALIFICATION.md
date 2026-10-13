@@ -11,7 +11,9 @@ The account submits only `requestId`, `profileId` and `artifactSetSha256`, withi
 4 KiB. A client cannot submit an approval, choose a filesystem path or send raw
 sample data through this route. Account authentication, same-origin and rate
 limits apply. Checked-in configurations do not enable it. Actual setup still
-needs an approved private artifact transfer and trusted host binding.
+needs an approved private artifact transfer and trusted host binding. The
+[private owned-sample host](OBJECT_QUALIFICATION_HOST.md) now implements bounded
+local delivery and pinned account/job lookup in source; actual setup stays inactive.
 
 ## Trusted saved sample
 
@@ -91,8 +93,10 @@ are synthetic. No real Mac/model execution, cloud account access, provider test,
 deployment, Actions or indexing restart occurred. Original failed attempts remain
 private; their runtime/fixture corrections are recorded with the evidence.
 
-Next wire the adapter to trusted private host/job lookup and approved saved
-artifact delivery, using real exact platform evidence. Then connect fresh current
+The [private host/delivery component](OBJECT_QUALIFICATION_HOST.md) now connects
+trusted job lookup and a separately approved local file copy in source. Actual
+private transport, host activation and real exact platform evidence remain open.
+Next connect fresh current
 official Gen4, Scene membership and protected-source authority, qualified Object
 assignment/publication and once-only credit. Bound retained metadata and include
 these authorities in offline migration/recovery. Qualification/other paid work's

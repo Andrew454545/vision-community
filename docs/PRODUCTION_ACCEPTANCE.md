@@ -20,8 +20,10 @@ detector scores, complete indexed features, quantization and quality on the same
 pinned sample in source. It remains a read-only numerical check, not authentic
 platform evidence or reusable account admission. An optional [account registry and
 saved adapter](OBJECT_ACCOUNT_QUALIFICATION.md) now implement expiring records and
-revocation in source. Trusted private host/job integration, authentic platform
-evidence, current eligibility and distinct qualified Object publication remain unfinished.
+revocation in source. [Private host/job lookup and bounded local delivery](OBJECT_QUALIFICATION_HOST.md)
+now connect the saved comparator to that registry in a synthetic loopback check.
+Actual approved transport/setup, authentic platform evidence, current eligibility
+and distinct qualified Object publication remain unfinished.
 
 **Owner cost hold, 12 October:** all Community cloud execution and the local
 pilot/refresher/indexing tasks are paused. Read the [stop record](COST_STOP_20261012.md)

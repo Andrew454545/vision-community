@@ -19,8 +19,11 @@ and its opt-in private diagnostic packet. The [combined sample comparator](OBJEC
 now connects full indexed-feature, quantization and quality parity for the same
 sample in source. The [account registry and saved adapter](OBJECT_ACCOUNT_QUALIFICATION.md)
 now connect optional reusable profile records, expiry and revocation in source.
-Next wire trusted private host/job lookup and approved saved artifact delivery;
-connect current Scene/protected eligibility and qualified Object settlement.
+The [private owned-sample host](OBJECT_QUALIFICATION_HOST.md) now implements
+pinned job lookup, approved bounded local delivery and a dedicated private bridge,
+with synthetic full-comparator/SQLite loopback evidence. Actual private transport
+and activation remain pending. Next connect current official Gen4/Scene/protected
+eligibility and qualified Object assignment/settlement with once-only credit.
 Both comparators explicitly remain `qualified:false`;
 do not relabel detector parity as full device approval or rerun the completed
 queue/Scene runner checks merely for reassurance.
