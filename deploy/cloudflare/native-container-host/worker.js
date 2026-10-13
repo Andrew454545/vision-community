@@ -20,6 +20,7 @@ export class NativeHostProbe extends DurableObject {
   mainCheck() { return this.controller.mainCheck(); }
   alarm() { return this.controller.alarm(); }
   service(path, bytes) { return this.controller.service(path, bytes); }
+  queuedStep(){return this.controller.queuedStep();}
 }
 
 async function privateService(request, env, paths, maximum) {
@@ -43,6 +44,20 @@ export class NativeSceneSearch extends WorkerEntrypoint {
 }
 export class NativeSceneVerification extends WorkerEntrypoint {
   fetch(request) { return privateService(request, this.env, ["/audit", "/qualify"], 6 * 1024 * 1024); }
+}
+
+// Source-only private trigger. No public route, scheduler or configuration
+// enables this export. One call performs one bounded step/recovery attempt.
+export class NativeQueuedSceneSearch extends WorkerEntrypoint {
+  async fetch(request){
+    if(request.method!=='POST'||new URL(request.url).pathname!=='/run-once')return failure('not_found',404);
+    try{
+      const raw=await requestBytes(request,512);
+      const body=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(raw));
+      if(!body||typeof body!=='object'||Array.isArray(body)||Object.keys(body).length)throw Error();
+      return await this.env.NATIVE_HOST.getByName(INSTANCE_NAME).queuedStep();
+    }catch{return failure();}
+  }
 }
 
 async function operatorRequest(request, env, privateBinding = false) {

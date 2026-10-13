@@ -11,7 +11,7 @@ import {prepareSearchHybrid} from '../tools/prepare-search-hybrid.mjs';
 import {checkSearchQueue} from '../tools/check-search-queue.mjs';
 import {checkSearchHybrid} from '../tools/check-search-hybrid.mjs';
 import {queueSearch,claimQueuedSearch,renewQueuedSearch,completeQueuedSearch,queuedSearchStatus,
-  recoverSearch,cancelQueuedSearch,failQueuedSearch,searchCredit,requireSearchAgent} from './searchQueue.js';
+  recoverSearch,cancelQueuedSearch,failQueuedSearch,searchCredit,requireSearchAgent,authorizeCloudSearch} from './searchQueue.js';
 import {acknowledgeCloudStop} from './searchHybrid.js';
 import worker from './worker.js';
 const ACCOUNT='a'.repeat(32),NOW=2000000000;
@@ -49,6 +49,85 @@ function computed(job){const {query,...head}=JSON.parse(job.requestJson);return 
   hits:[{locationId:1,outputSha256:'c'.repeat(64),sourceIndex:0,score:.8,viewOffset:1}]};}
 const code=wanted=>e=>e.code===wanted;
 const stopBody=job=>({jobId:job.jobId,claimToken:job.claimToken,shutdownReceiptSha256:'7'.repeat(64)});
+const nonce=(at=NOW,tail='2')=>at.toString(16).padStart(16,'0')+tail.repeat(48);
+
+test('durable cloud nonce recovers one identical grant after lost acknowledgement without new cost or attempt',async t=>{
+  const f=await fixture(t);await f.enqueue();const token=nonce();
+  const claim=at=>claimQueuedSearch(f.env,at,['scene'],undefined,'cloud',token);
+  const grants=await Promise.all(Array.from({length:8},()=>claim(NOW)));
+  assert.ok(grants.every(r=>r.job&&r.job.claimToken===token));
+  assert.ok(grants.every(r=>r.job.jobId===grants[0].job.jobId));
+  assert.equal(f.budget().monthly.reservedCents,6);assert.equal(f.budget().claims.length,1);
+  assert.equal(f.sql.prepare('SELECT attempts FROM search_jobs').get().attempts,1);
+  assert.deepEqual(await claim(NOW+121),grants[0]); // Recovery discloses only the prior grant; fresh authorize refuses it.
+  await assert.rejects(authorizeCloudSearch(f.env,{jobId:grants[0].job.jobId,claimToken:token},NOW+121),code('search_claim_lost'));
+});
+
+test('cloud nonce cannot retarget after stop, account deletion, changed pins or settlement',async t=>{
+  for(const action of ['stopped','deleted','binding','paid']){
+    const f=await fixture(t);await f.enqueue();const token=nonce();
+    const first=await claimQueuedSearch(f.env,NOW,['scene'],undefined,'cloud',token);
+    if(action==='stopped')await acknowledgeCloudStop(f.env,stopBody(first.job),NOW+1);
+    if(action==='deleted'){
+      f.sql.prepare('UPDATE accounts SET deleted_at=? WHERE id=?').run(NOW+1,ACCOUNT);
+      f.sql.exec('DELETE FROM search_jobs');
+      f.sql.prepare("INSERT INTO accounts(id,token_hash,units) VALUES (?,'next',1000)").run('b'.repeat(32));
+      await queueSearch(f.env,'b'.repeat(32),key('next',NOW+1),f.query,{now:NOW+1,maxCostUnits:100});
+    }else await f.enqueue('next',NOW+1);
+    if(action==='binding')f.env.SEARCH_SNAPSHOT_SHA256='6'.repeat(64);
+    if(action==='paid')await completeQueuedSearch(f.env,first.job.jobId,token,computed(first.job),NOW+1,'cloud');
+    assert.equal((await claimQueuedSearch(f.env,NOW+2,['scene'],undefined,'cloud',token)).job,null,action);
+    assert.equal(f.budget().monthly.reservedCents,6);assert.equal(f.budget().claims.length,1);
+    assert.equal(JSON.stringify(f.budget()).includes(ACCOUNT),false);
+  }
+});
+
+test('nonce retry refuses missing or corrupt spending authority before recovering an execution grant',async t=>{
+  const f=await fixture(t);await f.enqueue();const token=nonce();
+  await claimQueuedSearch(f.env,NOW,['scene'],undefined,'cloud',token);
+  const original=f.budget();
+  for(const document of ['{',JSON.stringify({...original,claims:[]})]){
+    f.sql.prepare('UPDATE search_cloud_budget SET document=?').run(document);
+    await assert.rejects(claimQueuedSearch(f.env,NOW+1,['scene'],undefined,'cloud',token),code('search_cloud_budget_unavailable'));
+  }
+  assert.equal(f.debits(),0);assert.equal(f.sql.prepare('SELECT attempts FROM search_jobs').get().attempts,1);
+});
+
+test('simultaneous different lane capabilities cannot reuse one durable nonce for two grants',async t=>{
+  const f=await fixture(t);await f.enqueue('scene');await f.enqueue('object',NOW,{lane:'object'});
+  const grants=await Promise.all(['scene','object'].map(lane=>claimQueuedSearch(f.env,NOW,[lane],undefined,'cloud',nonce())));
+  assert.equal(grants.filter(r=>r.job).length,1);
+  assert.equal(f.budget().rolling.reservations.length,1);assert.equal(f.budget().claims.length,1);
+  assert.equal(f.sql.prepare("SELECT count(*) n FROM search_jobs WHERE state='claimed'").get().n,1);
+});
+
+test('nonce validation and legacy budget upgrade preserve sealed usage',async t=>{
+  const f=await fixture(t);await f.enqueue();
+  for(const token of [null,'bad',nonce(NOW-3601),nonce(NOW+301)])
+    await assert.rejects(claimQueuedSearch(f.env,NOW,['scene'],undefined,'cloud',token),code('invalid_cloud_claim_request'));
+  assert.equal(f.budget(),null);
+  const first=await f.claim('cloud');await acknowledgeCloudStop(f.env,stopBody(first.job),NOW+1);
+  const legacy=f.budget();delete legacy.claims;legacy.version=1;
+  f.sql.prepare('UPDATE search_cloud_budget SET document=?').run(JSON.stringify(legacy));
+  await f.enqueue('second',NOW+2);
+  const second=await claimQueuedSearch(f.env,NOW+2,['scene'],undefined,'cloud',nonce(NOW+2));
+  assert.ok(second.job);assert.equal(f.budget().version,2);assert.equal(f.budget().monthly.reservedCents,12);
+  assert.equal(f.budget().claims.length,1);assert.equal(checkSearchHybrid(f.sql,NOW+3).passed,true);
+});
+
+test('fresh cloud authorization is read-only, staging-bound, Scene-only and rejects changed authority',async t=>{
+  const f=await fixture(t);await f.enqueue();const {job}=await f.claim('cloud');
+  const body={jobId:job.jobId,claimToken:job.claimToken};
+  await assert.rejects(authorizeCloudSearch(f.env,body,NOW+1));
+  Object.assign(f.env,{SEARCH_CLOUD_EXECUTION_MODE:'native-host-one-shot-v1',DEPLOYMENT_ENVIRONMENT:'staging',
+    INDEX_BUCKET_NAME:'vision-community-staging',DELETION_ARCHIVE_DB_ID:'17043cb7-5dab-4a6f-84ca-19ae1c14cc05'});
+  const before=JSON.stringify(f.budget());const authorized=await authorizeCloudSearch(f.env,body,NOW+1);
+  assert.deepEqual(authorized.job,job);assert.equal(authorized.resource.bucket,'vision-community-staging');
+  assert.equal(JSON.stringify(f.budget()),before);assert.equal(f.debits(),0);
+  f.env.INDEX_BUCKET_NAME='other';await assert.rejects(authorizeCloudSearch(f.env,body,NOW+1));
+  f.env.INDEX_BUCKET_NAME='vision-community-staging';f.env.SEARCH_SNAPSHOT_SHA256='6'.repeat(64);
+  await assert.rejects(authorizeCloudSearch(f.env,body,NOW+1),code('search_claim_lost'));
+});
 
 test('cloud claim reserves maximum cost before disclosure; local grace and nonrenewable deadline are explicit',async t=>{
   const f=await fixture(t);await f.enqueue();

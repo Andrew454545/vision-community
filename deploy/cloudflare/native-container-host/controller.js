@@ -7,6 +7,7 @@ import { MAIN_CHECK, checkedMainReceipt, checkedMainFailureReceipt } from "./mai
 import { AUDIT_BUDGET_CHECK, checkedAuditBudgetReceipt } from "./audit-budget-check.js";
 import { REPEATABILITY_CHECK, checkedRepeatabilityReceipt, checkedRepeatabilityFailure } from "./repeatability-check.js";
 import { ComputeBudgetError, reserveCompute, computeBudgetStatus } from "./compute-budget.js";
+import {QueuedNativeSearch,QUEUED_KEY} from './queued-search.js';
 
 export const MAX_BUNDLE = 384 * 1024 * 1024;
 const HEX = /^[0-9a-f]{64}$/;
@@ -116,6 +117,7 @@ export class NativeController {
     this.startupBudgetMs = options.startupBudgetMs ?? 60000;
     this.launchCheckTimeoutMs = options.launchCheckTimeoutMs ?? 45000;
     this.now = options.now ?? Date.now;
+    this.queued = new QueuedNativeSearch(this);
   }
 
   config() {
@@ -144,11 +146,16 @@ export class NativeController {
     this.keepComputeAlive = true;
   }
 
-  async exclusive(operation, { touchIdle = true } = {}) {
+  async exclusive(operation, { touchIdle = true,queued = false } = {}) {
     if (this.busy) return failure("native_host_busy");
     this.busy = true;
     this.keepComputeAlive = false;
-    try { return await operation(); }
+    try {
+      if(touchIdle&&!queued&&await this.ctx.storage.get(QUEUED_KEY)){
+        touchIdle=false;return failure('native_queued_delivery_pending');
+      }
+      return await operation();
+    }
     catch (error) {
       if (error instanceof ComputeBudgetError) {
         touchIdle = false;
@@ -162,7 +169,8 @@ export class NativeController {
     }
     finally {
       try {
-        if (this.ctx.container?.running) { if (touchIdle && this.keepComputeAlive) await this.armIdle(); }
+        if(await this.ctx.storage.get(QUEUED_KEY)){/* The durable queued deadline owns this alarm. */}
+        else if (this.ctx.container?.running) { if (touchIdle && this.keepComputeAlive) await this.armIdle(); }
         else await this.clearIdle();
       } catch {
         this.hydratedDigest = undefined;
@@ -185,6 +193,7 @@ export class NativeController {
   }
 
   async alarm() {
+    if(await this.queued.alarm())return;
     // monitor() can keep a DO in memory beyond its platform inactivity timer.
     // A durable alarm enforces idle shutdown without polling or losing the seal.
     if (this.busy) {
@@ -242,9 +251,11 @@ export class NativeController {
     return health;
   }
 
-  async upload(bundle) {
+  async upload(bundle,guard=()=>{}) {
+    guard();
     bundle = descriptor(bundle);
     const object = await this.env.OPERATOR_BUNDLES.get(bundle.key);
+    try{guard();}catch(error){if(object?.body)void object.body.cancel().catch(()=>{});throw error;}
     if (!object || object.size !== bundle.bytes || !object.body) {
       await object?.body?.cancel();
       throw Error("operator_bundle_missing_or_changed");
@@ -285,7 +296,8 @@ export class NativeController {
     }
   }
 
-  async ensure(active) {
+  async ensure(active,guard=()=>{}) {
+    guard();
     const container = this.config();
     const digest = active?.sha256 ?? null;
     // After DO eviction/crash, container health cannot attest which bundle was
@@ -293,8 +305,10 @@ export class NativeController {
     // potentially uncommitted container state. No external I/O under a DO lock.
     if (!container.running || this.hydratedDigest !== digest) {
       await reserveCompute(this.ctx.storage,this.env,'start',this.now());
+      guard();
       this.hydratedDigest = undefined;
       if (container.running) await container.destroy();
+      guard();
       container.start({ image: this.env.NATIVE_IMAGE, instance: INSTANCE,
         enableInternet: this.env.NATIVE_IMAGERY_EGRESS === "live-imagery",
         // Use the immutable image's server directly. The offline exec probe
@@ -325,8 +339,10 @@ export class NativeController {
       try {
         const readiness = (async () => {
           for (let attempt = 0; attempt < 300 && waitingForBoot && Date.now() < deadline; attempt++) {
+            guard();
             try { return await this.checkedHealth(Math.min(2000, Math.max(1, deadline - Date.now()))); }
             catch (error) {
+              guard();
               if (["native_boot_failed", "native_boot_diagnostic_invalid"].includes(error?.message)) throw error;
               if (waitingForBoot) await this.wait(200);
             }
@@ -345,14 +361,19 @@ export class NativeController {
         clearTimeout(timer);
       }
       const identity = await container.inspect();
+      guard();
       if (!identity || identity.image !== this.env.NATIVE_IMAGE) throw Error("native_image_changed");
-      if (active) await this.upload(active);
+      if (active) await this.upload(active,guard);
+      guard();
       this.hydratedDigest = digest;
     }
     try { await container.setInactivityTimeout(IDLE_MS); }
     catch { throw Error("native_inactivity_timeout_unavailable"); }
-    return this.checkedHealth();
+    guard();return this.checkedHealth();
   }
+
+  budgetStatus(){return computeBudgetStatus(this.ctx.storage,this.env,this.now());}
+  queuedStep(){return this.exclusive(async()=>Response.json(await this.queued.runOnce(),{headers:jsonHeaders}),{touchIdle:false,queued:true});}
 
   async active() {
     const value = await this.ctx.storage.get("activeBundle");
@@ -375,6 +396,7 @@ export class NativeController {
       lastLaunchFailure: await this.ctx.storage.get("lastLaunchFailure") ?? null,
       lastRepeatabilityFailure: await this.ctx.storage.get("lastRepeatabilityFailure") ?? null,
       lastSearchFailure: await this.ctx.storage.get("lastSearchFailure") ?? null,
+      queuedDeliveryPending:!!await this.ctx.storage.get(QUEUED_KEY),
       computeBudget: await computeBudgetStatus(this.ctx.storage,this.env,this.now()),
       productionQualified: false }, { headers: jsonHeaders }), {touchIdle:false});
   }
@@ -457,7 +479,7 @@ export class NativeController {
       this.hydratedDigest = undefined;
       await this.ctx.container.destroy();
       return Response.json({ stopped: true, activeBundleRetained: (await this.active()) !== null }, { headers: jsonHeaders });
-    });
+    },{queued:true});
   }
 
   mainCheck() { return this.launchCheck(true); }

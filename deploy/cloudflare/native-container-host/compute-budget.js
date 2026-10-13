@@ -118,6 +118,7 @@ export async function computeBudgetStatus(storage, env, now = Date.now()) {
       startsRemaining:Math.max(0,record.startLimit-record.starts),
       ...(monthly ? {monthly:{...monthly,remainingCents:Math.max(0,monthly.limitCents-monthly.reservedCents)},
         rolling:{windowDays:WINDOW_MS/86400000,limitCents:rolling.limitCents,reservedCents:rollingTotal(rolling),
+          requestCents:rolling.requestCents,startCents:rolling.startCents,
           remainingCents:Math.max(0,rolling.limitCents-rollingTotal(rolling))}} : {})};
   } catch {
     return {configured:false,reason:'native_compute_budget_unavailable'};
