@@ -84,6 +84,55 @@ class OwnerSearchServiceTests(unittest.TestCase):
         self.scene.assert_not_called(); self.objects.assert_called_once()
         self.assertIn(b'"lat":1e-7', self.engines['object'].calls[0][1])
 
+    def add_membership(self):
+        folder=self.root/'scene-membership';folder.mkdir()
+        path=folder/'membership.json';path.write_bytes(b'fictional-membership')
+        self.config['lanes']['scene'].update(membership=str(path),membershipSha256=digest(path.read_bytes()))
+        self.save();return path
+
+    def test_optional_membership_configuration_requires_both_pins_and_stays_scene_only(self):
+        path=self.add_membership();original=copy.deepcopy(self.config)
+        self.assertEqual(service.load_configuration(self.path,self.pin)['lanes']['scene']['membership'],str(path))
+        for change in (lambda d:d['lanes']['scene'].pop('membership'),
+                       lambda d:d['lanes']['scene'].pop('membershipSha256'),
+                       lambda d:d['lanes']['scene'].update(membershipSha256='invalid'),
+                       lambda d:d['lanes']['scene'].update(membership=str(self.state/'membership.json')),
+                       lambda d:d['lanes'].update(object={**self.object_definition,'membership':str(path),'membershipSha256':'e'*64})):
+            self.config=copy.deepcopy(original);change(self.config);self.save()
+            with self.assertRaises(ValueError):service.load_configuration(self.path,self.pin)
+        self.credentials.assert_not_called();self.scene.assert_not_called()
+
+    def test_optional_membership_is_lazy_and_passes_exact_pins_and_query_bytes(self):
+        path=self.add_membership()
+        with patch('community.scene_membership.SceneMembershipProofs') as proofs, \
+                patch('community.scene_membership.SceneMembershipEngine',return_value=self.engines['scene']) as wrapper:
+            self.assertEqual(self.run_once()['status'],'completed')
+        d=self.config['lanes']['scene']
+        proofs.assert_called_once_with(Path(d['snapshot']),d['snapshotSha256'],path,d['membershipSha256'],
+            environment='staging',policy_id=d['policyId'],runtime_sha256=d['runtimeSha256'])
+        wrapper.assert_called_once_with(self.engines['scene'],proofs.return_value)
+        self.assertIn(b'"lat":1e-7',self.engines['scene'].calls[0][1])
+
+    def test_failed_membership_initialization_cannot_cache_an_unwrapped_engine(self):
+        self.add_membership();d=self.config['lanes']['scene']
+        lazy=service.LazyEngine('scene',d,self.state,'staging',lambda:None)
+        with patch('community.scene_membership.SceneMembershipProofs',side_effect=ValueError('fixture refusal')) as proofs:
+            for _ in range(2):
+                with self.assertRaises(ValueError):lazy.search({},raw_query=b'{}')
+                self.assertIsNone(lazy.engine)
+        self.assertEqual(proofs.call_count,2);self.assertFalse(self.engines['scene'].calls)
+
+    def test_saved_completion_replay_does_not_require_available_membership_files(self):
+        path=self.add_membership();self.coordinator.lose_reply=True
+        with patch('community.scene_membership.SceneMembershipProofs'), \
+                patch('community.scene_membership.SceneMembershipEngine',return_value=self.engines['scene']):
+            self.assertEqual(self.run_once()['status'],'retry_wait')
+        before=(self.state/'outbox.json').read_bytes();path.unlink();self.allow_next_step();self.scene.reset_mock()
+        with patch('community.scene_membership.SceneMembershipProofs') as proofs:
+            self.assertEqual(self.run_once()['status'],'completed')
+        proofs.assert_not_called();self.scene.assert_not_called()
+        self.assertEqual(encoded(self.coordinator.calls[-1][1]),encoded(json.loads(before)['body']))
+
     def test_lost_ack_restart_replays_exact_completion_with_native_inputs_unavailable(self):
         self.coordinator.lose_reply = True
         self.assertEqual(self.run_once()['status'], 'retry_wait')

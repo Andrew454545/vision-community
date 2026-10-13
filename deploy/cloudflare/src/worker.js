@@ -18,6 +18,7 @@ import { publicObjectManifest } from "./objectPublicManifest.js";
 import { advanceObjectContribution } from './objectAuditFlow.js';
 import { retireAcceptedObjectAudits } from './objectAuditRetention.js';
 import { onlineSearch, onlineSearchConfigured, INDEX_DOWNLOAD_ROUTES } from "./onlineSearch.js";
+import { MAX_SEALED_SCENE_HITS } from './sceneMembership.js';
 import { SearchError } from "./searchLedger.js";
 import { queueSearch, queuedSearchConfigured, requireSearchQueue, maintainSearchQueue, searchCredit,
   queuedSearchStatus, recoverSearch, cancelQueuedSearch, requireSearchAgent, claimQueuedSearch,
@@ -255,6 +256,10 @@ async function status(env, account, options = {}) {
     searchOnSite: cohortAllowed && cost !== null && (env.SEARCH_DELIVERY === undefined ? onlineSearchConfigured(env) : queuedSearchConfigured(env)),
     searchReady: cohortAllowed && cost !== null && (env.SEARCH_DELIVERY === undefined ? onlineSearchConfigured(env) : queuedSearchConfigured(env)),
     searchDelivery: env.SEARCH_DELIVERY === 'queued-v1' ? 'queued' : 'immediate',
+    searchResultLimits: {
+      scene: env.SEARCH_SCENE_MEMBERSHIP !== undefined ? MAX_SEALED_SCENE_HITS : env.SEARCH_DELIVERY === 'queued-v1' ? 1000 : 10000,
+      object: env.SEARCH_DELIVERY === 'queued-v1' ? 1000 : 10000,
+    },
     indexDownloads: false,
     accountDeletionAvailable: true,
     model: MODEL_ID,

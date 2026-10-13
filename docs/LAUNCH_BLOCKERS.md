@@ -5,8 +5,9 @@ refresher and background indexing task are disabled. Cloud execution,
 deployments, provider checks and Actions remain forbidden. The requested
 [cost recommendation](COST_OPTIONS_20261012.md) now has the laptop user's approval
 for **local implementation only**. [Queued search delivery](QUEUED_SEARCH_DELIVERY.md)
-is implemented in source. Continue offline owner verification/import and bounded
-catalog integration; account/resource migration and activation remain undecided.
+is implemented in source, with optional [sealed Scene search membership](SCENE_MEMBERSHIP.md).
+Continue offline owner verification/import and bounded admission/catalog metadata;
+account/resource migration and activation remain undecided.
 The work below is not permission to restart cloud execution or indexing.
 
 Use the [five acceptance gates](PRODUCTION_ACCEPTANCE.md) as the release boundary.

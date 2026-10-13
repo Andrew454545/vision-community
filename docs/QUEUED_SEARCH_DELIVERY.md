@@ -47,7 +47,7 @@ paid result. It never executes or charges a search.
 | Waiting/running jobs | 128 globally; 3 per account |
 | Total job metadata | 512 rows; queue refuses excess work without a debit |
 | Query / gateway input / paid reply | 64 KiB normalized query; 80 KiB input; 1 MiB paid reply |
-| Requested results | At most 1,000 in queued mode; oversized requests fail explicitly |
+| Requested results | At most 1,000 in queued mode; optional sealed Scene membership caps its lane at 64 |
 | Waiting deadline / claim | One hour / five minutes; at most three claims |
 | Terminal metadata | Pruned in chunks of 64 after the deadline plus 24 hours |
 | Owner spool | One completion/failure; one first fixed report per allowed error code |
@@ -183,10 +183,10 @@ folder retains the earlier 30/31-check runs and the final combined receipt.
 
 These are offline protocol/accounting checks. They do **not** prove real Mac/PC
 inference, accepted contributions, live owner execution, Free-plan CPU/row budgets,
-signing or a continuous soak. In particular, existing gateway membership checks
-still use per-location D1 records; result validation and the historical catalog
-need measured Free-plan adaptation. Durable paid replies also consume growing
-storage and need an authorized retention/storage design. Next: outbound trusted
-verification/import jobs and sealed-batch membership, owner startup/credential
-provisioning; then the approved migration,
+signing or a continuous soak. Optional [sealed Scene membership](SCENE_MEMBERSHIP.md)
+now removes per-result Scene D1 lookups in source; it is disabled and leaves Object,
+admission, status and historical catalog records unchanged. Durable paid replies
+also consume growing storage and need an authorized retention/storage design.
+Next: outbound trusted verification/import jobs, bounded admission/catalog metadata
+and owner startup; then the approved migration,
 real acceptance/capacity evidence and [remaining launch gates](PRODUCTION_ACCEPTANCE.md).

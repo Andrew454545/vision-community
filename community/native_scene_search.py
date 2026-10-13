@@ -38,7 +38,7 @@ MODES = {0: ("contrastive50", .8842786), 25: ("title25Contrastive50", .83858335)
          50: ("title50Contrastive50", .6531793), 75: ("title75Contrastive50", .36236486),
          100: ("textOnly", .01)}
 MODEL_FILES = ("vision_model.onnx", "vision_model_fp32.onnx", "text_model.onnx", "tokenizer.json")
-SOURCE_FILES = ("__init__.py", "native_scene_search.py", "search_snapshot.py", "scene_quality.py", "four_view.py", "features.py")
+SOURCE_FILES = ("__init__.py", "native_scene_search.py", "search_snapshot.py", "scene_quality.py", "four_view.py", "features.py", "scene_membership.py")
 GENS = {"unknown", "badcam", "gen1", "gen2", "gen3", "gen4", "trekker"}
 QUERY_KEYS = {"lane", "prompt", "examples", "excluded", "queryName", "descriptionWeight",
               "viewDirection", "resultCount", "maxPerCountry", "filters", "objectConfidence",

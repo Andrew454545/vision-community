@@ -33,6 +33,7 @@ const ERRORS = {
   search_queue_full: "Search is busy. Your credits are safe. Try Recover search later.",
   search_request_expired: "This saved request expired without spending credits. Choose Run Search to start again.",
   search_query_too_large: "Use a smaller map or at most 1,000 results for this search. No credits were spent.",
+  search_result_count_limit: "Choose no more than 64 places for this Scene search. No credits were spent.",
   request_too_large: "That request is too large. Use a smaller map. No credits were spent.",
   invalid_service_response: "The service response could not be read. Try again. Any pending search stays saved for recovery.",
   service_unavailable: "The service is unavailable. Check again later.",
@@ -830,6 +831,12 @@ function renderJobs() {
 }
 
 function updateReady() {
+  const configuredLimit = state?.searchResultLimits?.[selectedLane()];
+  const resultLimit = Number.isSafeInteger(configuredLimit) && configuredLimit >= 1 && configuredLimit <= 10000 ? configuredLimit : 10000;
+  const count = Number($("result-count").value);
+  const countReady = Number.isSafeInteger(count) && count >= 1 && count <= resultLimit;
+  $("result-count").max = resultLimit;
+  $("result-count-help").textContent = `1–${number(resultLimit)} places`;
   const includeReady = countryMode() !== "include" || selectedCountries().length > 0;
   const generationReady = selectedGenerations().length > 0;
   const onSite = state?.searchOnSite === true;
@@ -837,9 +844,9 @@ function updateReady() {
   const credited = VisionSearchPricing.canAfford(state);
   let pending = false;
   try { pending = signedIn && !!searchJournal.read(state?.accountId); } catch { /* Run reports the recovery problem. */ }
-  const ready = serviceReadiness.canSearch(pending) && (pending || (hasInput && includeReady && generationReady && signedIn && credited && onSite));
-  $("ready-badge").textContent = hasInput ? "Ready" : "Needs input";
-  $("ready-badge").classList.toggle("ok", hasInput);
+  const ready = serviceReadiness.canSearch(pending) && (pending || (hasInput && countReady && includeReady && generationReady && signedIn && credited && onSite));
+  $("ready-badge").textContent = !pending && !countReady ? `Choose 1–${number(resultLimit)} places` : hasInput ? "Ready" : "Needs input";
+  $("ready-badge").classList.toggle("ok", hasInput && (pending || countReady));
   $("run-search").disabled = !ready || deletionBlocksSearch();
   $("run-search").textContent = pending ? "Recover search" : "Run Search";
   if ($('cancel-search')) $('cancel-search').hidden = !pending || state?.searchDelivery !== 'queued' || deletionBlocksSearch();

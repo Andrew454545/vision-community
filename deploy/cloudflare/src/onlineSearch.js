@@ -4,6 +4,7 @@ import { SEARCH_CONTRACT_VERSION, querySemantics, validHitObject, exportSearchMa
 import { officialGen4Coverage } from "./objectCoverage.js";
 import { searchCost, validSearchQuote } from "./searchPricing.js";
 import { sceneCohortAllows } from "./sceneCohort.js";
+import { sealedSceneRows, sceneMembershipBinding, MAX_SEALED_SCENE_HITS } from "./sceneMembership.js";
 
 const HEX = /^[0-9a-f]{64}$/;
 const RESPONSE_LIMIT = 4 * 1024 * 1024;
@@ -52,6 +53,12 @@ export async function searchDigest(query) {
 
 async function engineResult(env, query, digest) {
   if (!onlineSearchConfigured(env)) throw new SearchError("search_unavailable");
+  if (query.lane === 'scene' && env.SEARCH_SCENE_MEMBERSHIP !== undefined) {
+    if (env.SEARCH_DYNAMIC_SNAPSHOT === '1') throw new SearchError('search_unavailable');
+    sceneMembershipBinding(env, {policyId:env.SEARCH_POLICY_ID,runtimeSha256:env.SEARCH_RUNTIME_SHA256,
+      snapshotSha256:env.SEARCH_SNAPSHOT_SHA256});
+    if (query.resultCount > MAX_SEALED_SCENE_HITS) throw new SearchError('search_result_count_limit',400);
+  }
   const snapshotSha256 = await snapshotIdentity(env);
   let response;
   try {
@@ -90,20 +97,20 @@ function distance(a, b) {
   return 12742000 * Math.asin(Math.min(1, Math.sqrt(value)));
 }
 
-async function verifiedHits(db, query, hits, processedLocations) {
+async function verifiedHits(db, query, hits, processedLocations, sealedRows = null) {
   const { minimumScore } = querySemantics(query);
   if (!Number.isFinite(minimumScore)) throw new SearchError("search_unavailable");
   if (hits.some(hit => !hit || typeof hit !== "object" || Array.isArray(hit))) throw new SearchError("search_unavailable");
   const ids = hits.map(hit => hit.locationId);
   if (ids.some(id => !Number.isSafeInteger(id) || id < 1) || new Set(ids).size !== ids.length)
     throw new SearchError("search_unavailable");
-  const rows = (await db.prepare(`SELECT l.id,l.asset_id,l.lat,l.lon,l.heading,l.pitch,l.zoom,l.country,l.camera_generation,
+  const rows = sealedRows ?? ((await db.prepare(`SELECT l.id,l.asset_id,l.lat,l.lon,l.heading,l.pitch,l.zoom,l.country,l.camera_generation,
       i.output_sha256 FROM published_index i JOIN locations l ON l.id=i.location_id
       WHERE l.id IN (SELECT value FROM json_each(?)) AND l.lane=? AND l.state='published'
         AND l.contributor_id IS NOT NULL AND l.contributor_id!=''
         AND ((?='scene' AND i.four_view_key IS NOT NULL)
           OR (?='object' AND i.object_index_key IS NOT NULL AND (${officialGen4Coverage("l")})))`)
-    .bind(JSON.stringify(ids), query.lane, query.lane, query.lane).all()).results || [];
+    .bind(JSON.stringify(ids), query.lane, query.lane, query.lane).all()).results || []);
   const byId = new Map(rows.map(row => [row.id, row]));
   const countries = new Map();
   const panos = new Set();
@@ -163,7 +170,8 @@ export async function verifiedSearchResult(env, query, digest, result, snapshotS
       || result.requestSha256 !== digest.slice(7) || !Array.isArray(result.hits)
       || result.hits.length > query.resultCount || !Number.isSafeInteger(result.processedLocations)
       || result.processedLocations < result.hits.length) throw new SearchError("search_unavailable");
-  const hits = await verifiedHits(env.DB, query, result.hits, result.processedLocations);
+  const sealed = await sealedSceneRows(env, query, result, snapshotSha256);
+  const hits = await verifiedHits(env.DB, query, result.hits, result.processedLocations, sealed);
   return { searchId, query: query.queryName, lane: query.lane, results: hits, costUnits: cost,
     demo: false, persistImagery: false, local: false,
     map: exportSearchMap(query, hits, result.processedLocations) };
