@@ -1,0 +1,161 @@
+{
+  "version": 1,
+  "scope": "offline-configured-owner-object-service-v1",
+  "recordedAtUTC": "2026-10-13T05:46:30.018433+00:00",
+  "sourceParent": "93bab7d2846b408c865573363249e0292f6c5601",
+  "branch": "codex/windows-production-readiness",
+  "platform": {
+    "os": "Windows",
+    "version": "10.0.26200",
+    "machine": "AMD64",
+    "python": "3.12.14",
+    "node": "24.19.0"
+  },
+  "implementation": [
+    "Strict independent private Object configuration/activation; lazy runtime/policy/registry initialization preserves committed reply recovery.",
+    "Finite or explicitly invoked interruptible durable supervisor; owned spool handles close before service lock release; no startup registration.",
+    "Separate Object-purpose vault provisioner reuses existing guarded read/write/readback/rotation transaction with the dedicated account and target.",
+    "Two hidden interactive key prompts only; never CLI/environment/file input or implicit activation; normal OS consent and existing pause/stop/work remain preserved."
+  ],
+  "verification": {
+    "pythonPassed": 56,
+    "failed": 0,
+    "skipped": 0,
+    "cases": [
+      "test_accidentally_pasted_cli_secret_and_bad_config_never_echo_or_prompt (community.tests.test_owner_credential_provision.OwnerCredentialProvisionTests.test_accidentally_pasted_cli_secret_and_bad_config_never_echo_or_prompt)",
+      "test_actual_saved_audit_publication_once_credit_and_lost_ack_replay_without_native_access (community.tests.test_owner_object_pipeline.OwnerObjectPipelineTests.test_actual_saved_audit_publication_once_credit_and_lost_ack_replay_without_native_access)",
+      "test_application_service_lock_prevents_credential_change_under_running_owner (community.tests.test_owner_credential_provision.OwnerCredentialProvisionTests.test_application_service_lock_prevents_credential_change_under_running_owner)",
+      "test_authentication_latch_stays_across_configured_restarts_without_probes (community.tests.test_owner_object_service.ObjectServiceTests.test_authentication_latch_stays_across_configured_restarts_without_probes)",
+      "test_backend_selects_only_dedicated_account_on_both_platforms (community.tests.test_owner_object_service.ObjectProvisionTests.test_backend_selects_only_dedicated_account_on_both_platforms)",
+      "test_changed_protected_source_prevents_refresh_keeps_outbox_and_preserves_native_receipt (community.tests.test_owner_object_pipeline.OwnerObjectPipelineTests.test_changed_protected_source_prevents_refresh_keeps_outbox_and_preserves_native_receipt)",
+      "test_cli_bad_arguments_or_private_exception_return_fixed_message_without_echo (community.tests.test_owner_object_service.ObjectServiceTests.test_cli_bad_arguments_or_private_exception_return_fixed_message_without_echo)",
+      "test_cli_requires_two_hidden_prompts_and_never_accepts_redirected_secret (community.tests.test_owner_object_service.ObjectProvisionTests.test_cli_requires_two_hidden_prompts_and_never_accepts_redirected_secret)",
+      "test_config_change_or_ambiguous_readback_preserves_possibly_written_key (community.tests.test_owner_object_service.ObjectProvisionTests.test_config_change_or_ambiguous_readback_preserves_possibly_written_key)",
+      "test_config_changed_after_write_preserves_written_secret_for_recovery (community.tests.test_owner_credential_provision.OwnerCredentialProvisionTests.test_config_changed_after_write_preserves_written_secret_for_recovery)",
+      "test_configuration_pin_and_activation_cannot_be_retargeted (community.tests.test_owner_object_service.ObjectServiceTests.test_configuration_pin_and_activation_cannot_be_retargeted)",
+      "test_configured_finite_service_delivers_exact_binding_and_closes_without_activation_changes (community.tests.test_owner_object_service.ObjectServiceTests.test_configured_finite_service_delivers_exact_binding_and_closes_without_activation_changes)",
+      "test_configured_runner_constructs_real_saved_auditor_and_replays_committed_reply_lazily (community.tests.test_owner_object_pipeline.OwnerObjectPipelineTests.test_configured_runner_constructs_real_saved_auditor_and_replays_committed_reply_lazily)",
+      "test_dedicated_setup_preserves_pause_and_activation_and_never_uses_search_scope (community.tests.test_owner_object_service.ObjectProvisionTests.test_dedicated_setup_preserves_pause_and_activation_and_never_uses_search_scope)",
+      "test_denied_or_malformed_selected_item_is_never_interpreted_as_absent (community.tests.test_owner_credential_provision.OwnerCredentialProvisionTests.test_denied_or_malformed_selected_item_is_never_interpreted_as_absent)",
+      "test_exact_current_login_keychain_uses_framework_memory_and_no_child_arguments (community.tests.test_owner_credential_provision.MacProvisionAPITests.test_exact_current_login_keychain_uses_framework_memory_and_no_child_arguments)",
+      "test_existing_key_rotation_requires_independent_old_pin_and_readback (community.tests.test_owner_object_service.ObjectProvisionTests.test_existing_key_rotation_requires_independent_old_pin_and_readback)",
+      "test_expired_uncommitted_proof_rechecks_actual_protection_without_new_inference (community.tests.test_owner_object_pipeline.OwnerObjectPipelineTests.test_expired_uncommitted_proof_rechecks_actual_protection_without_new_inference)",
+      "test_explicit_coordinator_factory_reads_scoped_secret_without_network_or_activation (community.tests.test_owner_search_credentials.OwnerSearchCredentialTests.test_explicit_coordinator_factory_reads_scoped_secret_without_network_or_activation)",
+      "test_failed_readback_does_not_delete_or_rollback_possibly_successful_write (community.tests.test_owner_credential_provision.OwnerCredentialProvisionTests.test_failed_readback_does_not_delete_or_rollback_possibly_successful_write)",
+      "test_failed_write_still_zeroes_blob_and_never_deletes_an_item (community.tests.test_owner_credential_provision.WindowsProvisionAPITests.test_failed_write_still_zeroes_blob_and_never_deletes_an_item)",
+      "test_first_setup_exact_origin_readback_and_no_activation_or_private_file_output (community.tests.test_owner_credential_provision.OwnerCredentialProvisionTests.test_first_setup_exact_origin_readback_and_no_activation_or_private_file_output)",
+      "test_guard_change_after_jobs_open_closes_owned_spool_and_does_not_cache_engine (community.tests.test_owner_object_service.ObjectServiceTests.test_guard_change_after_jobs_open_closes_owned_spool_and_does_not_cache_engine)",
+      "test_identical_setup_is_noop_and_different_existing_secret_is_never_overwritten (community.tests.test_owner_credential_provision.OwnerCredentialProvisionTests.test_identical_setup_is_noop_and_different_existing_secret_is_never_overwritten)",
+      "test_interactive_hidden_confirmation_and_redacted_receipt (community.tests.test_owner_credential_provision.OwnerCredentialProvisionTests.test_interactive_hidden_confirmation_and_redacted_receipt)",
+      "test_invalid_secrets_replacement_pins_or_config_hash_never_access_vault (community.tests.test_owner_credential_provision.OwnerCredentialProvisionTests.test_invalid_secrets_replacement_pins_or_config_hash_never_access_vault)",
+      "test_isolated_cli_rejects_redirected_input_without_vault_or_native_assets (community.tests.test_owner_credential_provision.OwnerCredentialProvisionTests.test_isolated_cli_rejects_redirected_input_without_vault_or_native_assets)",
+      "test_lazy_constructor_passes_exact_pins_never_caches_wrong_binding_and_closes_owned_spool (community.tests.test_owner_object_service.ObjectServiceTests.test_lazy_constructor_passes_exact_pins_never_caches_wrong_binding_and_closes_owned_spool)",
+      "test_lost_ack_restart_needs_neither_native_assets_nor_native_spool (community.tests.test_owner_object_service.ObjectServiceTests.test_lost_ack_restart_needs_neither_native_assets_nor_native_spool)",
+      "test_mac_add_and_read_use_dedicated_account_in_memory_preserving_normal_consent (community.tests.test_owner_object_service.DedicatedVaultAPITests.test_mac_add_and_read_use_dedicated_account_in_memory_preserving_normal_consent)",
+      "test_mac_denied_or_oversized_secret_is_not_missing_and_frees_native_content (community.tests.test_owner_credential_provision.MacProvisionAPITests.test_mac_denied_or_oversized_secret_is_not_missing_and_frees_native_content)",
+      "test_mac_duplicate_or_denied_write_does_not_fall_back_to_delete_unlock_or_replace (community.tests.test_owner_credential_provision.MacProvisionAPITests.test_mac_duplicate_or_denied_write_does_not_fall_back_to_delete_unlock_or_replace)",
+      "test_mac_oversize_denial_or_nonhex_does_not_echo_secret_and_closes_private_pipe (community.tests.test_owner_search_credentials.OwnerSearchCredentialTests.test_mac_oversize_denial_or_nonhex_does_not_echo_secret_and_closes_private_pipe)",
+      "test_mac_reads_one_exact_login_keychain_item_without_credential_arguments_or_environment (community.tests.test_owner_search_credentials.OwnerSearchCredentialTests.test_mac_reads_one_exact_login_keychain_item_without_credential_arguments_or_environment)",
+      "test_mac_rotation_modifies_only_password_data_preserving_service_account_and_acl (community.tests.test_owner_credential_provision.MacProvisionAPITests.test_mac_rotation_modifies_only_password_data_preserving_service_account_and_acl)",
+      "test_mac_timeout_kills_only_owned_child_and_fails_without_unlocking_or_retry (community.tests.test_owner_search_credentials.OwnerSearchCredentialTests.test_mac_timeout_kills_only_owned_child_and_fails_without_unlocking_or_retry)",
+      "test_missing_item_is_distinguished_from_denied_without_any_overwrite (community.tests.test_owner_credential_provision.WindowsProvisionAPITests.test_missing_item_is_distinguished_from_denied_without_any_overwrite)",
+      "test_missing_locked_or_malformed_secrets_have_no_plaintext_or_environment_fallback (community.tests.test_owner_search_credentials.OwnerSearchCredentialTests.test_missing_locked_or_malformed_secrets_have_no_plaintext_or_environment_fallback)",
+      "test_missing_login_keychain_never_creates_or_unlocks_anything (community.tests.test_owner_credential_provision.MacProvisionAPITests.test_missing_login_keychain_never_creates_or_unlocks_anything)",
+      "test_native_spool_pause_is_preserved_and_stops_before_credential_access (community.tests.test_owner_object_service.ObjectServiceTests.test_native_spool_pause_is_preserved_and_stops_before_credential_access)",
+      "test_pause_stop_and_missing_or_other_purpose_activation_never_read_key_or_native (community.tests.test_owner_object_service.ObjectServiceTests.test_pause_stop_and_missing_or_other_purpose_activation_never_read_key_or_native)",
+      "test_pinned_configuration_changed_during_vault_access_refuses_write (community.tests.test_owner_credential_provision.OwnerCredentialProvisionTests.test_pinned_configuration_changed_during_vault_access_refuses_write)",
+      "test_redirected_input_mismatch_cancel_and_echo_warning_never_write (community.tests.test_owner_credential_provision.OwnerCredentialProvisionTests.test_redirected_input_mismatch_cancel_and_echo_warning_never_write)",
+      "test_rotation_pin_cannot_authorize_missing_or_identical_but_unexpected_credential (community.tests.test_owner_credential_provision.OwnerCredentialProvisionTests.test_rotation_pin_cannot_authorize_missing_or_identical_but_unexpected_credential)",
+      "test_rotation_requires_exact_old_pin_and_reads_back_one_replacement (community.tests.test_owner_credential_provision.OwnerCredentialProvisionTests.test_rotation_requires_exact_old_pin_and_reads_back_one_replacement)",
+      "test_scope_is_exact_canonical_https_origin_and_invalid_origins_never_read_os_vault (community.tests.test_owner_search_credentials.OwnerSearchCredentialTests.test_scope_is_exact_canonical_https_origin_and_invalid_origins_never_read_os_vault)",
+      "test_selected_item_roundtrip_uses_same_decoder_as_running_owner (community.tests.test_owner_credential_provision.WindowsProvisionAPITests.test_selected_item_roundtrip_uses_same_decoder_as_running_owner)",
+      "test_selection_does_not_load_os_apis_until_explicit_enter_and_refuses_other_platforms (community.tests.test_owner_credential_provision.ProvisionBackendSelectionTests.test_selection_does_not_load_os_apis_until_explicit_enter_and_refuses_other_platforms)",
+      "test_shared_service_lock_refuses_overlapping_runner_and_keeps_saved_work (community.tests.test_owner_object_service.ObjectServiceTests.test_shared_service_lock_refuses_overlapping_runner_and_keeps_saved_work)",
+      "test_windows_denial_does_not_dereference_or_free_a_missing_result (community.tests.test_owner_search_credentials.OwnerSearchCredentialTests.test_windows_denial_does_not_dereference_or_free_a_missing_result)",
+      "test_windows_generic_unicode_and_ascii_credentials_are_bounded_and_native_memory_freed (community.tests.test_owner_search_credentials.OwnerSearchCredentialTests.test_windows_generic_unicode_and_ascii_credentials_are_bounded_and_native_memory_freed)",
+      "test_windows_write_uses_dedicated_account_and_reader_accepts_only_that_scope (community.tests.test_owner_object_service.DedicatedVaultAPITests.test_windows_write_uses_dedicated_account_and_reader_accepts_only_that_scope)",
+      "test_windows_wrong_owner_target_type_or_oversize_never_return_secret_and_always_free (community.tests.test_owner_search_credentials.OwnerSearchCredentialTests.test_windows_wrong_owner_target_type_or_oversize_never_return_secret_and_always_free)",
+      "test_write_is_exact_local_generic_item_then_private_mutable_blob_is_zeroed (community.tests.test_owner_credential_provision.WindowsProvisionAPITests.test_write_is_exact_local_generic_item_then_private_mutable_blob_is_zeroed)",
+      "test_wrong_configuration_or_service_lock_refuses_vault_access (community.tests.test_owner_object_service.ObjectProvisionTests.test_wrong_configuration_or_service_lock_refuses_vault_access)",
+      "test_wrong_resource_binding_private_paths_or_source_state_fail_closed (community.tests.test_owner_object_service.ObjectServiceTests.test_wrong_resource_binding_private_paths_or_source_state_fail_closed)"
+    ],
+    "counting": "52 final runner/Object vault/shared search provisioning/reader cases plus 4 final assembled pipeline cases, all distinct. Original 79-case delivery evidence is not added to this count. Across both increments, 99 distinct Python and 64 distinct Node cases passed after deduplication.",
+    "coverage": [
+      "Exact configuration/hash/activation/resource checks, private state/spool separation, missing activation/PAUSE/STOP before credential/native access.",
+      "Actual configured NativeObjectVerifier/ObjectAuditJobs constructor and guarded native spool ownership with fictional inference/models/coverage/storage.",
+      "Actual Worker/local SQLite publication then lost acknowledgement; configured restart replays the exact completion without reading a removed native policy or awarding credit again.",
+      "Protection-proof refresh/changed-source refusal and durable native/outbox preservation regression.",
+      "Dedicated Windows generic credential and Mac Security framework account/target, mutable buffer clearing, no child secret arguments; both OS APIs mocked.",
+      "Existing search provisioning/reader regressions, pinned old-key rotation, readback ambiguity, service locking and hidden interactive input."
+    ],
+    "logs": {
+      "initial.stderr.log": {
+        "bytes": 14764,
+        "sha256": "fa4571e0ec5216712507f2d8053bdf079ce5ce8812294930b13fd080754f0283"
+      },
+      "initial.stdout.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "pipeline.stderr.log": {
+        "bytes": 1111,
+        "sha256": "ae922aa001d3249fe48e2b299e8046506bed2bed32afd67f594b8c46fc6f6b00"
+      },
+      "pipeline.stdout.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "verified.stderr.log": {
+        "bytes": 12054,
+        "sha256": "ef7e0b6dec19703e9362287360644e541daa70d86f6cdf56b908bc7adb8c4999"
+      },
+      "verified.stdout.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    "unresolvedFailures": 0,
+    "preservedEarlierFailures": "Initial complete run: 49 passed, three fixture assertions failed because broad fake backend/lazy-constructor patches were still active in lower-level tests. Tests now explicitly close their mock contexts before exercising the real target factory/constructor; production code was not changed to satisfy those mocks. Original logs and terminal result remain unchanged."
+  },
+  "sourceFiles": {
+    "community/owner_object_service.py": {
+      "bytes": 8662,
+      "sha256": "5474a8de1fd887b221f478e9d113e8f16a942773347cd2776be12c53ab9e8e77"
+    },
+    "community/owner_object_credential_provision.py": {
+      "bytes": 2515,
+      "sha256": "b915f010b1b98ce20c84858bf25a1590651984348329d0ac0d6f36032971ff3d"
+    },
+    "community/owner_credential_provision.py": {
+      "bytes": 12954,
+      "sha256": "18e0584bd3af3346637057cefb95da0a4059750f3e110e048d85dd52d7870767"
+    },
+    "community/tests/test_owner_object_service.py": {
+      "bytes": 17213,
+      "sha256": "24dc01af6faa68bf598d1a58e9cfef9b1767181094ce9690b538e2ebed25e01d"
+    },
+    "community/tests/test_owner_object_pipeline.py": {
+      "bytes": 13351,
+      "sha256": "ec3036fc0818c2c841af7bfa6121f6b97cbd274069fa03667969469e945b2d3d"
+    }
+  },
+  "boundaries": {
+    "syntheticOnly": true,
+    "nativeInferenceExecuted": false,
+    "realCoverageValidated": false,
+    "cloudRequests": 0,
+    "deployments": 0,
+    "actionsStarted": 0,
+    "realCredentialsReadOrWritten": false,
+    "realActivationCreated": false,
+    "startupTasksInstalled": false,
+    "indexingRestarted": false,
+    "accountsOrResourcesMigrated": false,
+    "launchApproved": false
+  },
+  "remaining": [
+    "Outbound cancellation/deletion/retirement acknowledgement and private-state cleanup authority.",
+    "Trusted assignment automation, bounded metadata/import, approved migration/recovery/capacity.",
+    "Explicit operational authority, real OS vault/startup acceptance, authentic Windows/Mac inference/parallel/accepted-work endurance, signing and clean-device acceptance."
+  ]
+}

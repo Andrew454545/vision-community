@@ -196,7 +196,8 @@ the saved auditor without an incoming connection. The optional
 [Object coordinator](OWNER_OBJECT_DELIVERY.md) connects authenticated claims to
 guarded publication/credit. The owner Object client now provides bounded HTTPS
 delivery, saved native-job recovery, exact completion replay and real protection
-proof refresh. Dedicated Object key provisioning, its configured launcher and
+proof refresh. Dedicated [Object key provisioning and its configured runner](OWNER_OBJECT_SETUP.md)
+are implemented, inactive and independently guarded. Approved OS startup and
 outbound deletion/retirement integration remain unfinished.
 Next: outbound trusted verification/import jobs, bounded admission/catalog metadata
 and owner startup; then the approved migration,
