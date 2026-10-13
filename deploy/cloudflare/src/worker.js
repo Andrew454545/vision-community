@@ -27,6 +27,7 @@ import { queueSearch, queuedSearchConfigured, requireSearchQueue, maintainSearch
   queuedSearchStatus, recoverSearch, cancelQueuedSearch, requireSearchAgent, claimQueuedSearch,
   renewQueuedSearch, failQueuedSearch, completeQueuedSearch, SEARCH_QUEUE_RESULT_BYTES } from './searchQueue.js';
 import { searchCost } from "./searchPricing.js";
+import { acknowledgeCloudStop } from './searchHybrid.js';
 import { sceneCohortAllows } from "./sceneCohort.js";
 import { deleteAccount, cleanupAccountArtifacts, archiveAccountDeletionReceipts } from "./accountPrivacy.js";
 import { writeSceneArtifact, writeObjectArtifact } from "./artifactWrites.js";
@@ -1215,6 +1216,8 @@ const API_METHODS = new Map([
   ['/api/searches/recover','GET'],
   ['/api/search-agent/claim','POST'],['/api/search-agent/renew','POST'],
   ['/api/search-agent/complete','POST'],['/api/search-agent/fail','POST'],
+  ['/api/search-cloud-agent/claim','POST'],['/api/search-cloud-agent/renew','POST'],
+  ['/api/search-cloud-agent/complete','POST'],['/api/search-cloud-agent/fail','POST'],['/api/search-cloud-agent/stopped','POST'],
   ['/api/object-audit-agent/claim','POST'],['/api/object-audit-agent/candidate','POST'],
   ['/api/object-audit-agent/complete','POST'],['/api/object-audit-agent/fail','POST'],
   ['/api/object-audit-agent/retirement','POST'],['/api/object-audit-agent/retirement-ack','POST']
@@ -1262,18 +1265,20 @@ export default {
         if(url.pathname.endsWith('/retirement-ack'))return json(await acknowledgeOwnerObjectRetirement(env,body));
         return json(await completeOwnerObjectAudit(env,body));
       }
-      if (url.pathname.startsWith('/api/search-agent/')) {
+      if (url.pathname.startsWith('/api/search-agent/')||url.pathname.startsWith('/api/search-cloud-agent/')) {
         // An outbound owner agent uses a separate secret, never account codes.
         // Authenticate before reading its body or touching the database.
-        await requireSearchAgent(env, request);
+        const executor=url.pathname.startsWith('/api/search-cloud-agent/')?'cloud':'local';
+        await requireSearchAgent(env, request,executor);
         if (!env.DB) return error('control_plane_unprovisioned',503);
         await requireSchema(env);
         const body = await readRequestJson(request, 30000,
           url.pathname.endsWith('/complete') ? SEARCH_QUEUE_RESULT_BYTES + 8192 : 4096);
-        if (url.pathname.endsWith('/claim')) return json(await claimQueuedSearch(env, undefined, body.lanes, body.bindings));
-        if (url.pathname.endsWith('/renew')) return json(await renewQueuedSearch(env, body.jobId, body.claimToken));
-        if (url.pathname.endsWith('/fail')) return json(await failQueuedSearch(env, body.jobId, body.claimToken));
-        return json(await completeQueuedSearch(env, body.jobId, body.claimToken, body.result));
+        if (url.pathname.endsWith('/claim')) return json(await claimQueuedSearch(env, undefined, body.lanes, body.bindings,executor));
+        if (url.pathname.endsWith('/renew')) return json(await renewQueuedSearch(env, body.jobId, body.claimToken,undefined,executor));
+        if (url.pathname.endsWith('/fail')) return json(await failQueuedSearch(env, body.jobId, body.claimToken,undefined,executor));
+        if (url.pathname.endsWith('/stopped')) return json(await acknowledgeCloudStop(env,body));
+        return json(await completeQueuedSearch(env, body.jobId, body.claimToken, body.result,undefined,executor));
       }
       const anonymous=["/api/capabilities","/api/status","/api/accounts","/api/recovery"].includes(url.pathname);
       if (anonymous) await accountLimit(env,request,null);

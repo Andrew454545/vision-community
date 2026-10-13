@@ -39,6 +39,10 @@ equivalent Object admission and the common cloud/local budget router remain work
 The [Object upload inspector](QUALIFIED_OBJECT_UPLOADS.md) now separates routine
 integrity from native per-batch comparison in source; device qualification,
 fresh protected/Scene authority and qualified Object settlement remain open.
+The [shared search queue](HYBRID_SEARCH_QUEUE.md) now connects cloud cost
+reservations, exclusive cloud/local claims and shutdown-fenced fallback in source.
+The actual bounded cloud executor, measured pricing and other paid work's
+allocation still need integration before activation.
 
 ## Cloud first, local overflow
 
@@ -132,9 +136,10 @@ spending or a complete project invoice. No allowance or service was activated.
 1. Integrate the explicitly marked qualified-upload publication path, preserving
    eligibility, once-only credit and deletion. Validate a common Mac/PC reference
    policy from actual evidence; no new full matrix by default.
-2. Finish shared monthly allocation, bounded execution-cost accounting and
-   cloud/local queue arbitration with recovery/cancellation. Keep paid replies
-   and old request keys intact. Measure prices before enabling an allowance.
+2. Connect the [shared queued-search authority](HYBRID_SEARCH_QUEUE.md) to an
+   actual bounded cloud executor with durable completion/shutdown recovery.
+   Integrate initial qualification and other paid work into the common allocation
+   or sealed disjoint envelopes. Measure prices before enabling any allowance.
 3. Complete sealed-batch import/storage and bounded metadata so millions of
    locations do not require millions of coordinator rows or a full owner mirror.
 4. Resolve the existing operational stop with a concrete owner handoff before
