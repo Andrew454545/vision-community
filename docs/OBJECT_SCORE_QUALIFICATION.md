@@ -49,8 +49,9 @@ does not need another native recomputation once the complete initial check passe
 
 The [combined sample comparator](OBJECT_INDEX_QUALIFICATION.md) now connects full
 indexed-feature/quantization and quality comparisons to this same sample in
-source. Its result still cannot grant account admission. Still required: trusted
-qualification storage/revocation, current Scene/protected
+source. Its result still cannot grant account admission. The optional
+[account registry](OBJECT_ACCOUNT_QUALIFICATION.md) and saved adapter now implement
+storage/revocation in source. Trusted host/job wiring, authentic platform evidence, current Scene/protected
 eligibility and distinctly marked qualified publication/once-only credit. The
 existing [Object upload integrity component](QUALIFIED_OBJECT_UPLOADS.md) is ready
 for that writer. Public Object qualification and assignment remain closed; no

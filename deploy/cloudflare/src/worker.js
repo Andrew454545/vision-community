@@ -34,6 +34,7 @@ import { writeSceneArtifact, writeObjectArtifact } from "./artifactWrites.js";
 import { officialGen4Coverage, objectCoverageComplete } from "./objectCoverage.js";
 import { readRequestJson } from "./requestBody.js";
 import { localObjectPrototype, objectCapabilities } from "./objectAdmission.js";
+import {objectQualificationConfigured,objectQualificationStatus,qualifyObjectDevice,revokeObjectQualification} from './objectQualification.js';
 import { loadSceneReferences, sceneCapabilities } from "./sceneQuality.js";
 import { verifierConfigured, contributionConfigured, sceneAdmissionMode, QUALIFIED_SCENE_MODE, auditBatchLimit, pipelineCapabilities, activeQualification, qualificationStatus, qualifyDevice, auditScene, stageScene } from "./scenePipeline.js";
 
@@ -1209,7 +1210,7 @@ async function search(env, account, body, objectPrototype = false) {
 
 const API_METHODS = new Map([
   ["/api/capabilities","GET"],["/api/status","GET"],["/api/me","GET"],["/api/views","GET"],
-  ["/api/scene-qualifications","GET,POST"],["/api/object-qualifications","GET,POST"],["/api/accounts","POST"],["/api/recovery","POST"],
+  ["/api/scene-qualifications","GET,POST"],["/api/object-qualifications","GET,POST"],["/api/object-qualifications/revoke","POST"],["/api/accounts","POST"],["/api/recovery","POST"],
   ["/api/account/delete","POST"],["/api/scene-audits","POST"],["/api/object-audits","POST"],["/api/leases/release","POST"],
   ["/api/leases/renew","POST"],["/api/leases","POST"],["/api/submissions","POST"],["/api/searches","POST"],
   ['/api/search-jobs','GET'],['/api/search-jobs/cancel','POST'],
@@ -1300,16 +1301,22 @@ export default {
       // Deleted accounts may still replay their own saved deletion receipt.
       if (!anonymous && !account && url.pathname!=="/api/account/delete") return error("unauthorized",401);
       if (!anonymous) await accountLimit(env,request,account);
-      if (["/api/scene-qualifications","/api/scene-audits","/api/object-audits","/api/leases","/api/submissions","/api/views"].includes(url.pathname)
+      if (["/api/scene-qualifications","/api/object-qualifications","/api/object-qualifications/revoke","/api/scene-audits","/api/object-audits","/api/leases","/api/submissions","/api/views"].includes(url.pathname)
           && !await sceneCohortAllows(env,account)) {
         if (request.body) void request.body.cancel().catch(() => {});
         return error("scene_verification_unavailable",503,{"retry-after":"1800"});
       }
-      if (url.pathname === "/api/object-qualifications") {
-        // This contract is recognized but has no trusted native provider yet.
-        // Refuse before reading canary bytes or touching qualification state.
-        if (request.body) void request.body.cancel().catch(() => {});
-        return error("object_verification_unavailable",503,{"retry-after":"1800"});
+      if (["/api/object-qualifications","/api/object-qualifications/revoke"].includes(url.pathname)) {
+        // Optional saved-evidence authority only. No checked-in configuration
+        // enables this, and Object assignment/publication remain separate gates.
+        if(!objectQualificationConfigured(env)) {
+          if (request.body) void request.body.cancel().catch(() => {});
+          return error("object_verification_unavailable",503,{"retry-after":"1800"});
+        }
+        if(request.method==='GET')return json(await objectQualificationStatus(env,account,url.searchParams.get('profileId')));
+        const qualificationBody=await readRequestJson(request,30000,4096);
+        return json(url.pathname.endsWith('/revoke')?await revokeObjectQualification(env,account,qualificationBody)
+          :await qualifyObjectDevice(env,account,qualificationBody));
       }
       if (url.pathname === "/api/me") return json(await status(env, account, { lite: url.searchParams.get("lite") === "1" }));
       if (url.pathname === '/api/search-jobs') return json(await queuedSearchStatus(env, account, url.searchParams.get('jobId')));

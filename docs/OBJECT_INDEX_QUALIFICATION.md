@@ -50,8 +50,10 @@ RGB decoding, authentic inference and native search rankings are not attested.
 The nested offline index comparison retains its false provenance/pixel/search
 approval flags. No frozen diagnostic artifact becomes publishable.
 
-Next connect this complete numerical result to authenticated reusable
-account/profile qualification and revocation. Routine Object publication still
+The optional [account registry and saved adapter](OBJECT_ACCOUNT_QUALIFICATION.md)
+now connect this numerical contract to reusable account/profile records and
+revocation in source. Trusted private host/job lookup and approved real saved
+artifact delivery still need integration. Routine Object publication still
 needs fresh official Gen4, Scene membership and protected-source authority,
 distinct qualification-based provenance and atomic once-only credit. Keep the
 fully audited route separate. Real platform qualification and the remaining
