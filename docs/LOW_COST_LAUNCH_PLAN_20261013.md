@@ -1,5 +1,10 @@
 # Low-cost contribution and search plan
 
+**Superseded later on 13 October:** the user chose the
+[hybrid cloud/local mode](HYBRID_LAUNCH_DECISION_20261013.md), $10 processing plus
+R2, online searches and qualification-based routine uploads. Preserve this
+earlier recommendation as discussion history, not the current implementation goal.
+
 **Recommendation:** a free website and small credit coordinator, R2 for bulk
 files, and one existing trusted owner computer for verification and search.
 Target **$0 recurring cloud hosting outside R2**. Keep the user's additional

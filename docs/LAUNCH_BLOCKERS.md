@@ -1,5 +1,11 @@
 # Remaining launch work
 
+**Latest decision:** implement the [approved hybrid mode](HYBRID_LAUNCH_DECISION_20261013.md):
+sample qualification, explicitly marked lighter routine upload checks, online
+search, $10/month processing plus R2, and local overflow. Its first monthly host
+guard is implemented offline; full routing/admission and activation remain work.
+This supersedes Free-only owner-local/full-recomputation recommendations below.
+
 The [13 October low-cost plan](LOW_COST_LAUNCH_PLAN_20261013.md) records the
 confirmed demand of one or two searches/day across the application, the R2
 target and additional $10/month ceiling. Follow its focused implementation order;

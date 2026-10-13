@@ -1,5 +1,17 @@
 # Development constraints
 
+## Latest product decision (13 October 2026)
+
+Read [the approved hybrid direction](docs/HYBRID_LAUNCH_DECISION_20261013.md)
+before the older cost options. The user explicitly chose reference-sample device
+qualification with lighter routine upload checks, online banked-credit search,
+$10/month processing **plus R2**, and local overflow. Implement this as a distinct
+admission policy; do not misrepresent qualified-device uploads as independently
+recomputed. Preserve Gen4/protected authority, numerical qualification, unique
+assignments and once-only credit. The old Free-only recommendation is superseded.
+Source implementation is authorized. Existing operational stop and Actions hold
+remain while the concrete hybrid activation path is prepared.
+
 ## Current owner cost hold (12 October 2026)
 
 Read [the recorded stop](docs/COST_STOP_20261012.md) and
