@@ -8,6 +8,8 @@ for **local implementation only**. [Queued search delivery](QUEUED_SEARCH_DELIVE
 is implemented in source, with optional [sealed Scene search membership](SCENE_MEMBERSHIP.md).
 Continue offline owner verification/import and bounded admission/catalog metadata;
 account/resource migration and activation remain undecided.
+The [direct owner-local Object auditor](OWNER_OBJECT_VERIFICATION.md) is built;
+authenticated outbound queue delivery and guarded publication still need integration.
 The work below is not permission to restart cloud execution or indexing.
 
 Use the [five acceptance gates](PRODUCTION_ACCEPTANCE.md) as the release boundary.

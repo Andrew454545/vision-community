@@ -28,6 +28,7 @@ from .object_index import decode_object_submission
 from .object_audit_registry import read_registry, previous_registry, MAX_ASSIGNMENTS, MAX_REGISTRY_BYTES
 from .search_snapshot import digest, encoded, pinned_read, bounded_read
 from .vision_index import VisionIndexError
+from .object_audit_protocol import audit_route, dispatch_object_audit
 
 # Four audited locations need only small lanes. Do not inherit the prototype's
 # thousand-location request budget at this private, two-connection endpoint.
@@ -728,32 +729,18 @@ def make_server(jobs, secret, *, port=0):
         def dispatch(self):
             if not hmac.compare_digest(self.headers.get('Authorization', '').encode(), ('Bearer ' + secret).encode()):
                 return self.reply(401, {'error': 'unauthorized'})
-            route = re.fullmatch(r'/object-audits/([0-9a-f]{32})(?:/(cancel|retry|erase|retire|settlement-evidence))?', self.path)
-            erasure = re.fullmatch(r'/object-assignments/([0-9a-f]{32})/erase', self.path)
             try:
-                if self.command == 'GET' and route and route[2] is None:
-                    return self.reply(200, jobs.get(route[1]))
-                require(self.command == 'POST' and (self.path == '/object-audits' or (route and route[2]) or erasure), 'not_found', 404)
+                action, _ = audit_route(self.command, self.path)
+                if action == 'status':
+                    return self.reply(200, dispatch_object_audit(jobs, self.command, self.path))
                 lengths = self.headers.get_all('Content-Length', [])
                 require(len(lengths) == 1 and re.fullmatch('[0-9]+', lengths[0])
-                        and 0 < int(lengths[0]) <= (1024 if route or erasure else MAX_REQUEST)
+                        and 0 < int(lengths[0]) <= (MAX_REQUEST if action == 'submit' else 1024)
                         and not self.headers.get('Transfer-Encoding')
                         and self.headers.get('Content-Type', '').split(';')[0].strip() == 'application/json')
                 raw = self.rfile.read(int(lengths[0]))
                 require(len(raw) == int(lengths[0]))
-                if erasure:
-                    require(isinstance(strict_json(raw), dict) and strict_json(raw) == {})
-                    value = jobs.erase_assignment(erasure[1])
-                elif route:
-                    control = strict_json(raw)
-                    if route[2] == 'retire':
-                        value = jobs.retire(route[1], control)
-                    else:
-                        require(control == {} or route[2] == 'retry' and isinstance(control, dict))
-                        value = (jobs.settlement_evidence(route[1]) if route[2] == 'settlement-evidence'
-                                 else jobs.control(route[1], route[2], control if control else None))
-                else:
-                    value = jobs.submit(raw)
+                value = dispatch_object_audit(jobs, self.command, self.path, raw)
                 self.reply(200, value)
             except JobError as error:
                 self.reply(error.status, {'error': str(error)})
