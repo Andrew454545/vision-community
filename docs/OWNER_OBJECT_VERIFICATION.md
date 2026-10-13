@@ -40,8 +40,9 @@ and source artifacts are fixtures. This is not authentic Mac/PC qualification, l
 measured capacity, activation or endurance evidence. New source pins require
 separately measured runtime approval; existing real policies are not refreshed.
 
-Next: connect authenticated outbound claims and exact reply replay, propagate
-current deletion authority, and consume fresh evidence through guarded
-publication/once-only credit. Bounded batch metadata, admission, owner startup,
+The optional [outbound coordinator](OWNER_OBJECT_DELIVERY.md) now has authenticated
+claims and guarded publication/once-only credit in source. Next: connect the
+owner HTTPS client, durable reply replay and current deletion/retirement authority.
+Bounded batch metadata, admission, owner startup,
 migration/recovery and the remaining [launch gates](PRODUCTION_ACCEPTANCE.md) also
 remain required. This adapter alone is not an operating cloud queue.

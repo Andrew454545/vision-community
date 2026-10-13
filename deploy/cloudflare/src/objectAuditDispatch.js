@@ -165,6 +165,8 @@ const readRow = (env, account, lease) => env.DB.prepare(
       AND l.contributor_id=c.account_id AND p.object_index_key='object-index-v4/'||c.lease_id||'/') AS settled_count,
     (SELECT units FROM ledger WHERE reference='lease:'||c.lease_id AND account_id=c.account_id AND reason='verified_work') AS settled_units
     FROM object_audit_candidates c WHERE c.lease_id=? AND c.account_id=?`).bind(lease,account).first();
+// Internal owner-outbound delivery reuses the same saved candidate and bounds.
+export {schema as requireObjectAuditDispatch,readRow as readObjectAuditCandidate,payloadFor as readObjectAuditPayload};
 
 // authority is supplied by the trusted qualification/assignment caller, never
 // copied from an HTTP uploader. A saved native approval still cannot authorize

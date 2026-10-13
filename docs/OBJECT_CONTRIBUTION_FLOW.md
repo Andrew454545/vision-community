@@ -6,8 +6,10 @@ publication handoff in source. Public Object assignments and qualification
 remain closed until authentic reference and release evidence exist.
 
 For the approved cheaper architecture, a [direct owner-local interface](OWNER_OBJECT_VERIFICATION.md)
-now reuses the saved auditor without a listener. Authenticated outbound queue
-delivery and guarded import integration remain source work; hosted execution
+now reuses the saved auditor without a listener. The optional
+[outbound coordinator](OWNER_OBJECT_DELIVERY.md) connects authenticated owner
+results to guarded publication/credit; its owner client and cleanup integration
+remain source work. Hosted execution
 stays paused under the [cost hold](COST_STOP_20261012.md).
 
 For the initial restricted Object trial, qualification is **per batch**: every

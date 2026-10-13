@@ -63,6 +63,7 @@ function policy(env) {
       || p.policyId.startsWith('staging.') && p.resource.bucket!=='vision-community-staging') fail('object_settlement_policy_required');
   return p;
 }
+export {policy as objectSettlementPolicy,saved as savedObjectAcceptance};
 
 async function saved(env,account,lease) {
   const active=await env.DB.prepare('SELECT 1 FROM accounts WHERE id=? AND deleted_at IS NULL').bind(account).first();
