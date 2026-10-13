@@ -72,11 +72,12 @@ class ObjectCanaryTests(unittest.TestCase):
             self.change(argv, rows)
         Path(argv[argv.index('--output') + 1]).write_text(json.dumps(rows), encoding='utf-8')
 
-    def run_check(self, change=None):
+    def run_check(self, change=None, *, include_submission=False):
         self.commands, self.change = [], change
         with patch.dict(os.environ, {'OBJECT_TEST_SECRET': 'private', 'HTTP_PROXY': 'secret proxy'}):
             return check.run_canary(self.root / 'attempt', binary=self.binary, model_dir=self.models,
-                                    fixture=self.fixture, fixture_sha256=self.save(), runner=self.runner)
+                                    fixture=self.fixture, fixture_sha256=self.save(), runner=self.runner,
+                                    include_submission=include_submission)
 
     def test_all_three_lanes_complete_without_account_approval_or_machine_paths(self):
         report = self.run_check()
@@ -90,6 +91,50 @@ class ObjectCanaryTests(unittest.TestCase):
         portable = (self.root / 'attempt/synthetic-one-hybrid-0-portable.json').read_text()
         self.assertNotIn('path', json.loads(portable)[0])
         self.assertEqual(json.loads((self.root / 'attempt/object-check-report.json').read_text()), report)
+
+    def test_optional_private_submission_contains_actual_values_without_approval(self):
+        def change(argv, rows):
+            if argv[1] == 'detect-hybrid-images':
+                rows[0]['semanticScore'] += .02
+        report = self.run_check(change, include_submission=True)
+        self.assertEqual(report['status'], 'COMPLETE')
+        packet = report['submission']
+        self.assertEqual(packet['profileId'], report['runtimeProfile']['sha256'])
+        self.assertEqual(packet['canary']['fixtureSha256'], report['fixtureSha256'])
+        output = packet['canary']['outputs'][0]
+        self.assertEqual(output['case'], 'synthetic-one')
+        self.assertEqual(output['common'], self.gold['common'])
+        self.assertAlmostEqual(output['hybrid']['car'][0]['semanticScore'], .32)
+        self.assertNotIn(str(self.root), json.dumps(packet))
+        self.assertFalse(report['qualified'])
+        self.assertFalse(report['rawDataUploaded'])
+
+    def test_invalid_submission_mode_preserves_failure_before_native_work(self):
+        report = self.run_check(include_submission='true')
+        self.assertEqual(report['status'], 'FAILED')
+        self.assertEqual(report['error'], 'invalid_canary_submission_mode')
+        self.assertEqual(self.commands, [])
+        self.assertNotIn('submission', report)
+
+    def test_private_submission_stops_at_byte_budget_before_accumulating_more_cases(self):
+        second = copy.deepcopy(self.document['cases'][0])
+        second['id'] = 'synthetic-two'
+        for entry in second['images']:
+            target = self.root / ('second-' + entry['path'])
+            target.write_bytes((self.root / entry['path']).read_bytes())
+            entry['path'] = target.name
+        target = self.root / 'second-gold.json'
+        target.write_bytes((self.root / second['reference']['path']).read_bytes())
+        second['reference'] = self.pin(target)
+        self.document['cases'].append(second)
+        common_bytes = len(json.dumps(self.gold['common'], ensure_ascii=False, allow_nan=False).encode('utf-8'))
+        hybrid_bytes = len(json.dumps(self.gold['hybrid']['car'], ensure_ascii=False, allow_nan=False).encode('utf-8'))
+        with patch.object(check, 'MAX_SUBMISSION_BYTES', common_bytes + hybrid_bytes + common_bytes // 2):
+            report = self.run_check(include_submission=True)
+        self.assertEqual(report['status'], 'FAILED')
+        self.assertEqual(report['error'], 'object_canary_submission_limit')
+        self.assertLess(len(self.commands), 4)
+        self.assertNotIn('submission', report)
 
     def test_score_and_box_changes_are_measured_and_never_approved(self):
         def change(argv, rows):

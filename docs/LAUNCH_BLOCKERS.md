@@ -7,6 +7,9 @@ guard and [qualified Scene uploads](QUALIFIED_SCENE_UPLOADS.md) are implemented
 offline; Object admission, shared routing/budget and activation remain work.
 The [Object integrity component](QUALIFIED_OBJECT_UPLOADS.md) is ready for reuse
 without native inference; it does not complete those remaining admission gates.
+The [trusted Object score sample comparator](OBJECT_SCORE_QUALIFICATION.md) now
+checks raw fixed-input values under pinned policy. Full index/quality parity,
+reusable account qualification and distinct qualified settlement remain open.
 The [shared search allocation/router](HYBRID_SEARCH_QUEUE.md) is implemented and
 checked locally. The [finite native Scene runner](NATIVE_QUEUED_SEARCH.md) now has
 durable shutdown/result recovery in source. Its approved trigger/bindings, actual

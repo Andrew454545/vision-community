@@ -84,7 +84,7 @@ has zero undelivered batches and was waiting for the disabled service. This
 component did not restart it, use an expired lease or claim new accepted work.
 
 Next finish the corresponding qualified Object path with trusted current Gen4,
-Scene/protected authority; shared budget/local queue arbitration; and bounded
+Scene/protected authority; qualification/other paid work's allocation; and bounded
 catalog/import/storage. Before actual processing, prepare a restricted active
 coordinator and valid assignments with this admission policy, verify the current
 device qualification, and explicitly resolve the operational stop. Native

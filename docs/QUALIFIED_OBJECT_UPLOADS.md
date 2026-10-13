@@ -36,7 +36,10 @@ features, native replies, R2 and coverage are synthetic. Private logs are in
 `work/object-upload-integrity-20261013` outside the checkout. No real device was
 qualified and no provider, cloud, Actions or model execution occurred.
 
-Next connect exact fixed-input Object profile qualification, independently
+The [trusted fixed-input score comparator](OBJECT_SCORE_QUALIFICATION.md) now
+recomputes sample differences from actual portable outputs under pinned policy.
+It deliberately grants no complete account qualification or publication authority.
+Next connect full indexed-feature/quality sample parity, reusable Object profile qualification, independently
 current Scene/protected authority and distinctly marked qualification-based
 publication/once-only credit. Reuse this inspector; do not manufacture an
 approved audit job to pass the original settlement gate. Activation and the
