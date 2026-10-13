@@ -35,7 +35,7 @@ receipt or weaken existing SQL guards to get a first contribution through.
 **Scene implementation:** the [qualified Scene path](QUALIFIED_SCENE_UPLOADS.md)
 now connects explicit admission, upload integrity, once-only credit, search and
 offline snapshot/financial recovery in source. It is disabled and undeployed;
-equivalent Object admission and the common cloud/local budget router remain work.
+equivalent qualified Object admission remains work.
 The [Object upload inspector](QUALIFIED_OBJECT_UPLOADS.md) now separates routine
 integrity from native per-batch comparison in source; device qualification,
 fresh protected/Scene authority and qualified Object settlement remain open.

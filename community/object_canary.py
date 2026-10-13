@@ -38,6 +38,7 @@ DLLS = ('msvcp140.dll', 'msvcp140_1.dll',
         'vcruntime140.dll', 'vcruntime140_1.dll')
 THREAD_MARKER = '[vision-object] ONNX Runtime global threads: 1, spinning disabled'
 MAX_JSON = 8 * 1024**2
+MAX_SUBMISSION_BYTES = 8 * 1024**2
 MAX_INPUT_BYTES = 512 * 1024**2
 CLASSES = dict(OBJECT_CLASSES)
 
@@ -314,7 +315,8 @@ def native_runner(argv, env, cwd):
         save()
 
 
-def run_canary(work, *, binary, model_dir, fixture, fixture_sha256, runner=None, progress_callback=None):
+def run_canary(work, *, binary, model_dir, fixture, fixture_sha256, runner=None, progress_callback=None,
+               include_submission=False):
     """Measure complete frozen detector outputs. A complete check is not approval."""
     work = Path(work).absolute()
     regular(work.parent, directory=True)
@@ -340,6 +342,7 @@ def run_canary(work, *, binary, model_dir, fixture, fixture_sha256, runner=None,
             os.fsync(stream.fileno())
         os.replace(temporary, target)
     try:
+        require(type(include_submission) is bool, 'invalid_canary_submission_mode')
         report['stage'] = 'fixture'
         save()
         binary, model_dir = Path(binary).absolute(), Path(model_dir).absolute()
@@ -362,7 +365,9 @@ def run_canary(work, *, binary, model_dir, fixture, fixture_sha256, runner=None,
         cache = work / 'cache'
         cache.mkdir()
         active = runner or native_runner
+        portable, portable_bytes = [], 0
         for ordinal, (case, images, gold) in enumerate(inventory):
+            output = {'case': case['id'], 'common': None, 'hybrid': {}}
             image_args = [value for image in images for value in ('--image', str(image))]
             for query in (None, *case['queries']):
                 label = 'common' if query is None else 'hybrid-' + str(case['queries'].index(query))
@@ -375,6 +380,13 @@ def run_canary(work, *, binary, model_dir, fixture, fixture_sha256, runner=None,
                 active([str(binary), *arguments, *image_args, '--output', str(target), '--cpu',
                         '--model-cache', str(cache)], env, work)
                 rows = canonical_rows(read_json(target), images=images, query=query)
+                if include_submission:
+                    portable_bytes += len(json.dumps(rows, ensure_ascii=False, allow_nan=False).encode('utf-8'))
+                    require(portable_bytes <= MAX_SUBMISSION_BYTES, 'object_canary_submission_limit')
+                    if query is None:
+                        output['common'] = rows
+                    else:
+                        output['hybrid'][query] = rows
                 comparison = compare_rows(rows, gold['common'] if query is None else gold['hybrid'][query], query=query)
                 report['comparisons'].append({'case': case['id'], 'lane': label, **comparison,
                                               'outputSha256': file_sha256(target)})
@@ -382,6 +394,8 @@ def run_canary(work, *, binary, model_dir, fixture, fixture_sha256, runner=None,
                 (work / (case['id'] + '-' + label + '-portable.json')).write_text(
                     json.dumps(rows, allow_nan=False), encoding='utf-8')
                 save()
+            if include_submission:
+                portable.append(output)
             if progress_callback:
                 progress_callback({'event': 'indexing', 'completedLocations': ordinal + 1,
                                    'totalLocations': len(inventory)})
@@ -389,8 +403,17 @@ def run_canary(work, *, binary, model_dir, fixture, fixture_sha256, runner=None,
         save()
         require(runtime_profile(binary, model_dir) == profile, 'object_runtime_changed_during_check')
         require(bundle.verify() == inventory, 'object_fixture_changed_during_check')
+        details = {}
+        if include_submission:
+            submission = {'profileId': profile['sha256'], 'canary': {
+                'version': 1, 'fixtureSha256': bundle.sha256, 'outputs': portable}}
+            # Actual values, never the client's own parity summary. This opt-in
+            # packet stays private; run_canary never uploads or grants approval.
+            require(len(json.dumps(submission, ensure_ascii=False, allow_nan=False).encode('utf-8')) <= MAX_SUBMISSION_BYTES,
+                    'object_canary_submission_limit')
+            details['submission'] = submission
         report.update(status='COMPLETE', stage='complete',
-                      exactReferenceMatch=all(row['exact'] for row in report['comparisons']))
+                      exactReferenceMatch=all(row['exact'] for row in report['comparisons']), **details)
     except (Exception, KeyboardInterrupt) as error:
         report.update(status='FAILED', errorType=type(error).__name__,
                       error=str(error) if isinstance(error, CheckError) else 'object_check_failed')
