@@ -23,7 +23,7 @@ from .owner_search_credentials import canonical_origin
 from .search_snapshot import bounded_read,digest,encoded,resource_for_environment
 
 ID=re.compile(r'[0-9a-f]{32}\Z');HEX=re.compile(r'[0-9a-f]{64}\Z')
-MAX_OUTBOX=98304;ROUTES={'claim','candidate','complete','fail'}
+MAX_OUTBOX=98304;ROUTES={'claim','candidate','complete','fail','retirement','retirement-ack'}
 BINDING_KEYS={'version','scope','policyId','policySha256','runtimeProfileSha256','qualityImplementationIdentity',
               'protectedAuthoritySha256','protectedOriginHandoffSha256','profiles','resource'}
 JOB_KEYS={'version','leaseId','claimToken','claimUntil','binding','profileId','assignmentSha256','sourceSha256',

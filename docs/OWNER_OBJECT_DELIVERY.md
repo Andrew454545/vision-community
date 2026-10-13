@@ -17,7 +17,7 @@ The hosted `OBJECT_VERIFIER` binding must be absent. Invalid or mixed configurat
 fails closed. Only the already-confirmed Community environment/resource pair is
 supported; a new Free account still requires an authorized migration and evidence.
 
-All four private routes use POST under `/api/object-audit-agent/`. Owner-secret
+The private routes use POST under `/api/object-audit-agent/`. Owner-secret
 authentication precedes body/database access. Account codes cannot authorize them.
 
 | Route | Purpose |
@@ -26,6 +26,8 @@ authentication precedes body/database access. Account codes cannot authorize the
 | `candidate` | Return the exact digest-bound quarantined candidate for the current live claim. Bound the existing native request to 4 MiB. |
 | `complete` | Validate native identity and fresh full protection evidence, then use the existing guarded publication/credit transaction. Replies are bound to immutable accepted identity on recovery. |
 | `fail` | Save bounded busy/outage backoff without financial changes. Busy slots do not consume failure attempts; eight transport failures require operator attention. |
+| `retirement` | Optionally reserve one immutable accepted-job cleanup command using the existing retirement journal and durable backoff. |
+| `retirement-ack` | Confirm completed native cleanup or replay its saved acknowledgement without changing publication, credits or pending account erasure. |
 
 Claims require submitted ownership and fresh current official Gen4 authority.
 Accepted work releases its existing queue slot. Failed native jobs do not retry
@@ -61,7 +63,7 @@ reruns inference. Completed pending writes recover after a rename interruption;
 incomplete bytes and the first failure report remain private. Lost claims discard
 only their delivery outbox, not native work or receipts.
 
-`HTTPSObjectCoordinator` permits only the four fixed routes at one explicit HTTPS
+`HTTPSObjectCoordinator` permits only the fixed allowlisted routes at one explicit HTTPS
 origin, refuses redirects and bounds request/reply bytes. Its read-only OS vault
 adapter uses the separate `VISIONCommunity.OwnerObjectAudit.` namespace and
 `owner-object-audit-agent` account, never the search key. No real credential was
@@ -79,6 +81,10 @@ native/protected-input guards still apply before all new work or proof refresh.
 These finite interfaces install no task or listener. The configured runner has
 an explicitly invoked, interruptible supervisor loop; importing it never starts
 work and no operating-system startup registration is installed.
+Optional [published-job retirement](OWNER_OBJECT_RETIREMENT.md) now connects the
+existing cleanup journal to a separate durable owner outbox. Its native step
+cannot fall through to inference. It is disabled unless the independently pinned
+private configuration explicitly enables it.
 
 [Windows synthetic evidence](evidence/owner-object-queue-20261013.json) records
 64 passing Node checks with no skips, including real local SQLite transactions
@@ -92,7 +98,7 @@ files. Its inference, coverage and storage are fictional; it does not qualify
 an authentic Object cohort or replace actual Mac execution.
 
 Still required: approved actual credential/setup acceptance and owner startup,
-outbound cancellation/deletion/retirement acknowledgement, bounded batch
+outbound cancellation/deletion acknowledgement, bounded batch
 metadata, approved migration/recovery and all
 [authentic launch gates](PRODUCTION_ACCEPTANCE.md). Quarantine relay and full
 Object validation still need measured CPU/storage budgets. Nothing here authorizes

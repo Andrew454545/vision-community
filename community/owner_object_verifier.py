@@ -147,3 +147,19 @@ class OwnerObjectVerifier:
         except Exception:
             self._failure()
             return {'status': 'operator_required', 'error': 'owner_object_operator_required'}
+
+    def cleanup_once(self):
+        """One owned cleanup step only; never falls through to native inference."""
+        marker = self._marker()
+        if marker:
+            return {'status': marker}
+        try:
+            self.guard()
+            if self.jobs.worker is not None:
+                raise ValueError('owner_object_worker_already_started')
+            worked = self.jobs.erase_next() or self.jobs.retire_next()
+            self.guard()
+            return {'status': self._marker() or ('worked' if worked else 'idle')}
+        except Exception:
+            self._failure()
+            return {'status': 'operator_required', 'error': 'owner_object_operator_required'}

@@ -20,6 +20,7 @@ from community.owner_search_agent import _exclusive, OwnerSearchError
 from community.search_snapshot import digest, encoded
 from community.tests import test_owner_object_agent as fixtures
 from community.tests import test_owner_credential_provision as credential_fixtures
+from community.tests import test_owner_object_retirement as retirement_fixtures
 
 
 class ConfigFixture(unittest.TestCase):
@@ -103,6 +104,25 @@ class ObjectServiceTests(ConfigFixture):
         activation.write_bytes(encoded(doc))
         with self.assertRaises(service.OwnerObjectServiceError):self.run_once()
         self.credentials.assert_not_called()
+
+    def test_retirement_is_explicit_only_and_invalid_flag_cannot_activate_it(self):
+        self.config['retirement']=True;self.save()
+        self.assertIs(service.load_configuration(self.path,self.pin)['retirement'],True)
+        for value in (False,1,'true',{}):
+            self.config['retirement']=value;self.save()
+            with self.assertRaises(service.OwnerObjectServiceError):service.load_configuration(self.path,self.pin)
+        self.credentials.assert_not_called()
+
+    def test_explicit_retirement_mode_polls_then_reuses_same_connection_for_finite_audit(self):
+        coordinator=retirement_fixtures.Coordinator();coordinator.command=None
+        coordinator.job['claimUntil']=int(time.time())+1200
+        engine=retirement_fixtures.Engine();engine.now=int(time.time())
+        self.config['retirement']=True;self.save()
+        with patch.object(service.HTTPSObjectCoordinator,'from_os_credentials',return_value=coordinator) as credentials,\
+                patch.object(service.LazyVerifier,'_get',return_value=engine):
+            self.assertEqual(self.run_once()['status'],'completed');credentials.assert_called_once()
+        self.assertEqual([c[0] for c in coordinator.calls],['retirement','claim','candidate','complete'])
+        self.assertEqual(engine.cleanups,0)
 
     def test_shared_service_lock_refuses_overlapping_runner_and_keeps_saved_work(self):
         (self.state/'object-outbox.pending').write_bytes(b'preserved incomplete')

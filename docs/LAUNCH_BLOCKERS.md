@@ -13,7 +13,9 @@ the optional [Object coordinator](OWNER_OBJECT_DELIVERY.md) connects authenticat
 claims to guarded publication in source. The owner client now delivers saved
 results and refreshes protection proofs with restart recovery. Dedicated Object
 credential provisioning and its configured runner are implemented offline.
-Approved actual setup/startup and outbound deletion/retirement still need integration.
+Optional [owner-outbound published-job cleanup](OWNER_OBJECT_RETIREMENT.md) is now
+connected. Approved actual setup/startup and outbound cancellation/deletion still
+need integration.
 The work below is not permission to restart cloud execution or indexing.
 
 Use the [five acceptance gates](PRODUCTION_ACCEPTANCE.md) as the release boundary.

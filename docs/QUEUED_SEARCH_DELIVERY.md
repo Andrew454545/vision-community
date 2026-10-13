@@ -197,8 +197,10 @@ the saved auditor without an incoming connection. The optional
 guarded publication/credit. The owner Object client now provides bounded HTTPS
 delivery, saved native-job recovery, exact completion replay and real protection
 proof refresh. Dedicated [Object key provisioning and its configured runner](OWNER_OBJECT_SETUP.md)
-are implemented, inactive and independently guarded. Approved OS startup and
-outbound deletion/retirement integration remain unfinished.
+are implemented, inactive and independently guarded. Optional
+[owner-outbound published-job cleanup](OWNER_OBJECT_RETIREMENT.md) is now connected
+to the existing retirement journal. Approved OS startup and outbound
+cancellation/deletion integration remain unfinished.
 Next: outbound trusted verification/import jobs, bounded admission/catalog metadata
 and owner startup; then the approved migration,
 real acceptance/capacity evidence and [remaining launch gates](PRODUCTION_ACCEPTANCE.md).

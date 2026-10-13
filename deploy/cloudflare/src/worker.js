@@ -19,6 +19,7 @@ import { advanceObjectContribution } from './objectAuditFlow.js';
 import { retireAcceptedObjectAudits } from './objectAuditRetention.js';
 import { ownerObjectDelivery,requireOwnerObjectAgent,claimOwnerObjectAudit,ownerObjectCandidate,
   completeOwnerObjectAudit,failOwnerObjectAudit,OWNER_OBJECT_RESULT_BYTES } from './ownerObjectAudit.js';
+import {claimOwnerObjectRetirement,acknowledgeOwnerObjectRetirement} from './ownerObjectRetirement.js';
 import { onlineSearch, onlineSearchConfigured, INDEX_DOWNLOAD_ROUTES } from "./onlineSearch.js";
 import { MAX_SEALED_SCENE_HITS } from './sceneMembership.js';
 import { SearchError } from "./searchLedger.js";
@@ -1212,7 +1213,8 @@ const API_METHODS = new Map([
   ['/api/search-agent/claim','POST'],['/api/search-agent/renew','POST'],
   ['/api/search-agent/complete','POST'],['/api/search-agent/fail','POST'],
   ['/api/object-audit-agent/claim','POST'],['/api/object-audit-agent/candidate','POST'],
-  ['/api/object-audit-agent/complete','POST'],['/api/object-audit-agent/fail','POST']
+  ['/api/object-audit-agent/complete','POST'],['/api/object-audit-agent/fail','POST'],
+  ['/api/object-audit-agent/retirement','POST'],['/api/object-audit-agent/retirement-ack','POST']
 ]);
 export default {
   async scheduled(_event, env) {
@@ -1253,6 +1255,8 @@ export default {
         if(url.pathname.endsWith('/claim'))return json(await claimOwnerObjectAudit(env,body));
         if(url.pathname.endsWith('/candidate'))return new Response(await ownerObjectCandidate(env,body),{headers:HEADERS});
         if(url.pathname.endsWith('/fail'))return json(await failOwnerObjectAudit(env,body));
+        if(url.pathname.endsWith('/retirement'))return json(await claimOwnerObjectRetirement(env,body));
+        if(url.pathname.endsWith('/retirement-ack'))return json(await acknowledgeOwnerObjectRetirement(env,body));
         return json(await completeOwnerObjectAudit(env,body));
       }
       if (url.pathname.startsWith('/api/search-agent/')) {
