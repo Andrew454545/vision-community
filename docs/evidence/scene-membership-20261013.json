@@ -1,0 +1,179 @@
+{
+  "version": 1,
+  "scope": "offline-sealed-scene-membership-v1",
+  "recordedAt": "2026-10-13T00:40:13.095129+00:00",
+  "sourceParent": "00dd631f77a1d16bb1dd672afbd220edd56d7041",
+  "branch": "codex/windows-production-readiness",
+  "platform": {
+    "os": "Windows",
+    "machine": "AMD64",
+    "python": "3.12.14",
+    "node": "24.19.0"
+  },
+  "verification": {
+    "counting": "Distinct cases across final applicable runs, not one clean combined run or repeated totals.",
+    "nodePassed": 80,
+    "pythonPassed": 60,
+    "unresolvedFailed": 0,
+    "skipped": 1,
+    "skipReason": "Existing packaging symlink case: host cannot create symlinks; no security setting was changed.",
+    "cases": {
+      "sceneMembershipNode": 14,
+      "onlineSearchNode": 29,
+      "searchQueueNode": 37,
+      "sceneMembershipPython": 10,
+      "ownerSearchServicePython": 20,
+      "nativeSceneSearchPython": 23,
+      "nativeSceneRuntimePython": {
+        "passed": 7,
+        "skipped": 1
+      }
+    },
+    "static": {
+      "javascriptSyntaxFiles": 7,
+      "htmlIdsUnique": true,
+      "ariaTargetsPresent": true,
+      "deploymentConfigurationsUnchanged": true
+    },
+    "logs": {
+      "node-first-check.log": {
+        "bytes": 3044,
+        "sha256": "1f69ccc26677fd9cfcbee61be5246543ac409490ea24594e526517c418b24bad"
+      },
+      "node-second-check.log": {
+        "bytes": 8100,
+        "sha256": "029d29529b23773286bf1457ce03374dc78b1fbb6c60254081643ba80fa36cb8"
+      },
+      "node-final-check.log": {
+        "bytes": 9109,
+        "sha256": "91e4a3e418e43c07ff74a9a22f35be52d0d64de0b369f1b093317f7d3a04a8d7"
+      },
+      "node-membership-final-check.log": {
+        "bytes": 1588,
+        "sha256": "8ba61957891e2aa8c66b48f6ae6c690adde54b29aec1a483a08604f1b8dcdc65"
+      },
+      "python-first-check.log": {
+        "bytes": 36254,
+        "sha256": "2b63dcb783510394c530af21a6cf8bfe4c9b1eff0279f5208a0c9df7dce78607"
+      },
+      "python-second-check.log": {
+        "bytes": 8393,
+        "sha256": "3dc3eee709a5074ae11e497b282aa5b50202d49bf0468ad3048c93bafa3fd3b8"
+      },
+      "python-interop-final-check.log": {
+        "bytes": 347,
+        "sha256": "7bf778896174de59bacb4e791955d94796bdad71f9350e0b53208d0c6f75309f"
+      },
+      "python-runtime-check.log": {
+        "bytes": 1900,
+        "sha256": "16b293651f145ad158d9c8a94402fb5e136fa8b82c8bcbd1d66ecd064d0e752d"
+      },
+      "interop.stdout.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "interop.stderr.log": {
+        "bytes": 1100,
+        "sha256": "4a09f945b333361b53f64b9a1fc65da88bf61942970ea494ef1ea7c42a66854e"
+      },
+      "final-interop/interop.stdout.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "final-interop/interop.stderr.log": {
+        "bytes": 638,
+        "sha256": "9d58da9b9490e61c01ff5244efacaa61823df5412a0604f6484f5264cb2ab055"
+      },
+      "corrected-interop/interop.stdout.log": {
+        "bytes": 314,
+        "sha256": "8f46d04c5c76ba3c78de568c0899f7fcce65066116a552b62a3991e51eabef9f"
+      },
+      "corrected-interop/interop.stderr.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    }
+  },
+  "preservedFailures": [
+    "Initial JS mixed nullish-coalescing/logical-OR parse error prevented loading three suites; explicit grouping fixes it.",
+    "Initial Python TEMP was inside the source checkout: 16 runner cases correctly refused private state there. Corrected only the fixture TEMP to the private sibling folder; the guard was preserved.",
+    "Initial cross-language fixture sorted nested query keys, changing the request fingerprint. Exact raw query JSON is now carried unchanged; the verifier was not bypassed.",
+    "Initial HTTP fixture lacked required fictional rate-limit bindings and returned 503. Added fake bindings in the test; hosted rate protections were preserved."
+  ],
+  "sourceWorkingBytes": {
+    "community/scene_membership.py": {
+      "bytes": 10733,
+      "sha256": "fb2cc9e3f9f793aacd04bd303e1e1e16273751060bb73f3cb9c5a5850dfdff30"
+    },
+    "community/native_scene_search.py": {
+      "bytes": 38564,
+      "sha256": "0deefa463f979d05699c085535ec43723f6c55ef0aee2ed4b083eb9795401423"
+    },
+    "community/owner_search_service.py": {
+      "bytes": 12108,
+      "sha256": "70158aabf58d7f759d8dc8f4ddf3ef3e7ec79d564118e44762579b266531c49e"
+    },
+    "community/tests/test_scene_membership.py": {
+      "bytes": 10967,
+      "sha256": "e3e13154c3742e1c12b5daca361627ccd3bdd3dbcdc0bc91bee0be1edd002ce7"
+    },
+    "community/tests/test_owner_search_service.py": {
+      "bytes": 18011,
+      "sha256": "ec0222b6d82450d7215e7bff01748f573be419bb092f6d685223a634f169eedf"
+    },
+    "community/web/app.js": {
+      "bytes": 71791,
+      "sha256": "a0984ee5807045f3f954eaf5baf71d74493f8e432b306a5bce1845d995fdabd0"
+    },
+    "community/web/index.html": {
+      "bytes": 22220,
+      "sha256": "db7b8d8da7ea29e317aa6fba302f2d032a0943d6f8554335cd918823388f38bd"
+    },
+    "deploy/cloudflare/src/sceneMembership.js": {
+      "bytes": 6093,
+      "sha256": "e95a8ae89ecee86c3d08404d830f2b30745220a9596f0eb255d43c76340d8995"
+    },
+    "deploy/cloudflare/src/sceneMembership.fixture.mjs": {
+      "bytes": 6491,
+      "sha256": "437be9c0eb9c3a85bddbb9f4cd197457224ad021a556cf1d56c66663f6d83749"
+    },
+    "deploy/cloudflare/src/sceneMembership.test.mjs": {
+      "bytes": 13938,
+      "sha256": "bd4420d7e9fa0c5bc0aadadd6446f61c416afe7a105700e671c7758efc69b774"
+    },
+    "deploy/cloudflare/src/onlineSearch.js": {
+      "bytes": 12452,
+      "sha256": "ddcdc184973bad5a6307487233bb3105b29a228cc7f23207f1a2953d146aca60"
+    },
+    "deploy/cloudflare/src/searchQueue.js": {
+      "bytes": 20879,
+      "sha256": "ef4216c2945d05d03504b2ebc4d95e6bc081728c775479958014543d6fda1d0e"
+    },
+    "deploy/cloudflare/src/worker.js": {
+      "bytes": 65389,
+      "sha256": "e1d14e3f6c78f1194274ec6b8f527e2758a215b78f30cadf891687bb260f28c4"
+    }
+  },
+  "verifiedBoundaries": [
+    "independently configured environment/resource/policy/runtime/snapshot-bound root; no uploader/owner-reply root authority",
+    "Python seal derives and rechecks tree from approved contributed snapshot; changed input preserved without repair",
+    "exact Python Unicode/exponent member bytes verified in JS; one-leaf/odd-padding and bounded siblings",
+    "zero per-result Scene catalog lookups, with no D1 locations or published_index rows in synthetic fixtures",
+    "shared score/order/filter/exclusion/pose checks; Objects retain exact official-Gen4 D1 authority",
+    "64-hit cap before new inference/reservation; real browser readiness advertises lane limits without modifying saved request",
+    "once-only debit, saved paid replay after root removal, cancellation/deletion and stale claim fences",
+    "lazy optional runner wrapper, paired local pins, partial initialization refusal and outbox replay without proof files",
+    "native runtime source includes membership wrapper; existing real runtime policies unchanged and not reapproved"
+  ],
+  "limits": [
+    "Windows x64 synthetic execution only; native binaries/scores/models, accounts, credits and rate bindings were fictional.",
+    "Accounting fixtures do not establish authentic inference, qualified admission or genuinely earned credit.",
+    "Scene per-result lookup adaptation only: admission/Object/status/historical per-location rows and paid reply storage remain.",
+    "No measured Free-plan CPU/D1/storage capacity, authentic Mac execution, signing, clean-device or endurance acceptance.",
+    "No Cloudflare/account/provider/imagery/model reads or tests, data transfer, deployment, migration, Actions, indexing or pilot restart.",
+    "No actual OS credential read/write; no global installation, task mutation or security weakening.",
+    "New resource support, live withdrawal/recovery cutoff, activation/budget authority and all authentic launch gates remain required."
+  ],
+  "operationalHold": "unchanged; optional mode absent from checked-in deployment configurations; source-only",
+  "liveReady": false
+}

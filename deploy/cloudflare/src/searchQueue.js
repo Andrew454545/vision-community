@@ -6,6 +6,7 @@ import { searchDigest, verifiedSearchResult } from './onlineSearch.js';
 import { SEARCH_CONTRACT_VERSION } from './searchExport.js';
 import { searchCost, validSearchQuote } from './searchPricing.js';
 import { sceneCohortAllows } from './sceneCohort.js';
+import { sceneMembershipBinding, MAX_SEALED_SCENE_HITS } from './sceneMembership.js';
 
 export const SEARCH_QUEUE_CONTRACT = 'vision-search-queue-v1-20261012';
 export const SEARCH_JOB_SECONDS = SEARCH_REQUEST_SECONDS;
@@ -58,6 +59,7 @@ function binding(env, lane) {
   if (!['scene', 'object'].includes(lane)) throw new SearchError('search_unavailable');
   const pin = bindings(env)[lane];
   if (!pin) throw new SearchError('search_unavailable');
+  if (lane === 'scene') sceneMembershipBinding(env, pin);
   return pin;
 }
 
@@ -146,6 +148,8 @@ export async function queueSearch(env, account, key, query, { allowNew = true, m
   // result above, but can never silently become new work after pruning.
   requireFreshSearchRequest(key, now);
   const identity = binding(env, query.lane);
+  if (query.lane === 'scene' && env.SEARCH_SCENE_MEMBERSHIP !== undefined
+      && query.resultCount > MAX_SEALED_SCENE_HITS) throw new SearchError('search_result_count_limit', 400);
   if (!await sceneCohortAllows(env, account)) throw new SearchError('search_unavailable');
   if (!allowNew) throw new SearchError('object_verification_unavailable');
   const cost = searchCost(env), maximum = maxCostUnits === undefined ? SEARCH_COST : maxCostUnits;
@@ -220,6 +224,11 @@ export async function claimQueuedSearch(env, now = clock(), lanes = ['scene'], c
   if (!Array.isArray(lanes) || !lanes.length || lanes.length > 2 || new Set(lanes).size !== lanes.length
       || lanes.some(lane => !['scene', 'object'].includes(lane))) throw new SearchError('invalid_search_lane', 400);
   const configured = bindings(env), supported = {};
+  let invalidScene = false;
+  if (configured.scene && lanes.includes('scene')) {
+    try { sceneMembershipBinding(env, configured.scene); }
+    catch { invalidScene = true; delete configured.scene; }
+  }
   if (capabilities !== undefined) {
     if (!capabilities || typeof capabilities !== 'object' || Array.isArray(capabilities)
         || Object.keys(capabilities).sort().join(',') !== [...lanes].sort().join(','))
@@ -228,13 +237,15 @@ export async function claimQueuedSearch(env, now = clock(), lanes = ['scene'], c
       const advertised = JSON.stringify(canonicalBinding(capabilities[lane]));
       if (configured[lane] && advertised === JSON.stringify(configured[lane])) supported[lane] = advertised;
     }
-    if (!Object.keys(supported).length && lanes.some(lane => configured[lane]))
+    if (!Object.keys(supported).length && (invalidScene || lanes.some(lane => configured[lane])))
       throw new SearchError('search_binding_changed', 409);
   } else {
     // Old agents advertise only lane names. They cannot safely consume a new
     // deployment with independent runtime pins, so never receive its queries.
     if (env.SEARCH_QUEUE_BINDINGS !== undefined) throw new SearchError('search_binding_required', 409);
     for (const lane of lanes) supported[lane] = JSON.stringify(configured[lane]);
+    if (invalidScene && !Object.keys(supported).some(lane => supported[lane] !== undefined))
+      throw new SearchError('search_binding_changed', 409);
   }
   validTime(now);
   await requireSearchQueue(env.DB);

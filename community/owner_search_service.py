@@ -72,11 +72,16 @@ def _load_configuration(path, checksum):
     for lane, definition in doc['lanes'].items():
         keys = {'policyId', 'runtime', 'runtimeSha256', 'snapshot', 'snapshotSha256'}
         if lane == 'object': keys |= {'binary', 'models'}
-        require(isinstance(definition, dict) and set(definition) == keys
+        optional = {'membership', 'membershipSha256'} if lane == 'scene' else set()
+        require(isinstance(definition, dict) and set(definition) in (keys, keys | optional)
                 and isinstance(definition['policyId'], str) and POLICY.fullmatch(definition['policyId'])
                 and all(isinstance(definition[k], str) and HEX.fullmatch(definition[k])
                         for k in ('runtimeSha256', 'snapshotSha256'))
                 and (not definition['policyId'].startswith('staging.') or doc['environment'] == 'staging'))
+        if 'membership' in definition:
+            require(isinstance(definition['membershipSha256'], str) and HEX.fullmatch(definition['membershipSha256']))
+            membership = absolute_path(definition['membership'])
+            require(not overlaps(state, membership.parent), 'owner_service_state_overlaps_input')
         for key in ('runtime', 'snapshot', *(['binary', 'models'] if lane == 'object' else [])):
             item = absolute_path(definition[key])
             root = item.parent if key in {'runtime', 'binary'} else item
@@ -145,8 +150,15 @@ class LazyEngine:
             plain_path(work, directory=True)
             if self.lane == 'scene':
                 from .native_scene_search import NativeSceneEngine
-                self.engine = NativeSceneEngine(runtime, d['runtimeSha256'], snapshot, d['snapshotSha256'],
-                                                work, reuse_mount=True)
+                selected = NativeSceneEngine(runtime, d['runtimeSha256'], snapshot, d['snapshotSha256'],
+                                             work, reuse_mount=True)
+                if 'membership' in d:
+                    from .scene_membership import SceneMembershipEngine, SceneMembershipProofs
+                    proofs = SceneMembershipProofs(snapshot, d['snapshotSha256'], Path(d['membership']),
+                        d['membershipSha256'], environment=self.environment, policy_id=d['policyId'],
+                        runtime_sha256=d['runtimeSha256'])
+                    selected = SceneMembershipEngine(selected, proofs)
+                self.engine = selected
             else:
                 from .native_object_search import NativeObjectSearchEngine
                 self.engine = NativeObjectSearchEngine(Path(d['binary']), Path(d['models']), runtime,

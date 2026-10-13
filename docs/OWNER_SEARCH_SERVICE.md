@@ -28,6 +28,10 @@ runtime policy and snapshot resource before constructing each native engine.
 Full source/model/runtime/snapshot checks remain the engines' responsibility;
 strict official Gen4 and gateway publication/payment checks are unchanged.
 
+Scenes optionally add the paired `membership` / `membershipSha256` fields for
+[bounded sealed membership](SCENE_MEMBERSHIP.md). The coordinator must independently
+pin the matching root. No root or activation setting is taken from an uploader.
+
 The operator pins the exact configuration bytes with SHA-256. Native engines and
 OS credentials load lazily: deferred/blocked restarts do not read a vault or load
 models. A saved completion can replay after restart even when native assets are
@@ -81,4 +85,5 @@ in source, with hidden interactive entry and exact local vault readback. It has
 not accessed real vaults. OS startup registration/readback, actual vault consent,
 real source qualification and approved activation remain open. The computer must be on and
 signed in to process; shutdown/sleep cannot perform computation. Outbound trusted
-verification/import and bounded catalog integration also remain source work.
+verification/import and bounded admission/catalog integration remain source work;
+the optional Scene proof path removes per-result catalog lookups only.
