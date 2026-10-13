@@ -94,6 +94,36 @@ durability failure and existing stop/deadline behavior. No provider call, model
 execution, cloud read or deployment occurred. Private logs are preserved under
 `work/hybrid-budget-20261013` outside the checkout.
 
+### Month-boundary protection
+
+A calendar counter alone can grant two allocations close together at month-end,
+including within one provider billing period. The additional
+[rolling guard](../deploy/cloudflare/native-container-host/rolling-budget.js)
+limits reservations over the preceding **31 days**, in the same durable
+transaction as the monthly and daily records. All three limits must allow work.
+The history is bounded at 300 entries because each reservation is at least one
+cent and the host allocation is at most 300 cents. Only timestamps and reserved
+cents are stored; no account, query or job content is included.
+
+Calendar resets, controller replacement and configuration increases cannot
+clear recent reservations. Lower limits and higher cost weights remain sealed
+while history is active, which can pause work longer than a calendar month.
+Unknown earlier monthly usage is conservatively carried at upgrade time for a
+full 31 days. The opening floor is applied without repeatedly adding the same
+floor to active history. An operator must reconcile prior usage and clear an
+obsolete configured opening floor before activation; counters are not a billing
+reconciliation. Corrupt state or failed durability refuses work. Exhaustion
+stops the active container, preserves its sealed bundle and returns a backoff
+until enough reservations expire. Status and explicit stop remain available.
+
+[Offline evidence](evidence/rolling-host-budget-20261013.json): **86 checks
+passed**, no skips, including the controller's month-end refusal and shutdown,
+concurrent reservations, February spanning three calendar months, legacy usage,
+read-only status, removal/corruption and existing deadline behavior. Private
+logs and a source-digest receipt are preserved in `work/rolling-budget-20261013`.
+This still bounds one host's reservations, not provider charges, shared-host
+spending or a complete project invoice. No allowance or service was activated.
+
 ## Next engineering and activation boundary
 
 1. Integrate the explicitly marked qualified-upload publication path, preserving
