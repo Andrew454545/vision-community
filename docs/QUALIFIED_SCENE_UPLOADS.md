@@ -74,7 +74,7 @@ membership, native-audited Scene, snapshot and financial recovery regressions ra
 The first Python run hit sandbox path-validation restrictions; hidden offline
 reruns with filesystem access passed. Initial assembled test failures exposed
 missing optional queue setup, acknowledgement/result and empty-queue response fixture mismatches;
-both were corrected without changing production schema checks or search APIs.
+They were corrected without changing production schema checks or search APIs.
 All original logs remain private under `work/qualified-scene-20261013`.
 
 The local contributor, Scene pilot and refresher tasks were independently read

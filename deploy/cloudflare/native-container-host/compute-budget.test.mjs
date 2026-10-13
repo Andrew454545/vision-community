@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {BUDGET_KEY,ComputeBudgetError,reserveCompute,computeBudgetStatus} from './compute-budget.js';
 import {MONTHLY_KEY} from './monthly-budget.js';
+import {ROLLING_KEY,WINDOW_MS} from './rolling-budget.js';
 
 const NOW=Date.UTC(2026,9,9,12),DAY=86400000;
 const env={NATIVE_DAILY_COMPUTE_REQUESTS:'4',NATIVE_DAILY_CONTAINER_STARTS:'2'};
@@ -116,6 +117,7 @@ test('status is aggregate-only and never writes, refunds or grants a request',as
 const monthlyEnv = (changes={}) => ({...env,NATIVE_MONTHLY_COMPUTE_POLICY:JSON.stringify({
   limitCents:12,openingCents:0,requestCents:5,startCents:2,...changes})});
 const monthlyExhausted={message:'native_compute_monthly_budget_exhausted'};
+const rollingExhausted={message:'native_compute_rolling_budget_exhausted'};
 
 test('monthly requests and starts consume the same sealed host allocation',async()=>{
   const {storage,values}=fixture();
@@ -133,7 +135,8 @@ test('midnight and daily redeployment never reset monthly reservations',async()=
   await reserveCompute(storage,monthlyEnv(),'request',NOW+DAY);
   await assert.rejects(reserveCompute(storage,monthlyEnv(),'request',NOW+2*DAY),monthlyExhausted);
   assert.equal(values.get(MONTHLY_KEY).reservedCents,10);
-  await reserveCompute(storage,monthlyEnv(),'request',Date.UTC(2026,10,1));
+  await assert.rejects(reserveCompute(storage,monthlyEnv(),'request',Date.UTC(2026,10,1)),rollingExhausted);
+  await reserveCompute(storage,monthlyEnv(),'request',NOW+33*DAY);
   assert.equal(values.get(MONTHLY_KEY).reservedCents,5);
   await assert.rejects(reserveCompute(storage,monthlyEnv(),'request',NOW),unavailable);
 });
@@ -193,4 +196,80 @@ test('monthly tightening sticks even when the daily budget is already exhausted'
   const status=await computeBudgetStatus(storage,monthlyEnv(),NOW+DAY);
   assert.equal(status.monthly.remainingCents,0);
   assert.deepEqual([...values],before);
+});
+
+test('month-end cannot grant a second allowance and backoff waits for enough history to expire',async()=>{
+  const {storage,values}=fixture();
+  const end=Date.UTC(2026,9,31,23,59,59),next=end+1000;
+  const configured=monthlyEnv({limitCents:10});
+  await reserveCompute(storage,configured,'request',end);
+  await reserveCompute(storage,configured,'request',end);
+  await assert.rejects(reserveCompute(storage,configured,'request',next),error=>
+    error.message===rollingExhausted.message&&error.retryAfter===31*86400-1);
+  assert.equal(values.get(MONTHLY_KEY).reservedCents,0);
+  assert.equal(values.get(BUDGET_KEY).requests,0);
+  await reserveCompute(storage,configured,'request',end+WINDOW_MS);
+  assert.equal(values.get(MONTHLY_KEY).reservedCents,5);
+  assert.deepEqual(values.get(ROLLING_KEY).reservations,[{at:end+WINDOW_MS,cents:5}]);
+});
+
+test('a 31-day window can span three calendar months, including February',async()=>{
+  const {storage}=fixture();
+  const configured=monthlyEnv({limitCents:12,requestCents:6});
+  const january=Date.UTC(2026,0,31,12),february=Date.UTC(2026,1,28,12),march=Date.UTC(2026,2,1,12);
+  await reserveCompute(storage,configured,'request',january);
+  await reserveCompute(storage,configured,'request',february);
+  await assert.rejects(reserveCompute(storage,configured,'request',march),rollingExhausted);
+  await reserveCompute(storage,configured,'request',january+WINDOW_MS);
+});
+
+test('legacy monthly usage is carried conservatively, without overwriting its historical reservation',async()=>{
+  const {storage,values}=fixture();
+  await reserveCompute(storage,monthlyEnv(),'request',NOW);
+  const historical=structuredClone(values.get(MONTHLY_KEY));
+  values.delete(ROLLING_KEY); // Upgrade from the original monthly-only implementation.
+  const later=Date.UTC(2026,10,1);
+  await reserveCompute(storage,monthlyEnv(),'request',later);
+  assert.equal(historical.reservedCents,5);
+  assert.equal(values.get(MONTHLY_KEY).reservedCents,5);
+  assert.equal(values.get(ROLLING_KEY).reservations.reduce((s,e)=>s+e.cents,0),10);
+  await assert.rejects(reserveCompute(storage,monthlyEnv(),'request',later+1),rollingExhausted);
+});
+
+test('rolling cost weights and lowered caps stay sealed across a new calendar month',async()=>{
+  const {storage,values}=fixture();
+  const end=Date.UTC(2026,9,31,12);
+  await reserveCompute(storage,monthlyEnv(),'request',end);
+  await reserveCompute(storage,monthlyEnv(),'request',end);
+  await assert.rejects(reserveCompute(storage,monthlyEnv({limitCents:100,requestCents:1}),'request',end+DAY),rollingExhausted);
+  assert.equal(values.get(ROLLING_KEY).limitCents,12);
+  assert.equal(values.get(ROLLING_KEY).requestCents,5);
+  const before=structuredClone([...values]);
+  const status=await computeBudgetStatus(storage,monthlyEnv(),end+DAY);
+  assert.equal(status.rolling.remainingCents,2);
+  assert.deepEqual([...values],before);
+});
+
+test('corrupt rolling history and missing policies fail closed instead of resetting usage',async()=>{
+  const {storage,values}=fixture();
+  await reserveCompute(storage,monthlyEnv(),'request',NOW);
+  const saved=structuredClone(values.get(ROLLING_KEY));
+  for(const record of [null,{...saved,lastAt:NOW+1},{...saved,reservations:[{at:NOW,cents:-1}]},
+    {...saved,reservations:[{at:NOW,cents:301}]},{...saved,reservations:Array(301).fill({at:NOW,cents:1})},
+    {...saved,reservations:[{at:NOW,cents:200},{at:NOW,cents:200}]}]) {
+    values.set(ROLLING_KEY,record);
+    await assert.rejects(reserveCompute(storage,monthlyEnv(),'request',NOW),unavailable);
+    assert.deepEqual(values.get(ROLLING_KEY),record);
+  }
+  values.set(ROLLING_KEY,saved);values.delete(MONTHLY_KEY);
+  await assert.rejects(reserveCompute(storage,env,'request',NOW),unavailable);
+});
+
+test('rolling reservations have a finite history even at the smallest cost quantum',async()=>{
+  const {storage,values}=fixture();
+  const configured={...monthlyEnv({limitCents:300,requestCents:1}),NATIVE_DAILY_COMPUTE_REQUESTS:'1000'};
+  const results=await Promise.allSettled(Array.from({length:310},()=>reserveCompute(storage,configured,'request',NOW)));
+  assert.equal(results.filter(r=>r.status==='fulfilled').length,300);
+  assert.equal(values.get(ROLLING_KEY).reservations.length,300);
+  await assert.rejects(reserveCompute(storage,configured,'request',Date.UTC(2026,10,1)),rollingExhausted);
 });

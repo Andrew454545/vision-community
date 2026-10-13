@@ -199,6 +199,27 @@ test('failed reservation write or sync cannot start native compute',async()=>{
   }
 });
 
+test('rolling exhaustion stops an active host across month-end without a new native call',async()=>{
+  const {host,env,control,ctx,options}=fixture();
+  env.NATIVE_MONTHLY_COMPUTE_POLICY=JSON.stringify({limitCents:2,openingCents:0,requestCents:1,startCents:1});
+  control.now=Date.UTC(2026,9,31,23,59,59);
+  assert.equal((await host.activate(bundle)).status,200);
+  const calls=control.calls.length,usage=structuredClone(control.values.get('nativeRollingComputeBudgetV1'));
+  control.now+=1000;
+  const reopened=new NativeController(ctx,env,options);
+  const response=await reopened.health();
+  assert.equal(response.status,503);
+  assert.deepEqual(await response.json(),{error:'native_compute_rolling_budget_exhausted'});
+  assert.equal(Number(response.headers.get('retry-after')),31*86400-1);
+  assert.equal(ctx.container.running,false);
+  assert.equal(control.starts.length,1);assert.equal(control.calls.length,calls);
+  assert.deepEqual(control.values.get('activeBundle'),bundle);
+  assert.deepEqual(control.values.get('nativeRollingComputeBudgetV1').reservations,usage.reservations);
+  assert.equal(control.values.get('nativeMonthlyComputeBudgetV1').reservedCents,0);
+  assert.equal((await reopened.status()).status,200);
+  assert.equal((await reopened.restart()).status,200);
+});
+
 test('invalid operator calls and status reads cannot keep unfunded compute alive',async()=>{
   const {host,control}=fixture();assert.equal((await host.activate(bundle)).status,200);
   const deadline=control.alarm,usage=structuredClone(control.values.get('nativeComputeBudgetV1'));

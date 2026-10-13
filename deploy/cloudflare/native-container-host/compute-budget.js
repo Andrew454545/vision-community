@@ -2,15 +2,16 @@
 // This limits operations and starts, not the entire Cloudflare invoice.
 export const BUDGET_KEY = 'nativeComputeBudgetV1';
 import { MONTHLY_KEY, monthlyPolicy, monthlyRecord, nextMonthSeconds } from './monthly-budget.js';
+import { ROLLING_KEY, WINDOW_MS, rollingRecord, rollingTotal, rollingRetrySeconds } from './rolling-budget.js';
 const DAY_MS = 86400000;
 const FIELDS = 'day,requestLimit,requests,startLimit,starts,version';
 
 export class ComputeBudgetError extends Error {
-  constructor(code, now) {
+  constructor(code, now, retryAfter) {
     super(code);
-    this.retryAfter = code === 'native_compute_monthly_budget_exhausted' ? nextMonthSeconds(now)
+    this.retryAfter = retryAfter ?? (code === 'native_compute_monthly_budget_exhausted' ? nextMonthSeconds(now)
       : code === 'native_compute_budget_exhausted'
-      ? Math.ceil((DAY_MS - now % DAY_MS) / 1000) : 60;
+      ? Math.ceil((DAY_MS - now % DAY_MS) / 1000) : 60);
   }
 }
 
@@ -55,24 +56,37 @@ export async function reserveCompute(storage, env, kind, now = Date.now()) {
       const record = current(saved,configured,now);
       const field = kind === 'request' ? 'requests' : 'starts';
       const savedMonth = await transaction.get(MONTHLY_KEY);
+      const savedRolling = await transaction.get(ROLLING_KEY);
       // Once enabled, removing this policy cannot silently reopen the host.
-      if (!policy && savedMonth !== undefined) throw Error('monthly_policy_removed');
+      if (!policy && (savedMonth !== undefined || savedRolling !== undefined)) throw Error('monthly_policy_removed');
       const monthly = policy ? monthlyRecord(savedMonth, policy, now) : null;
+      const rolling = policy ? rollingRecord(savedRolling, policy, now, savedMonth) : null;
       if (record.requests > record.requestLimit || record.starts > record.startLimit
           || record[field] >= (kind === 'request' ? record.requestLimit : record.startLimit)) {
         // Persist a lowered allowance even when usage already exceeds it. A
         // later config increase cannot reopen this same UTC day's budget.
         if (JSON.stringify(record) !== JSON.stringify(saved)) await transaction.put(BUDGET_KEY,record);
         if (monthly) await transaction.put(MONTHLY_KEY, monthly);
-        return 'native_compute_budget_exhausted';
+        if (rolling) await transaction.put(ROLLING_KEY, rolling);
+        return {code: 'native_compute_budget_exhausted'};
       }
       if (monthly) {
-        const cents = kind === 'request' ? monthly.requestCents : monthly.startCents;
+        const cents = kind === 'request' ? Math.max(monthly.requestCents, rolling.requestCents)
+          : Math.max(monthly.startCents, rolling.startCents);
         if (monthly.reservedCents + cents > monthly.limitCents) {
           await transaction.put(BUDGET_KEY, record);
           await transaction.put(MONTHLY_KEY, monthly);
-          return 'native_compute_monthly_budget_exhausted';
+          await transaction.put(ROLLING_KEY, rolling);
+          return {code: 'native_compute_monthly_budget_exhausted'};
         }
+        if (rollingTotal(rolling) + cents > rolling.limitCents) {
+          await transaction.put(BUDGET_KEY, record);
+          await transaction.put(MONTHLY_KEY, monthly);
+          await transaction.put(ROLLING_KEY, rolling);
+          return {code: 'native_compute_rolling_budget_exhausted',retryAfter:rollingRetrySeconds(rolling,cents,now)};
+        }
+        rolling.reservations.push({at: now, cents});
+        await transaction.put(ROLLING_KEY, rolling);
         monthly.reservedCents += cents;
         await transaction.put(MONTHLY_KEY, monthly);
       }
@@ -83,7 +97,7 @@ export async function reserveCompute(storage, env, kind, now = Date.now()) {
     // No native side effect before the allowance is durably reserved. Failed or
     // interrupted work is never refunded; an uncertain write cannot grant work.
     await storage.sync();
-    if (exhausted) throw new ComputeBudgetError(exhausted,now);
+    if (exhausted) throw new ComputeBudgetError(exhausted.code,now,exhausted.retryAfter);
   } catch (error) {
     if (error instanceof ComputeBudgetError) throw error;
     throw new ComputeBudgetError('native_compute_budget_unavailable',now);
@@ -94,13 +108,17 @@ export async function computeBudgetStatus(storage, env, now = Date.now()) {
   try {
     const record = current(await storage.get(BUDGET_KEY),limits(env),now);
     const policy = monthlyPolicy(env), savedMonth = await storage.get(MONTHLY_KEY);
-    if (!policy && savedMonth !== undefined) throw Error('monthly_policy_removed');
+    const savedRolling = await storage.get(ROLLING_KEY);
+    if (!policy && (savedMonth !== undefined || savedRolling !== undefined)) throw Error('monthly_policy_removed');
     const monthly = policy ? monthlyRecord(savedMonth, policy, now) : null;
+    const rolling = policy ? rollingRecord(savedRolling, policy, now, savedMonth) : null;
     return {configured:true,utcDay:record.day,requests:record.requests,starts:record.starts,
       requestLimit:record.requestLimit,startLimit:record.startLimit,
       requestsRemaining:Math.max(0,record.requestLimit-record.requests),
       startsRemaining:Math.max(0,record.startLimit-record.starts),
-      ...(monthly ? {monthly:{...monthly,remainingCents:Math.max(0,monthly.limitCents-monthly.reservedCents)}} : {})};
+      ...(monthly ? {monthly:{...monthly,remainingCents:Math.max(0,monthly.limitCents-monthly.reservedCents)},
+        rolling:{windowDays:WINDOW_MS/86400000,limitCents:rolling.limitCents,reservedCents:rollingTotal(rolling),
+          remainingCents:Math.max(0,rolling.limitCents-rollingTotal(rolling))}} : {})};
   } catch {
     return {configured:false,reason:'native_compute_budget_unavailable'};
   }
