@@ -22,8 +22,10 @@ platform evidence or reusable account admission. An optional [account registry a
 saved adapter](OBJECT_ACCOUNT_QUALIFICATION.md) now implement expiring records and
 revocation in source. [Private host/job lookup and bounded local delivery](OBJECT_QUALIFICATION_HOST.md)
 now connect the saved comparator to that registry in a synthetic loopback check.
-Actual approved transport/setup, authentic platform evidence, current eligibility
-and distinct qualified Object publication remain unfinished.
+The [qualified eligibility inspector](QUALIFIED_OBJECT_ELIGIBILITY.md) now checks
+current profile/Scene/Gen4 authority and fresh private original-source protection
+in source. Actual approved transport/setup, authentic platform evidence and
+distinct qualified Object staging/publication/once-only credit remain unfinished.
 
 **Owner cost hold, 12 October:** all Community cloud execution and the local
 pilot/refresher/indexing tasks are paused. Read the [stop record](COST_STOP_20261012.md)

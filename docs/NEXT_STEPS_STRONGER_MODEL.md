@@ -22,8 +22,11 @@ now connect optional reusable profile records, expiry and revocation in source.
 The [private owned-sample host](OBJECT_QUALIFICATION_HOST.md) now implements
 pinned job lookup, approved bounded local delivery and a dedicated private bridge,
 with synthetic full-comparator/SQLite loopback evidence. Actual private transport
-and activation remain pending. Next connect current official Gen4/Scene/protected
-eligibility and qualified Object assignment/settlement with once-only credit.
+and activation remain pending. The [qualified eligibility inspector](QUALIFIED_OBJECT_ELIGIBILITY.md)
+now connects current profile/Gen4/contributed Scene state to live original-source
+protection in source. Next implement distinct qualified Object staging/assignment
+and atomic publication/once-only credit with current authority and recovery;
+the read-only inspector is not an authorization to bypass native audit SQL fences.
 Both comparators explicitly remain `qualified:false`;
 do not relabel detector parity as full device approval or rerun the completed
 queue/Scene runner checks merely for reassurance.
