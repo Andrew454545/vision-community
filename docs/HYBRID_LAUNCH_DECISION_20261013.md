@@ -36,6 +36,9 @@ receipt or weaken existing SQL guards to get a first contribution through.
 now connects explicit admission, upload integrity, once-only credit, search and
 offline snapshot/financial recovery in source. It is disabled and undeployed;
 equivalent Object admission and the common cloud/local budget router remain work.
+The [Object upload inspector](QUALIFIED_OBJECT_UPLOADS.md) now separates routine
+integrity from native per-batch comparison in source; device qualification,
+fresh protected/Scene authority and qualified Object settlement remain open.
 
 ## Cloud first, local overflow
 
