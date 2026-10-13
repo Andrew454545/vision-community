@@ -31,6 +31,10 @@ strict official Gen4 and gateway publication/payment checks are unchanged.
 Scenes optionally add the paired `membership` / `membershipSha256` fields for
 [bounded sealed membership](SCENE_MEMBERSHIP.md). The coordinator must independently
 pin the matching root. No root or activation setting is taken from an uploader.
+The transport allows only the bounded Scene proof extension and retains exact
+member JSON bytes. Its [delivery evidence](evidence/scene-owner-delivery-20261013.json)
+covers the assembled runner through the actual Worker handler and local SQLite,
+including paid replay without native files and deletion before settlement.
 
 The operator pins the exact configuration bytes with SHA-256. Native engines and
 OS credentials load lazily: deferred/blocked restarts do not read a vault or load

@@ -1,0 +1,120 @@
+{
+  "version": 1,
+  "scope": "offline-scene-owner-delivery-supplement-v1",
+  "recordedAt": "2026-10-13T02:33:05.148560+00:00",
+  "sourceParent": "26e2b96fdd1597b6fc3787d8d029d47e3b15bf63",
+  "branch": "codex/windows-production-readiness",
+  "platform": {
+    "os": "Windows 11",
+    "machine": "AMD64",
+    "python": "3.12.14",
+    "node": "24.19.0"
+  },
+  "problem": "The owner transport accepted only the original seven result fields and rejected the optional Scene membership extension. The earlier receipt verified components and direct gateway interop, not the assembled owner transport path.",
+  "change": "Accept only the bounded Scene proof extension, reject unknown echo fields and malformed proofs, and preserve original member JSON and saved outbox bytes. Root authority remains independently configured at the gateway.",
+  "verification": {
+    "pythonPassed": 58,
+    "nodePassed": 14,
+    "failed": 0,
+    "skipped": 0,
+    "cases": {
+      "ownerSearchAgentPython": 26,
+      "sceneMembershipPython": 12,
+      "ownerSearchServicePython": 20,
+      "sceneMembershipNode": 14
+    },
+    "scope": [
+      "Real assembled service guards, file locks, supervisor, Scene wrapper/proofs and durable outbox.",
+      "Real Worker HTTP handler and actual SQLite database closed/reopened by each finite hidden local child.",
+      "Lost acknowledgement after a paid completion leaves exact outbox; restart succeeds with native files removed and an invalid current root, without recomputation or another debit.",
+      "Account deletion before completion leaves a zero-balance tombstone, refuses the late claim and makes no debit or paid reply.",
+      "No per-location catalog rows are used by the fictional Scene fixture; exact exponent notation and Unicode member bytes survive transport.",
+      "Object extension misuse, over-limit counts/proofs and private echo fields cannot enter a new completion outbox."
+    ],
+    "finalRuns": [
+      "python-verified",
+      "node-final"
+    ],
+    "preservedFailures": [
+      {
+        "run": "python-initial",
+        "passed": 56,
+        "errors": 2,
+        "reason": "Fixture runtime was directly under the same parent as private state; the existing overlap guard correctly refused both assembled tests. Fixture runtime moved to its own sibling input folder; guard unchanged."
+      },
+      {
+        "run": "python-final",
+        "passed": 57,
+        "failures": 1,
+        "reason": "Deletion assertion incorrectly expected no account row; existing privacy deletion deliberately retains a zero-balance tombstone. Assertion corrected; application deletion behavior unchanged."
+      }
+    ],
+    "logs": {
+      "node-final.stderr.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "node-final.stdout.log": {
+        "bytes": 1567,
+        "sha256": "63659b757d9a775cbed6ba1aee7332ed07582b536fb01d3812f22deba578e5fb"
+      },
+      "python-final.stderr.log": {
+        "bytes": 14269,
+        "sha256": "9bd205b74c6f871c7a27b1e2b42dbbe13c6d8d4548a5a9c125ddf7e92e5eea04"
+      },
+      "python-final.stdout.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "python-initial.stderr.log": {
+        "bytes": 15443,
+        "sha256": "961e1a74863c17e8c5d1516faf09f266e60242a075e10a6f68083d35e70ef5d0"
+      },
+      "python-initial.stdout.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "python-verified.stderr.log": {
+        "bytes": 13205,
+        "sha256": "755c4cf5b555b5cf65adebd7dfaff66aefce6113eda18bfc5e4f1e71d19ab426"
+      },
+      "python-verified.stdout.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    }
+  },
+  "sourceFiles": {
+    "community/owner_search_agent.py": {
+      "bytes": 16514,
+      "sha256": "4f277b48f57ec682f4e19ad487ca0561ca8bbc283e9fc0144e23edaab9e49097"
+    },
+    "community/tests/test_owner_search_agent.py": {
+      "bytes": 22104,
+      "sha256": "d5c003edea6d775f6d27445d4f8fe867fef6f612344e61504a8283dd545ac0e0"
+    },
+    "community/tests/test_scene_membership.py": {
+      "bytes": 19589,
+      "sha256": "825079c60f1aca9c8f478cd341c74807ec71f6e3fddd40878d4a75a9b39a67be"
+    },
+    "deploy/cloudflare/src/sceneMembership.fixture.mjs": {
+      "bytes": 8809,
+      "sha256": "4bf79947723cc762393d79cf446c1541e53b29a2d3520481c6b379e629017937"
+    }
+  },
+  "boundaries": {
+    "offlineOnly": true,
+    "deployed": false,
+    "liveReady": false,
+    "operationalHoldPreserved": true,
+    "nativeScores": "mocked or fictional; no authentic inference qualification",
+    "credit": "fictional fixture balance, not earned-work or measured capacity evidence",
+    "credentials": "reader substituted with local fixture; no real vault or HTTPS access",
+    "cloudActions": "none; no cloud read, provider request, model download, task activation or migration",
+    "macExecution": false,
+    "fullProviderRecovery": false,
+    "enduranceAcceptance": false,
+    "configurationAndPauseMarkers": "unchanged"
+  },
+  "next": "Outbound trusted verification/import, bounded admission/catalog metadata and owner startup remain source work; activation, authentic Windows/Mac parity, signing, clean devices, capacity/recovery and accepted-work endurance remain launch gates."
+}
