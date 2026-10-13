@@ -8,7 +8,8 @@ offline; Object admission, shared routing/budget and activation remain work.
 The [Object integrity component](QUALIFIED_OBJECT_UPLOADS.md) is ready for reuse
 without native inference; it does not complete those remaining admission gates.
 The [trusted Object score sample comparator](OBJECT_SCORE_QUALIFICATION.md) now
-checks raw fixed-input values under pinned policy. Full index/quality parity,
+checks raw fixed-input values under pinned policy. The [combined sample check](OBJECT_INDEX_QUALIFICATION.md)
+now connects full index/quality parity in source. Authentic platform results,
 reusable account qualification and distinct qualified settlement remain open.
 The [shared search allocation/router](HYBRID_SEARCH_QUEUE.md) is implemented and
 checked locally. The [finite native Scene runner](NATIVE_QUEUED_SEARCH.md) now has

@@ -47,8 +47,10 @@ must not store this result as complete device qualification. Qualification-based
 routine uploads remain the approved product direction; every uploaded location
 does not need another native recomputation once the complete initial check passes.
 
-Still required: complete indexed-feature/quantization and quality comparisons for
-the same sample, trusted qualification storage/revocation, current Scene/protected
+The [combined sample comparator](OBJECT_INDEX_QUALIFICATION.md) now connects full
+indexed-feature/quantization and quality comparisons to this same sample in
+source. Its result still cannot grant account admission. Still required: trusted
+qualification storage/revocation, current Scene/protected
 eligibility and distinctly marked qualified publication/once-only credit. The
 existing [Object upload integrity component](QUALIFIED_OBJECT_UPLOADS.md) is ready
 for that writer. Public Object qualification and assignment remain closed; no

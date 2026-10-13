@@ -15,10 +15,11 @@ and qualification/other paid work's shared allocation. Do not re-run queue check
 a relevant change or failure requires it.
 
 Reuse the new [trusted Object score sample comparator](OBJECT_SCORE_QUALIFICATION.md)
-and its opt-in private diagnostic packet. Next connect full indexed-feature,
-quantization and quality parity for the same sample, then reusable account/profile
-qualification and revocation, current Scene/protected eligibility and qualified
-Object settlement. Its `scoreCompatible` result explicitly remains `qualified:false`;
+and its opt-in private diagnostic packet. The [combined sample comparator](OBJECT_INDEX_QUALIFICATION.md)
+now connects full indexed-feature, quantization and quality parity for the same
+sample in source. Next connect reusable account/profile qualification and
+revocation, current Scene/protected eligibility and qualified Object settlement.
+Both comparators explicitly remain `qualified:false`;
 do not relabel detector parity as full device approval or rerun the completed
 queue/Scene runner checks merely for reassurance.
 

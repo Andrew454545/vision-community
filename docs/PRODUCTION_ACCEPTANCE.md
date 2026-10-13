@@ -15,6 +15,12 @@ durable claim recovery, deadline shutdown and result/stop replay, checked with
 synthetic local containers and actual local workerd storage/alarms. It is disabled
 and undeployed; real provider shutdown, prices, capacity and activation remain gates.
 
+The [combined Object sample comparator](OBJECT_INDEX_QUALIFICATION.md) connects
+detector scores, complete indexed features, quantization and quality on the same
+pinned sample in source. It remains a read-only numerical check, not authentic
+platform evidence or reusable account admission. Account qualification/revocation,
+current eligibility and distinct qualified Object publication remain unfinished.
+
 **Owner cost hold, 12 October:** all Community cloud execution and the local
 pilot/refresher/indexing tasks are paused. Read the [stop record](COST_STOP_20261012.md)
 and [cost options awaiting discussion](COST_OPTIONS_20261012.md). No deployment,
