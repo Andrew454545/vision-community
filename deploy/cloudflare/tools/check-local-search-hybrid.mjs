@@ -36,8 +36,9 @@ if(!phase){
   const call=(path,credential,body)=>mf.dispatchFetch('https://community.test/api/'+path,{
     method:body===undefined?'GET':'POST',headers:{authorization:'Bearer '+credential,'content-type':'application/json'},
     ...(body===undefined?{}:{body:JSON.stringify(body)}),signal:AbortSignal.timeout(15000)});
-  const claim=async executor=>{const response=await call(`search-${executor==='cloud'?'cloud-agent':'agent'}/claim`,
-    executor==='cloud'?'9'.repeat(64):'f'.repeat(64),{lanes:['scene']});assert.equal(response.status,200);return response.json();};
+  const claim=async(executor,requestToken)=>{const response=await call(`search-${executor==='cloud'?'cloud-agent':'agent'}/claim`,
+    executor==='cloud'?'9'.repeat(64):'f'.repeat(64),{lanes:['scene'],...(requestToken?{requestToken}:{})});
+    assert.equal(response.status,200);return response.json();};
   const result=job=>{const {query,...head}=JSON.parse(job.requestJson);return {...head,processedLocations:1,
     hits:[{locationId:1,outputSha256:'c'.repeat(64),sourceIndex:0,score:.8,viewOffset:1}]};};
   const complete=job=>call('search-agent/complete','f'.repeat(64),{jobId:job.jobId,claimToken:job.claimToken,result:result(job)});
@@ -66,8 +67,10 @@ if(!phase){
       const at=Math.floor(Date.now()/1000),key=name=>`q1.${at}.${hash(name).slice(0,32)}`;
       const submit=async name=>{const response=await call('searches',user,{accountId:account,prompt:'red door',resultCount:20,
         idempotencyKey:key(name),maxCostUnits:100});assert.equal(response.status,202);return response.json();};
-      await submit('cloud');const claims=await Promise.all(Array.from({length:12},()=>claim('cloud')));
-      const jobs=claims.filter(r=>r.job);assert.equal(jobs.length,1);const cloud=jobs[0].job;
+      const nonce=at.toString(16).padStart(16,'0')+'2'.repeat(48);
+      await submit('cloud');const claims=await Promise.all(Array.from({length:12},()=>claim('cloud',nonce)));
+      const jobs=claims.filter(r=>r.job);assert.equal(jobs.length,12);const cloud=jobs[0].job;
+      assert.ok(jobs.every(r=>JSON.stringify(r.job)===JSON.stringify(cloud)));
       assert.equal(cloud.reservedCents,6);checks.push('concurrent-D1-cloud-reservation-and-claim');
       assert.equal((await claim('local')).job,null);checks.push('uncertain-cloud-not-disclosed-locally');
       await submit('local');assert.equal((await claim('cloud')).job,null);
@@ -82,6 +85,9 @@ if(!phase){
       const saved=await db.prepare('SELECT * FROM hybrid_fixture').first(),cloud=JSON.parse(saved.first_job);
       assert.equal((await claim('local')).job,null);assert.equal((await claim('cloud')).job,null);
       checks.push('separate-process-retained-cost-and-uncertain-claim');
+      assert.deepEqual((await claim('cloud',cloud.claimToken)).job,cloud);
+      assert.equal((await db.prepare('SELECT attempts FROM search_jobs WHERE id=?').bind(cloud.jobId).first()).attempts,1);
+      checks.push('separate-process-cloud-nonce-recovery-no-new-reservation');
       const stopped=await call('search-cloud-agent/stopped','9'.repeat(64),{jobId:cloud.jobId,claimToken:cloud.claimToken,shutdownReceiptSha256:'7'.repeat(64)});
       assert.equal(stopped.status,200);const local=(await claim('local')).job;
       assert.equal(local.jobId,cloud.jobId);assert.equal(local.requestJson,cloud.requestJson);assert.notEqual(local.claimToken,cloud.claimToken);

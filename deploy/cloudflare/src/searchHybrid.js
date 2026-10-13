@@ -1,6 +1,6 @@
 // Shared queued-search allocation and executor fencing; no provider/model calls.
 import { SearchError } from './searchLedger.js';
-import { randomHex } from './model.js';
+import { randomHex,sha256Hex,encodeUtf8 } from './model.js';
 import { monthlyRecord } from '../native-container-host/monthly-budget.js';
 import { rollingRecord, rollingTotal } from '../native-container-host/rolling-budget.js';
 import { HYBRID_CONTRACT } from './searchHybridSchema.js';
@@ -33,32 +33,59 @@ export async function hybridMode(env) {
   return hybridPolicy(env);
 }
 
-function budgetDocument(saved,p,now,lane,token) {
+function budgetDocument(saved,p,now,lane,token,claimHash=null) {
   let prior;
   if(!saved)fail('search_cloud_budget_unavailable');
   if(saved.document==='uninitialized-v1'&&saved.operation_token==='0'.repeat(64)){
     // Only the explicit operator migration creates this retained seed. A lost
     // budget row is never interpreted as a new empty allowance by a request.
-  }else{try{if(typeof saved.document!=='string'||saved.document.length>32768)throw Error();prior=JSON.parse(saved.document);}catch{fail('search_cloud_budget_unavailable');}
-    if(!exact(prior,'monthly,rolling,version')||prior.version!==1||!HEX.test(saved.operation_token))fail('search_cloud_budget_unavailable');}
+  }else{try{if(typeof saved.document!=='string'||saved.document.length>65536)throw Error();prior=JSON.parse(saved.document);}catch{fail('search_cloud_budget_unavailable');}
+    if(!(exact(prior,'monthly,rolling,version')&&prior.version===1
+        ||exact(prior,'claims,monthly,rolling,version')&&prior.version===2)||!HEX.test(saved.operation_token))fail('search_cloud_budget_unavailable');}
   const policy={limitCents:p.limitCents,openingCents:p.openingCents,requestCents:p.sceneCents,startCents:p.objectCents};
   try {
     const monthly=monthlyRecord(prior?.monthly,policy,now*1000);
     const rolling=rollingRecord(prior?.rolling,policy,now*1000,prior?.monthly);
     const cents=lane==='scene'?Math.max(monthly.requestCents,rolling.requestCents):Math.max(monthly.startCents,rolling.startCents);
     const allowed=monthly.reservedCents+cents<=monthly.limitCents&&rollingTotal(rolling)+cents<=rolling.limitCents;
-    const tightened={version:1,monthly,rolling};
+    const claims=prior?.claims||[];
+    if(!Array.isArray(claims)||claims.length>300||claims.some(v=>!exact(v,'at,sha256')
+        ||!integer(v.at,0,now*1000)||!HEX.test(v.sha256))||new Set(claims.map(v=>v.sha256)).size!==claims.length)
+      throw Error('invalid_cloud_claim_history');
+    const tightened={version:2,monthly,rolling,claims:claims.filter(v=>v.at>now*1000-31*86400000)};
     const granted=structuredClone(tightened);
     granted.monthly.reservedCents+=cents;granted.rolling.reservations.push({at:now*1000,cents});
+    if(claimHash)granted.claims.push({at:now*1000,sha256:claimHash});
     return {allowed,cents,document:JSON.stringify(allowed?granted:tightened),tightened:JSON.stringify(tightened),token};
   }catch{fail('search_cloud_budget_unavailable');}
 }
 
 const wait=()=>({job:null,retryAfterSeconds:30});
-export async function claimHybridSearch(env,supported,now,executor,p) {
+export async function claimHybridSearch(env,supported,now,executor,p,requestToken) {
   if(!['cloud','local'].includes(executor))fail('invalid_search_executor',400);
+  let claimHash;
+  if(requestToken!==undefined){
+    const issued=typeof requestToken==='string'&&HEX.test(requestToken)?Number.parseInt(requestToken.slice(0,16),16):NaN;
+    if(executor!=='cloud'||!integer(issued,0,now+300)||now-issued>3600)fail('invalid_cloud_claim_request',400);
+    claimHash=await sha256Hex(encodeUtf8(requestToken));
+  }
   // Four bounded CAS attempts. A lost/uncertain reservation is never refunded.
   for(let attempt=0;attempt<4;attempt++){
+    const saved=await env.DB.prepare('SELECT document,operation_token FROM search_cloud_budget WHERE slot=1').first();
+    if(requestToken!==undefined){
+      const history=JSON.parse(budgetDocument(saved,p,now,'scene',requestToken).tightened).claims;
+      const previous=await env.DB.prepare(`SELECT j.id,j.account_id,j.query_json,j.query_digest,j.binding_json,j.claim_token,j.claim_until,j.expires_at,
+        h.cloud_deadline,h.cloud_reserved_cents FROM search_hybrid_claims h JOIN search_jobs j ON j.id=h.job_id
+        JOIN accounts a ON a.id=j.account_id WHERE h.cloud_token=? AND h.executor='cloud' AND h.stopped_at IS NULL
+          AND j.state='claimed' AND j.claim_token=h.cloud_token AND a.deleted_at IS NULL AND j.expires_at>?
+          AND j.binding_json=json_extract(?, '$.'||j.lane)`)
+        .bind(requestToken,now,JSON.stringify(supported)).first();
+      if(previous){
+        if(!history.some(v=>v.sha256===claimHash))fail('search_cloud_budget_unavailable');
+        return {job:previous,cloud:{executionDeadline:previous.cloud_deadline,reservedCents:previous.cloud_reserved_cents}};
+      }
+      if(history.some(v=>v.sha256===claimHash))return wait();
+    }
     const row=await env.DB.prepare(`SELECT j.*,h.executor AS prior_executor,h.cloud_token,h.stopped_at
       FROM search_jobs j JOIN accounts a ON a.id=j.account_id LEFT JOIN search_hybrid_claims h ON h.job_id=j.id
       WHERE a.deleted_at IS NULL AND j.binding_json=json_extract(?, '$.'||j.lane)
@@ -68,9 +95,9 @@ export async function claimHybridSearch(env,supported,now,executor,p) {
         AND (?='local' OR (j.attempts=0 AND h.job_id IS NULL))
       ORDER BY j.created_at,j.id LIMIT 1`).bind(JSON.stringify(supported),now,now,executor).first();
     if(!row)return wait();
-    const token=randomHex(32),saved=await env.DB.prepare('SELECT document,operation_token FROM search_cloud_budget WHERE slot=1').first();
+    const token=requestToken??randomHex(32);
     let budget;
-    try{budget=budgetDocument(saved,p,now,row.lane,token);}catch(error){if(executor==='cloud')throw error;}
+    try{budget=budgetDocument(saved,p,now,row.lane,token,claimHash);}catch(error){if(executor==='cloud')throw error;}
     if(executor==='cloud'&&!budget.allowed){
       // Persist tightening even on refusal, without minting a claim or debit.
       await persistBudget(env.DB,saved,budget.document,token);return wait();
@@ -81,11 +108,11 @@ export async function claimHybridSearch(env,supported,now,executor,p) {
     const identity=[row.id,row.state,row.claim_token,row.attempts,now];
     const statements=[];
     if(budget)statements.push(budgetStatement(env.DB,saved,executor==='cloud'?budget.document:budget.tightened,token));
-    const grant=executor==='cloud'?` AND EXISTS (SELECT 1 FROM search_cloud_budget WHERE slot=1 AND operation_token=?)`:'';
+    const grant=executor==='cloud'?` AND EXISTS (SELECT 1 FROM search_cloud_budget WHERE slot=1 AND operation_token=? AND document=?)`:'';
     statements.push(env.DB.prepare(`INSERT INTO search_hybrid_claims
       SELECT ?,?,?,?,${executor==='cloud'?'?,?,?,?':'NULL,NULL,NULL,NULL'},NULL,NULL WHERE ${same}${grant}
       ON CONFLICT(job_id) DO UPDATE SET claim_token=excluded.claim_token,executor=excluded.executor,claimed_at=excluded.claimed_at`)
-      .bind(row.id,token,executor,now,...(executor==='cloud'?[token,until,budget.cents,now]:[]),...identity,...(executor==='cloud'?[token]:[])));
+      .bind(row.id,token,executor,now,...(executor==='cloud'?[token,until,budget.cents,now]:[]),...identity,...(executor==='cloud'?[token,budget.document]:[])));
     statements.push(env.DB.prepare(`UPDATE search_jobs SET state='claimed',claim_token=?,claim_until=?,attempts=attempts+1
       WHERE id=? AND state=? AND claim_token IS ? AND attempts=? AND expires_at>?
         AND EXISTS (SELECT 1 FROM search_hybrid_claims WHERE job_id=? AND claim_token=? AND executor=?)`)
@@ -117,7 +144,7 @@ export async function hybridClaimAuthority(env,id,token,executor,now) {
 export function inspectCloudBudget(saved,now=Math.floor(Date.now()/1000)) {
   if(!integer(now,0,8640000000000))fail('search_cloud_budget_unavailable');
   if(saved?.document==='uninitialized-v1'&&saved.operation_token==='0'.repeat(64))return {initialized:false};
-  let prior;try{if(typeof saved?.document!=='string'||saved.document.length>32768)throw Error();prior=JSON.parse(saved.document);}catch{fail('search_cloud_budget_unavailable');}
+  let prior;try{if(typeof saved?.document!=='string'||saved.document.length>65536)throw Error();prior=JSON.parse(saved.document);}catch{fail('search_cloud_budget_unavailable');}
   const p={limitCents:prior?.monthly?.limitCents,openingCents:0,sceneCents:prior?.monthly?.requestCents,objectCents:prior?.monthly?.startCents};
   const checked=budgetDocument(saved,p,now,'scene','0'.repeat(64));
   const state=JSON.parse(checked.tightened);

@@ -8,9 +8,10 @@ search and the $10 processing budget plus R2. Routine uploads no longer require
 full native recomputation; preserve explicit admission provenance, qualification,
 eligibility and credit. The earlier Free-only recommendation below is historical.
 Reuse the completed [shared queued-search routing evidence](HYBRID_SEARCH_QUEUE.md).
-Next connect a real finite cloud executor and its durable shutdown/completion
-outbox, measure whole-job prices and include qualification/other paid work in
-the shared allocation. Do not re-run the existing queue/accounting checks unless
+The [finite Scene runner and durable outbox](NATIVE_QUEUED_SEARCH.md) are now
+implemented and checked locally. Next finish qualified Object admission and
+Object execution, then approved trigger/binding setup, measured whole-job prices
+and qualification/other paid work's shared allocation. Do not re-run queue checks unless
 a relevant change or failure requires it.
 
 **Current priority:** the [owner cost hold](COST_STOP_20261012.md) and

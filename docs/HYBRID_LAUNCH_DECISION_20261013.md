@@ -41,8 +41,10 @@ integrity from native per-batch comparison in source; device qualification,
 fresh protected/Scene authority and qualified Object settlement remain open.
 The [shared search queue](HYBRID_SEARCH_QUEUE.md) now connects cloud cost
 reservations, exclusive cloud/local claims and shutdown-fenced fallback in source.
-The actual bounded cloud executor, measured pricing and other paid work's
-allocation still need integration before activation.
+The [finite native Scene executor](NATIVE_QUEUED_SEARCH.md) now has durable
+claim/result/shutdown recovery in source. Approved trigger/bindings, actual
+provider/cost evidence, Object execution and other paid work's allocation still
+need integration before activation.
 
 ## Cloud first, local overflow
 

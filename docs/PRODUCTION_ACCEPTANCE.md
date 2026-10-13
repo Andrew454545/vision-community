@@ -10,6 +10,11 @@ independent native recomputation of every routine upload. Earlier audited eviden
 and the fully audited mode remain distinct. Activation and all other real launch
 evidence remain outstanding.
 
+The [one-shot cloud Scene runner](NATIVE_QUEUED_SEARCH.md) now has source-level
+durable claim recovery, deadline shutdown and result/stop replay, checked with
+synthetic local containers and actual local workerd storage/alarms. It is disabled
+and undeployed; real provider shutdown, prices, capacity and activation remain gates.
+
 **Owner cost hold, 12 October:** all Community cloud execution and the local
 pilot/refresher/indexing tasks are paused. Read the [stop record](COST_STOP_20261012.md)
 and [cost options awaiting discussion](COST_OPTIONS_20261012.md). No deployment,

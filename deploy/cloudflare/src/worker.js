@@ -25,7 +25,7 @@ import { MAX_SEALED_SCENE_HITS } from './sceneMembership.js';
 import { SearchError } from "./searchLedger.js";
 import { queueSearch, queuedSearchConfigured, requireSearchQueue, maintainSearchQueue, searchCredit,
   queuedSearchStatus, recoverSearch, cancelQueuedSearch, requireSearchAgent, claimQueuedSearch,
-  renewQueuedSearch, failQueuedSearch, completeQueuedSearch, SEARCH_QUEUE_RESULT_BYTES } from './searchQueue.js';
+  renewQueuedSearch, failQueuedSearch, completeQueuedSearch,authorizeCloudSearch, SEARCH_QUEUE_RESULT_BYTES } from './searchQueue.js';
 import { searchCost } from "./searchPricing.js";
 import { acknowledgeCloudStop } from './searchHybrid.js';
 import { sceneCohortAllows } from "./sceneCohort.js";
@@ -1218,6 +1218,7 @@ const API_METHODS = new Map([
   ['/api/search-agent/complete','POST'],['/api/search-agent/fail','POST'],
   ['/api/search-cloud-agent/claim','POST'],['/api/search-cloud-agent/renew','POST'],
   ['/api/search-cloud-agent/complete','POST'],['/api/search-cloud-agent/fail','POST'],['/api/search-cloud-agent/stopped','POST'],
+  ['/api/search-cloud-agent/authorize','POST'],
   ['/api/object-audit-agent/claim','POST'],['/api/object-audit-agent/candidate','POST'],
   ['/api/object-audit-agent/complete','POST'],['/api/object-audit-agent/fail','POST'],
   ['/api/object-audit-agent/retirement','POST'],['/api/object-audit-agent/retirement-ack','POST']
@@ -1274,7 +1275,9 @@ export default {
         await requireSchema(env);
         const body = await readRequestJson(request, 30000,
           url.pathname.endsWith('/complete') ? SEARCH_QUEUE_RESULT_BYTES + 8192 : 4096);
-        if (url.pathname.endsWith('/claim')) return json(await claimQueuedSearch(env, undefined, body.lanes, body.bindings,executor));
+        if (url.pathname.endsWith('/claim')) return json(await claimQueuedSearch(env, undefined, body.lanes, body.bindings,executor,
+          executor==='cloud'?body.requestToken:undefined));
+        if (url.pathname.endsWith('/authorize')) return json(await authorizeCloudSearch(env,body));
         if (url.pathname.endsWith('/renew')) return json(await renewQueuedSearch(env, body.jobId, body.claimToken,undefined,executor));
         if (url.pathname.endsWith('/fail')) return json(await failQueuedSearch(env, body.jobId, body.claimToken,undefined,executor));
         if (url.pathname.endsWith('/stopped')) return json(await acknowledgeCloudStop(env,body));

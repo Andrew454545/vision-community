@@ -68,8 +68,8 @@ cost reservations remain without account/query identifiers.
 
 The existing `/api/search-agent/` routes remain local and retain the five-field
 job reply expected by the installed owner client. Separate authenticated
-`/api/search-cloud-agent/` routes provide `claim`, `renew`, `complete`, `fail`
-and `stopped`. Cloud claims additionally return `executionDeadline` and
+`/api/search-cloud-agent/` routes provide `claim`, `authorize`, `renew`, `complete`,
+`fail` and `stopped`. Cloud claims additionally return `executionDeadline` and
 `reservedCents`. Account credentials and local-agent credentials cannot use
 cloud routes. A caller-supplied executor field cannot change its role.
 
@@ -96,9 +96,11 @@ of the API's existing 202 queued acknowledgement. Cleanup/fixture expectations
 were corrected and the already installed compatible runtime was used. No runtime
 download or deployed API/configuration change was needed.
 
-Still required before activation: a bounded cloud executor that actually stops
-provider compute by the deadline, saves/validates shutdown evidence and replays
-its completion/stop outbox after restart; real price/capacity evidence; and
+The [one-shot native Scene runner](NATIVE_QUEUED_SEARCH.md) now implements durable
+claim recovery, deadline shutdown and completion/stop outbox replay in source.
+Its additional local evidence does not establish actual provider shutdown or
+native capacity. Still required before activation: approved trigger/binding setup,
+real price/capacity/shutdown evidence, Object cloud execution, and
 participation or disjoint sealed allocations for **all other paid work**, including
 initial device qualification. The private native host's existing allowance is
 an additional fence, not permission to bypass this shared search allocation.

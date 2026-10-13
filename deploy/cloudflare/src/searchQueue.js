@@ -226,7 +226,7 @@ export async function cancelQueuedSearch(env, account, key, now = clock()) {
   return queuedSearchStatus(env, account, row.id, now);
 }
 
-export async function claimQueuedSearch(env, now = clock(), lanes = ['scene'], capabilities, executor='local') {
+export async function claimQueuedSearch(env, now = clock(), lanes = ['scene'], capabilities, executor='local',requestToken) {
   if (!Array.isArray(lanes) || !lanes.length || lanes.length > 2 || new Set(lanes).size !== lanes.length
       || lanes.some(lane => !['scene', 'object'].includes(lane))) throw new SearchError('invalid_search_lane', 400);
   const configured = bindings(env), supported = {};
@@ -259,7 +259,7 @@ export async function claimQueuedSearch(env, now = clock(), lanes = ['scene'], c
   const hybrid=await hybridMode(env);
   if(!hybrid&&executor!=='local')throw new SearchError('search_hybrid_unavailable');
   // One SQL write chooses and fences the claim; two agents cannot own it.
-  const selection=hybrid?await claimHybridSearch(env,supported,now,executor,hybrid):null;
+  const selection=hybrid?await claimHybridSearch(env,supported,now,executor,hybrid,requestToken):null;
   const job = hybrid?selection.job:await env.DB.prepare(`UPDATE search_jobs SET state='claimed',claim_token=?,claim_until=MIN(?,expires_at),attempts=attempts+1
     WHERE id=(SELECT j.id FROM search_jobs j JOIN accounts a ON a.id=j.account_id WHERE a.deleted_at IS NULL
       AND j.binding_json=json_extract(?, '$.' || j.lane) AND j.expires_at>? AND j.attempts<3
@@ -281,6 +281,26 @@ export async function claimQueuedSearch(env, now = clock(), lanes = ['scene'], c
 
 function validClaim(id, token) {
   if (!ID.test(id || '') || !HEX.test(token || '')) throw new SearchError('invalid_search_claim', 400);
+}
+
+// Fresh read-only authority for a bound native executor. Never a spending grant.
+export async function authorizeCloudSearch(env,body,now=clock()) {
+  if(!body||Object.keys(body).sort().join(',')!=='claimToken,jobId')throw new SearchError('invalid_search_claim',400);
+  validClaim(body.jobId,body.claimToken);validTime(now);
+  const cloud=await hybridClaimAuthority(env,body.jobId,body.claimToken,'cloud',now);
+  if(!cloud||env.SEARCH_CLOUD_EXECUTION_MODE!=='native-host-one-shot-v1'
+      ||env.DEPLOYMENT_ENVIRONMENT!=='staging'||env.INDEX_BUCKET_NAME!=='vision-community-staging'
+      ||env.DELETION_ARCHIVE_DB_ID!=='17043cb7-5dab-4a6f-84ca-19ae1c14cc05')throw new SearchError('search_unavailable');
+  const row=await env.DB.prepare(`SELECT j.* FROM search_jobs j JOIN accounts a ON a.id=j.account_id WHERE j.id=?
+    AND j.state='claimed' AND j.claim_token=? AND j.claim_until>? AND j.expires_at>? AND a.deleted_at IS NULL`)
+    .bind(body.jobId,body.claimToken,now,now).first();
+  if(!row||row.lane!=='scene'||row.binding_json!==JSON.stringify(binding(env,'scene'))||!await sceneCohortAllows(env,row.account_id))
+    throw new SearchError('search_claim_lost',409);
+  const head=JSON.stringify({...JSON.parse(row.binding_json),requestSha256:row.query_digest.slice(7)});
+  return {authorized:true,job:{jobId:row.id,claimToken:row.claim_token,claimUntil:row.claim_until,expiresAt:row.expires_at,
+    executionDeadline:cloud.cloud_deadline,reservedCents:cloud.cloud_reserved_cents,
+    requestJson:`${head.slice(0,-1)},"query":${row.query_json}}`},resource:{accountId:'272760294910ef0b246980278aeb36e2',
+      databaseId:env.DELETION_ARCHIVE_DB_ID,bucket:env.INDEX_BUCKET_NAME}};
 }
 
 export async function renewQueuedSearch(env, id, token, now = clock(),executor='local') {

@@ -8,8 +8,10 @@ offline; Object admission, shared routing/budget and activation remain work.
 The [Object integrity component](QUALIFIED_OBJECT_UPLOADS.md) is ready for reuse
 without native inference; it does not complete those remaining admission gates.
 The [shared search allocation/router](HYBRID_SEARCH_QUEUE.md) is implemented and
-checked locally. Its real bounded cloud executor, measured prices and allocation
-for other paid work remain unfinished; no operational activation is claimed.
+checked locally. The [finite native Scene runner](NATIVE_QUEUED_SEARCH.md) now has
+durable shutdown/result recovery in source. Its approved trigger/bindings, actual
+provider/cost evidence, Object cloud executor and allocation for other paid work
+remain unfinished; no operational activation is claimed.
 This supersedes Free-only owner-local/full-recomputation recommendations below.
 
 The [13 October low-cost plan](LOW_COST_LAUNCH_PLAN_20261013.md) records the
