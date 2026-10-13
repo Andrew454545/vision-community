@@ -39,8 +39,12 @@ qualified and no provider, cloud, Actions or model execution occurred.
 The [trusted fixed-input score comparator](OBJECT_SCORE_QUALIFICATION.md) now
 recomputes sample differences from actual portable outputs under pinned policy.
 It deliberately grants no complete account qualification or publication authority.
-Next connect full indexed-feature/quality sample parity, reusable Object profile qualification, independently
-current Scene/protected authority and distinctly marked qualification-based
-publication/once-only credit. Reuse this inspector; do not manufacture an
+The [combined numerical comparator](OBJECT_INDEX_QUALIFICATION.md),
+[account registry](OBJECT_ACCOUNT_QUALIFICATION.md) and
+[qualified eligibility checker](QUALIFIED_OBJECT_ELIGIBILITY.md) now connect those
+read-only source components, including current Scene membership and private live
+protection. Actual platform evidence/setup remain pending. Next implement distinct
+qualified Object staging/assignment and atomic publication/once-only credit.
+Reuse these inspectors; do not manufacture an
 approved audit job to pass the original settlement gate. Activation and the
 [real launch gates](PRODUCTION_ACCEPTANCE.md) remain outstanding.

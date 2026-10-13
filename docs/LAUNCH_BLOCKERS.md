@@ -14,6 +14,10 @@ adapter](OBJECT_ACCOUNT_QUALIFICATION.md) add optional reusable records and
 revocation. [Private owned-sample lookup and local delivery](OBJECT_QUALIFICATION_HOST.md)
 are now implemented and checked offline. Actual approved transport/host setup,
 authentic platform results and distinct qualified settlement remain open.
+The [qualified eligibility inspector](QUALIFIED_OBJECT_ELIGIBILITY.md) now
+connects active profile qualification, current Scene/Gen4 state and original-source
+protection in source. It grants no publication or credit; distinct qualified
+staging/assignment and atomic settlement/recovery are next.
 The [shared search allocation/router](HYBRID_SEARCH_QUEUE.md) is implemented and
 checked locally. The [finite native Scene runner](NATIVE_QUEUED_SEARCH.md) now has
 durable shutdown/result recovery in source. Its approved trigger/bindings, actual
