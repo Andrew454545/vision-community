@@ -27,7 +27,10 @@ files. It starts no incoming server and installs nothing globally.
 
 Use the approved private Python runtime for these modules. The configuration has
 exact top-level fields `version`, `scope`, `origin`, `environment`, `state`,
-`binding` and `native`; secrets are forbidden. `binding` is the independently
+`binding` and `native`; secrets are forbidden. The optional `retirement` field
+may only be `true`; omit it to leave [published-job cleanup](OWNER_OBJECT_RETIREMENT.md)
+off. Adding it changes the configuration SHA and requires independent review
+and a matching explicit activation after operational approval. `binding` is the independently
 approved Object settlement policy/runtime/quality/protection/resource binding.
 `native` has absolute `binary`, `models`, `policy`, `registry` and `spool` paths,
 plus `policySha256` and `registrySha256`. The policy pin must match the binding.
@@ -68,6 +71,6 @@ resubmit old jobs. Native failures never retry automatically.
 configuration/activation boundaries, dedicated vault setup, the actual saved-job
 constructor path and committed replay without native assets. It is not authentic
 inference, actual Mac execution, real accepted contributions or launch approval.
-Outbound cancellation/deletion/retirement, trusted assignment automation, bounded
+Outbound cancellation/deletion, trusted assignment automation, bounded
 metadata, approved real startup/credential checks and the
 [launch gates](PRODUCTION_ACCEPTANCE.md) remain required.

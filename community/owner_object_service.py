@@ -41,9 +41,11 @@ def load_configuration(path,checksum):
         require(isinstance(checksum,str) and len(checksum)==64 and all(c in '0123456789abcdef' for c in checksum))
         path=plain_path(absolute_path(str(path)))
         doc=strict_json(pinned_read(path,checksum,MAX_CONFIG))
-        require(isinstance(doc,dict) and set(doc)=={'version','scope','origin','environment','state','binding','native'}
+        keys={'version','scope','origin','environment','state','binding','native'}
+        require(isinstance(doc,dict) and set(doc) in (keys,keys|{'retirement'})
             and type(doc['version']) is int and doc['version']==1 and doc['scope']==SCOPE
             and doc['environment'] in {'staging','production'} and canonical_origin(doc['origin'])==doc['origin'])
+        require('retirement' not in doc or doc['retirement'] is True)
         require(binding(doc['binding'])['resource']==resource_for_environment(doc['environment']))
         state=plain_path(absolute_path(doc['state']),directory=True)
         source=Path(__file__).resolve().parents[1]
@@ -107,6 +109,7 @@ class LazyVerifier:
         self.guard();return self.engine
     def handle(self,*args):return self._get().handle(*args)
     def work_once(self):return self._get().work_once()
+    def cleanup_once(self):return self._get().cleanup_once()
     def close(self):
         if self.engine is not None:self.engine.jobs.close();self.engine=None
 
@@ -124,6 +127,9 @@ def run_service(path,checksum,*,once=False,stop_event=None):
             guard();engine=LazyVerifier(config,guard)
             try:
                 owner=OwnerObjectAuditAgent(LazyCoordinator(config['origin'],guard),engine,state,config['binding'],guard=guard)
+                if config.get('retirement'):
+                    from .owner_object_retirement import OwnerObjectRetirementAgent
+                    owner=OwnerObjectRetirementAgent(owner)
                 supervisor=OwnerSearchSupervisor(owner,native_failure='native_verification_failed')
                 return supervisor.step() if once else supervisor.run(stop_event or threading.Event())
             finally:

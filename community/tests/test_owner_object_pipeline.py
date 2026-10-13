@@ -21,11 +21,13 @@ from community.search_snapshot import digest, encoded
 from community.tests import test_protected_origin as fixtures
 from community import owner_object_service as service
 from community import native_object_verifier as native
+from community.owner_object_retirement import OwnerObjectRetirementAgent
 
 NODE_FIXTURE=r'''
 import readline from 'node:readline';
 import {ownerFixture,SECRET} from './deploy/cloudflare/src/ownerObjectAudit.fixture.mjs';
 import worker from './deploy/cloudflare/src/worker.js';
+import {prepareObjectAuditRetention} from './deploy/cloudflare/tools/prepare-object-audit-retention.mjs';
 globalThis.fetch=()=>{throw Error('fixture_network_forbidden');};
 let fixture,offset=0,cleanups=[];const realNow=Date.now;Date.now=()=>realNow()+offset*1000;
 try {
@@ -38,6 +40,7 @@ try {
     for(const name of ['API_RATE_LIMITER','API_INGRESS_LIMITER','API_VIEW_LIMITER'])fixture.env[name]={async limit(){return {success:true};}};
     answer={ready:true};
    } else if(input.action==='advance'){offset=input.seconds;answer={advanced:true};}
+   else if(input.action==='prepareRetirement'){await prepareObjectAuditRetention(fixture.env.DB);answer={prepared:true};}
    else if(input.action==='counts')answer=fixture.counts();
    else {
     const reply=await worker.fetch(new Request('https://fixture.invalid/api/object-audit-agent/'+input.action,{
@@ -88,6 +91,7 @@ class PipeCoordinator:
                   'owner_object_claim_lost':'object_claim_lost'}.get(code,code)
             raise OwnerSearchError(code,answer['status'])
         if action=='complete' and self.error_mode=='after':raise OwnerSearchError('coordinator_unavailable',503)
+        if action=='retirement-ack' and self.error_mode=='retirement-after':raise OwnerSearchError('coordinator_unavailable',503)
         return answer['raw'].encode() if action=='candidate' else json.loads(answer['raw'])
 
 
@@ -191,4 +195,23 @@ class OwnerObjectPipelineTests(unittest.TestCase):
             self.assertEqual(service.run_service(path,pin,once=True)['status'],'completed');constructor.assert_not_called()
         self.assertEqual(self.coordinator.completions[-1],encoded(json.loads(saved)['body']))
         self.assertEqual(f.calls,['runtime-info','index-segment','verify-index','verify-index'])
+        self.assertEqual(self.counts(),{'publications':2,'ledger':1,'accepted':1,'units':20})
+
+    def test_owner_retirement_releases_only_successful_bulk_and_recovers_ack_without_native_inputs(self):
+        saved=self.interrupted('after');self.coordinator.error_mode=None;self.agent().run_once()
+        audit=json.loads(saved)['body']['audit'];job=audit['jobId']
+        attempt=self.jobs.work/('attempts-'+job)/'attempt-1';report=attempt/'audit-report.json';original=report.read_bytes()
+        self.assertTrue((self.jobs.work/job/'candidate').exists());self.assertTrue((attempt/'reference').exists())
+        self.coordinator.rpc({'action':'prepareRetirement'});self.coordinator.error_mode='retirement-after'
+        with patch.object(self.fixture.verifier,'run',side_effect=AssertionError('cleanup cannot infer')):
+            with self.assertRaisesRegex(OwnerSearchError,'coordinator_unavailable'):
+                OwnerObjectRetirementAgent(self.agent()).run_once()
+        self.assertFalse((self.jobs.work/job).exists());self.assertFalse((attempt/'reference').exists())
+        self.assertEqual(report.read_bytes(),original);self.assertEqual(self.jobs.get(job)['state'],'retired')
+        pending=(self.state/'retirement-outbox.json').read_bytes();self.coordinator.error_mode=None
+        with patch.object(self.engine,'handle',side_effect=AssertionError('saved ack needs no native files')) as handle:
+            self.assertEqual(OwnerObjectRetirementAgent(self.agent()).run_once()['status'],'completed');handle.assert_not_called()
+        self.assertFalse((self.state/'retirement-outbox.json').exists())
+        self.assertEqual(json.loads(pending)['audit']['state'],'retired')
+        self.assertEqual(self.fixture.calls,['runtime-info','index-segment','verify-index','verify-index'])
         self.assertEqual(self.counts(),{'publications':2,'ledger':1,'accepted':1,'units':20})
