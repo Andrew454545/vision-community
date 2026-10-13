@@ -8,13 +8,14 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 import http.client
+import math
 import os
 from pathlib import Path
 import re
 from urllib.parse import urlsplit
 
 from .native_scene_search import plain_path, query_bytes, strict_json
-from .search_snapshot import bounded_read, encoded
+from .search_snapshot import MAX_LOCATIONS, bounded_read, encoded
 
 MAX_REPLY = 1024 * 1024 + 8192
 ID = re.compile(r"[0-9a-f]{32}\Z")
@@ -168,6 +169,45 @@ class OwnerSearchAgent:
             pass
 
     @staticmethod
+    def _result(result, lane, query):
+        """Allow only the optional bounded Scene proof extension, never echoes.
+
+        Root authority stays at the gateway. Validate the transport shape here
+        without reserializing proof member JSON or loading native input files.
+        """
+        keys = {'contractVersion', 'policyId', 'runtimeSha256', 'snapshotSha256',
+                'requestSha256', 'processedLocations', 'hits'}
+        if not isinstance(result, dict) or set(result) not in (keys, keys | {'membership'}):
+            raise OwnerSearchError('invalid_owner_result')
+        if 'membership' in result:
+            from .scene_membership import MAX_MEMBER_BYTES, MAX_PROOF_HITS, member_bytes
+            count, hits, proofs = query.get('resultCount'), result['hits'], result['membership']
+            if (lane != 'scene' or type(count) is not int or not 1 <= count <= MAX_PROOF_HITS
+                    or not isinstance(hits, list) or len(hits) > count
+                    or not isinstance(proofs, list) or len(proofs) != len(hits)):
+                raise OwnerSearchError('invalid_owner_result')
+            for hit, proof in zip(hits, proofs):
+                if (not isinstance(hit, dict) or set(hit) != {'locationId', 'sourceIndex', 'outputSha256', 'score', 'viewOffset'}
+                        or type(hit.get('sourceIndex')) is not int or not 0 <= hit['sourceIndex'] < MAX_LOCATIONS
+                        or type(hit.get('locationId')) is not int
+                        or type(hit.get('score')) not in (int, float) or not math.isfinite(hit['score'])
+                        or not 0 <= hit['score'] <= 1 or type(hit.get('viewOffset')) is not int or not 0 <= hit['viewOffset'] <= 3
+                        or not isinstance(proof, dict)
+                        or set(proof) != {'memberJson', 'siblings'}
+                        or not isinstance(proof['memberJson'], str)
+                        or len(proof['memberJson'].encode('utf-8')) > MAX_MEMBER_BYTES
+                        or not isinstance(proof['siblings'], list) or len(proof['siblings']) > 17
+                        or any(not isinstance(v, str) or not TOKEN.fullmatch(v) for v in proof['siblings'])):
+                    raise OwnerSearchError('invalid_owner_result')
+                member = strict_json(proof['memberJson'].encode('utf-8'))
+                member_bytes(member, hit.get('sourceIndex'))
+                if member['locationId'] != hit.get('locationId') or member['outputSha256'] != hit.get('outputSha256'):
+                    raise OwnerSearchError('invalid_owner_result')
+        if len(encoded(result)) > 1024 * 1024:
+            raise OwnerSearchError('invalid_owner_result')
+        return result
+
+    @staticmethod
     def _validate_outbox(document):
         if (not isinstance(document, dict) or set(document) != {"action", "body"}
                 or document["action"] not in {"complete", "fail"} or not isinstance(document["body"], dict)):
@@ -257,10 +297,7 @@ class OwnerSearchAgent:
                     raise OwnerSearchError("invalid_owner_binding")
                 result = engine.search(request, raw_query=query_bytes(raw))
                 # Never retain an engine's echoed prompt; the contract excludes query.
-                if not isinstance(result, dict) or set(result) != {
-                    "contractVersion", "policyId", "runtimeSha256", "snapshotSha256", "requestSha256", "processedLocations", "hits"
-                } or len(encoded(result)) > 1024 * 1024:
-                    raise OwnerSearchError("invalid_owner_result")
+                self._result(result, lane, request['query'])
                 if self.bindings is not None and ({key: result.get(key) for key in self.bindings[lane]} != self.bindings[lane]
                         or result.get("requestSha256") != request.get("requestSha256")):
                     raise OwnerSearchError("invalid_owner_binding")

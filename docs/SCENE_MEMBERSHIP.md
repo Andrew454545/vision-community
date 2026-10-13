@@ -79,6 +79,16 @@ notation/Unicode, empty per-location catalogs, once-only debit, deletion fences
 and the browser's real readiness function. Initial failures remain preserved;
 the receipt identifies their fixes rather than erasing them.
 
+[The owner-delivery supplement](evidence/scene-owner-delivery-20261013.json)
+closes a later-discovered integration gap: the transport still required the old
+seven-field result and would reject the wrapper's membership proofs. It now
+accepts only the bounded Scene extension, preserving exact member JSON. The
+assembled private runner, real Worker handler and reopened local SQLite database
+pass lost-acknowledgement replay and deletion-before-completion checks. The
+supplement records **58 Python and 14 Node checks, no skips**. Native scores,
+credits and credential access are fictional or mocked; no live service ran.
+The earlier receipt covers its component checks, not this complete owner path.
+
 This removes per-result Scene catalog lookups only. Admission, Object membership,
 status reporting and historical publication rows still use D1. Trusted outbound
 verification/import, bounded batch metadata, withdrawal/recovery authority and

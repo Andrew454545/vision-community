@@ -10,11 +10,59 @@ from unittest.mock import Mock, patch
 
 from community import scene_membership as seal
 from community import native_scene_search as native
+from community import owner_search_service as service
+from community.owner_search_agent import OwnerSearchError
 from community.search_snapshot import digest, encoded
 from community.tests import test_search_snapshot as snapshot_fixture
 from community.tests import test_native_scene_search as native_fixture
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+class LocalWorkerCoordinator:
+    """Finite real Worker/SQLite calls, no HTTPS, vault, model or cloud access."""
+
+    def __init__(self, root, header, raw_query):
+        self.root, self.header, self.raw_query = root, header, raw_query
+        self.node = os.environ.get('VISION_TEST_NODE') or shutil.which('node')
+        if not self.node:
+            raise AssertionError('Use the existing private Node runtime')
+        self.database = root/'fictional.sqlite'
+        self.calls, self.sequence = [], 0
+        self.lose_reply, self.delete_before_complete, self.invalid_root = False, False, False
+        self.step('initialize')
+
+    def step(self, action, body=None):
+        self.sequence += 1
+        stem = self.root/('bridge-'+str(self.sequence))
+        document = {'header':self.header, 'rawQuery':self.raw_query, 'action':action,
+                    'body':body, 'invalidRoot':self.invalid_root}
+        command = stem.with_suffix('.json'); command.write_bytes(encoded(document))
+        script = "import{transportStep}from './deploy/cloudflare/src/sceneMembership.fixture.mjs';import{readFileSync}from'node:fs';console.log(JSON.stringify(await transportStep(JSON.parse(readFileSync(process.argv[1],'utf8')),process.argv[2])));"
+        environment = {k:v for k,v in os.environ.items() if k in {'SystemRoot','SYSTEMROOT','TEMP','TMP','TMPDIR'}}
+        child = subprocess.run([self.node,'--disable-warning=ExperimentalWarning','--input-type=module','-e',script,
+                                str(command),str(self.database)],cwd=ROOT,env=environment,
+                               capture_output=True,timeout=30,
+                               creationflags=subprocess.CREATE_NO_WINDOW if os.name=='nt' else 0)
+        # Every finite child's evidence stays private, including the first failure.
+        stem.with_suffix('.stdout.log').write_bytes(child.stdout)
+        stem.with_suffix('.stderr.log').write_bytes(child.stderr)
+        if child.returncode:
+            raise AssertionError(child.stderr.decode(errors='replace'))
+        return json.loads(child.stdout)
+
+    def post(self, action, body):
+        self.calls.append((action,copy.deepcopy(body)))
+        if action=='complete' and self.delete_before_complete:
+            self.step('delete'); self.delete_before_complete=False
+        response = self.step(action,body)
+        if response['status'] != 200:
+            code = 'search_claim_lost' if response['status']==409 and response['document'].get('error')=='search_claim_lost' else 'coordinator_unavailable'
+            raise OwnerSearchError(code,response['status'])
+        if action=='complete' and self.lose_reply:
+            self.lose_reply=False
+            raise OwnerSearchError('coordinator_unavailable')
+        return response['document']
 
 
 class SceneMembershipTests(unittest.TestCase):
@@ -23,6 +71,8 @@ class SceneMembershipTests(unittest.TestCase):
         self.fixture = snapshot_fixture.SearchSnapshotTest('runTest')
         self.fixture.setUp(); self.addCleanup(self.fixture.doCleanups)
         self.root = self.fixture.root.resolve()
+        if self._testMethodName.startswith('test_actual_owner_service_'):
+            self.addCleanup(self.preserve_bridge_evidence,self._testMethodName,self.root/'owner-state')
         self.fixture.rows[0]['country'] = 'Côte d’Ivoire'
         self.fixture.rows[0]['lat'] = 1e-7
         for reference in self.fixture.policy['references']:
@@ -164,6 +214,85 @@ class SceneMembershipTests(unittest.TestCase):
         response=json.loads(result.stdout)
         self.assertEqual(response,[{'status':'SEALED_SCENE_MEMBERSHIP_INTEROP_PASSED','results':n,
             'catalogLookups':0,'onceOnlyDebits':1,'deletionFences':1,'synthetic':True,'liveReady':False} for n in (2,4)])
+
+    def assembled_service(self):
+        # A fictional pinned runtime substitutes only inference. The real seal,
+        # wrapper, service guards, locks, supervisor, outbox and gateway execute.
+        runtime_folder=self.root/'service-runtime';runtime_folder.mkdir()
+        runtime=runtime_folder/'fictional-runtime.json'
+        runtime.write_bytes(encoded({'contractVersion':2,'policyId':'synthetic-test-only'}))
+        runtime_pin=digest(runtime.read_bytes())
+        report=seal.build_membership(self.snapshot,self.snapshot_pin,self.root/'service-membership',
+            environment='production',policy_id='synthetic-test-only',runtime_sha256=runtime_pin)
+        state=self.root/'owner-state';state.mkdir()
+        config={'version':1,'scope':service.SCOPE,'origin':'https://community.example.test',
+            'environment':'production','state':str(state),'lanes':{'scene':{
+                'policyId':'synthetic-test-only','runtime':str(runtime),'runtimeSha256':runtime_pin,
+                'snapshot':str(self.snapshot),'snapshotSha256':self.snapshot_pin,
+                'membership':str(self.root/'service-membership/membership.json'),
+                'membershipSha256':report['membershipSha256']}}}
+        path=self.root/'service.private.json';path.write_bytes(encoded(config));pin=digest(path.read_bytes())
+        (state/service.ACTIVATION).write_bytes(encoded({'version':1,'scope':'explicit-owner-search-activation',
+            'approved':True,'configSha256':pin,'origin':config['origin'],'environment':'production'}))
+        raw=json.dumps(native_fixture.query(resultCount=2,prompt='café road'),ensure_ascii=False,separators=(',',':'))
+        coordinator=LocalWorkerCoordinator(self.root,report['coordinatorBinding'],raw)
+        engine=Mock()
+        def search(request,*,raw_query):
+            self.assertEqual(raw_query,raw.encode())
+            packet=self.packet();packet.update(runtimeSha256=runtime_pin,requestSha256=digest(raw_query))
+            self.assertEqual(request['requestSha256'],packet['requestSha256'])
+            return packet
+        engine.search.side_effect=search
+        return path,pin,state,coordinator,engine
+
+    def preserve_bridge_evidence(self, name, state):
+        destination=os.environ.get('VISION_TEST_EVIDENCE_DIR')
+        if destination:
+            folder=Path(destination)/name;folder.mkdir(exist_ok=False)
+            for path in self.root.glob('bridge-*'):shutil.copyfile(path,folder/path.name)
+            for path in state.glob('*.json'):shutil.copyfile(path,folder/path.name)
+
+    def test_actual_owner_service_proof_delivery_lost_ack_restart_and_paid_recovery_without_native_files(self):
+        path,pin,state,coordinator,engine=self.assembled_service()
+        coordinator.lose_reply=True
+        with patch.object(service.HTTPSCoordinator,'from_os_credentials',return_value=coordinator), \
+                patch.object(native,'NativeSceneEngine',return_value=engine) as constructor:
+            first=service.run_service(path,pin,once=True)
+            self.assertEqual(first['status'],'retry_wait')
+            self.assertEqual(coordinator.step('stats')['document'],
+                {'units':100,'debits':1,'paidReplies':1,'locations':0,'publications':0})
+            saved=(state/'outbox.json').read_bytes()
+            failure=(state/'supervisor.failure.json').read_bytes()
+            self.assertIn(b'1e-07',saved)
+            self.assertNotIn('café road'.encode(),saved)
+            # Exact paid completion replay must precede all new root/native checks.
+            shutil.rmtree(self.root/'service-membership');shutil.rmtree(self.snapshot)
+            shutil.rmtree(self.root/'service-runtime');coordinator.invalid_root=True
+            timer=state/'supervisor.json';value=json.loads(timer.read_bytes())
+            value['nextAttemptAt']=0;timer.write_bytes(encoded(value))
+            engine.search.side_effect=AssertionError('No recomputation after paid acknowledgement loss')
+            second=service.run_service(path,pin,once=True)
+            self.assertEqual(second['status'],'completed')
+            constructor.assert_called_once();engine.search.assert_called_once()
+        self.assertEqual([action for action,_ in coordinator.calls],['claim','complete','complete'])
+        self.assertEqual(coordinator.calls[-1][1],coordinator.calls[-2][1])
+        self.assertEqual(saved,encoded({'action':'complete','body':coordinator.calls[-1][1]}))
+        self.assertFalse((state/'outbox.json').exists())
+        self.assertEqual((state/'supervisor.failure.json').read_bytes(),failure)
+        self.assertEqual(coordinator.step('stats')['document'],
+            {'units':100,'debits':1,'paidReplies':1,'locations':0,'publications':0})
+
+    def test_actual_owner_service_account_deletion_before_proof_delivery_prevents_payment(self):
+        path,pin,state,coordinator,engine=self.assembled_service()
+        coordinator.delete_before_complete=True
+        with patch.object(service.HTTPSCoordinator,'from_os_credentials',return_value=coordinator), \
+                patch.object(native,'NativeSceneEngine',return_value=engine):
+            self.assertEqual(service.run_service(path,pin,once=True)['status'],'claim_lost')
+        engine.search.assert_called_once()
+        self.assertEqual([action for action,_ in coordinator.calls],['claim','complete'])
+        self.assertFalse((state/'outbox.json').exists())
+        self.assertEqual(coordinator.step('stats')['document'],
+            {'units':0,'debits':0,'paidReplies':0,'locations':0,'publications':0})
 
 
 if __name__=='__main__': unittest.main()

@@ -185,7 +185,11 @@ These are offline protocol/accounting checks. They do **not** prove real Mac/PC
 inference, accepted contributions, live owner execution, Free-plan CPU/row budgets,
 signing or a continuous soak. Optional [sealed Scene membership](SCENE_MEMBERSHIP.md)
 now removes per-result Scene D1 lookups in source; it is disabled and leaves Object,
-admission, status and historical catalog records unchanged. Durable paid replies
+admission, status and historical catalog records unchanged.
+The [owner-delivery supplement](evidence/scene-owner-delivery-20261013.json) fixes
+the transport's old result-shape check and verifies the assembled optional proof
+path, lost-acknowledgement recovery and deletion fences with local fictional data.
+Durable paid replies
 also consume growing storage and need an authorized retention/storage design.
 Next: outbound trusted verification/import jobs, bounded admission/catalog metadata
 and owner startup; then the approved migration,

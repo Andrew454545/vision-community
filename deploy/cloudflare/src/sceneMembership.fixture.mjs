@@ -5,6 +5,8 @@ import {readFileSync} from 'node:fs';
 import {queueSearch,claimQueuedSearch,completeQueuedSearch} from './searchQueue.js';
 import {deleteAccount,migrateAccountPrivacy} from './accountPrivacy.js';
 import {searchDigest,verifiedSearchResult} from './onlineSearch.js';
+import worker from './worker.js';
+import {prepareDatabase} from '../tools/initialize-schema.mjs';
 
 export const ACCOUNT='a'.repeat(32), NOW=2000000000;
 export const RESOURCE={accountId:'272760294910ef0b246980278aeb36e2',
@@ -44,19 +46,23 @@ export function packetFixture(tree,requestSha256) {
       sourceIndex:m.sourceIndex,score:.9-i*.1,viewOffset:1})),
     membership:tree.members.slice(0,3).map((_,i)=>tree.proof(i))};
 }
-export async function accountingFixture(tree=treeFixture()) {
-  const sql=new DatabaseSync(':memory:'),queries=[];
+export async function accountingFixture(tree=treeFixture(),{file=':memory:',initialize=true}={}) {
+  const sql=new DatabaseSync(file),queries=[];
+  if(initialize){
   sql.exec(readFileSync(new URL('../schema.sql',import.meta.url),'utf8'));
   sql.exec('ALTER TABLE pose_catalog ADD COLUMN assignee TEXT; ALTER TABLE pose_catalog ADD COLUMN assigned_at INTEGER;');
+  }
   const db={prepare(query){queries.push(query);const statement=(args=[])=>({bind:(...v)=>statement(v),
     first:async()=>sql.prepare(query).get(...args)||null,all:async()=>({results:sql.prepare(query).all(...args)}),
     run:async()=>statement(args).execute(),execute:()=>({meta:{changes:Number(sql.prepare(query).run(...args).changes)}})
   });return statement();},async batch(statements){sql.exec('BEGIN IMMEDIATE');try{
     const rows=statements.map(s=>s.execute());sql.exec('COMMIT');return rows;
   }catch(error){sql.exec('ROLLBACK');throw error;}}};
+  if(initialize){
   await migrateAccountPrivacy({DB:db});sql.exec(readFileSync(new URL('../search-queue.sql',import.meta.url),'utf8'));
   sql.prepare('INSERT INTO accounts(id,token_hash,units) VALUES(?,?,?)').run(ACCOUNT,'fictional-account-token',200);
   sql.prepare('INSERT INTO ledger(account_id,units,reason,reference) VALUES(?,?,?,?)').run(ACCOUNT,200,'fixture-only','fictional-starting-credit');
+  }
   const env={DB:db,DEPLOYMENT_ENVIRONMENT:tree.header.environment,INDEX_BUCKET_NAME:tree.header.resource.bucket,SEARCH_DELIVERY:'queued-v1',
     SEARCH_AGENT_SECRET:'f'.repeat(64),SEARCH_COST_UNITS:'100',SEARCH_POLICY_ID:tree.header.policyId,
     SEARCH_RUNTIME_SHA256:tree.header.runtimeSha256,SEARCH_SNAPSHOT_SHA256:tree.header.snapshotSha256,
@@ -66,6 +72,41 @@ export async function accountingFixture(tree=treeFixture()) {
   const claim=()=>claimQueuedSearch(env,NOW+1,['scene']);
   const complete=(job,packet,now=NOW+2)=>completeQueuedSearch(env,job.jobId,job.claimToken,packet,now);
   return {sql,queries,env,query,key,enqueue,claim,complete,tree};
+}
+
+// Finite child-process bridge for real Python owner-runner -> Worker -> SQLite
+// recovery tests. Always fictional resources/credit; never an application route.
+export async function transportStep(document,file) {
+  if(!['initialize','claim','complete','fail','stats','delete'].includes(document.action))throw Error('fixture_action');
+  const f=await accountingFixture({header:document.header},{file,initialize:document.action==='initialize'});
+  try {
+    const now=Math.floor(Date.now()/1000);
+    if(document.action==='initialize'){
+      await prepareDatabase(f.env.DB);
+      const query=JSON.parse(document.rawQuery),key=`q1.${now}.`+'1'.repeat(32);
+      await queueSearch(f.env,ACCOUNT,key,query,{now,maxCostUnits:100});
+      return {status:200,document:{initialized:true}};
+    }
+    if(document.action==='stats')return {status:200,document:{
+      units:f.sql.prepare('SELECT units FROM accounts WHERE id=?').get(ACCOUNT)?.units??null,
+      debits:f.sql.prepare("SELECT COUNT(*) AS n FROM ledger WHERE reason='search'").get().n,
+      paidReplies:f.sql.prepare('SELECT COUNT(*) AS n FROM searches').get().n,
+      locations:f.sql.prepare('SELECT COUNT(*) AS n FROM locations').get().n,
+      publications:f.sql.prepare('SELECT COUNT(*) AS n FROM published_index').get().n,
+    }};
+    if(document.action==='delete'){
+      await deleteAccount(f.env,ACCOUNT,{accountId:ACCOUNT,idempotencyKey:'e'.repeat(64),confirmation:'DELETE'},now);
+      return {status:200,document:{deleted:true}};
+    }
+    f.env.RATE_LIMITS_REQUIRED='1';
+    for(const name of ['API_RATE_LIMITER','API_INGRESS_LIMITER','API_VIEW_LIMITER'])
+      f.env[name]={async limit(){return{success:true};}};
+    if(document.invalidRoot)f.env.SEARCH_SCENE_MEMBERSHIP='broken-fixture-root';
+    const response=await worker.fetch(new Request(`https://fixture.invalid/api/search-agent/${document.action}`,{
+      method:'POST',headers:{authorization:`Bearer ${f.env.SEARCH_AGENT_SECRET}`,'content-type':'application/json'},
+      body:JSON.stringify(document.body)}),f.env);
+    return {status:response.status,document:await response.json()};
+  }finally{f.sql.close();}
 }
 
 export async function interop(document) {

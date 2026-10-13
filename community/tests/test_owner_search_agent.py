@@ -62,6 +62,65 @@ class OwnerSearchAgentTest(unittest.TestCase):
     def agent(self):
         return OwnerSearchAgent(self.coordinator, {"scene": self.engine}, self.state)
 
+    def membership_result(self):
+        value = json.loads(job()['requestJson'])
+        member = '{"sourceIndex":0,"locationId":1,"outputSha256":"'+ 'f'*64 + '\",' + \
+            '"pose":{"lat":1e-7,"lng":20,"heading":90,"pitch":0,"zoom":0,"panoId":"fictional-pano",' + \
+            '"capture":"fictional","country":"Côte d’Ivoire","cameraGeneration":"gen1"}}'
+        return {**{k:v for k,v in value.items() if k!='query'},'processedLocations':1,
+            'hits':[{'sourceIndex':0,'locationId':1,'outputSha256':'f'*64,'score':.9,'viewOffset':0}],
+            'membership':[{'memberJson':member,'siblings':[]}]}
+
+    def test_optional_scene_proofs_preserve_exact_member_json_and_existing_packet_identity(self):
+        packet=self.membership_result();before=encoded(packet)
+        self.assertIs(OwnerSearchAgent._result(packet,'scene',{'resultCount':1}),packet)
+        self.assertEqual(encoded(packet),before)
+        self.assertIn('"lat":1e-7',packet['membership'][0]['memberJson'])
+
+    def test_scene_proof_extension_cannot_enter_object_lane_or_exceed_its_request_bound(self):
+        packet=self.membership_result()
+        for lane,count in (('object',1),('scene',True),('scene',0),('scene',65),('scene','1')):
+            with self.subTest(lane=lane,count=count),self.assertRaises(ValueError):
+                OwnerSearchAgent._result(packet,lane,{'resultCount':count})
+
+    def test_unknown_echo_fields_or_malformed_scene_proofs_cannot_enter_a_new_outbox(self):
+        changes=[lambda p:p.update(query='PRIVATE prompt'),lambda p:p['hits'][0].update(prompt='PRIVATE'),
+            lambda p:p['hits'][0].update(sourceIndex=False),lambda p:p['hits'][0].update(sourceIndex=-1),
+            lambda p:p['hits'][0].update(sourceIndex=100000),lambda p:p['hits'][0].update(locationId=True),
+            lambda p:p['hits'][0].update(score=float('nan')),lambda p:p['hits'][0].update(viewOffset=True),
+            lambda p:p['membership'][0].update(extra='PRIVATE'),lambda p:p['membership'].clear(),
+            lambda p:p['membership'][0].update(memberJson='x'*8193),
+            lambda p:p['membership'][0].update(siblings=['e'*64]*18),
+            lambda p:p['membership'][0].update(siblings=['wrong']),
+            lambda p:p['membership'][0].update(memberJson='{"pose":"PRIVATE"}'),
+            lambda p:p['hits'][0].update(outputSha256='e'*64)]
+        for change in changes:
+            packet=self.membership_result();change(packet)
+            with self.assertRaises(ValueError):OwnerSearchAgent._result(packet,'scene',{'resultCount':1})
+
+    def test_proof_completion_lost_ack_replays_exact_bytes_before_unavailable_engine(self):
+        value=json.loads(self.coordinator.job['requestJson']);value['query']['resultCount']=1
+        self.coordinator.job['requestJson']=json.dumps(value,ensure_ascii=False)
+        self.coordinator.lose_reply=True
+        with patch.object(self.engine,'search',return_value=self.membership_result()) as compute:
+            with self.assertRaisesRegex(OwnerSearchError,'coordinator_unavailable'):self.agent().run_once()
+            saved=(self.state/'outbox.json').read_bytes()
+            compute.side_effect=AssertionError('Saved completion must not recompute')
+            self.assertEqual(self.agent().run_once(),{'status':'completed'})
+        self.assertEqual(compute.call_count,1)
+        self.assertEqual(encoded({'action':'complete','body':self.coordinator.calls[-1][1]}),saved)
+        self.assertIn(b'1e-7',saved)
+
+    def test_invalid_proof_reports_only_fixed_failure_without_echoing_private_native_details(self):
+        value=json.loads(self.coordinator.job['requestJson']);value['query']['resultCount']=1
+        self.coordinator.job['requestJson']=json.dumps(value)
+        packet=self.membership_result();packet['membership'][0]['extra']='PRIVATE native detail'
+        with patch.object(self.engine,'search',return_value=packet):
+            self.assertEqual(self.agent().run_once(),{'status':'failed'})
+        self.assertEqual(self.coordinator.calls[-1][0],'fail')
+        self.assertNotIn('result',self.coordinator.calls[-1][1])
+        self.assertNotIn(b'PRIVATE',(self.state/'failure-owner_search_failed.json').read_bytes())
+
     @staticmethod
     def binding(value=None):
         request = json.loads((value or job())["requestJson"])
