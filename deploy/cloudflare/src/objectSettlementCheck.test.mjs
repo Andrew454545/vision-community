@@ -7,7 +7,7 @@ import {sqliteD1} from '../tools/sqlite-d1.mjs';
 import {prepareDatabase} from '../tools/initialize-schema.mjs';
 import {prepareObjectAuditDispatch} from '../tools/prepare-object-audit-dispatch.mjs';
 import {stageObjectAudit,advanceObjectAudit} from './objectAuditDispatch.js';
-import {checkObjectSettlement} from './objectSettlementCheck.js';
+import {checkObjectSettlement,inspectObjectUpload} from './objectSettlementCheck.js';
 import {syntheticR2} from './syntheticR2.mjs';
 import {sha256Hex,encodeUtf8} from './model.js';
 import {OBJECT_INDEX_MODEL} from './objectIndex.js';
@@ -15,7 +15,7 @@ import {COVERAGE_VALIDATOR} from './objectCoverage.js';
 import {objectCapabilities} from './objectAdmission.js';
 const doc=JSON.parse(readFileSync(new URL('../../../community/tests/fixtures/object-feature-content-v1.json',import.meta.url),'utf8'));
 const account='b'.repeat(32),lease=doc.leaseId,job='c'.repeat(32),now=100000;
-async function setup(t) {
+async function setup(t,audited=true) {
   const sql=new DatabaseSync(':memory:');t.after(()=>sql.close());
   const objects=new Map(),r2=syntheticR2(objects);
   const env={DB:sqliteD1(sql),INDEX:{...r2,async get(key){const obj=await r2.get(key);
@@ -47,12 +47,71 @@ async function setup(t) {
   await stageObjectAudit(env,account,authority,index,now);
   let posts=0,gets=0;
   env.OBJECT_VERIFIER={fetch(request){if(request.method==='POST')posts++;else gets++;return Response.json(reply());}};
-  await advanceObjectAudit(env,account,lease,now);
+  if(audited)await advanceObjectAudit(env,account,lease,now);
   const state=()=>JSON.stringify(Object.fromEntries(['accounts','leases','locations','lease_items','object_coverage',
     'object_audit_candidates','account_artifact_writes','published_index','ledger'].map(table=>[table,sql.prepare('SELECT * FROM '+table).all()])));
   const check=(time=now,timeout=20000)=>checkObjectSettlement(env,account,lease,time,timeout);
-  return {sql,env,objects,row,index,reply,check,state,calls:()=>({posts,gets})};
+  return {sql,env,objects,row,index,reply,check,state,calls:()=>({posts,gets}),
+    inspect:(time=now,timeout=20000)=>inspectObjectUpload(env,account,lease,time,timeout)};
 }
+
+test('routine Object integrity inspection needs no native approval or binding and grants no authority',async t=>{
+  const f=await setup(t,false);delete f.env.OBJECT_VERIFIER;
+  const before=f.state(),bytes=[...f.objects].map(([k,v])=>[k,Buffer.from(v).toString('base64')]);
+  const value=await f.inspect();
+  assert.equal(value.records.length,2);assert.equal(value.verificationScope,'object-upload-integrity-only');
+  assert.equal(Object.hasOwn(value,'receipt'),false);assert.equal(value.serverAuthorization,false);
+  assert.equal(value.productionQualified,false);assert.equal(value.acceptedContributions,0);assert.equal(value.searchCreditsCreated,0);
+  assert.equal(f.row().native_state,null);assert.equal(f.row().native_attempts,0);
+  assert.equal(JSON.stringify(value.publicManifest).includes('SYNTHETIC-PRIVATE'),false);
+  assert.equal(f.state(),before);assert.deepEqual(f.calls(),{posts:0,gets:0});
+  assert.deepEqual([...f.objects].map(([k,v])=>[k,Buffer.from(v).toString('base64')]),bytes);
+  assert.equal(objectCapabilities().objectContributions.ready,false);
+  // The audited entry point cannot consume this integrity result as approval.
+  f.env.OBJECT_VERIFIER={fetch(){throw Error('unapproved candidate must fail before transport');}};
+  await assert.rejects(f.check(),{message:'object_settlement_evidence_unavailable'});
+  assert.equal(f.state(),before);
+});
+
+test('routine inspection retains owned-assignment, current official Gen4 and exact source fences',async t=>{
+  for(const sql of ["UPDATE accounts SET deleted_at=100001,units=0", "UPDATE object_audit_candidates SET state='cancelled'",
+    "UPDATE leases SET state='expired'",'UPDATE leases SET expires_at=100000',
+    "UPDATE locations SET camera_generation='gen3'", "UPDATE object_coverage SET validator='old'",'UPDATE object_coverage SET validated_at=1',
+    'UPDATE object_coverage SET validated_at=100001','DELETE FROM object_coverage',
+    "UPDATE locations SET active_lease=NULL", "UPDATE locations SET model='old'",'UPDATE locations SET lat=lat+0.000001',
+    'UPDATE locations SET heading=heading+0.01',"UPDATE locations SET country='changed'",
+    'DELETE FROM lease_items WHERE location_id=11',"UPDATE object_dispatch_revision SET contract='future'"]){
+    const f=await setup(t,false);f.sql.exec(sql);const before=f.state();
+    await assert.rejects(f.inspect(),{message:'object_settlement_evidence_unavailable'});
+    assert.equal(f.state(),before);assert.deepEqual(f.calls(),{posts:0,gets:0});
+  }
+});
+
+test('routine inspection refuses corruption, privacy fences and stalled reads without native calls',async t=>{
+  for(const mode of ['checksum','fence','size','stream-hang','database-hang']){
+    const f=await setup(t,false),key=f.row().artifact_key,get=f.env.INDEX.get;
+    if(mode==='checksum')f.objects.set(key,encodeUtf8(' '.repeat(f.row().payload_bytes)));
+    if(mode==='database-hang')f.env.DB={prepare(){return {bind(){return {first:()=>new Promise(()=>{})};}};}};
+    f.env.INDEX.get=async k=>{const obj=await get(k);
+      if(mode==='fence')obj.customMetadata={visionPrivacyFence:'1'};
+      if(mode==='size')obj.size++;
+      if(mode==='stream-hang')obj.body=new ReadableStream({pull:()=>new Promise(()=>{})});
+      return obj;};
+    const before=f.state();
+    await assert.rejects(f.inspect(now,mode.endsWith('hang')?10:20000),{message:'object_settlement_evidence_unavailable'});
+    assert.equal(f.state(),before);assert.deepEqual(f.calls(),{posts:0,gets:0});
+  }
+});
+
+test('routine inspection rechecks cancellation, coverage and pose after asynchronous stored-byte reads',async t=>{
+  for(const change of ["UPDATE object_audit_candidates SET state='cancelled'",'UPDATE locations SET heading=heading+0.01',
+    'UPDATE object_coverage SET validated_at=99999',"UPDATE accounts SET deleted_at=100001,units=0"]){
+    const f=await setup(t,false),get=f.env.INDEX.get;let after;
+    f.env.INDEX.get=async key=>{const object=await get(key);f.sql.exec(change);after=f.state();return object;};
+    await assert.rejects(f.inspect(),{message:'object_settlement_evidence_unavailable'});
+    assert.equal(f.state(),after);assert.deepEqual(f.calls(),{posts:0,gets:0});
+  }
+});
 
 test('fresh correlated receipt and exact stored features pass without writes, acceptance or credits',async t=>{
   const f=await setup(t),before=f.state(),bytes=[...f.objects].map(([k,v])=>[k,Buffer.from(v).toString('base64')]);
