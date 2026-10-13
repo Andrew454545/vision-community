@@ -9,7 +9,9 @@ is implemented in source, with optional [sealed Scene search membership](SCENE_M
 Continue offline owner verification/import and bounded admission/catalog metadata;
 account/resource migration and activation remain undecided.
 The [direct owner-local Object auditor](OWNER_OBJECT_VERIFICATION.md) is built;
-authenticated outbound queue delivery and guarded publication still need integration.
+the optional [Object coordinator](OWNER_OBJECT_DELIVERY.md) connects authenticated
+claims to guarded publication in source. Owner client delivery and outbound
+deletion/retirement still need integration.
 The work below is not permission to restart cloud execution or indexing.
 
 Use the [five acceptance gates](PRODUCTION_ACCEPTANCE.md) as the release boundary.

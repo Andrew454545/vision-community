@@ -192,8 +192,10 @@ path, lost-acknowledgement recovery and deletion fences with local fictional dat
 Durable paid replies
 also consume growing storage and need an authorized retention/storage design.
 The [direct owner-local Object verifier](OWNER_OBJECT_VERIFICATION.md) now reuses
-the saved auditor without an incoming connection. Outbound authenticated queue
-delivery and guarded import/publication remain unfinished.
+the saved auditor without an incoming connection. The optional
+[Object coordinator](OWNER_OBJECT_DELIVERY.md) connects authenticated claims to
+guarded publication/credit. Owner client delivery, durable replay and outbound
+deletion/retirement integration remain unfinished.
 Next: outbound trusted verification/import jobs, bounded admission/catalog metadata
 and owner startup; then the approved migration,
 real acceptance/capacity evidence and [remaining launch gates](PRODUCTION_ACCEPTANCE.md).

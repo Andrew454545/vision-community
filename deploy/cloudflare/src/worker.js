@@ -17,6 +17,8 @@ import { OBJECT_INDEX_MODEL, validateObjectIndex } from "./objectIndex.js";
 import { publicObjectManifest } from "./objectPublicManifest.js";
 import { advanceObjectContribution } from './objectAuditFlow.js';
 import { retireAcceptedObjectAudits } from './objectAuditRetention.js';
+import { ownerObjectDelivery,requireOwnerObjectAgent,claimOwnerObjectAudit,ownerObjectCandidate,
+  completeOwnerObjectAudit,failOwnerObjectAudit,OWNER_OBJECT_RESULT_BYTES } from './ownerObjectAudit.js';
 import { onlineSearch, onlineSearchConfigured, INDEX_DOWNLOAD_ROUTES } from "./onlineSearch.js";
 import { MAX_SEALED_SCENE_HITS } from './sceneMembership.js';
 import { SearchError } from "./searchLedger.js";
@@ -1208,7 +1210,9 @@ const API_METHODS = new Map([
   ['/api/search-jobs','GET'],['/api/search-jobs/cancel','POST'],
   ['/api/searches/recover','GET'],
   ['/api/search-agent/claim','POST'],['/api/search-agent/renew','POST'],
-  ['/api/search-agent/complete','POST'],['/api/search-agent/fail','POST']
+  ['/api/search-agent/complete','POST'],['/api/search-agent/fail','POST'],
+  ['/api/object-audit-agent/claim','POST'],['/api/object-audit-agent/candidate','POST'],
+  ['/api/object-audit-agent/complete','POST'],['/api/object-audit-agent/fail','POST']
 ]);
 export default {
   async scheduled(_event, env) {
@@ -1218,7 +1222,7 @@ export default {
     await requireSchema(env);
     await cleanupAccountArtifacts(env, null, 64);
     await archiveAccountDeletionReceipts(env);
-    await retireAcceptedObjectAudits(env);
+    if(!ownerObjectDelivery(env))await retireAcceptedObjectAudits(env);
   },
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -1241,6 +1245,16 @@ export default {
     if (!sameOrigin(request)) return error("cross_origin_request",403);
     try {
       await ingressLimit(env,request);
+      if(url.pathname.startsWith('/api/object-audit-agent/')) {
+        await requireOwnerObjectAgent(env,request);
+        if(!env.DB)return error('control_plane_unprovisioned',503);
+        await requireSchema(env);
+        const body=await readRequestJson(request,30000,url.pathname.endsWith('/complete')?OWNER_OBJECT_RESULT_BYTES:8192);
+        if(url.pathname.endsWith('/claim'))return json(await claimOwnerObjectAudit(env,body));
+        if(url.pathname.endsWith('/candidate'))return new Response(await ownerObjectCandidate(env,body),{headers:HEADERS});
+        if(url.pathname.endsWith('/fail'))return json(await failOwnerObjectAudit(env,body));
+        return json(await completeOwnerObjectAudit(env,body));
+      }
       if (url.pathname.startsWith('/api/search-agent/')) {
         // An outbound owner agent uses a separate secret, never account codes.
         // Authenticate before reading its body or touching the database.
