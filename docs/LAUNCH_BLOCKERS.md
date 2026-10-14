@@ -11,8 +11,11 @@ and delegated routine release decisions within the spending/access limits.
 [Current preflight/bounds](SCENE_RESTRICTED_ACTIVATION_20261014.md) record matched
 saved laptop assets, Scene-first local controls and actual exact-commit Mac
 package/assertion evidence. Automatic approval review still requires the laptop
-user's direct cloud-read approval; that narrow question is pending. The broad
-cost hold below is not lifted outside the named finite staging exception.
+user's direct cloud-read approval; the user subsequently supplied that exact
+approval. [Readback and prepared two-Scene trial](FINITE_SCENE_TRIAL.md) now confirm
+current saved qualification and closed staging, with a metered private gateway,
+bounded child and corrected current rollback ready for separate execution/transfer
+approval. The broad hold remains outside that finite scope.
 
 **Latest decision:** implement the [approved hybrid mode](HYBRID_LAUNCH_DECISION_20261013.md):
 sample qualification, explicitly marked lighter routine upload checks, online

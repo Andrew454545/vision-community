@@ -8,12 +8,15 @@ plan, resource, Actions run or public admission is authorized. Possible small
 coordinator/database charges were explicitly acknowledged; this is not an
 ongoing spending authorization or a provider invoice cap.
 
-Automatic approval review refused the cloud reads because it requires the
-laptop user's direct approval rather than the owner agent's GitHub report.
-The narrow question for gateway configuration/status and at most eight saved
-qualification records is pending. No cloud read completed, deployment occurred,
-cohort started or paused task restarted. Do not ask another agent to perform
-the blocked action indirectly.
+Automatic approval review initially refused the cloud reads because it required
+the laptop user's direct approval rather than the owner agent's GitHub report.
+The user directly approved the narrow reads on 14 October. The
+[readback](evidence/scene-staging-readonly-20261014.json) confirms matching current
+qualification through 18 October 05:51:41 UTC and closed staging endpoints/crons.
+One SELECT read seven rows, wrote none and returned one matching record. No secret
+values were read. No deployment, cohort or paused-task restart occurred.
+The [finite private gateway/client and current rollback](FINITE_SCENE_TRIAL.md)
+are now prepared and locally checked; execution/transfer approval is still separate.
 
 ## Completed without cloud activation
 
@@ -65,7 +68,7 @@ current qualification, assigned work and applicable destination-specific consent
   pilot pins and pause markers. Restore the prior closed staging configuration
   and verify shutdown after the finite attempt, including failed/ambiguous cases.
 
-The question currently pending authorizes **reads only**. It does not itself
+The user's answer authorizes **reads only**. It does not itself
 authorize deployment, result uploads, inference, new account creation, a restart
 of the old pilot or changes to Andrew's computer. Prepare concrete subsequent
 actions within the owner's limited scope and satisfy applicable approval review
