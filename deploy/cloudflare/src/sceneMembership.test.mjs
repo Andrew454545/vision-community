@@ -174,10 +174,14 @@ test('actual browser readiness shows lane limits before new work and never edits
   const elements=new Map(),element=id=>{if(!elements.has(id))elements.set(id,{value:'',classList:{toggle(){}}});return elements.get(id);};
   const saved={idempotencyKey:'saved-request',resultCount:200},before=JSON.stringify(saved);
   let lane='scene',pending=false;
+  const readinessScope={AbortSignal,crypto};
+  runInNewContext(readFileSync(new URL('../../../community/web/service-readiness.js',import.meta.url),'utf8'),readinessScope);
+  const readiness=new readinessScope.VisionServiceReadiness();
+  readiness.update({operational:true,searchOnSite:true},null);
   const scope={$:element,number:String,state:{searchOnSite:true,searchResultLimits:{scene:64,object:1000}},signedIn:true,
     selectedLane:()=>lane,countryMode:()=> 'all',selectedGenerations:()=>['gen4'],hasQueryInput:()=>true,
     VisionSearchPricing:{canAfford:()=>true},searchJournal:{read:()=>pending?saved:null},
-    serviceReadiness:{canSearch:()=>true},deletionBlocksSearch:()=>false};
+    serviceReadiness:readiness,deletionBlocksSearch:()=>false};
   runInNewContext(source,scope);element('result-count').value='200';scope.updateReady();
   assert.equal(element('result-count').value,'200');assert.equal(element('result-count').max,64);
   assert.equal(element('run-search').disabled,true);assert.equal(element('ready-badge').textContent,'Choose 1–64 places');
@@ -186,5 +190,9 @@ test('actual browser readiness shows lane limits before new work and never edits
   pending=true;scope.updateReady();assert.equal(element('run-search').disabled,false);
   assert.equal(element('run-search').textContent,'Recover search');assert.equal(JSON.stringify(saved),before);
   lane='object';pending=false;element('result-count').value='200';scope.updateReady();
-  assert.equal(element('result-count').max,1000);assert.equal(element('run-search').disabled,false);
+  assert.equal(element('result-count').max,1000);assert.equal(element('run-search').disabled,true);
+  assert.equal(element('ready-badge').textContent,'Choose Scene');
+  assert.match(element('run-search').title,/Objects will follow later/);
+  pending=true;scope.updateReady();assert.equal(element('run-search').disabled,false);
+  assert.equal(element('run-search').textContent,'Recover search');assert.equal(JSON.stringify(saved),before);
 });

@@ -26,6 +26,12 @@ recomputation. The existing audited mode remains distinct.
 - Background checkpoint/restart controls and the requested Medium/day,
   Maximum/midnight–6 a.m. schedule. Only qualified parallel profiles may run.
   A powered-off or sleeping computer resumes work when running again.
+- The website now recognizes the exact qualified Scene admission contract as well
+  as the existing audited contract. New browser Object/Both choices stay disabled;
+  saved requests and paid replies remain recoverable. [Local evidence](evidence/scene-web-readiness-20261014.json)
+  records 67 passing Node and 15 passing Python checks on Windows, including actual
+  browser action/readiness execution in a local VM and Scene router/credit regressions.
+  This is source-only synthetic evidence, not a deployed site or new device qualification.
 
 Reuse this evidence. Repeat a check only for changed inputs/behavior, an unresolved
 failure or an actual release gate. Local synthetic checks do not establish live

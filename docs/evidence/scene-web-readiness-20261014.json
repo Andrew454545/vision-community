@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "scope": "offline-scenes-first-browser-readiness",
+  "platform": "Windows",
+  "baseCommit": "2f4ab2357b352eb4137dd9638ccecd8e9f413703",
+  "nodeChecksPassed": 67,
+  "pythonChecksPassed": 15,
+  "skipped": 0,
+  "realSceneCapabilityProducerChecked": true,
+  "qualifiedAndAuditedContractsDistinguished": true,
+  "unknownAndMixedAdmissionContractsRefused": true,
+  "newObjectBrowserSearchAndProcessingClosed": true,
+  "savedObjectRequestAndPaidReplyRecoveryPreserved": true,
+  "actualBrowserSearchActionAndReadinessExecutedInLocalVm": true,
+  "existingWorkerSceneAssignmentPublicationCreditRegressionsPassed": true,
+  "nativeInferenceCoverageAndR2AreFixtures": true,
+  "firstPythonAttempt": {
+    "passed": 13,
+    "failed": 2,
+    "reason": "Existing source assertions still expected the old direct online-search call and old export variable; the Worker source was unchanged.",
+    "stderrSha256": "11330efa55e1e4eb6668d6ae0108f5fde5432a0aedcf006d27b4a22b8c708450"
+  },
+  "secondPythonAttempt": {
+    "passed": 14,
+    "failed": 1,
+    "reason": "A whitespace-only assertion correction did not account for the existing shared online/queued dispatch; the assertion was then updated to the actual dispatch.",
+    "stderrSha256": "4f3e320b042377d3187116725142797be159988cf29f8c16c6f03e2455583bff"
+  },
+  "finalNodeStdoutSha256": "ccee223fc956de0335fc05c0284d5dc563c498cdfe431e11aacf8284e82a0ddd",
+  "finalPythonStderrSha256": "700f2f65f89fd0a5846cbef33f72236cb0ad0ff0cffc588d08d6c1f6c538797e",
+  "originalFailureLogsPreserved": true,
+  "cloudAccountRead": false,
+  "actionsDispatched": false,
+  "deployed": false,
+  "localIndexingStarted": false,
+  "realPlatformQualificationOrProductionAcceptance": false
+}
