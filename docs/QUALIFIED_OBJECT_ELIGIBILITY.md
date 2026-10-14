@@ -84,8 +84,9 @@ coverage and outputs are synthetic. Original failed/discovery attempts are retai
 No actual Mac/model execution, cloud read, deployment, Actions or indexing restart
 occurred.
 
-Next implement distinct qualified Object staging/assignment, atomic publication
-and once-only credit with current authority and financial/deletion recovery.
+The [distinct qualified writer](QUALIFIED_OBJECT_PUBLICATION.md) now connects
+prepared-lease staging, atomic publication/once-only credit and financial/deletion
+recovery in source. Automatic assignment and actual private setup remain next.
 Do not manufacture an approved audit job or relabel routine uploads independently
 recomputed. Actual approved private binding/setup, authentic platform qualification,
 budget activation and the remaining [launch gates](PRODUCTION_ACCEPTANCE.md) remain open.

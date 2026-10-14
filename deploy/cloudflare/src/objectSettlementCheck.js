@@ -8,18 +8,22 @@ import {validateObjectIndex,OBJECT_INDEX_MODEL} from './objectIndex.js';
 import {COVERAGE_VALIDATOR} from './objectCoverage.js';
 import {publicObjectManifest} from './objectPublicManifest.js';
 import {base64ToBytes,sha256Hex,encodeUtf8} from './model.js';
+import {QUALIFIED_OBJECT_CONTRACT} from './qualifiedObjectSchema.js';
 const ID=/^[a-f0-9]{32}$/,HEX=/^[a-f0-9]{64}$/;
 const fail=(code='object_settlement_evidence_unavailable',status=503)=>{throw new ObjectDispatchError(code,status);};
 
-async function snapshot(env,account,lease,now,race,requireAudit) {
-  const row=await race(()=>env.DB.prepare(`SELECT c.*,a.deleted_at,l.lane AS lease_lane,l.state AS lease_state,
+async function snapshot(env,account,lease,now,race,requireAudit,qualified=false) {
+  const table=qualified?'qualified_object_candidates':'object_audit_candidates';
+  const revision=qualified?'qualified_object_revision':'object_dispatch_revision';
+  const contract=qualified?QUALIFIED_OBJECT_CONTRACT:'private-object-dispatch-v2-20261012';
+  const row=await race(()=>env.DB.prepare(`SELECT c.*,${qualified?'NULL AS claim_token,0 AS claim_until,l.generation AS lease_generation,':''}a.deleted_at,l.lane AS lease_lane,l.state AS lease_state,
     l.expires_at AS lease_expires,w.account_id AS artifact_owner,w.lease_id AS artifact_lease,
     w.sha256 AS artifact_sha256,w.bytes AS artifact_bytes
-    FROM object_audit_candidates c JOIN accounts a ON a.id=c.account_id
+    FROM ${table} c JOIN accounts a ON a.id=c.account_id
     JOIN leases l ON l.id=c.lease_id AND l.account_id=c.account_id
     JOIN account_artifact_writes w ON w.artifact_key=c.artifact_key
-    WHERE c.account_id=? AND c.lease_id=? AND EXISTS (SELECT 1 FROM object_dispatch_revision
-      WHERE slot=1 AND contract='private-object-dispatch-v2-20261012')`).bind(account,lease).first());
+    WHERE c.account_id=? AND c.lease_id=? AND EXISTS (SELECT 1 FROM ${revision}
+      WHERE slot=1 AND contract=?)`).bind(account,lease,contract).first());
   if(!row || row.deleted_at!==null || row.state!=='pending'
       || row.lease_lane!=='object' || row.lease_state!=='submitted' || row.lease_expires<=now
       || row.artifact_owner!==account || row.artifact_lease!==lease
@@ -72,8 +76,12 @@ export const inspectObjectUpload=(env,account,lease,now=Math.floor(Date.now()/10
   inspect(env,account,lease,now,timeoutMs,false);
 export const checkObjectSettlement=(env,account,lease,now=Math.floor(Date.now()/1000),timeoutMs=20000)=>
   inspect(env,account,lease,now,timeoutMs,true);
+// A distinct namespace has no native job/approval fields. The audited entry
+// point above can never consume it or be weakened by an HTTP request option.
+export const inspectQualifiedObjectCandidate=(env,account,lease,now=Math.floor(Date.now()/1000),timeoutMs=20000)=>
+  inspect(env,account,lease,now,timeoutMs,false,true);
 
-async function inspect(env,account,lease,now,timeoutMs,requireAudit) {
+async function inspect(env,account,lease,now,timeoutMs,requireAudit,qualified=false) {
   if(typeof account!=='string' || !ID.test(account) || typeof lease!=='string' || !ID.test(lease)
       || !Number.isSafeInteger(now) || now<0 || now>Number.MAX_SAFE_INTEGER-86400
       || !Number.isSafeInteger(timeoutMs) || timeoutMs<1 || timeoutMs>20000) fail('invalid_object_settlement',400);
@@ -84,7 +92,7 @@ async function inspect(env,account,lease,now,timeoutMs,requireAudit) {
   const race=action=>Promise.race([Promise.resolve().then(action),deadline]);
   const currentTime=()=>now+Math.ceil((performance.now()-started)/1000);
   try {
-    const before=await snapshot(env,account,lease,now,race,requireAudit),row=before.row;
+    const before=await snapshot(env,account,lease,now,race,requireAudit,qualified),row=before.row;
     const index=await storedPayload(env,row,race);
     if(!index || Object.keys(index).sort().join(',')!=='files,manifest,sourceTsv'
         || !index.files || typeof index.files!=='object' || Array.isArray(index.files)
@@ -123,7 +131,7 @@ async function inspect(env,account,lease,now,timeoutMs,requireAudit) {
     }
     // Account deletion, cancellation, coverage/pose changes or another native
     // attempt during either asynchronous read invalidate this inspection.
-    const after=await snapshot(env,account,lease,currentTime(),race,requireAudit);
+    const after=await snapshot(env,account,lease,currentTime(),race,requireAudit,qualified);
     if(JSON.stringify(after)!==JSON.stringify(before) || performance.now()-started>=timeoutMs) fail();
     const evidenceSha256=await race(()=>sha256Hex(encodeUtf8(JSON.stringify(after))));
     if(performance.now()-started>=timeoutMs) fail();

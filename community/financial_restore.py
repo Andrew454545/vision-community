@@ -18,6 +18,8 @@ from .native_scene_search import plain_path, strict_json
 from .search_snapshot import HEX, digest, encoded, file_digest, pinned_read, resource_for_environment, write_file
 from .storage_restore import MAX_DATABASE, closed_database
 from .search_queue_restore import QueueRestoreError, queue_state, validate_queue_snapshot
+from .qualified_object_restore import (QualifiedObjectRestoreError, qualified_object_state,
+                                       validate_qualified_object_snapshot)
 
 MAX_ACCOUNTS = 100_000
 MAX_ROWS = 1_000_000
@@ -154,18 +156,22 @@ def financial_state(sql):
 def validate_snapshot(document, environment, not_before, now):
     version = document.get('version') if isinstance(document, dict) else None
     fields = {"version", "scope", "resource", "exportedAt", "databaseSha256", "accounts"}
-    if type(version) is int and version == 2:
+    if type(version) is int and version in (2, 3):
         fields.add('queue')
+    if type(version) is int and version == 3:
+        fields.add('qualifiedObjects')
     if (not integer(not_before) or not integer(now) or not_before > now
             or not isinstance(document, dict) or set(document) != fields
-            or version not in (1, 2) or type(version) is not int or document["scope"] != SCOPE
+            or version not in (1, 2, 3) or type(version) is not int or document["scope"] != SCOPE
             or document["resource"] != resource_for_environment(environment)
             or not integer(document["exportedAt"]) or not not_before <= document["exportedAt"] <= now
             or not isinstance(document["databaseSha256"], str) or not HEX.fullmatch(document["databaseSha256"])
             or not isinstance(document["accounts"], list) or len(document["accounts"]) > MAX_ACCOUNTS):
         raise FinancialRestoreError("invalid_or_stale_financial_snapshot")
-    if version == 2:
+    if version == 2 or version == 3 and document['queue'] is not None:
         validate_queue_snapshot(document['queue'])
+    if version == 3:
+        validate_qualified_object_snapshot(document['qualifiedObjects'])
     previous = ""
     for row in document["accounts"]:
         if (not isinstance(row, dict) or set(row) != {"accountId", "units", "deletedAt", "ledgerCount", "ledgerSha256", "searchCount", "searchesSha256"}
@@ -186,7 +192,7 @@ def validate_snapshot(document, environment, not_before, now):
 
 def fail(destination, error):
     write_file(destination / "failure-report.json", encoded({"version": 1, "complete": False, "liveReady": False,
-        "error": str(error) if isinstance(error, (FinancialRestoreError, QueueRestoreError)) else "financial_check_failed"}))
+        "error": str(error) if isinstance(error, (FinancialRestoreError, QueueRestoreError, QualifiedObjectRestoreError)) else "financial_check_failed"}))
 
 
 def export_financial_snapshot(database, database_sha256, destination, *, exported_at=None, environment="production"):
@@ -200,6 +206,9 @@ def export_financial_snapshot(database, database_sha256, destination, *, exporte
             queue = queue_state(sql)
             if queue is not None:
                 document.update(version=2, queue=queue)
+            objects = qualified_object_state(sql)
+            if objects is not None:
+                document.update(version=3, queue=queue, qualifiedObjects=objects)
         validate_snapshot(document, environment, document["exportedAt"], int(time.time()))
         raw = encoded(document)
         if len(raw) > MAX_SNAPSHOT:
@@ -237,12 +246,17 @@ def check_financial_restore(repaired_dir, report_sha256, snapshot, snapshot_sha2
         with pinned_database(root / "restored.sqlite", report.get("databaseSha256"), destination) as sql:
             actual = financial_state(sql)
             actual_queue = queue_state(sql)
+            actual_objects = qualified_object_state(sql)
         if actual != trusted["accounts"]:
             raise FinancialRestoreError("restored_financial_state_differs")
         if trusted['version'] == 1 and actual_queue is not None:
             raise FinancialRestoreError('queued_financial_authority_required')
         if trusted.get('queue') != actual_queue:
             raise FinancialRestoreError('restored_queued_financial_state_differs')
+        if trusted['version'] < 3 and actual_objects is not None:
+            raise FinancialRestoreError('qualified_object_financial_authority_required')
+        if trusted.get('qualifiedObjects') != actual_objects:
+            raise FinancialRestoreError('restored_qualified_object_state_differs')
         if pinned_read(snapshot, snapshot_sha256, MAX_SNAPSHOT) != raw or pinned_read(report_path, report_sha256, 1024**2) != report_raw:
             raise FinancialRestoreError("input_changed_during_check")
         result = {"version": 1, "complete": True, "scope": "offline-financial-restore-comparison", "liveReady": False,
@@ -253,6 +267,8 @@ def check_financial_restore(repaired_dir, report_sha256, snapshot, snapshot_sha2
         if actual_queue is not None:
             result.update(queuedFinancialStateMatchesTrustedCutoff=True, queuedSearches=actual_queue['jobs'],
                           reservedSearchUnits=actual_queue['reservedUnits'])
+        if actual_objects is not None:
+            result.update(qualifiedObjectStateMatchesTrustedCutoff=True, qualifiedObjectAcceptances=actual_objects['acceptances'])
         write_file(destination / "financial-report.json", encoded(result))
         return result
     except (Exception, KeyboardInterrupt) as error:
@@ -286,7 +302,7 @@ def main():
         return 0
     except (Exception, KeyboardInterrupt) as error:
         print(json.dumps({"complete": False, "liveReady": False,
-                          "error": str(error) if isinstance(error, (FinancialRestoreError, QueueRestoreError)) else "financial_check_failed"}))
+                          "error": str(error) if isinstance(error, (FinancialRestoreError, QueueRestoreError, QualifiedObjectRestoreError)) else "financial_check_failed"}))
         return 1
 
 

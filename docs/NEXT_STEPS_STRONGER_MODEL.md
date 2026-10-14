@@ -24,9 +24,14 @@ pinned job lookup, approved bounded local delivery and a dedicated private bridg
 with synthetic full-comparator/SQLite loopback evidence. Actual private transport
 and activation remain pending. The [qualified eligibility inspector](QUALIFIED_OBJECT_ELIGIBILITY.md)
 now connects current profile/Gen4/contributed Scene state to live original-source
-protection in source. Next implement distinct qualified Object staging/assignment
-and atomic publication/once-only credit with current authority and recovery;
-the read-only inspector is not an authorization to bypass native audit SQL fences.
+protection in source. [Distinct qualified staging/publication](QUALIFIED_OBJECT_PUBLICATION.md)
+now binds prepared leases, current authority and owned artifacts to atomic
+acceptance/once-only credit, deletion fences and version-3 offline financial
+recovery. Reuse its 61 Node, 47 Python and 16 actual local workerd checks; all
+qualification/coverage/model evidence is synthetic. Next connect automatic
+qualified assignment/delivery and actual approved private setup, then Object
+execution, other paid work's shared allocation and bounded sealed catalog/import.
+The read-only inspector never bypasses the audited writer's native approval fences.
 Both comparators explicitly remain `qualified:false`;
 do not relabel detector parity as full device approval or rerun the completed
 queue/Scene runner checks merely for reassurance.

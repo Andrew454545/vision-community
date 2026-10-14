@@ -35,10 +35,14 @@ receipt or weaken existing SQL guards to get a first contribution through.
 **Scene implementation:** the [qualified Scene path](QUALIFIED_SCENE_UPLOADS.md)
 now connects explicit admission, upload integrity, once-only credit, search and
 offline snapshot/financial recovery in source. It is disabled and undeployed;
-equivalent qualified Object admission remains work.
+the [qualified Object writer](QUALIFIED_OBJECT_PUBLICATION.md) now connects
+prepared leases, staging, atomic acceptance/once-only credit and offline recovery
+in source. Automatic assignment, approved private setup and authentic platform
+qualification remain work.
 The [Object upload inspector](QUALIFIED_OBJECT_UPLOADS.md) now separates routine
 integrity from native per-batch comparison in source; device qualification,
-fresh protected/Scene authority and qualified Object settlement remain open.
+fresh protected/Scene authority and distinct qualified settlement now connect in
+source. This does not enable public admission or operational activation.
 The [shared search queue](HYBRID_SEARCH_QUEUE.md) now connects cloud cost
 reservations, exclusive cloud/local claims and shutdown-fenced fallback in source.
 The [finite native Scene executor](NATIVE_QUEUED_SEARCH.md) now has durable

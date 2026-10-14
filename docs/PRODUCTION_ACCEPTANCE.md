@@ -24,8 +24,10 @@ revocation in source. [Private host/job lookup and bounded local delivery](OBJEC
 now connect the saved comparator to that registry in a synthetic loopback check.
 The [qualified eligibility inspector](QUALIFIED_OBJECT_ELIGIBILITY.md) now checks
 current profile/Scene/Gen4 authority and fresh private original-source protection
-in source. Actual approved transport/setup, authentic platform evidence and
-distinct qualified Object staging/publication/once-only credit remain unfinished.
+in source. The [distinct qualified Object writer](QUALIFIED_OBJECT_PUBLICATION.md) now binds
+prepared leases to staging, atomic acceptance/once-only credit and offline financial
+recovery in source. Automatic assignment/public routing, approved private setup
+and authentic platform evidence remain unfinished; Object capability stays closed.
 
 **Owner cost hold, 12 October:** all Community cloud execution and the local
 pilot/refresher/indexing tasks are paused. Read the [stop record](COST_STOP_20261012.md)
