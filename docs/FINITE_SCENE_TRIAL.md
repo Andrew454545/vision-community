@@ -106,8 +106,12 @@ then ran once, stopped on the observed read threshold and restored closed stagin
 Original preparation, operator, child and closure receipts remain private under
 `work/scene-resume-20261014`; none is rewritten to erase those failures.
 
-Next diagnose/reduce coordinator read scans locally and prepare independent
-acceptance/credit recovery from the saved receipts. Do not increase the threshold,
+[Coordinator read scans are now reduced in source](SCENE_COORDINATOR_READ_COST.md),
+with a versioned account-only balance route, three additive lookup indexes and
+redacted per-route usage/first-stop receipts. The scaled local fixture passed;
+the old real failure remains unchanged. Next prepare independent acceptance/credit
+recovery from the saved receipts and resolve the new maintenance/activation scope.
+Do not increase the threshold,
 make further trial requests or retry a new assignment under the consumed approval.
 Any future activation must have its own resolved finite scope and preserve these
 accepted outputs, credits and the general operational hold.

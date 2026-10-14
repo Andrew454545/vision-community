@@ -2,6 +2,7 @@
 import { migrateAccountPrivacy } from "../src/accountPrivacy.js";
 import { SCENE_PIPELINE_SCHEMA } from "../src/scenePipeline.js";
 import { SCHEMA_REVISION_SQL } from "../src/schemaRevision.js";
+import { prepareReadCostIndexes } from '../src/readCostIndexes.js';
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS accounts (
@@ -71,6 +72,7 @@ export async function initializeSchema(env) {
     await env.DB.prepare("ALTER TABLE leases ADD COLUMN scene_qualification_id TEXT").run();
   }
   await migrateAccountPrivacy(env);
+  await prepareReadCostIndexes(env.DB);
 }
 
 async function migratePoseCatalog(env) {
