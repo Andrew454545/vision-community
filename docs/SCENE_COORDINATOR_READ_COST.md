@@ -52,6 +52,40 @@ upgrade rehearsal using synthetic data in the older deployed schema shape. That
 rehearsal preserved credentials, credits, paid replies, publications, rollback and
 privacy fences. It is not a live provider/secret recovery test.
 
+## Browser credit and search controls
+
+The browser now uses versioned `GET /api/me?controls=1` after queued/completed
+searches, price changes and cancellation. It returns current account credit,
+price, search configuration/cohort availability and result limits without corpus
+statistics, work history, R2 access or a native service call. The existing
+`credit=1` contract is unchanged. Anonymous/revoked sessions use
+`GET /api/status?controls=1`, which exposes no account balance and retains saved
+deletion-receipt recovery. Rate limits, schema/authentication and pricing gates stay
+in place. Queued mode keeps the existing bounded reservation-expiry maintenance;
+that can update expired job state, but does not debit credit or execute a search.
+
+The client validates the complete control/credit contract, including spendable
+versus reserved units. Unknown/malformed responses fail closed without retrying a
+full dashboard. Shared filters/counts remain at their last full refresh; initial
+load, account recovery and explicit service checks still load the full dashboard.
+Changing accounts drops old private work/results/price approval; an older response
+cannot overwrite a newer account refresh. Saved requests/replies stay in their
+existing account-scoped journal, and a changed price still requires explicit review.
+The account text is shorter, with a reserved-credit explanation shown only when needed.
+
+[Browser evidence](evidence/browser-account-controls-20261014.json) records **29
+Node checks and 15 actual local workerd/D1/R2/rate-limit checks**, no skips.
+Actual browser refresh/search/cancel code ran in a local VM; this is not a real
+browser/device installation or hosted walkthrough. With 1,024 synthetic published
+Scene records, the current controls path used **three reads**, and fresh qualified
+Scene capability checking added **one read**. Both made zero writes, R2 accesses
+or native calls. That fixture's older `lite=1` dashboard used **4,100 reads**;
+its data shape differs from the earlier 2,053-read fixture above. Queued reservation,
+price-review, cancellation, account-switch/deletion and stale-response paths were
+checked with synthetic authority. No source-only result establishes provider prices,
+capacity or a live release. Worker/assets must be deployed together after approval;
+the pending existing-receipt maintenance scope does not include this website update.
+
 ## Activation boundary
 
 [Migration 0005](../deploy/cloudflare/migrations/0005_coordinator_read_cost.sql)

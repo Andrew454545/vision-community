@@ -284,6 +284,7 @@ function paintBalance() {
   $("search-cost").textContent = cost === null ? "checking…" : number(cost);
   $("units").textContent = number(units);
   $("searches-available").textContent = cost === null ? "—" : number(Math.floor(units / cost));
+  if ($("reserved-credit")) $("reserved-credit").hidden = !(Number.isSafeInteger(state?.reservedUnits) && state.reservedUnits > 0);
   const fill = $("progress-fill");
   if (fill) fill.style.width = `${Math.min(100, cost ? (units / cost) * 100 : 0)}%`;
   if ($("progress-label")) {
@@ -922,19 +923,26 @@ document.querySelectorAll('input[name="description-weight"]').forEach((input) =>
 });
 
 async function refresh(options = {}) {
-  const lite = Boolean(options.lite);
+  const accountOnly = options.accountOnly === true;
+  const lite = Boolean(options.lite) || accountOnly;
   const previous = state;
   let next;
   try {
-    next = await api(lite ? "/api/me?lite=1" : "/api/me");
+    next = await api(accountOnly ? "/api/me?controls=1" : lite ? "/api/me?lite=1" : "/api/me");
   } catch (error) {
     if (error.message !== "unauthorized") { markServiceUnavailable(); throw error; }
-    try { next = await api("/api/status"); }
+    try { next = await api(accountOnly ? "/api/status?controls=1" : "/api/status"); }
     catch (failure) { markServiceUnavailable(); throw failure; }
   }
-  const capabilities = lite ? serviceReadiness.capabilities : await VisionServiceReadiness.capabilities();
+  if (accountOnly) {
+    if (state !== previous) return;
+    try { next = VisionServiceReadiness.mergeAccountControls(previous, next); }
+    catch (error) { markServiceUnavailable(); throw error; }
+  }
+  const capabilities = lite && !accountOnly ? serviceReadiness.capabilities : await VisionServiceReadiness.capabilities();
+  if (accountOnly && state !== previous) return;
   if (!serviceReadiness.update(next, capabilities)) { markServiceUnavailable(); throw new Error("service_unavailable"); }
-  if (lite && previous && next.accountId) {
+  if (lite && !accountOnly && previous && next.accountId) {
     state = {
       ...previous,
       ...next,
@@ -1629,7 +1637,7 @@ $("run-search").addEventListener("click", async () => {
         searchJournal.complete(searchAccount, savedRequest.body.idempotencyKey);
         $('search-status').textContent = 'This search did not finish. No credits were spent. You can run a new search.';
       }
-      await refresh();
+      await refresh({ accountOnly: true });
       return;
     }
     $('cancel-search').hidden = true;
@@ -1665,11 +1673,11 @@ $("run-search").addEventListener("click", async () => {
           : `${hits.length} matching ${savedRequest.body.lane === "object" ? "objects" : "scenes"}. Connect a map app, or download the JSON.`)
       : "Nothing matched. Try Best of available views, or widen the filters.";
     searchJournal.complete(searchAccount, savedRequest.body.idempotencyKey, result);
-    await refresh();
+    await refresh({ accountOnly: true });
   } catch (error) {
     if (["search_price_changed", "invalid_search_quote"].includes(error.message) && savedRequest) {
       searchPriceReview = { accountId: searchAccount, idempotencyKey: savedRequest.body.idempotencyKey };
-      try { await refresh(); } catch { /* The pending request and old quote stay saved. */ }
+      try { await refresh({ accountOnly: true }); } catch { /* The pending request and old quote stay saved. */ }
       $("search-status").textContent = `${explain(error)} ${VisionSearchPricing.message(state)} Choose Recover search to review the price.`;
       return;
     }
@@ -1696,7 +1704,7 @@ $('cancel-search')?.addEventListener('click', async () => {
       $('search-status').textContent = 'Your search already finished. Choose Recover search to get your results.';
     }
     button.hidden = true;
-    await refresh();
+    await refresh({ accountOnly: true });
   } catch (error) { $('search-status').textContent = explain(error); }
   finally { button.disabled = false; updateReady(); }
 });

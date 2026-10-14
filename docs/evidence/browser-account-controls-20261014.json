@@ -1,0 +1,77 @@
+{
+  "version": 1,
+  "date": "2026-10-14",
+  "status": "BROWSER_ACCOUNT_CONTROLS_IMPLEMENTED_OFFLINE",
+  "cloudResourcesAccessed": false,
+  "deployed": false,
+  "migrationApplied": false,
+  "actionsRuns": 0,
+  "nativeInference": false,
+  "tasksRestarted": false,
+  "productionQualified": false,
+  "contracts": {
+    "authenticated": "GET /api/me?controls=1",
+    "anonymous": "GET /api/status?controls=1",
+    "accountControlVersion": 1,
+    "creditContractVersion": 1,
+    "existingCreditOnlyRouteUnchanged": true,
+    "noDashboardFallbackOnInvalidControls": true
+  },
+  "behavior": [
+    "Current price/cohort/configuration availability and own spendable credit without corpus statistics",
+    "Existing queued reservation-expiry maintenance preserved; no debit or native search in refresh",
+    "Account switch/revocation clears old private work/results/price approval",
+    "Older response cannot overwrite a newer account refresh",
+    "Malformed version/price/reservation/result-limit fields fail closed",
+    "Actual price-change action retains old quote and requires review; no automatic resubmit",
+    "Actual cancellation action retires only its saved request before refreshing controls",
+    "Existing saved paid-reply journal retained",
+    "Shorter account instructions and reserved-credit explanation"
+  ],
+  "checks": {
+    "node": 29,
+    "actualLocalWorkerdD1R2AndRateLimits": 15,
+    "skips": 0,
+    "browserRefreshAndSearchActionsExecutedInLocalVm": true,
+    "syntheticPublishedSceneRecords": 1024,
+    "controlsRequestUsage": {
+      "read": 3,
+      "written": 0,
+      "puts": 0,
+      "bytes": 0
+    },
+    "qualifiedCapabilitiesRequestUsage": {
+      "read": 1,
+      "written": 0,
+      "puts": 0,
+      "bytes": 0
+    },
+    "combinedReads": 4,
+    "r2Calls": 0,
+    "nativeCalls": 0,
+    "legacyLiteDashboardRowsRead": 4100,
+    "authorityCreditsAndPoolSynthetic": true
+  },
+  "originalFailure": {
+    "passed": 26,
+    "failed": 1,
+    "reason": "The new staging-only unit fixture omitted required rate-limit bindings; only the fixture gained synthetic successful limiters. Production checks were unchanged.",
+    "rawNodeLogPreserved": true
+  },
+  "privateEvidenceSha256": {
+    "node-actions.stdout.private.log": "4d7235bb4c6ef8003a9f95f5d2f6e68eed15616d96b99b2159872808cf33483a",
+    "node-actions.stderr.private.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "workerd.stdout.private.log": "61006940c460a0e9647ca230d5500aa9b04837654fd8fb0a483dec659a8cd353",
+    "workerd.stderr.private.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "node-initial.stdout.private.log": "12e2cb360088064ebd9cd0c45bbc88159abea42f5999b1c207e88171c39fe731"
+  },
+  "limits": [
+    "No real browser/clean-device or live provider acceptance claimed",
+    "Immediate-mode fixture uses zero writes; queued refresh may update expired reservation/job state through existing maintenance",
+    "First page load/account recovery/manual full refresh still scan dashboard statistics",
+    "Shared corpus labels/counts stay at their last full refresh during account-only updates",
+    "This source change needs atomic Worker/assets deployment under a separate approved scope",
+    "Pending existing-receipt recovery consent is unchanged and does not authorize website/native activation",
+    "No million-location capacity or provider-enforced invoice cap established"
+  ]
+}
