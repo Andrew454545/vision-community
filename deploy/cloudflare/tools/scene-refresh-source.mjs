@@ -31,8 +31,11 @@ export const CAPTURE_SQL = `WITH admitted AS (SELECT * FROM scene_candidates
 
 export async function capturePublications(db, policies) {
   if (!Array.isArray(policies) || !policies.length || policies.length>16
-      || policies.some(p=>typeof p!=='string'||!/^staging\.[A-Za-z0-9_.-]{1,180}$/.test(p))
+      || policies.some(p=>typeof p!=='string'||!/^(?:qualified-device-v1\|)?staging\.[A-Za-z0-9_.-]{1,180}$/.test(p))
       || new Set(policies).size!==policies.length) throw Error('invalid_refresh_policies');
+  // Select exactly the explicitly pinned policy IDs; never expand an audited
+  // ID into its qualified counterpart. The offline sealer separately verifies
+  // mode/profile/qualification, original award reason and artifact authority.
   // One query in a primary-first session is the export's consistency boundary.
   const row=await db.withSession('first-primary').prepare(CAPTURE_SQL).bind(JSON.stringify(policies)).first();
   if (!row || typeof row.document!=='string' || Buffer.byteLength(row.document)>64*1024*1024)

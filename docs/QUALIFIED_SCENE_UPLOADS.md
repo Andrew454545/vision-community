@@ -68,6 +68,12 @@ required. The financial recovery checker validates qualified-work awards too.
 
 ## Evidence and next activation work
 
+The [automatic Scene pool collector](SCENE_AUTOMATIC_REFRESH_20261010.md) now
+accepts exact qualified policy IDs and preserves their distinct credit reasons.
+Its guarded refresh/sealing tests cover mixed historical audited/new qualified
+work, stable search IDs, lost replies and honest receipt labels. This fixes a
+source integration gap; no live refresh or native service was activated.
+
 [Local evidence](evidence/qualified-scene-20261013.json) records 86 passing Node
 checks and 42 passing Python checks, no skips, on Windows. Relevant queue,
 membership, native-audited Scene, snapshot and financial recovery regressions ran.

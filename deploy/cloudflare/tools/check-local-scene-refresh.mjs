@@ -1,13 +1,16 @@
 // Actual local workerd/D1/R2, explicit synthetic publication; no inference/credit grants.
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
-import {resolve} from 'node:path';
+import {resolve,join} from 'node:path';
+import {mkdtempSync} from 'node:fs';
+import {tmpdir} from 'node:os';
 import {pathToFileURL} from 'node:url';
 import {prepareDatabase} from './initialize-schema.mjs';
 import {capturePublications,artifactBytes,uploadBundle} from './scene-refresh-source.mjs';
 const {Miniflare,convertV4MiniflareOptions}=await import(pathToFileURL(resolve(process.argv[2])));
 const mf=new Miniflare(convertV4MiniflareOptions({modules:true,script:'export default {fetch(){return new Response("offline fixture")}}',
-  compatibilityDate:'2026-10-02',compatibilityFlags:['nodejs_compat'],d1Databases:['DB'],r2Buckets:['INDEX']}));
+  compatibilityDate:'2026-10-02',compatibilityFlags:['nodejs_compat'],
+  resourcePersistencePath:mkdtempSync(join(tmpdir(),'scene-refresh-')),d1Databases:['DB'],r2Buckets:['INDEX']}));
 const account='synthetic-owner',lease='b'.repeat(32),policy='staging.synthetic-refresh',key='four-view-v4/'+lease+'.i8';
 let checks=0;
 try {
@@ -31,6 +34,24 @@ try {
   assert.doesNotMatch(JSON.stringify(value),/private-token|private-recovery/);checks++;
   const empty=await capturePublications(db,['staging.other']);assert.equal(empty.inventory.rows.length,0);
   assert.equal(empty.control.candidates.length,0);checks++;
+  const qualifiedLease='e'.repeat(32),qualifiedPolicy='qualified-device-v1|'+policy;
+  await db.prepare(`INSERT INTO leases(id,account_id,lane,expires_at,state) VALUES(?,?,'scene',200,'submitted')`).bind(qualifiedLease,account).run();
+  await db.prepare(`INSERT INTO locations(id,asset_id,capture,lane,model,state,contributor_id,lat,lon,output_sha256)
+    VALUES(2,'synthetic-qualified-pano','2026-09','scene','synthetic-model','published',?,3,4,?)`).bind(account,'f'.repeat(64)).run();
+  await db.prepare('INSERT INTO lease_items(lease_id,location_id) VALUES(?,2)').bind(qualifiedLease).run();
+  await db.prepare(`INSERT INTO scene_candidates(lease_id,account_id,qualification_id,policy_id,submission_sha256,artifact_key,records_json,created_at,state)
+    VALUES(?,?,'q',?,'qualified-submission','qualified-quarantine','[]',100,'published')`).bind(qualifiedLease,account,qualifiedPolicy).run();
+  await db.prepare(`INSERT INTO published_index(location_id,index_text,output_sha256,four_view_sha256,four_view_key,published_at)
+    VALUES(2,'',?,?,?,100)`).bind('f'.repeat(64),'f'.repeat(64),'four-view-v4/'+qualifiedLease+'.i8').run();
+  await db.prepare(`INSERT INTO ledger(account_id,units,reason,reference) VALUES(?,1,'qualified_device_work',?)`).bind(account,'lease:'+qualifiedLease).run();
+  const qualified=await capturePublications(db,[qualifiedPolicy]);
+  assert.deepEqual(qualified.inventory.rows.map(r=>r.id),[2]);
+  assert.equal(qualified.control.ledger[0].reason,'qualified_device_work');checks++;
+  const mixed=await capturePublications(db,[policy,qualifiedPolicy]);
+  assert.deepEqual(mixed.inventory.rows.map(r=>r.id).sort(),[1,2]);
+  assert.equal(mixed.control.qualifications.length,1);assert.equal(mixed.control.ledger.length,2);
+  assert.deepEqual(mixed.control.ledger.map(r=>r.reason).sort(),['qualified_device_work','verified_work']);checks++;
+  const audited=await capturePublications(db,[policy]);assert.deepEqual(audited.inventory.rows.map(r=>r.id),[1]);checks++;
   await db.prepare('UPDATE scene_qualifications SET expires_at=0 WHERE id=\'q\'').run();
   await db.prepare(`INSERT INTO account_deletion_receipts(account_id,request_key,deleted_at,units_forfeited) VALUES(?,'synthetic-deletion',110,1)`).bind(account).run();
   await db.prepare(`UPDATE accounts SET deleted_at=110,units=0,token_hash='revoked',recovery_hash=NULL WHERE id=?`).bind(account).run();
