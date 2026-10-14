@@ -27,6 +27,7 @@ import { queueSearch, queuedSearchConfigured, requireSearchQueue, maintainSearch
   queuedSearchStatus, recoverSearch, cancelQueuedSearch, requireSearchAgent, claimQueuedSearch,
   renewQueuedSearch, failQueuedSearch, completeQueuedSearch,authorizeCloudSearch, SEARCH_QUEUE_RESULT_BYTES } from './searchQueue.js';
 import { searchCost } from "./searchPricing.js";
+import { accountCredit } from './accountCredit.js';
 import { acknowledgeCloudStop } from './searchHybrid.js';
 import { sceneCohortAllows } from "./sceneCohort.js";
 import { deleteAccount, cleanupAccountArtifacts, archiveAccountDeletionReceipts } from "./accountPrivacy.js";
@@ -430,7 +431,7 @@ async function assignCatalogShard(env, account, lane, now, part) {
 async function pendingForShard(env, lane, shardId, now, count) {
   return (await env.DB.prepare(
     `SELECT id, asset_id, capture, lane, model, generation, attribution, lat, lon, heading, pitch, zoom, country, camera_generation, catalog_shard, state, lease_until
-     FROM locations WHERE lane=? AND catalog_shard=? AND COALESCE(queue_state,'pending')='pending'
+     FROM locations WHERE lane=? AND catalog_shard=? AND state!='published' AND COALESCE(queue_state,'pending')='pending'
        AND ${availableLocationSql()}
        AND asset_id NOT LIKE 'Prototype%' AND asset_id NOT LIKE 'synthetic:%' AND asset_id NOT LIKE 'CommunityPano%'
        AND (state='pending' OR (state='leased' AND lease_until<=?))
@@ -442,7 +443,7 @@ async function pendingForShard(env, lane, shardId, now, count) {
 async function pendingShared(env, lane, now, count) {
   return (await env.DB.prepare(
     `SELECT id, asset_id, capture, lane, model, generation, attribution, lat, lon, heading, pitch, zoom, country, camera_generation, catalog_shard, state, lease_until
-     FROM locations WHERE lane=? AND COALESCE(queue_state,'pending')='pending'
+     FROM locations WHERE lane=? AND state!='published' AND COALESCE(queue_state,'pending')='pending'
        AND ${availableLocationSql()}
        AND asset_id NOT LIKE 'Prototype%' AND asset_id NOT LIKE 'synthetic:%' AND asset_id NOT LIKE 'CommunityPano%'
        AND (state='pending' OR (state='leased' AND lease_until<=?))
@@ -1318,7 +1319,9 @@ export default {
         return json(url.pathname.endsWith('/revoke')?await revokeObjectQualification(env,account,qualificationBody)
           :await qualifyObjectDevice(env,account,qualificationBody));
       }
-      if (url.pathname === "/api/me") return json(await status(env, account, { lite: url.searchParams.get("lite") === "1" }));
+      if (url.pathname === "/api/me") return json(url.searchParams.get('credit') === '1'
+        ? await accountCredit(env, account)
+        : await status(env, account, { lite: url.searchParams.get("lite") === "1" }));
       if (url.pathname === '/api/search-jobs') return json(await queuedSearchStatus(env, account, url.searchParams.get('jobId')));
       if (url.pathname === '/api/searches/recover') return json(await recoverSearch(env, account, url.searchParams.get('idempotencyKey')));
       if (url.pathname === "/api/scene-qualifications" && request.method==="GET") {

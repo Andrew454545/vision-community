@@ -65,7 +65,7 @@ class FiniteSceneBudgetTests(unittest.TestCase):
             budget.open(self.request()).close()
             with self.assertRaisesRegex(FiniteTrialError, 'usage_limit'):
                 budget.open(self.request())
-            with self.assertRaisesRegex(FiniteTrialError, 'request_limit'):
+            with self.assertRaisesRegex(FiniteTrialError, 'usage_limit'):
                 budget.open(self.request())
             self.assertEqual(len(transport.calls), 2)
         transport = Transport(); budget = self.budget(transport)
@@ -86,9 +86,39 @@ class FiniteSceneBudgetTests(unittest.TestCase):
             transport = Broken(); budget = self.budget(transport)
             with self.assertRaises((FiniteTrialError, urllib.error.URLError)):
                 budget.open(self.request())
-            with self.assertRaisesRegex(FiniteTrialError, 'request_limit'):
+            with self.assertRaisesRegex(FiniteTrialError, 'usage_unknown|network_failure'):
                 budget.open(self.request())
             self.assertEqual(transport.calls, 1)
+
+    def test_route_usage_survives_stop_without_query_credentials_or_body(self):
+        transport = Transport(read=2036, written=51, puts=2, bytes=12320)
+        budget = self.budget(transport)
+        request = self.request('/api/scene-qualifications?profileId=PRIVATE',
+                               headers={'Authorization': 'Bearer SECRET'})
+        with self.assertRaisesRegex(FiniteTrialError, 'usage_limit'):
+            budget.open(request)
+        with self.assertRaisesRegex(FiniteTrialError, 'usage_limit'):
+            budget.open(request)
+        self.assertEqual(len(transport.calls), 1)
+        self.assertEqual(budget.stop_reason, 'finite_scene_usage_limit')
+        self.assertEqual(budget.history[0]['path'], '/api/scene-qualifications')
+        self.assertEqual(budget.history[0]['usage']['read'], 2036)
+        self.assertTrue(budget.history[0]['usageComplete'])
+        self.assertNotIn('PRIVATE', json.dumps(budget.history))
+        self.assertNotIn('SECRET', json.dumps(budget.history))
+
+    def test_finite_account_refresh_requests_only_credit_and_never_dashboard_fallback(self):
+        client = FiniteSceneClient('a' * 64, deadline=600)
+        paths = []
+        def reply(method, path):
+            paths.append((method, path)); return 200, {'creditContractVersion': 1, 'units': 2}, None
+        client.request = reply
+        self.assertEqual(client.me(), {'creditContractVersion': 1, 'units': 2})
+        self.assertEqual(paths, [('GET', '/api/me?credit=1')])
+        def invalid(*args):
+            return 200, {'creditContractVersion': 1, 'units': True}, None
+        client.request = invalid
+        with self.assertRaisesRegex(FiniteTrialError, 'balance_unavailable'): client.me()
 
     def test_no_second_assignment_even_after_first_assignment_fails(self):
         client = FiniteSceneClient('a' * 64, deadline=600)

@@ -19,6 +19,9 @@ read scans locally and recover that acceptance before another bounded activation
 the one-trial consent is consumed. The broad hold remains outside that finite scope.
 The [metadata/search plan](SCENE_FILTER_METADATA.md) keeps country/generation/saved
 pan tagged before indexing, with pinned reference heuristics and preserved evidence.
+The [coordinator read fixes](SCENE_COORDINATOR_READ_COST.md) now pass local scaled
+assignment/upload/credit replay and upgrade checks. They remain undeployed, and the
+additive lookup indexes need separately scoped maintenance before hosted recovery.
 
 **Latest decision:** implement the [approved hybrid mode](HYBRID_LAUNCH_DECISION_20261013.md):
 sample qualification, explicitly marked lighter routine upload checks, online

@@ -33,6 +33,8 @@ CREATE TABLE IF NOT EXISTS locations (
   UNIQUE (asset_id, capture, lane, model)
 );
 CREATE INDEX IF NOT EXISTS locations_queue ON locations (lane, state, lease_until, id);
+CREATE INDEX IF NOT EXISTS locations_unpublished_lane_id ON locations(lane,id) WHERE state!='published';
+CREATE INDEX IF NOT EXISTS locations_active_lease_lookup ON locations(active_lease) WHERE active_lease IS NOT NULL;
 -- Written only by the trusted historical-coverage import, never by volunteers.
 CREATE TABLE IF NOT EXISTS object_coverage (
   location_id INTEGER PRIMARY KEY REFERENCES locations(id),
@@ -55,6 +57,7 @@ CREATE TABLE IF NOT EXISTS lease_items (
   location_id INTEGER NOT NULL REFERENCES locations(id),
   PRIMARY KEY (lease_id, location_id)
 );
+CREATE INDEX IF NOT EXISTS leases_active_account_lookup ON leases(account_id,lane,expires_at DESC) WHERE state='active';
 CREATE TABLE IF NOT EXISTS scene_qualifications (
   id TEXT PRIMARY KEY,
   account_id TEXT NOT NULL REFERENCES accounts(id),

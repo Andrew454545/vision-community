@@ -63,9 +63,10 @@ This preparation has not been applied to the live catalog or any private MMA dat
    sidecar/policy for new raw-metadata batches before importing them. Do not repeat
    inference merely to retag metadata; corrections need a new controlled metadata
    revision and search snapshot, preserving earlier admission/credit evidence.
-2. Address the finite trial's observed coordinator read limit before more hosted
-   work; add route-level usage evidence and remove unnecessary table scans using
-   local copies/fixtures. Its two accepted uploads are retained; replay is unfinished.
+2. Activate only with the [locally verified read-cost fixes](SCENE_COORDINATOR_READ_COST.md)
+   and their separately scoped additive index maintenance. Account-only refresh,
+   indexed assignment/upload and redacted route evidence now pass the scaled local
+   fixture. Its two real accepted uploads are retained; real replay is unfinished.
 3. Complete automatic contributed-Scene snapshot refresh and online earned-credit
    search/recovery under a separately bounded activation. Keep contributor-only
    membership and account/credit authority through rollback.

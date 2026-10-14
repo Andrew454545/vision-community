@@ -7,10 +7,12 @@ import {parseArgs} from 'node:util';
 import {sqliteD1} from './sqlite-d1.mjs';
 import {prepareDatabase} from './initialize-schema.mjs';
 import {SCHEMA_REVISION_SQL} from '../src/schemaRevision.js';
+import {READ_COST_INDEXES} from '../src/readCostIndexes.js';
 
 export function checkpointPlan() {
   return ['CREATE INDEX IF NOT EXISTS scene_qualifications_lookup ON scene_qualifications(account_id,policy_id,profile_id,expires_at)',...SCHEMA_REVISION_SQL];
 }
+export function readCostPlan() { return [...READ_COST_INDEXES]; }
 export async function freshPlan() {
   const sql=new DatabaseSync(':memory:'),statements=[];
   try {
@@ -27,11 +29,11 @@ export async function freshPlan() {
 export function sqlFile(statements) {return '-- Explicit maintenance SQL. Validate the confirmed database binding first.\n'+statements.map(q=>q.trim().replace(/;$/,'')+';').join('\n\n')+'\n';}
 if(process.argv[1] && import.meta.url===pathToFileURL(resolve(process.argv[1])).href) {
   try {
-    const {values}=parseArgs({options:{fresh:{type:'boolean'},checkpoint:{type:'boolean'},output:{type:'string'}}});
-    if(Boolean(values.fresh)===Boolean(values.checkpoint)||!values.output) throw Error('choose_one_plan');
-    const statements=values.fresh?await freshPlan():checkpointPlan();
+    const {values}=parseArgs({options:{fresh:{type:'boolean'},checkpoint:{type:'boolean'},'read-cost':{type:'boolean'},output:{type:'string'}}});
+    if([values.fresh,values.checkpoint,values['read-cost']].filter(Boolean).length!==1||!values.output) throw Error('choose_one_plan');
+    const statements=values.fresh?await freshPlan():values['read-cost']?readCostPlan():checkpointPlan();
     writeFileSync(resolve(values.output),sqlFile(statements),{flag:'wx',mode:0o600});
-    console.log(JSON.stringify({status:'OFFLINE_SCHEMA_PLAN_SAVED',kind:values.fresh?'fresh-empty-database-only':'checkpoint-existing-current-schema',
+    console.log(JSON.stringify({status:'OFFLINE_SCHEMA_PLAN_SAVED',kind:values.fresh?'fresh-empty-database-only':values['read-cost']?'additive-read-cost-indexes':'checkpoint-existing-current-schema',
       statements:statements.length,cloudResourcesAccessed:false}));
-  } catch {console.error('Choose --fresh or --checkpoint and a new --output file. Existing files are preserved.');process.exitCode=1;}
+  } catch {console.error('Choose --fresh, --checkpoint or --read-cost and a new --output file. Existing files are preserved.');process.exitCode=1;}
 }

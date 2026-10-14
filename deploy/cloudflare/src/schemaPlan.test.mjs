@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {readFileSync} from 'node:fs';
 import test from 'node:test';
-import {freshPlan,checkpointPlan,sqlFile} from '../tools/schema-plan.mjs';
+import {freshPlan,checkpointPlan,readCostPlan,sqlFile} from '../tools/schema-plan.mjs';
 import {sqliteD1} from '../tools/sqlite-d1.mjs';
 import {requireSchema} from './schemaRevision.js';
 
@@ -34,4 +34,25 @@ test('checkpointing an existing current schema preserves recovery, saved paid ma
   const snapshot=()=>['accounts','ledger','searches'].map(table=>sql.prepare('SELECT * FROM '+table).all());
   const before=snapshot();await db.batch(checkpointPlan().map(q=>db.prepare(q)));await requireSchema({DB:db});
   assert.deepEqual(snapshot(),before);
+});
+
+test('additive read-cost migration is separately generated without changing historical checkpoint SQL',()=>{
+  assert.equal(readFileSync(new URL('../migrations/0005_coordinator_read_cost.sql',import.meta.url),'utf8').replaceAll('\r',''),sqlFile(readCostPlan()));
+  assert.equal(readCostPlan().length,3);
+  assert.ok(readCostPlan().every(sql=>/^CREATE INDEX IF NOT EXISTS /.test(sql)));
+});
+
+test('read-cost maintenance is idempotent and preserves rows, triggers and the schema contract',async t=>{
+  const sql=new DatabaseSync(':memory:');t.after(()=>sql.close());const db=sqliteD1(sql);
+  await db.batch((await freshPlan()).map(q=>db.prepare(q)));
+  sql.exec("INSERT INTO accounts(id,token_hash,recovery_hash,units) VALUES('saved','token','private-code',100001)");
+  sql.exec("INSERT INTO ledger(account_id,units,reason,reference) VALUES('saved',1,'contribution','earned-once')");
+  sql.exec("INSERT INTO searches(id,account_id,idempotency_key,query,result_json) VALUES('paid','saved','key','private prompt','saved reply')");
+  for(const statement of readCostPlan())sql.exec('DROP INDEX '+statement.match(/IF NOT EXISTS (\w+)/)[1]);
+  const snapshot=()=>({rows:['accounts','ledger','searches','community_schema_revision'].map(table=>sql.prepare('SELECT * FROM '+table).all()),
+    triggers:sql.prepare("SELECT name,sql FROM sqlite_master WHERE type='trigger' ORDER BY name").all()});
+  const before=snapshot();
+  await db.batch(readCostPlan().map(q=>db.prepare(q)));
+  await db.batch(readCostPlan().map(q=>db.prepare(q)));
+  await requireSchema({DB:db});assert.deepEqual(snapshot(),before);
 });

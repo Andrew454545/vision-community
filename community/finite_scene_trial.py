@@ -48,6 +48,15 @@ class BoundedOpener:
         self.requests, self.sent_bytes = 0, 0
         self.usage = dict.fromkeys(LIMITS, 0)
         self.stopped = False
+        self.stop_reason = None
+        self.history = []
+
+    def _record(self, method, path, status, before, *, complete, reason=None):
+        # Paths come from ALLOWED; omit query strings, credentials and bodies.
+        self.history.append({'attempt': self.requests, 'method': method, 'path': path,
+            'httpStatus': status, 'usageComplete': complete,
+            'usage': {key: self.usage[key] - before[key] for key in LIMITS},
+            **({'reason': reason} if reason else {})})
 
     def _measure(self, headers):
         if headers.get('x-vision-trial-usage-complete') != '1':
@@ -69,7 +78,9 @@ class BoundedOpener:
             origin = f'{url.scheme}://{url.netloc}'
             size = len(request.data or b'')
             remaining = self.deadline - self.clock()
-            if (self.stopped or remaining <= 0 or self.requests >= 32
+            if self.stopped:
+                raise FiniteTrialError(self.stop_reason or 'finite_scene_request_limit')
+            if (remaining <= 0 or self.requests >= 32
                     or self.sent_bytes + size > 524288):
                 raise FiniteTrialError('finite_scene_request_limit')
             if origin != ORIGIN or (request.get_method(), url.path) not in ALLOWED or url.fragment:
@@ -79,24 +90,42 @@ class BoundedOpener:
                 request.add_header('X-Vision-Trial-Remaining-' + key, str(max(0, limit - self.usage[key])))
             self.requests += 1
             self.sent_bytes += size
+            before = dict(self.usage)
             try:
                 response = self.delegate.open(request, timeout=min(10, remaining))
             except urllib.error.HTTPError as error:
                 self.stopped = True
+                self.stop_reason = 'finite_scene_http_failure'
                 try:
                     self._measure(error.headers)
+                    self._record(request.get_method(), url.path, error.code, before, complete=True,
+                                 reason=self.stop_reason)
+                except BaseException as failure:
+                    self.stop_reason = failure.code if isinstance(failure, FiniteTrialError) else 'finite_scene_usage_unknown'
+                    self._record(request.get_method(), url.path, error.code, before,
+                                 complete=self.stop_reason == 'finite_scene_usage_limit',
+                                 reason=self.stop_reason)
+                    raise
                 finally:
                     error.close()
                 raise FiniteTrialError('finite_scene_http_failure', error.code) from error
             except BaseException:
                 self.stopped = True
+                self.stop_reason = 'finite_scene_network_failure'
+                self._record(request.get_method(), url.path, None, before, complete=False,
+                             reason=self.stop_reason)
                 raise
             try:
                 self._measure(response.headers)
-            except BaseException:
+            except BaseException as failure:
                 self.stopped = True
+                self.stop_reason = failure.code if isinstance(failure, FiniteTrialError) else 'finite_scene_usage_unknown'
+                self._record(request.get_method(), url.path, getattr(response, 'status', None), before,
+                             complete=self.stop_reason == 'finite_scene_usage_limit',
+                             reason=self.stop_reason)
                 response.close()
                 raise
+            self._record(request.get_method(), url.path, getattr(response, 'status', None), before, complete=True)
             return response
 
 
@@ -107,6 +136,14 @@ class FiniteSceneClient(DesktopClient):
         self.opener = self.budget
         self.assigned_lease = None
         self.assignment_attempted = False
+
+    def me(self):
+        status, value, _ = self.request('GET', '/api/me?credit=1')
+        if (status != 200 or not isinstance(value, dict) or type(value.get('creditContractVersion')) is not int
+                or value['creditContractVersion'] != 1
+                or type(value.get('units')) is not int or value['units'] < 0):
+            raise FiniteTrialError('finite_scene_balance_unavailable')
+        return value
 
     def lease(self, lane, count, pace, **kwargs):
         if self.assignment_attempted or lane != 'scene' or count != 2:
@@ -194,6 +231,8 @@ def run_trial(*, account, report, policy, binary, model_dir, work_dir, token):
         client.budget.stopped = True
         result.update(coordinatorRequests=client.budget.requests, coordinatorBytesSent=client.budget.sent_bytes,
                       observedUsage=client.budget.usage, pending=client.pending,
+                      requestUsage=getattr(client.budget, 'history', []),
+                      transportStopReason=getattr(client.budget, 'stop_reason', None),
                       gatewayClosed=False, shutdownReadbackRequired=True, productionQualified=False)
         with (Path(work_dir) / 'trial.receipt.private.json').open('x', encoding='utf-8') as stream:
             json.dump(result, stream, indent=2)
