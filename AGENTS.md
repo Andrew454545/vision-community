@@ -13,11 +13,14 @@ Report exact finite request/row/upload bounds before a batch. Stop on unexpected
 usage/failure, preserve work/credit/evidence, and restore staging's paused posture
 afterward. Do not activate only to discover that saved qualification is unusable.
 
-Automatic approval review subsequently refused the account/D1 reads because it
-requires the laptop user's direct approval of that exception, rather than the
-owner agent's GitHub report. A narrow user question for configuration/status and
-up to eight qualification reads is pending. Until answered, continue offline;
-do not route the blocked cloud action through another tool or the Mac agent.
+Automatic approval review initially refused the account/D1 reads because it
+required the laptop user's direct approval rather than the owner agent's GitHub
+report. The laptop user directly answered **"Approve these staging reads
+(recommended)"** on 14 October to the exact question for the existing gateway's
+configuration/status and at most eight saved Scene qualification records,
+acknowledging possible small database usage charges. Those reads may now proceed.
+This user answer authorizes no deployment, indexing, cloud compute, new account,
+result upload or recurring-task restart. Do not infer broader activation approval.
 
 Native cloud allowances stay zero; native endpoints/previews/crons and general
 recurring jobs stay disabled. This exception does not authorize fresh qualification
