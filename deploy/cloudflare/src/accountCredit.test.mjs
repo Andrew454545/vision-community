@@ -74,6 +74,9 @@ test('queued credit uses reserved balances and expiry without spending or touchi
   let value=await (await f.request()).json();
   assert.deepEqual(value,{creditContractVersion:1,accountId:ACCOUNT,bankedUnits:10,reservedUnits:2,units:8,searchCost:2,searchesAvailable:4});
   assert.ok(f.reads.every(query=>!/(locations|published_index|pose_catalog|lease_items)/i.test(query)));
+  let browser=await (await f.request('me?controls=1')).json();
+  assert.equal(browser.accountControlVersion,1);assert.equal(browser.searchDelivery,'queued');
+  for(const key of ['bankedUnits','reservedUnits','units','searchesAvailable'])assert.equal(browser[key],value[key]);
   const past=now-SEARCH_JOB_SECONDS-1,old=await queueSearch(f.env,ACCOUNT,`q1.${past}.${'2'.repeat(32)}`,query,
     {now:past,maxCostUnits:2});
   assert.equal((await searchCredit(f.env.DB,ACCOUNT)).reservedUnits,4);
@@ -81,6 +84,7 @@ test('queued credit uses reserved balances and expiry without spending or touchi
   assert.equal(f.sql.prepare('SELECT state FROM search_jobs WHERE id=?').get(old.jobId).state,'expired');
   await cancelQueuedSearch(f.env,ACCOUNT,key);
   value=await (await f.request()).json();assert.equal(value.reservedUnits,0);assert.equal(value.units,10);
+  browser=await (await f.request('me?controls=1')).json();assert.equal(browser.reservedUnits,0);assert.equal(browser.units,10);
   assert.equal(f.sql.prepare('SELECT COUNT(*) AS n FROM ledger').get().n,1);
   assert.equal(f.sql.prepare('SELECT COUNT(*) AS n FROM searches').get().n,0);
 });
@@ -89,4 +93,46 @@ test('queued credit fails closed without reservation schema rather than returnin
   const f=await fixture(t);f.env.SEARCH_DELIVERY='queued-v1';
   const reply=await f.request();assert.equal(reply.status,503);
   assert.equal((await reply.json()).error,'schema_update_required');
+});
+
+test('browser controls read own credit and current search configuration without corpus or R2',async t=>{
+  const f=await fixture(t);
+  Object.assign(f.env,{SEARCH_ENGINE:{fetch(){throw Error('No native service access');}},SEARCH_POLICY_ID:'fixture',
+    SEARCH_RUNTIME_SHA256:'c'.repeat(64),SEARCH_SNAPSHOT_SHA256:'d'.repeat(64)});
+  const response=await f.request('me?controls=1&accountId='+OTHER);assert.equal(response.status,200);
+  const value=await response.json();
+  assert.equal(value.accountControlVersion,1);assert.equal(value.creditContractVersion,1);
+  assert.equal(value.accountId,ACCOUNT);assert.equal(value.units,10);assert.equal(value.searchCost,2);
+  assert.equal(value.searchOnSite,true);assert.equal(value.searchDelivery,'immediate');assert.equal(f.reads.length,3);
+  assert.ok(f.reads.every(query=>!/(locations|published_index|pose_catalog|lease_items)/i.test(query)));
+  for(const key of ['counts','countries','r2','work','workByLane','bankedUnits','reservedUnits'])assert.equal(key in value,false);
+  const dashboard=await (await f.request('me?lite=1')).json();
+  for(const key of ['searchReady','searchOnSite','searchCost','searchBackend','searchResultLimits','searchDelivery','indexDownloads','accountDeletionAvailable'])
+    assert.deepEqual(value[key],dashboard[key],key);
+});
+
+test('browser controls reflect cohort closure and missing prices, retaining saved balance',async t=>{
+  const f=await fixture(t);
+  Object.assign(f.env,{DEPLOYMENT_ENVIRONMENT:'staging',INDEX_BUCKET_NAME:'vision-community-staging',
+    RATE_LIMITS_REQUIRED:'1',...Object.fromEntries(['API_RATE_LIMITER','API_INGRESS_LIMITER','API_VIEW_LIMITER']
+      .map(name=>[name,{limit:async()=>({success:true})}])),
+    DELETION_ARCHIVE_DB_ID:'17043cb7-5dab-4a6f-84ca-19ae1c14cc05',SCENE_POLICY_ID:'staging.fixture',
+    SCENE_COHORT_ACCOUNTS:JSON.stringify([hash(ACCOUNT)]),SCENE_COHORT_UNTIL:String(Date.now()+600000),
+    SEARCH_ENGINE:{fetch(){throw Error('No native access');}},SEARCH_POLICY_ID:'fixture',
+    SEARCH_RUNTIME_SHA256:'c'.repeat(64),SEARCH_SNAPSHOT_SHA256:'d'.repeat(64)});
+  assert.equal((await (await f.request('me?controls=1')).json()).searchOnSite,true);
+  f.env.SCENE_COHORT_UNTIL=String(Date.now()-1000);
+  let value=await (await f.request('me?controls=1')).json();assert.equal(value.searchOnSite,false);assert.equal(value.units,10);
+  f.env.SEARCH_COST_UNITS='invalid';value=await (await f.request('me?controls=1')).json();
+  assert.equal(value.searchCost,null);assert.equal(value.searchesAvailable,0);assert.equal(value.searchReady,false);
+});
+
+test('anonymous controls reveal no account data and retain deletion receipt recovery',async t=>{
+  const f=await fixture(t),response=await f.request('status?controls=1','wrong-token');assert.equal(response.status,200);
+  const value=await response.json();assert.equal(value.accountId,null);assert.equal(value.units,0);
+  assert.equal(value.accountDeletionAvailable,true);assert.equal(value.searchOnSite,false);
+  assert.equal(f.reads.length,1);assert.ok(f.reads.every(query=>!/(accounts|locations|published_index)/i.test(query)));
+  assert.equal((await f.request('me?controls=1','wrong-token')).status,401);
+  f.sql.prepare('UPDATE accounts SET deleted_at=1 WHERE id=?').run(ACCOUNT);
+  assert.equal((await f.request('me?controls=1')).status,401);
 });

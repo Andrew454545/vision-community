@@ -47,6 +47,42 @@ class VisionServiceReadiness {
       return response.ok ? await response.json() : null;
     } catch { return null; }
   }
+  static mergeAccountControls(previous, next) {
+    const count = value => Number.isSafeInteger(value) && value >= 0;
+    const cost = next?.searchCost;
+    const signedIn = typeof next?.accountId === "string" && /^[0-9a-f]{32}$/.test(next.accountId);
+    const queued = next?.searchDelivery === "queued";
+    const allowed = new Set(["accountControlVersion", "operational", "environment", "model", "creditContractVersion",
+      "accountId", "units", "bankedUnits", "reservedUnits", "searchesAvailable", "searchCost", "searchBackend",
+      "searchOnSite", "searchReady", "searchDelivery", "searchResultLimits", "indexDownloads", "accountDeletionAvailable"]);
+    if (!next || typeof next !== "object" || Array.isArray(next)
+        || Object.keys(next).some(key => !allowed.has(key))
+        || next.accountControlVersion !== 1 || next.creditContractVersion !== 1 || next.operational !== true
+        || !["staging", "preview"].includes(next.environment) || typeof next.model !== "string" || !next.model
+        || !signedIn && next.accountId !== null || !count(next.units) || !count(next.searchesAvailable)
+        || cost !== null && (!Number.isSafeInteger(cost) || cost < 1)
+        || next.searchesAvailable !== (cost === null ? 0 : Math.floor(next.units / cost))
+        || ![true, false].includes(next.searchOnSite) || next.searchReady !== next.searchOnSite
+        || (cost === null || !signedIn) && next.searchOnSite !== false
+        || next.searchBackend !== "online" || !["immediate", "queued"].includes(next.searchDelivery)
+        || next.indexDownloads !== false || next.accountDeletionAvailable !== true
+        || !next.searchResultLimits || Object.keys(next.searchResultLimits).sort().join(",") !== "object,scene"
+        || ![next.searchResultLimits.scene, next.searchResultLimits.object].every(n => Number.isSafeInteger(n) && n > 0 && n <= 10000)
+        || signedIn && queued && (!count(next.bankedUnits) || !count(next.reservedUnits)
+          || next.bankedUnits - next.reservedUnits !== next.units)
+        || (!signedIn || !queued) && ("bankedUnits" in next || "reservedUnits" in next)
+        || !signedIn && next.units !== 0) throw new Error("invalid_service_response");
+    // These are shared corpus labels/counts, never account work or credentials.
+    // A changed/revoked session must discard every prior account-specific field.
+    const shared = {};
+    for (const key of ["countries", "cameraGenerations", "counts", "r2", "visualPublished", "objectIndexes", "sceneIndexes"])
+      if (previous && key in previous) shared[key] = previous[key];
+    const sameAccount = signedIn && previous?.accountId === next.accountId;
+    const result = {...(sameAccount ? previous : shared), ...next};
+    // Changing delivery mode must not retain a previous reservation summary.
+    if (!queued) { delete result.bankedUnits; delete result.reservedUnits; }
+    return result;
+  }
   static async readResponse(response, path = "") {
     let data;
     try { data = await response.json(); }

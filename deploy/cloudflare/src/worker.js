@@ -20,14 +20,14 @@ import { retireAcceptedObjectAudits } from './objectAuditRetention.js';
 import { ownerObjectDelivery,requireOwnerObjectAgent,claimOwnerObjectAudit,ownerObjectCandidate,
   completeOwnerObjectAudit,failOwnerObjectAudit,OWNER_OBJECT_RESULT_BYTES } from './ownerObjectAudit.js';
 import {claimOwnerObjectRetirement,acknowledgeOwnerObjectRetirement} from './ownerObjectRetirement.js';
-import { onlineSearch, onlineSearchConfigured, INDEX_DOWNLOAD_ROUTES } from "./onlineSearch.js";
-import { MAX_SEALED_SCENE_HITS } from './sceneMembership.js';
+import { onlineSearch, INDEX_DOWNLOAD_ROUTES } from "./onlineSearch.js";
 import { SearchError } from "./searchLedger.js";
-import { queueSearch, queuedSearchConfigured, requireSearchQueue, maintainSearchQueue, searchCredit,
+import { queueSearch, requireSearchQueue, maintainSearchQueue, searchCredit,
   queuedSearchStatus, recoverSearch, cancelQueuedSearch, requireSearchAgent, claimQueuedSearch,
   renewQueuedSearch, failQueuedSearch, completeQueuedSearch,authorizeCloudSearch, SEARCH_QUEUE_RESULT_BYTES } from './searchQueue.js';
 import { searchCost } from "./searchPricing.js";
 import { accountCredit } from './accountCredit.js';
+import { accountControls, searchControlFields } from './accountControls.js';
 import { acknowledgeCloudStop } from './searchHybrid.js';
 import { sceneCohortAllows } from "./sceneCohort.js";
 import { deleteAccount, cleanupAccountArtifacts, archiveAccountDeletionReceipts } from "./accountPrivacy.js";
@@ -257,17 +257,7 @@ async function status(env, account, options = {}) {
     r2: lite
       ? { provisioned: Boolean(env.INDEX), bucket: env.INDEX ? env.INDEX_BUCKET_NAME || "vision-community" : null, binding: "INDEX", publicAccess: false, role: "sealed-segments" }
       : await r2Status(env),
-    searchCost: cost,
-    searchBackend: "online",
-    searchOnSite: cohortAllowed && cost !== null && (env.SEARCH_DELIVERY === undefined ? onlineSearchConfigured(env) : queuedSearchConfigured(env)),
-    searchReady: cohortAllowed && cost !== null && (env.SEARCH_DELIVERY === undefined ? onlineSearchConfigured(env) : queuedSearchConfigured(env)),
-    searchDelivery: env.SEARCH_DELIVERY === 'queued-v1' ? 'queued' : 'immediate',
-    searchResultLimits: {
-      scene: env.SEARCH_SCENE_MEMBERSHIP !== undefined ? MAX_SEALED_SCENE_HITS : env.SEARCH_DELIVERY === 'queued-v1' ? 1000 : 10000,
-      object: env.SEARCH_DELIVERY === 'queued-v1' ? 1000 : 10000,
-    },
-    indexDownloads: false,
-    accountDeletionAvailable: true,
+    ...searchControlFields(env,cohortAllowed),
     model: MODEL_ID,
     visualPublished: visual?.n || 0,
     objectIndexes: objectIndexes?.n || 0,
@@ -1297,7 +1287,8 @@ export default {
           : sceneCapabilities(env.SCENE_ADMISSION_MODE !== undefined ? null : await loadSceneReferences(env));
         return json({...scene,...objectCapabilities()});
       }
-      if (url.pathname === "/api/status") return json(await status(env));
+      if (url.pathname === "/api/status") return json(url.searchParams.get('controls') === '1'
+        ? await accountControls(env) : await status(env));
       const account=anonymous ? null : await accountId(env,request);
       // Deleted accounts may still replay their own saved deletion receipt.
       if (!anonymous && !account && url.pathname!=="/api/account/delete") return error("unauthorized",401);
@@ -1319,8 +1310,8 @@ export default {
         return json(url.pathname.endsWith('/revoke')?await revokeObjectQualification(env,account,qualificationBody)
           :await qualifyObjectDevice(env,account,qualificationBody));
       }
-      if (url.pathname === "/api/me") return json(url.searchParams.get('credit') === '1'
-        ? await accountCredit(env, account)
+      if (url.pathname === "/api/me") return json(url.searchParams.get('controls') === '1'
+        ? await accountControls(env, account) : url.searchParams.get('credit') === '1' ? await accountCredit(env, account)
         : await status(env, account, { lite: url.searchParams.get("lite") === "1" }));
       if (url.pathname === '/api/search-jobs') return json(await queuedSearchStatus(env, account, url.searchParams.get('jobId')));
       if (url.pathname === '/api/searches/recover') return json(await recoverSearch(env, account, url.searchParams.get('idempotencyKey')));
