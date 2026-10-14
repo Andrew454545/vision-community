@@ -17,8 +17,18 @@ test('collector uses one primary-first parameterized query without account secre
   assert.deepEqual(value.inventory,{version:1,resource:STAGING_RESOURCE,rows:[]});assert.deepEqual(value.control.deletions,[]);
 });
 test('invalid policy selection cannot reach a database',async()=>{
-  for(const policies of [[],['production'],['staging.a','staging.a'],["staging.x'); DROP TABLE accounts;--"],Array(17).fill('staging.a')])
+  for(const policies of [[],['production'],['staging.a','staging.a'],['qualified-device-v1|production.a'],
+    ['qualified-device-v1|qualified-device-v1|staging.a'],["staging.x'); DROP TABLE accounts;--"],Array(17).fill('staging.a')])
     await assert.rejects(capturePublications({},policies),/invalid_refresh_policies/);
+});
+test('qualified and mixed capture selects only exact pinned IDs without relabelling ledger reasons',async()=>{
+  for(const policies of [['qualified-device-v1|staging.synthetic'],['staging.synthetic','qualified-device-v1|staging.synthetic']]){
+    const doc={rows:[],candidates:[],qualifications:[],accounts:[],deletions:[],
+      ledger:[{reason:'qualified_device_work',units:2}]};
+    const db={withSession(){return {prepare(){return {bind(value){assert.deepEqual(JSON.parse(value),policies);
+      return {async first(){return {document:JSON.stringify(doc)};}};}};}};}};
+    const value=await capturePublications(db,policies);assert.equal(value.control.ledger[0].reason,'qualified_device_work');
+  }
 });
 test('private proxy cannot select an unconfirmed bucket, account, database or service',()=>{
   checkedProxyConfig(config());

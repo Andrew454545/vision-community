@@ -1,5 +1,26 @@
 # Automatic Scene search refresh
 
+**14 October source update:** the live pilot/refresher remain paused under the
+cost hold; the operational results below are historical. The private collector
+now accepts explicitly pinned `qualified-device-v1|staging.…` policy IDs as well
+as audited IDs. Previously its validation rejected qualified IDs before querying,
+so new qualified Scene work could never reach this automatic refresh path.
+Selecting an audited policy still selects only that exact policy, with no implicit
+qualified expansion. Collector output retains both original ledger reasons.
+
+The existing sealer checks the pinned authority, exact admission mode, profile,
+qualification, original award, contributed membership and artifact bytes. A mixed
+authority can preserve old audited members and append qualified members with stable
+search IDs. Qualified-only/mixed refresh receipts now use their own names instead
+of claiming native audit. Lost activation replies retain once-only pointer recovery;
+wrong credit reasons still refuse sealing. No financial or publication writer changed.
+
+[New local evidence](evidence/qualified-scene-refresh-20261014.json): seven Node,
+18 Python and nine actual local workerd/D1/R2 checks passed, without skips. Outputs,
+authority, credits and activation are synthetic. These source fixes did not restart
+the task, access Cloudflare or activate a snapshot. Native/provider/search activation
+remains outside the pending [existing-receipt recovery scope](SCENE_ACCEPTANCE_RECOVERY.md).
+
 The restricted staging pilot now has a windowless hourly refresher independent
 of Codex. It collects accepted Scene publications, verifies their native audit
 and earned credit, and prepares an immutable append. A private guarded activation

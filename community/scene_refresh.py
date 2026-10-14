@@ -1,4 +1,4 @@
-"""Private operator refresh of native-audited staging publications.
+"""Private operator refresh of explicitly authorized staging publications.
 
 Uses existing credentials through a pinned Wrangler adapter, not volunteer
 authority. No account/credit writes, public admission, model downloads or deploys.
@@ -141,6 +141,12 @@ class SceneRefresher:
             raise RefreshError('invalid_refresh_allowance')
         self.authority_path = Path(settings['authority']['path'])
         self.authority = document(self.authority_path, settings['authority']['sha256'], self.resource)
+        statuses = {'native-audited-community-scene-publications': 'NATIVE_AUDITED_SCENE_REFRESHED',
+                    'qualified-device-community-scene-publications': 'QUALIFIED_DEVICE_SCENE_REFRESHED',
+                    'qualified-and-audited-community-scene-publications': 'MIXED_ADMISSION_SCENE_REFRESHED'}
+        if self.authority.get('scope') not in statuses:
+            raise RefreshError('invalid_publication_authority')
+        self.refresh_status = statuses[self.authority['scope']]
         self.policies = [row['policyId'] for row in self.authority['policies']]
         if (not HEX.fullmatch(settings.get('runtimeSha256', '')) or not settings.get('searchPolicyId')
                 or any(row['runtimeSha256'] != settings['runtimeSha256'] for row in self.authority['policies'])):
@@ -205,7 +211,7 @@ class SceneRefresher:
         # the next cycle revalidates and appends it without reactivating this seal.
         state.update(current={key: pending[key] for key in ('snapshot', 'snapshotSha256', 'bundle')}, pending=None)
         atomic_json(self.state_path, state)
-        return {'status': 'NATIVE_AUDITED_SCENE_REFRESHED', 'activated': True,
+        return {'status': self.refresh_status, 'activated': True,
                 'snapshotSha256': pending['snapshotSha256'], 'locations': pending['locations']}
 
     def once(self, directory):

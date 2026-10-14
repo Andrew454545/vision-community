@@ -52,6 +52,7 @@ class SceneRefreshTests(unittest.TestCase):
             def call(self, operation, **values):
                 self.calls.append(operation)
                 if operation == 'capture':
+                    test.assertEqual(values['policies'], [row['policyId'] for row in test.f.authority['policies']])
                     self.captures += 1
                     value = {'inventory': copy.deepcopy(test.f.inventory), 'control': copy.deepcopy(test.f.control)}
                     if self.captures == self.mutate_capture_number:
@@ -123,6 +124,51 @@ class SceneRefreshTests(unittest.TestCase):
         self.assertEqual(self.f.control, control)
         self.assertEqual(self.run_once('repeat')['status'], 'CURRENT_NO_CHANGE')
         self.assertEqual(self.adapter.calls.count('activate'), 1)
+
+    def qualified_authority(self, *, mixed):
+        old = self.f.authority['policies'][0]
+        qualified = {**copy.deepcopy(old), 'policyId': 'qualified-device-v1|' + old['policyId'],
+                     'qualificationPolicyId': old['policyId'], 'admissionMode': 'qualified-device-v1'}
+        if mixed:
+            old['admissionMode'] = 'audited-v1'
+            self.f.authority['policies'].append(qualified)
+            self.f.authority['scope'] = 'qualified-and-audited-community-scene-publications'
+            start = 1
+        else:
+            self.f.authority['policies'] = [qualified]
+            self.f.authority['scope'] = 'qualified-device-community-scene-publications'
+            start = 0
+        for candidate in self.f.control['candidates'][start:]: candidate['policy_id'] = qualified['policyId']
+        for credit in self.f.control['ledger'][start:]: credit['reason'] = 'qualified_device_work'
+        path = Path(self.settings['authority']['path']); path.write_bytes(encoded(self.f.authority))
+        self.settings['authority']['sha256'] = digest(path.read_bytes())
+
+    def test_mixed_qualified_append_preserves_old_search_ids_and_never_claims_native_audit(self):
+        self.append(); self.qualified_authority(mixed=True)
+        before = copy.deepcopy(self.f.control)
+        result = self.run_once()
+        self.assertEqual(result['status'], 'MIXED_ADMISSION_SCENE_REFRESHED')
+        self.assertEqual(result['locations'], 2)
+        self.assertEqual(self.f.control, before)
+        state = json.loads((self.root/'state.private.json').read_bytes())
+        members = json.loads((Path(state['current']['snapshot'])/'members.json').read_bytes())
+        self.assertEqual([r['locationId'] for r in members], [1, 2])
+        self.assertEqual([r['sourceIndex'] for r in members], [0, 1])
+        self.assertEqual(self.run_once('repeat-mixed')['status'], 'CURRENT_NO_CHANGE')
+        self.assertEqual(self.adapter.calls.count('activate'), 1)
+
+    def test_qualified_only_refresh_and_lost_reply_preserve_qualification_label(self):
+        self.append(); self.qualified_authority(mixed=False)
+        self.adapter.lose_activation_reply = True
+        self.assertEqual(self.run_once()['status'], 'DEFERRED_ADAPTER_UNAVAILABLE')
+        self.assertEqual(self.run_once('resume-qualified')['status'], 'QUALIFIED_DEVICE_SCENE_REFRESHED')
+        self.assertEqual(self.adapter.calls.count('activate'), 1)
+
+    def test_qualified_ledger_cannot_be_silently_relabelled_as_audited(self):
+        self.append(); self.qualified_authority(mixed=True)
+        self.f.control['ledger'][-1]['reason'] = 'verified_work'
+        with self.assertRaisesRegex(Exception, 'publication_audit_not_authoritative'): self.run_once()
+        self.assertNotIn('activate', self.adapter.calls)
 
     def test_lost_activation_reply_recovers_without_reactivation_or_duplicate_work(self):
         self.append(); self.adapter.lose_activation_reply = True
