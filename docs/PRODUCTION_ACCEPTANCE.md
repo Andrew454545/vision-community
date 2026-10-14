@@ -26,8 +26,11 @@ The [qualified eligibility inspector](QUALIFIED_OBJECT_ELIGIBILITY.md) now check
 current profile/Scene/Gen4 authority and fresh private original-source protection
 in source. The [distinct qualified Object writer](QUALIFIED_OBJECT_PUBLICATION.md) now binds
 prepared leases to staging, atomic acceptance/once-only credit and offline financial
-recovery in source. Automatic assignment/public routing, approved private setup
-and authentic platform evidence remain unfinished; Object capability stays closed.
+recovery in source. [Automatic prepared-pool allocation](QUALIFIED_OBJECT_ASSIGNMENTS.md)
+now adds exclusive assignment/delivery, original-qualification upload fences and
+retained request recovery. Fresh source-side pool preparation, public/client routing,
+approved private setup and authentic platform evidence remain unfinished;
+Object capability stays closed.
 
 **Owner cost hold, 12 October:** all Community cloud execution and the local
 pilot/refresher/indexing tasks are paused. Read the [stop record](COST_STOP_20261012.md)

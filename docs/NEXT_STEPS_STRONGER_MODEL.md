@@ -28,8 +28,12 @@ protection in source. [Distinct qualified staging/publication](QUALIFIED_OBJECT_
 now binds prepared leases, current authority and owned artifacts to atomic
 acceptance/once-only credit, deletion fences and version-3 offline financial
 recovery. Reuse its 61 Node, 47 Python and 16 actual local workerd checks; all
-qualification/coverage/model evidence is synthetic. Next connect automatic
-qualified assignment/delivery and actual approved private setup, then Object
+qualification/coverage/model evidence is synthetic. [Prepared-pool assignment/delivery](QUALIFIED_OBJECT_ASSIGNMENTS.md)
+now connects exclusive requests to that writer with original-qualification fences
+and optional allocation-history recovery. Reuse its 80 Node, 53 Python and 22 actual
+local workerd checks; all authority/model/coverage evidence remains synthetic.
+Next finish fresh trusted source-side pool sealing/replenishment, public/client
+routing and actual approved private setup, then Object
 execution, other paid work's shared allocation and bounded sealed catalog/import.
 The read-only inspector never bypasses the audited writer's native approval fences.
 Both comparators explicitly remain `qualified:false`;

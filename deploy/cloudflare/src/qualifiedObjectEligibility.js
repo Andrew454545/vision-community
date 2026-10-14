@@ -5,6 +5,7 @@ import {activeObjectQualification,objectQualificationPolicy} from './objectQuali
 import {readVerifierJson} from './scenePipeline.js';
 import {sha256Hex,encodeUtf8,randomHex} from './model.js';
 import {ObjectDispatchError} from './objectAuditDispatch.js';
+import {objectWorkFence} from './objectWorkFence.js';
 const ID=/^[0-9a-f]{32}$/,HEX=/^[0-9a-f]{64}$/;
 const exact=(v,keys)=>v&&typeof v==='object'&&!Array.isArray(v)&&Object.keys(v).sort().join(',')===[...keys].sort().join(',');
 const integer=(v,a,b)=>Number.isSafeInteger(v)&&v>=a&&v<=b;
@@ -32,7 +33,7 @@ export async function qualifiedObjectEligibilityPolicy(env,now=Math.floor(Date.n
   return p;
 }
 
-async function sceneMembers(env,rows,race) {
+export async function sceneMembers(env,rows,race) {
   const members=[];
   for(const row of rows) {
     const matches=(await race(()=>env.DB.prepare(`SELECT s.id,s.asset_id,s.capture,s.model,s.lat,s.lon,s.country,s.camera_generation,
@@ -95,7 +96,8 @@ async function inspect(env,account,lease,now,timeoutMs,readIntegrity) {
     const qualification=await race(()=>activeObjectQualification(env,account,row.profile_id,at(),row.qualification_id??null));
     if(!qualification)fail('object_device_qualification_required',403);
     const scenes=await sceneMembers({...env,sceneModel:p.sceneInputModel},before.databaseSnapshot.rows,race);
-    const snapshot={integrity:before.databaseSnapshot,qualification,scenes};
+    const assignment=await race(()=>objectWorkFence(env,account,row,qualification,policyPin));
+    const snapshot={integrity:before.databaseSnapshot,qualification,scenes,...(assignment?{assignment}:{})};
     const snapshotSha256=await race(()=>sha256Hex(encodeUtf8(JSON.stringify(snapshot))));
     const request={version:1,accountId:account,leaseId:lease,profileId:row.profile_id,qualificationId:qualification.id,
       challenge:randomHex(16),assignmentSha256:row.assignment_sha256,sourceSha256:row.source_sha256,snapshotSha256,
@@ -110,7 +112,8 @@ async function inspect(env,account,lease,now,timeoutMs,readIntegrity) {
     const after=await readIntegrity(env,account,lease,at(),budget(),race);
     const currentQualification=await race(()=>activeObjectQualification(env,account,row.profile_id,at(),qualification.id));
     const currentScenes=await sceneMembers({...env,sceneModel:p.sceneInputModel},after.databaseSnapshot.rows,race);
-    const current={integrity:after.databaseSnapshot,qualification:currentQualification,scenes:currentScenes};
+    const currentAssignment=currentQualification?await race(()=>objectWorkFence(env,account,after.databaseSnapshot.row,currentQualification,policyPin)):null;
+    const current={integrity:after.databaseSnapshot,qualification:currentQualification,scenes:currentScenes,...(currentAssignment?{assignment:currentAssignment}:{})};
     if(JSON.stringify(current)!==JSON.stringify(snapshot)||env.OBJECT_ELIGIBILITY_POLICY!==policyRaw
       ||env.OBJECT_ELIGIBILITY_POLICY_SHA256!==policyPin||env.OBJECT_QUALIFICATION_POLICY!==qualificationRaw
       ||JSON.stringify(await race(()=>qualifiedObjectEligibilityPolicy(env,at())))!==JSON.stringify(p)

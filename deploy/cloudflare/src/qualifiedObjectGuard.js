@@ -1,4 +1,5 @@
 // SQL predicates for the exact in-memory eligibility read. No cached approval.
+import {objectWorkSqlFence} from './objectWorkFence.js';
 const fail=()=>{throw Error('invalid_qualified_object_snapshot');};
 const key=k=>{if(!/^[a-z_][a-z_0-9]*$/.test(k))fail();return k;};
 export function qualifiedObjectGuard(snapshot,prepared=false) {
@@ -27,7 +28,7 @@ export function qualifiedObjectGuard(snapshot,prepared=false) {
     AND (SELECT COUNT(*) FROM json_each(e.doc,'$.scenes') j JOIN locations s ON s.id=json_extract(j.value,'$.scene.id')
       JOIN published_index sp ON sp.location_id=s.id JOIN accounts sa ON sa.id=s.contributor_id
       JOIN lease_items i ON i.location_id=json_extract(j.value,'$.objectLocationId') AND i.lease_id=l.id
-      WHERE s.lane='scene' AND s.state='published' AND sa.deleted_at IS NULL AND (${scene}))=json_array_length(e.doc,'$.scenes')`;
+      WHERE s.lane='scene' AND s.state='published' AND sa.deleted_at IS NULL AND (${scene}))=json_array_length(e.doc,'$.scenes')${objectWorkSqlFence(snapshot.assignment)}`;
 }
 export const QUALIFIED_OBJECT_JOINS=`JOIN object_qualification_requests q ON q.id=json_extract(e.doc,'$.qualification.id')
   JOIN object_qualification_controls k ON k.account_id=q.account_id AND k.authority_sha256=q.authority_sha256 AND k.profile_id=q.profile_id

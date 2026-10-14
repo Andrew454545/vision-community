@@ -3,8 +3,10 @@
 **Source only, inactive and undeployed.** Qualified Object uploads now have their
 own staging and atomic publication path. It binds an already prepared exclusive
 Object lease to a current account/profile qualification, without creating or
-consuming a native audit approval. Automatic assignment, public routing and actual
-private transport/setup remain unfinished. Default Object capability stays closed.
+consuming a native audit approval. [Automatic prepared-pool allocation](QUALIFIED_OBJECT_ASSIGNMENTS.md)
+now connects exclusive requests and delivery in source. Fresh source-side pool
+preparation, public/client routing and actual private transport/setup remain
+unfinished. Default Object capability stays closed.
 
 ## Separate admission and current authority
 
@@ -86,8 +88,8 @@ Coverage, accounts, qualifications, models, protection, outputs and credits in
 every fixture are synthetic. Original failed attempts are preserved privately.
 
 No actual model/Mac qualification, live coverage test, cloud account read, provider
-call, deployment, Actions run or indexing restart occurred. Next connect automatic
-qualified assignment/delivery and actual approved private setup; finish Object
+call, deployment, Actions run or indexing restart occurred. Next finish fresh
+source-side pool preparation, public/client routing and actual approved private setup; finish Object
 search execution, shared allocation for qualification/other paid work, and bounded
 sealed corpus/import/recovery. The operational hold and real
 [launch gates](PRODUCTION_ACCEPTANCE.md) remain in force.
