@@ -1,5 +1,6 @@
 // Optional read-only eligibility, not publication, credit or public admission.
-import {inspectObjectUpload} from './objectSettlementCheck.js';
+import {inspectObjectUpload,inspectQualifiedObjectCandidate} from './objectSettlementCheck.js';
+import {inspectPreparedObjectUpload} from './qualifiedObjectPrepared.js';
 import {activeObjectQualification,objectQualificationPolicy} from './objectQualification.js';
 import {readVerifierJson} from './scenePipeline.js';
 import {sha256Hex,encodeUtf8,randomHex} from './model.js';
@@ -68,7 +69,13 @@ export function validateObjectProtectionEvidence(value,request,p,rows,now) {
   return value;
 }
 
-export async function inspectQualifiedObjectUpload(env,account,lease,now=Math.floor(Date.now()/1000),timeoutMs=20000) {
+export const inspectQualifiedObjectUpload=(env,account,lease,now=Math.floor(Date.now()/1000),timeoutMs=20000)=>
+  inspect(env,account,lease,now,timeoutMs,inspectObjectUpload);
+export const inspectQualifiedObjectCandidateEligibility=(env,account,lease,now=Math.floor(Date.now()/1000),timeoutMs=20000)=>
+  inspect(env,account,lease,now,timeoutMs,inspectQualifiedObjectCandidate);
+export const inspectQualifiedPreparedUpload=(env,account,authority,index,createdAt,now,timeoutMs)=>
+  inspect(env,account,authority.leaseId,now,timeoutMs,(_e,_a,_l,at,_budget,race)=>inspectPreparedObjectUpload(env,account,authority,index,createdAt,at,race));
+async function inspect(env,account,lease,now,timeoutMs,readIntegrity) {
   if(typeof account!=='string'||!ID.test(account)||typeof lease!=='string'||!ID.test(lease)
     ||!integer(now,0,Number.MAX_SAFE_INTEGER-86400)||!integer(timeoutMs,1,20000))fail('invalid_object_eligibility',400);
   const started=performance.now(),abort=new AbortController();let timer;
@@ -81,11 +88,11 @@ export async function inspectQualifiedObjectUpload(env,account,lease,now=Math.fl
     const p=await race(()=>qualifiedObjectEligibilityPolicy(env,now));
     const policyRaw=env.OBJECT_ELIGIBILITY_POLICY,policyPin=env.OBJECT_ELIGIBILITY_POLICY_SHA256,qualificationRaw=env.OBJECT_QUALIFICATION_POLICY;
     if(typeof env.OBJECT_ELIGIBILITY?.fetch!=='function')fail();
-    const before=await inspectObjectUpload(env,account,lease,now,budget()),row=before.databaseSnapshot.row;
+    const before=await readIntegrity(env,account,lease,now,budget(),race),row=before.databaseSnapshot.row;
     if(['fetchErrors','inferenceErrors','permanentlyInvalidLocations'].some(k=>(before.publicManifest[k]??0)!==0)
       ||row.policy_id!==p.policyId||before.publicManifest.viewQuality.implementationIdentity!==p.qualityImplementationIdentity
       ||before.publicManifest.viewQuality.protectedAuthorityManifestSha256!==p.protectedAuthoritySha256)fail();
-    const qualification=await race(()=>activeObjectQualification(env,account,row.profile_id,at()));
+    const qualification=await race(()=>activeObjectQualification(env,account,row.profile_id,at(),row.qualification_id??null));
     if(!qualification)fail('object_device_qualification_required',403);
     const scenes=await sceneMembers({...env,sceneModel:p.sceneInputModel},before.databaseSnapshot.rows,race);
     const snapshot={integrity:before.databaseSnapshot,qualification,scenes};
@@ -100,7 +107,7 @@ export async function inspectQualifiedObjectUpload(env,account,lease,now=Math.fl
     const response=await race(()=>transfer);
     if(response.status!==200){if(response.body)void response.body.cancel().catch(()=>{});fail();}
     const protection=validateObjectProtectionEvidence(await race(()=>readVerifierJson(response,Math.min(10000,budget()))),request,p,before.databaseSnapshot.rows,at());
-    const after=await inspectObjectUpload(env,account,lease,at(),budget());
+    const after=await readIntegrity(env,account,lease,at(),budget(),race);
     const currentQualification=await race(()=>activeObjectQualification(env,account,row.profile_id,at(),qualification.id));
     const currentScenes=await sceneMembers({...env,sceneModel:p.sceneInputModel},after.databaseSnapshot.rows,race);
     const current={integrity:after.databaseSnapshot,qualification:currentQualification,scenes:currentScenes};

@@ -13,11 +13,14 @@ now connects full index/quality parity in source. The [account registry and save
 adapter](OBJECT_ACCOUNT_QUALIFICATION.md) add optional reusable records and
 revocation. [Private owned-sample lookup and local delivery](OBJECT_QUALIFICATION_HOST.md)
 are now implemented and checked offline. Actual approved transport/host setup,
-authentic platform results and distinct qualified settlement remain open.
+authentic platform results and automatic qualified assignment remain open.
 The [qualified eligibility inspector](QUALIFIED_OBJECT_ELIGIBILITY.md) now
 connects active profile qualification, current Scene/Gen4 state and original-source
-protection in source. It grants no publication or credit; distinct qualified
-staging/assignment and atomic settlement/recovery are next.
+protection in source. The inspector itself grants no publication or credit.
+[staging and atomic settlement/recovery](QUALIFIED_OBJECT_PUBLICATION.md) now use a
+distinct qualified namespace, binding prepared leases with once-only credit and
+recoverable acceptance. Automatic assignment/public routing and actual private
+setup remain next; default Object capability stays closed.
 The [shared search allocation/router](HYBRID_SEARCH_QUEUE.md) is implemented and
 checked locally. The [finite native Scene runner](NATIVE_QUEUED_SEARCH.md) now has
 durable shutdown/result recovery in source. Its approved trigger/bindings, actual
