@@ -39,6 +39,11 @@ is incomplete, not a full trial pass. Staging closure/configuration restoration
 was independently verified. The one-trial approval is consumed: do not repeat it
 or resume recurring jobs from this consent. Continue authorized local metadata,
 read-cost and release engineering; retain accepted work and all original failures.
+The [existing-receipt recovery and additive-maintenance plan](docs/SCENE_ACCEPTANCE_RECOVERY.md)
+is prepared locally, with an expired candidate and verified offline rollback build.
+It is not another approved trial. Do not execute its new live maintenance/deployment/
+readback scope until the precise new permission is resolved; no assignment, inference,
+upload, qualification renewal, task restart or online search is part of that plan.
 
 Native cloud allowances stay zero; native endpoints/previews/crons and general
 recurring jobs stay disabled. This exception does not authorize fresh qualification

@@ -113,5 +113,9 @@ the old real failure remains unchanged. Next prepare independent acceptance/cred
 recovery from the saved receipts and resolve the new maintenance/activation scope.
 Do not increase the threshold,
 make further trial requests or retry a new assignment under the consumed approval.
+The [prepared existing-receipt recovery](SCENE_ACCEPTANCE_RECOVERY.md) now validates
+the real sealed outbox against the unchanged saved native payload, without replaying
+uploads or modifying the original files. Its read-only live check and additive index
+maintenance remain separately scoped and unexecuted.
 Any future activation must have its own resolved finite scope and preserve these
 accepted outputs, credits and the general operational hold.
