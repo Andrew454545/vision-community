@@ -1,5 +1,10 @@
 # Approved hybrid launch direction
 
+**Release sequencing:** [Scenes launch first](SCENES_FIRST_RELEASE.md); Objects
+follow later. The hybrid trust, online credit/search and budget decisions below
+still apply. Object-specific implementation and acceptance no longer block the
+Scene-only first release. The operational hold remains until scoped activation.
+
 On 13 October the laptop user approved this product change and confirmed that
 the **$10/month processing budget is additional to R2**. This supersedes the
 Free-only/owner-mirror recommendation in the earlier cost plan. Keep online

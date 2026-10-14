@@ -1,5 +1,13 @@
 # Production acceptance
 
+**First release: [Scenes only](SCENES_FIRST_RELEASE.md).** Scene processing and
+online Scene search are the launch priority. Objects/Both, Object qualification,
+Object search and Object endurance are deferred to a later release. The five gates
+below apply to the Scene release without requiring Object completion. Their real
+Scene trust, credit/privacy/recovery, supported-platform downloads, cost controls
+and seven-day endurance requirements remain. A restricted invited cohort may
+precede broader rollout only with its applicable prerequisites and explicit scope.
+
 **13 October product decision:** the user chose the [hybrid launch plan](HYBRID_LAUNCH_DECISION_20261013.md):
 reference-sample qualification followed by explicitly marked lightweight routine
 uploads, online searches, $10/month processing plus R2, and local overflow. The
@@ -44,10 +52,10 @@ now has source-level reservations, owner-outbound delivery, once-only settlement
 and browser recovery/cancellation. It is disabled and undeployed; the operational
 hold and all authentic/platform acceptance requirements remain in force.
 
-**Public launch remains closed.** The release covers Windows and Apple-silicon
-Mac, Scenes / Objects / Both, online search with banked credits, and unattended
-processing. A full corpus is not required before launch. These five gates define
-completion; further refinements can follow release.
+**Public launch remains closed.** The first release covers qualified Windows and
+Apple-silicon Mac Scene processing, online Scene search with banked credits, and
+unattended processing. A full corpus is not required before launch. These five
+gates define completion; Objects/Both are a later milestone.
 
 This is the current checklist. The [preserved history](PRODUCTION_ACCEPTANCE_HISTORY_20261012.md)
 contains older reports and failures; its old “pending” statements are not current
@@ -57,13 +65,13 @@ status. Use [next actions](LAUNCH_BLOCKERS.md) to continue work.
 
 | Gate | Evidence already available | Required to finish |
 |---|---|---|
-| Trusted contributions | Real restricted Windows CPU1 Scene publication; complete fixed-input Scene comparisons; three-location exploratory Mac/PC Object comparison; Object quarantine, independent audit, publication and once-only credit connected in source. | Fresh legitimate protected-source authority, exact measured runtime policies, trusted rotating Object assignments, and real qualified Windows/Mac Scenes / Objects / Both admission. |
-| Earned-credit search | Real Windows Scene searches funded by accepted contributions; exact paid-result recovery without another debit; contributor-only index authority. | Real Object and equivalent Mac earned-credit search, automatic publication refresh after future real work, and measured initial pricing/capacity. |
-| Unattended operation | Native startup/recovery controls, saved uploads, day/night scheduling, descendant ownership; bounded append-only Object registry rollover and published-job cleanup in source; separate Windows Scene pilot intentionally stopped under the cost hold. | An approved affordable architecture, trusted Object assignment automation and verified deployment, verified parallel Maximum profiles, real interruption/schedule checks and seven-day accepted work on each OS with both lanes. |
+| Trusted contributions | Real restricted Windows CPU1 Scene publication and complete fixed-input Scene comparisons; qualification-based Scene admission implemented in source. | Current exact runtime/policy qualification and real qualified Windows/Mac Scene admission under the selected hybrid deployment; exclusive assignment, integrity and once-only credit. |
+| Earned-credit search | Real Windows Scene searches funded by accepted contributions; exact paid-result recovery without another debit; contributor-only index authority. | Equivalent Mac earned-credit Scene search, future real publication refresh, real hybrid Scene execution/shutdown and measured initial pricing/capacity. |
+| Unattended operation | Native startup/recovery controls, saved uploads, day/night scheduling and descendant ownership; separate Windows Scene pilot intentionally stopped under the cost hold. | Approved affordable Scene activation, verified qualified parallel profiles, real interruption/schedule checks and a new seven-day accepted-Scene/earned-search run on each supported OS. |
 | Beginner downloads | Guided lane choices, private runtime/model setup, platform packaging and lifecycle source checks. | Legitimate organization signing accounts, trusted immutable downloads, clean Windows/Mac installation/update/removal and nontechnical-user acceptance. |
 | Production operations | Consented full historical database rehearsal; offline deletion/financial recovery; Object acceptance and credit survive local upgrade/SQL restore; durable native compute allowance. | Full provider/R2/native-bundle/secret recovery with independent current deletion/financial authority, a fresh consistent cutoff, measured load/storage costs and enforceable spending bounds. |
 
-All five gates need actual evidence before freeze and controlled rollout. Keep
+All five Scene gates need actual evidence before full public release. Keep
 admission closed during rehearsal. Rollback must preserve accepted work, deletion
 authority, banked credit and saved paid replies. No release protections may be
 bypassed.
@@ -75,9 +83,10 @@ bypassed.
   original 17 October target, source/config pins, writer lock and receipts.
   No uninterrupted seven-day pass can be claimed. Saved acceptance totals still
   need independent reconciliation after the cost hold permits it.
-- The full Windows and Mac Scenes / Objects / Both seven-day clocks have **not
-  started**. They require authentic qualified work and genuinely earned search
-  credit first. The Scene pilot does not replace them.
+- New Windows/Mac Scene-only seven-day clocks have **not started** under the selected
+  hybrid deployment. They require authentic qualified Scene work and genuinely
+  earned search credit first. The interrupted old pilot does not replace them.
+  Scenes / Objects / Both endurance remains deferred to the later full release.
 - The separate offline Windows diagnostic **failed in round 4** during process
   measurement, after three native rounds. Its verified expired task is disabled.
   Preserve that failure; do not restart it or relabel it as a completed soak.

@@ -1,5 +1,11 @@
 # Remaining launch work
 
+**Current priority: [Scenes first](SCENES_FIRST_RELEASE.md).** Finish the restricted
+Scene activation, real qualified Windows/Mac contribution/search, trusted beginner
+downloads, cost/recovery and Scene endurance work. Objects/Both are deferred and do
+not block this first release. Preserve Object source/evidence and closed capability;
+the Object engineering descriptions below are later-release work, not today's queue.
+
 **Latest decision:** implement the [approved hybrid mode](HYBRID_LAUNCH_DECISION_20261013.md):
 sample qualification, explicitly marked lighter routine upload checks, online
 search, $10/month processing plus R2, and local overflow. Its first monthly host

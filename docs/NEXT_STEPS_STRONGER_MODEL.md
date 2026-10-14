@@ -1,5 +1,13 @@
 # Continue the release
 
+**First release is now [Scenes only](SCENES_FIRST_RELEASE.md).** Stop adding Object
+components as the next task. Reuse the real Windows Scene cohort, qualification-based
+Scene upload evidence, shared queue and finite Scene executor. First close current
+Scene activation, platform/install, earned-credit search, recovery/cost and unattended
+operation gaps. Keep public Object routes closed and preserve their work for later.
+The detailed Object sequence below is deferred. Product scope does not lift the
+operational hold or signing/private-transfer requirements.
+
 **Latest priority, 13 October:** follow the [approved hybrid plan](HYBRID_LAUNCH_DECISION_20261013.md).
 The monthly host guard and [qualified Scene uploads](QUALIFIED_SCENE_UPLOADS.md)
 are implemented offline. Next finish equivalent qualified Object admission,
