@@ -14,7 +14,9 @@ uploads, online searches, $10/month processing plus R2, and local overflow. The
 [Scene implementation](QUALIFIED_SCENE_UPLOADS.md) now has a
 [finite staging result](FINITE_SCENE_TRIAL.md): two real Windows Scenes accepted
 for two units, followed by an observed-read stop before replay/reconciliation.
-Staging is verified closed again. This does not complete the hybrid release gates.
+Staging is verified closed again. [Existing acceptance recovery](SCENE_ACCEPTANCE_RECOVERY.md)
+is prepared against the real saved output; its current database award/balance
+readback remains unexecuted. This does not complete the hybrid release gates.
 The trusted
 contribution gate requires real numerical device qualification and qualified
 admission with integrity/eligibility/once-only credit; it no longer requires

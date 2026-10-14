@@ -21,7 +21,12 @@ The [metadata/search plan](SCENE_FILTER_METADATA.md) keeps country/generation/sa
 pan tagged before indexing, with pinned reference heuristics and preserved evidence.
 The [coordinator read fixes](SCENE_COORDINATOR_READ_COST.md) now pass local scaled
 assignment/upload/credit replay and upgrade checks. They remain undeployed, and the
-additive lookup indexes need separately scoped maintenance before hosted recovery.
+additive lookup indexes need separately scoped maintenance before future assignment/upload.
+[Existing receipt recovery](SCENE_ACCEPTANCE_RECOVERY.md) is now prepared from the
+real sealed outbox and unchanged native files. Its separate read-only gateway checks
+the original unique award and current balance without inference, uploads or credential
+rotation. Local scaled tests and both offline deployment/rollback builds pass; a new
+specific maintenance/readback approval is still required. No live reconciliation is claimed.
 
 **Latest decision:** implement the [approved hybrid mode](HYBRID_LAUNCH_DECISION_20261013.md):
 sample qualification, explicitly marked lighter routine upload checks, online

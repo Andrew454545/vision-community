@@ -64,8 +64,9 @@ reply, trigger or schema-contract data. Building indexes itself can incur databa
 read/write/storage charges and needs resolved activation scope; it was not applied
 to Cloudflare here. Do not deploy the next trial assuming those indexes exist.
 
-The single hosted-trial consent is consumed. Next prepare narrowly bounded recovery
-of its existing acceptance/credit replies under new resolved scope, with the current
+The single hosted-trial consent is consumed. [Recovery is now prepared](SCENE_ACCEPTANCE_RECOVERY.md)
+from the real sealed local delivery and saved native files, with a read-only private
+route checked locally. It still needs new resolved operational scope, with the current
 configuration/financial authority preserved and mandatory closure. Do not raise the
 old threshold, take another assignment or renew qualification from these fixtures.
 Automatic contributor-only snapshot refresh and genuinely earned online search,

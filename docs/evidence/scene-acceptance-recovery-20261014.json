@@ -1,0 +1,92 @@
+{
+  "version": 1,
+  "date": "2026-10-14",
+  "status": "OFFLINE_EXISTING_ACCEPTANCE_RECOVERY_PREPARED",
+  "liveReconciliation": false,
+  "cloudResourcesAccessed": false,
+  "nativeInference": false,
+  "newAssignment": false,
+  "uploads": 0,
+  "actionsRuns": 0,
+  "productionQualified": false,
+  "realSavedPreparation": {
+    "originalTrialSha256": "e173a3d2861abe8d0410be044dc56d986f74f49b05554a00504ac59c1e510e3d",
+    "originalTrialStatus": "INCOMPLETE",
+    "originalFailurePreserved": true,
+    "locallyReportedAccepted": 2,
+    "locallyReportedAwardUnits": 2,
+    "reconstructedPayloadDigestMatched": true,
+    "allInputFilesUnchanged": true,
+    "networkRequests": 0,
+    "currentServerReconciled": false
+  },
+  "checks": {
+    "node": 4,
+    "python": 10,
+    "actualLocalWorkerdD1": 19,
+    "skips": 0,
+    "authorityAndOutputsSynthetic": true,
+    "supervisorTestsUseSyntheticOwnedRunner": true,
+    "historicalFixtureLocations": 1024,
+    "successfulReadbackUsage": {
+      "read": 15,
+      "written": 0,
+      "r2Reads": 0,
+      "r2Writes": 0
+    },
+    "twoReadbacksRowsRead": 30,
+    "initialJoinDiagnosticRowsRead": 1041,
+    "offlineWranglerDryRuns": 2,
+    "maintenanceStatementsPrepared": 3
+  },
+  "preservedFailures": [
+    "Windows SQLite sandbox path refusal",
+    "synthetic duplicate panorama unique constraint",
+    "initial SQL join order scanned historical publications and stopped at 1041 reads",
+    "Python fixture held a SQLite handle until cleanup; fixture now closes explicitly"
+  ],
+  "operation": {
+    "state": "AWAITING_NEW_EXPLICIT_SCOPE",
+    "previousTrialConsentConsumed": true,
+    "maintenanceOnly": "three additive lookup indexes; not applied",
+    "indexMaintenanceObservedStop": {
+      "read": 20000,
+      "written": 20000,
+      "canCrossDuringOneOperation": true
+    },
+    "recovery": {
+      "requests": 2,
+      "maxRequestBytes": 2048,
+      "childDeadlineSeconds": 120,
+      "gatewayExpirySeconds": 1200,
+      "observedReads": 200,
+      "databaseWrites": 0,
+      "r2Reads": 0,
+      "r2Writes": 0,
+      "credentialRotation": false,
+      "noRetries": true,
+      "targetPinned": true
+    },
+    "candidateExpired": true,
+    "restorationMandatory": true,
+    "closureReadbackMandatory": true,
+    "providerInvoiceCap": false
+  },
+  "privateEvidenceSha256": {
+    "node-final.stdout.private.log": "5308a82395f4d0bb5c429da144033b532c5432e82fa9980a3abdf63e8ec292f8",
+    "python-supervisor-final.stderr.private.log": "b02fdb661b72156ac976ea5faf54d4c4f336fae317639693f72863ed9a67163d",
+    "workerd-corrected.stdout.private.log": "a9df041f180aa9ee4c4a6c9513088d9e7fb8addb4fc8c7b45b04fe95b82db5db",
+    "real-recovery-plan.private.json": "89548d7a735c8de0b0522107e57b9374d8f31ab061a10f6c09e52527c615bf98",
+    "operator-plan.private.json": "5de6dc3d0f7627f2cd67da74403d40f356d288798b335e7472b7d1e987468519",
+    "additive-indexes.private.sql": "ad5e723e799eb05e70f70b54f0851cf20df2a9d26b9963668f429f2026942f1c",
+    "recovery-dryrun.stdout.private.log": "ee353c095c55d126a60f14afbcfdfb388ec72cab57100890bab59ac3cea886cf",
+    "restore-dryrun.stdout.private.log": "8cbdb21530383392bee04ba65513759162305094f9f757069186d484ee9dbe3b"
+  },
+  "limits": [
+    "No current hosted receipt or balance was read",
+    "No R2 artifact or provider/secret recovery verified",
+    "Synthetic authority and index values do not establish authentic inference or current platform qualification",
+    "Original trial remains incomplete; this is not release or endurance acceptance",
+    "No indexing, pilot, background task or native service was resumed"
+  ]
+}
