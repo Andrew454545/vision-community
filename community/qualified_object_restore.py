@@ -14,6 +14,7 @@ QUALIFICATION_CONTRACT = 'saved-object-qualification-v1-20261013'
 # Both source schema arrays, including their complete indexes and SQL fences.
 # The fixture exporter checks this pin against the actual installed definitions.
 SCHEMA_SHA256 = 'a8c67f6b356e489d64b0d30200d250cd740eced395b05a22faa5f98dde4af980'
+WORK_SCHEMA_SHA256 = 'a5e58970eb3a69759cc79dd44bfdbe6c767a010acebdfc244282b226479379b8'
 MAX_ROWS = 1_000_000
 HEX = re.compile(r'[0-9a-f]{64}\Z')
 TABLES = ('qualified_object_revision', 'qualified_object_policy', 'qualified_object_candidates',
@@ -30,16 +31,19 @@ def require(value, code='invalid_qualified_object_recovery_state'):
         raise QualifiedObjectRestoreError(code)
 
 
-def schema_identity(sql):
+def schema_identity(sql, *, work=False):
+    condition = "name GLOB 'object_work_*'" if work else "name GLOB 'qualified_object_*' OR name GLOB 'object_qualification_*'"
     rows = [[r[0], r[1], r[2], re.sub(r'[\s;]', '', re.sub(r'IF NOT EXISTS', '', r[3], flags=re.I)).lower()]
             for r in sql.execute("SELECT type,name,tbl_name,sql FROM sqlite_master WHERE sql IS NOT NULL "
-                                 "AND (name GLOB 'qualified_object_*' OR name GLOB 'object_qualification_*') ORDER BY name")]
+                                 f"AND ({condition}) ORDER BY name")]
     return hashlib.sha256(json.dumps(rows, separators=(',', ':'), ensure_ascii=False).encode()).hexdigest()
 
 
 def qualified_object_state(sql):
     # The registry can legitimately predate this optional publication namespace.
+    work = sql.execute("SELECT 1 FROM sqlite_master WHERE name GLOB 'object_work_*' LIMIT 1").fetchone() is not None
     if not sql.execute("SELECT 1 FROM sqlite_master WHERE name GLOB 'qualified_object_*' LIMIT 1").fetchone():
+        require(not work, 'qualified_object_recovery_schema_mismatch')
         return None
     require(schema_identity(sql) == SCHEMA_SHA256, 'qualified_object_recovery_schema_mismatch')
     require([tuple(r) for r in sql.execute('SELECT * FROM qualified_object_revision')] == [(1, CONTRACT)]
@@ -73,6 +77,19 @@ def qualified_object_state(sql):
                  'lease_id' if table in ('qualified_object_candidates', 'qualified_object_acceptances') else
                  'slot' if table.endswith(('_revision', '_policy')) else 'id'))
     membership = 'SELECT lease_id FROM qualified_object_candidates'
+    work_state = None
+    if work:
+        require(schema_identity(sql, work=True) == WORK_SCHEMA_SHA256, 'object_work_recovery_schema_mismatch')
+        require([tuple(r) for r in sql.execute('SELECT * FROM object_work_revision')] ==
+                [(1, 'qualified-object-prepared-pool-v1-20261014')], 'object_work_recovery_schema_mismatch')
+        pools = sql.execute('SELECT COUNT(*) FROM object_work_pool').fetchone()[0]
+        requests = sql.execute('SELECT COUNT(*) FROM object_work_requests').fetchone()[0]
+        require(0 <= requests <= pools <= 4096, 'object_work_recovery_row_limit')
+        capture('object_work_revision', 'SELECT * FROM object_work_revision ORDER BY slot')
+        capture('object_work_pool', 'SELECT * FROM object_work_pool ORDER BY lease_id')
+        capture('object_work_requests', 'SELECT * FROM object_work_requests ORDER BY account_id,request_key')
+        membership += ' UNION SELECT lease_id FROM object_work_requests'
+        work_state = {'schemaSha256': WORK_SCHEMA_SHA256, 'preparedBatches': pools, 'savedRequests': requests}
     capture('leases', f'SELECT * FROM leases WHERE id IN ({membership}) ORDER BY id')
     capture('lease_items', f'SELECT * FROM lease_items WHERE lease_id IN ({membership}) ORDER BY lease_id,location_id')
     locations = f'SELECT location_id FROM lease_items WHERE lease_id IN ({membership})'
@@ -102,14 +119,24 @@ def qualified_object_state(sql):
     require(sql.execute("SELECT COUNT(*) FROM qualified_object_candidates WHERE state='published'").fetchone()[0] == acceptances)
     result = {'scope': SCOPE, 'schemaSha256': SCHEMA_SHA256, 'stateSha256': h.hexdigest(),
               'capturedRows': count, 'candidates': retained, 'acceptances': acceptances}
+    if work_state is not None:
+        result['assignmentPool'] = work_state
     validate_qualified_object_snapshot(result)
     return result
 
 
 def validate_qualified_object_snapshot(value):
-    require(isinstance(value, dict) and set(value) == {'scope', 'schemaSha256', 'stateSha256', 'capturedRows', 'candidates', 'acceptances'}
+    fields = {'scope', 'schemaSha256', 'stateSha256', 'capturedRows', 'candidates', 'acceptances'}
+    require(isinstance(value, dict) and set(value) in (fields, fields | {'assignmentPool'})
             and value['scope'] == SCOPE and value['schemaSha256'] == SCHEMA_SHA256
             and isinstance(value['stateSha256'], str) and HEX.fullmatch(value['stateSha256'])
             and all(type(value[k]) is int and 0 <= value[k] <= MAX_ROWS for k in ('capturedRows', 'candidates', 'acceptances'))
             and value['acceptances'] <= value['candidates'] <= value['capturedRows'],
             'invalid_qualified_object_recovery_snapshot')
+    if 'assignmentPool' in value:
+        work = value['assignmentPool']
+        require(isinstance(work, dict) and set(work) == {'schemaSha256', 'preparedBatches', 'savedRequests'}
+                and work['schemaSha256'] == WORK_SCHEMA_SHA256
+                and type(work['preparedBatches']) is int and type(work['savedRequests']) is int
+                and 0 <= work['savedRequests'] <= work['preparedBatches'] <= 4096,
+                'invalid_object_work_recovery_snapshot')
