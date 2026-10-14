@@ -15,8 +15,12 @@ The user directly approved the narrow reads on 14 October. The
 qualification through 18 October 05:51:41 UTC and closed staging endpoints/crons.
 One SELECT read seven rows, wrote none and returned one matching record. No secret
 values were read. No deployment, cohort or paused-task restart occurred.
-The [finite private gateway/client and current rollback](FINITE_SCENE_TRIAL.md)
-are now prepared and locally checked; execution/transfer approval is still separate.
+The user subsequently approved the exact [finite private trial](FINITE_SCENE_TRIAL.md).
+It ran once: two real Scenes completed and server replies accepted two locations
+for two earned units. Observed reads reached 2,036 and stopped transport before
+credit replay/reconciliation. [The incomplete result](evidence/finite-scene-execution-20261014.json)
+and original failures are preserved. Closed staging/configuration restoration was
+independently verified. The trial approval is consumed; recurring jobs stay paused.
 
 ## Completed without cloud activation
 
@@ -68,12 +72,12 @@ current qualification, assigned work and applicable destination-specific consent
   pilot pins and pause markers. Restore the prior closed staging configuration
   and verify shutdown after the finite attempt, including failed/ambiguous cases.
 
-The user's answer authorizes **reads only**. It does not itself
-authorize deployment, result uploads, inference, new account creation, a restart
-of the old pilot or changes to Andrew's computer. Prepare concrete subsequent
-actions within the owner's limited scope and satisfy applicable approval review
-before executing them. Missing/expired server qualification stops this path;
-do not silently renew it from the local numerical result.
+The first user answer covered **reads only**; the separate explicit answer covered
+the one finite trial now recorded above. Neither permits new account creation,
+a restart of the old pilot, changes to Andrew's computer or another hosted attempt.
+Continue local metadata/read-cost work before preparing a separately bounded next
+activation. Missing/expired server qualification still stops that path; do not
+silently renew it from the local numerical result.
 
 Signing enrollment, trusted clean-device installation, current provider recovery,
 measured execution costs, earned-credit hybrid search and new Scene endurance
