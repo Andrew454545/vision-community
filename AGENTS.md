@@ -22,6 +22,24 @@ acknowledging possible small database usage charges. Those reads may now proceed
 This user answer authorizes no deployment, indexing, cloud compute, new account,
 result upload or recurring-task restart. Do not infer broader activation approval.
 
+The laptop user subsequently answered **"Approve this one finite Scene trial
+(recommended)"** on 14 October to the concrete temporary staging deployment,
+saved-account recovery, up to two exclusively assigned local CPU1 Scenes with
+live imagery, indexed-result uploads to `vision-community-staging` R2, credit
+replay and mandatory restoration/closure question. This authorizes that one
+prepared finite trial, acknowledging small staging database/storage charges.
+Use the verified frozen source and limits in [the trial plan](docs/FINITE_SCENE_TRIAL.md).
+It does not authorize native cloud compute/search, ongoing jobs, new qualification,
+other private transfers, public admission or large cloud/Actions charges.
+
+That one trial has now run. Two real Scenes completed and the server reported two
+accepted locations/two earned units; the observed read limit stopped transport
+before replay/balance reconciliation. [The preserved result](docs/evidence/finite-scene-execution-20261014.json)
+is incomplete, not a full trial pass. Staging closure/configuration restoration
+was independently verified. The one-trial approval is consumed: do not repeat it
+or resume recurring jobs from this consent. Continue authorized local metadata,
+read-cost and release engineering; retain accepted work and all original failures.
+
 Native cloud allowances stay zero; native endpoints/previews/crons and general
 recurring jobs stay disabled. This exception does not authorize fresh qualification
 or model tests, online native search, new resources/accounts/plans, Actions,

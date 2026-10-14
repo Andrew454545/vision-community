@@ -11,11 +11,15 @@ precede broader rollout only with its applicable prerequisites and explicit scop
 **13 October product decision:** the user chose the [hybrid launch plan](HYBRID_LAUNCH_DECISION_20261013.md):
 reference-sample qualification followed by explicitly marked lightweight routine
 uploads, online searches, $10/month processing plus R2, and local overflow. The
-[Scene implementation](QUALIFIED_SCENE_UPLOADS.md) is source-only. The trusted
+[Scene implementation](QUALIFIED_SCENE_UPLOADS.md) now has a
+[finite staging result](FINITE_SCENE_TRIAL.md): two real Windows Scenes accepted
+for two units, followed by an observed-read stop before replay/reconciliation.
+Staging is verified closed again. This does not complete the hybrid release gates.
+The trusted
 contribution gate requires real numerical device qualification and qualified
 admission with integrity/eligibility/once-only credit; it no longer requires
 independent native recomputation of every routine upload. Earlier audited evidence
-and the fully audited mode remain distinct. Activation and all other real launch
+and the fully audited mode remain distinct. Ongoing activation and other real launch
 evidence remain outstanding.
 
 The [one-shot cloud Scene runner](NATIVE_QUEUED_SEARCH.md) now has source-level

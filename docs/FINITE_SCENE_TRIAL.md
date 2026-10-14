@@ -1,8 +1,18 @@
 # One private Scene trial
 
-**Prepared and checked locally; not deployed or run.** The laptop user directly
-approved the [staging reads](evidence/scene-staging-readonly-20261014.json), not
-activation or uploads. The exact account/profile/policy qualification is current
+**One approved trial ran; accepted work is preserved, full trial incomplete.**
+The laptop user separately approved the exact deployment/contribution/transfer/
+closure question. [Execution evidence](evidence/finite-scene-execution-20261014.json)
+records two real CPU1 Scenes completed with no native errors and server replies
+accepting two locations for two units. After nine requests, observed database reads
+reached 2,036, exceeding the 2,000 stop threshold; further transport was refused
+before credit replay/balance reconciliation. Do not relabel this a full pass.
+The previous closed configuration was restored and independently read back exactly.
+No recurring task, cloud-native compute/search or Actions run started. The one-trial
+consent is consumed; no further hosted attempt has been started.
+
+The prior [staging reads](evidence/scene-staging-readonly-20261014.json) established
+that the exact account/profile/policy qualification is current
 until **18 October 2026, 05:51:41 UTC**. Staging workers.dev/previews are off and
 crons empty. One bounded SELECT read seven rows, wrote none and returned one
 matching qualification. Configuration reads returned no secret values. Provider
@@ -86,10 +96,18 @@ was corrected. The first dry run's global log-path refusal was corrected by usin
 private workspace logs. Preserve those originals; do not repeat completed model
 matrices or change production transaction/credit rules to satisfy a fixture.
 
-Next obtain the laptop user's explicit approval for the concrete temporary
-gateway deployment, existing-account recovery, live retrieval/CPU1 processing of
-at most two exclusively assigned Scenes, private indexed-result uploads to
-**`vision-community-staging` R2**, once-only credit/replay and mandatory closure.
-Accept possible small staging coordination/database/R2 charges. That approval
-does not grant ongoing operation or public release, signing, a new qualification,
-cloud-native compute/search or access to any other bucket/service.
+The user subsequently gave that exact approval, acknowledging possible small
+staging coordination/database/R2 charges. The initial frozen builds failed locally
+because the copied tree could not resolve the existing `jpeg-js` dependency. No
+deployment occurred; closed-state readback was preserved. An explicit existing-
+dependency alias passed both offline dry runs. A create-only config collision was
+also preserved and fixed using a new filename before deployment. The actual trial
+then ran once, stopped on the observed read threshold and restored closed staging.
+Original preparation, operator, child and closure receipts remain private under
+`work/scene-resume-20261014`; none is rewritten to erase those failures.
+
+Next diagnose/reduce coordinator read scans locally and prepare independent
+acceptance/credit recovery from the saved receipts. Do not increase the threshold,
+make further trial requests or retry a new assignment under the consumed approval.
+Any future activation must have its own resolved finite scope and preserve these
+accepted outputs, credits and the general operational hold.

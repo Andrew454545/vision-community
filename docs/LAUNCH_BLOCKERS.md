@@ -12,10 +12,13 @@ and delegated routine release decisions within the spending/access limits.
 saved laptop assets, Scene-first local controls and actual exact-commit Mac
 package/assertion evidence. Automatic approval review still requires the laptop
 user's direct cloud-read approval; the user subsequently supplied that exact
-approval. [Readback and prepared two-Scene trial](FINITE_SCENE_TRIAL.md) now confirm
-current saved qualification and closed staging, with a metered private gateway,
-bounded child and corrected current rollback ready for separate execution/transfer
-approval. The broad hold remains outside that finite scope.
+approval. [The separately approved finite trial](FINITE_SCENE_TRIAL.md) subsequently
+accepted two real Scenes/two units, then stopped on observed reads before
+replay/reconciliation. Closed configuration restoration is verified. Diagnose
+read scans locally and recover that acceptance before another bounded activation;
+the one-trial consent is consumed. The broad hold remains outside that finite scope.
+The [metadata/search plan](SCENE_FILTER_METADATA.md) keeps country/generation/saved
+pan tagged before indexing, with pinned reference heuristics and preserved evidence.
 
 **Latest decision:** implement the [approved hybrid mode](HYBRID_LAUNCH_DECISION_20261013.md):
 sample qualification, explicitly marked lighter routine upload checks, online
