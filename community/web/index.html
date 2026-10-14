@@ -21,7 +21,7 @@
       </span>
       <div>
         <strong>VISION</strong>
-        <small id="site-description">Scene and object search</small>
+        <small id="site-description">Scene search</small>
       </div>
     </div>
     <div class="top-meta">
@@ -101,8 +101,9 @@
         <div class="card">
           <div class="segmented" id="mode">
             <label><input type="radio" name="mode" value="scene" checked><span>Scene</span></label>
-            <label><input type="radio" name="mode" value="object"><span>Objects</span></label>
+            <label><input type="radio" name="mode" value="object" disabled><span>Objects (later)</span></label>
           </div>
+          <p class="hint">Start with Scene search. Objects will follow later. Previously saved search requests can still be recovered.</p>
         </div>
       </section>
 
@@ -315,8 +316,8 @@
       <p class="filter-kicker">What to process</p>
       <div class="segmented" id="process-lane">
         <label><input type="radio" name="process-lane" value="scene" checked><span>Scene</span></label>
-        <label><input type="radio" name="process-lane" value="object"><span>Objects</span></label>
-        <label><input type="radio" name="process-lane" value="both"><span>Both</span></label>
+        <label><input type="radio" name="process-lane" value="object" disabled><span>Objects (later)</span></label>
+        <label><input type="radio" name="process-lane" value="both" disabled><span>Both (later)</span></label>
       </div>
       <p class="rail-copy" id="process-lane-help">Copy the command into Terminal. Keep the computer awake.</p>
       <button id="process" class="primary" type="button" disabled>Copy scene command</button>

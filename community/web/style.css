@@ -149,6 +149,7 @@ textarea,#prompt{font-size:16px}
 .labeled-name,.segmented span{font-size:15px}
 .segmented span{min-height:44px;padding:12px 6px}
 .segmented input:focus-visible+span{outline:3px solid var(--gold);outline-offset:-3px}
+.segmented input:disabled+span{opacity:.55;cursor:not-allowed}
 .editor h2,.filter-kicker{font-size:14px}
 .status-actions{flex-wrap:wrap}
 .search-options{max-width:820px;margin:0 auto 24px}

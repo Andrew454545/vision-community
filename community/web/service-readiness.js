@@ -1,4 +1,4 @@
-/* Availability guidance only. Device qualification and auditing stay on the server. */
+/* Availability guidance only. Device qualification and upload admission stay on the server. */
 class VisionServiceReadiness {
   constructor() { this.connected = false; this.checked = false; this.status = null; this.capabilities = null; }
   update(status, capabilities) {
@@ -16,22 +16,28 @@ class VisionServiceReadiness {
       // No approved portable object admission contract has been published yet.
       if (lane !== "scene") return false;
       const scene = this.capabilities.sceneContributions;
-      return scene?.ready === true && scene.scope === "audited-new-locations"
+      const audited = (scene?.admissionMode === undefined || scene.admissionMode === "audited-v1")
+        && scene?.scope === "audited-new-locations"
+        && scene.verification === "trusted-profile-canary-and-submission-audit";
+      const qualified = scene?.admissionMode === "qualified-device-v1"
+        && scene.scope === "qualified-new-locations"
+        && scene.verification === "trusted-profile-canary-and-upload-integrity";
+      return scene?.ready === true && (audited || qualified)
         && scene.deviceQualificationRequired === true && scene.canaryLocations === 112
-        && scene.verification === "trusted-profile-canary-and-submission-audit"
         && scene.model === "vision-four-view-v4" && typeof scene.policyId === "string" && !!scene.policyId.trim();
     });
   }
-  canSearch(recovering = false) {
-    return this.connected && (recovering || this.status?.searchOnSite === true);
+  canSearch(recovering = false, lane = "scene") {
+    // Old saved requests remain recoverable, including requests from later lanes.
+    return this.connected && (recovering || (lane === "scene" && this.status?.searchOnSite === true));
   }
   message(lanes) {
     if (!this.checked) return "Checking the service before you start…";
     if (!this.connected) return "Service unavailable. Try later; your credits and searches stay saved. Keep your code and browser data.";
-    if (lanes.some(lane => lane !== "scene")) return "Objects are still being validated. Choose Scene. Your credits stay saved.";
+    if (lanes.some(lane => lane !== "scene")) return "Objects will follow later. Choose Scene. Your credits stay saved.";
     if (!this.canContribute(lanes)) return "Scene setup is not available yet. Try later; your credits stay saved.";
-    if (!this.canSearch()) return "Run the PC check to start helping. Search is unavailable; unused credits stay saved.";
-    return "Run the PC check to start helping. Search uses your saved credits.";
+    if (!this.canSearch()) return "Run the computer check to start processing Scenes. Search is unavailable; unused credits stay saved.";
+    return "Run the computer check to start processing Scenes. Search uses your saved credits.";
   }
   static async capabilities(fetcher = fetch) {
     try {

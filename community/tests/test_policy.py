@@ -1,5 +1,6 @@
 import tempfile
 import unittest
+from html.parser import HTMLParser
 from pathlib import Path
 
 from community.service import CommunityService, ServiceError, UNITS_PER_LOCATION
@@ -40,7 +41,8 @@ class PublicCreditPolicyTest(unittest.TestCase):
         self.assertIn("object: 10", source)
         worker = (ROOT / "deploy" / "cloudflare" / "src" / "worker.js").read_text(encoding="utf-8")
         ledger = (ROOT / "deploy/cloudflare/src/searchLedger.js").read_text(encoding="utf-8")
-        self.assertIn("onlineSearch(env, account", worker)
+        self.assertIn("const execute = env.SEARCH_DELIVERY === undefined ? onlineSearch : queueSearch;", worker)
+        self.assertIn("await execute(env, account, body.idempotencyKey, query,", worker)
         self.assertIn("await db.batch", ledger)
         self.assertIn("UPDATE accounts SET units=units-?", ledger)
 
@@ -75,13 +77,13 @@ class PublicSurfaceIdentityTest(unittest.TestCase):
     def test_hosted_worker_tags_each_hit_with_country_name(self):
         source = (ROOT / "deploy" / "cloudflare" / "src" / "worker.js").read_text(encoding="utf-8")
         online = (ROOT / "deploy/cloudflare/src/onlineSearch.js").read_text(encoding="utf-8")
-        self.assertIn("exportSearchMap(query, hits, computed.processedLocations)", online)
+        self.assertIn("exportSearchMap(query, hits, result.processedLocations)", online)
         export = (ROOT / "deploy/cloudflare/src/searchExport.js").read_text()
         self.assertIn("tags: [hit.pose.country]", export)
         self.assertIn('body.execute === "local"', source)
         self.assertIn("online_search_required", source)
 
-    def test_app_offers_scene_and_object_processing(self):
+    def test_app_offers_scene_first_and_preserves_deferred_lane_choices(self):
         html = (ROOT / "community" / "web" / "index.html").read_text(encoding="utf-8")
         app = (ROOT / "community" / "web" / "app.js").read_text(encoding="utf-8")
         worker = (ROOT / "deploy" / "cloudflare" / "src" / "worker.js").read_text(encoding="utf-8")
@@ -91,6 +93,20 @@ class PublicSurfaceIdentityTest(unittest.TestCase):
         self.assertIn('value="scene"', html[process_at:speed_at])
         self.assertIn('value="object"', html[process_at:speed_at])
         self.assertIn('value="both"', html[process_at:speed_at])
+        class Inputs(HTMLParser):
+            def __init__(self):
+                super().__init__()
+                self.controls = {}
+            def handle_starttag(self, tag, attrs):
+                values = dict(attrs)
+                if tag == 'input' and values.get('name') in {'mode', 'process-lane'}:
+                    self.controls[(values['name'], values['value'])] = values
+        inputs = Inputs()
+        inputs.feed(html)
+        for name in ('mode', 'process-lane'):
+            self.assertNotIn('disabled', inputs.controls[(name, 'scene')])
+            self.assertIn('disabled', inputs.controls[(name, 'object')])
+        self.assertIn('disabled', inputs.controls[('process-lane', 'both')])
         self.assertNotIn("Places or objects, and speed", html)
         self.assertIn("selectedProcessLanes", app)
         self.assertIn('choice === "both"', app)

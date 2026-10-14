@@ -77,15 +77,23 @@ missing optional queue setup, acknowledgement/result and empty-queue response fi
 They were corrected without changing production schema checks or search APIs.
 All original logs remain private under `work/qualified-scene-20261013`.
 
+The [Scenes-first browser integration](evidence/scene-web-readiness-20261014.json)
+now accepts this exact mode/scope/verification capability tuple while retaining
+the fully audited tuple. Unknown or mixed tuples remain unavailable. The real
+capability producer, browser readiness and search action were checked locally;
+new Object search is closed without discarding earlier saved requests or replies.
+Paused onboarding and the operational hold remain. Private logs under
+`work/scene-web-20261014` preserve both stale Python source-assertion failures and
+the final 67 Node/15 Python passes; no Worker admission rule changed for this fix.
+
 The local contributor, Scene pilot and refresher tasks were independently read
 back as disabled on 13 October. The contributor's PAUSE marker remains, with
 Medium/day and Maximum/midnight-to-6-a.m. settings saved. Its last saved status
 has zero undelivered batches and was waiting for the disabled service. This
 component did not restart it, use an expired lease or claim new accepted work.
 
-Next finish the corresponding qualified Object path with trusted current Gen4,
-Scene/protected authority; qualification/other paid work's allocation; and bounded
-catalog/import/storage. Before actual processing, prepare a restricted active
+Next follow the [Scenes-first release](SCENES_FIRST_RELEASE.md), with Object work
+deferred. Before actual processing, prepare a restricted active
 coordinator and valid assignments with this admission policy, verify the current
 device qualification, and explicitly resolve the operational stop. Native
 allowances, endpoints/crons and installed tasks remain unchanged. No cloud

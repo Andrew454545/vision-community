@@ -14,7 +14,7 @@ const ERRORS = {
   rate_limit_unavailable: "The service is temporarily unavailable. Try again later.",
   service_maintenance: "The service is being updated. Your saved searches and credits are kept. Try again later.",
   rate_limited: "Please wait a minute, then try again. Your saved searches and credits are kept.",
-  no_available_work: "No more work is waiting for that choice right now. Try Scene, Objects, or Both.",
+  no_available_work: "No Scene batches are available right now. Try again later; your saved work and credits stay safe.",
   insufficient_credit: "Keep indexing until the progress bar is full. Your credits stay saved.",
   search_price_changed: "The search price changed. Your request stays saved. Review the current price before trying again.",
   invalid_search_quote: "Review the current search price before trying again. Your request stays saved.",
@@ -746,10 +746,8 @@ function updateProcessHelp() {
 
 function updateQueue() {
   const scene = pendingFor("scene");
-  const object = pendingFor("object");
-  const choice = selectedProcessLane();
   const work = workForSelection();
-  $("queue-label").textContent = `${number(scene)} scenes and ${number(object)} objects still waiting`;
+  $("queue-label").textContent = `${number(scene)} Scene locations still waiting`;
   if ($("batch-label")) {
     $("batch-label").textContent = work?.summary
       || "You will get your own batch. Other people get different batches.";
@@ -844,15 +842,18 @@ function updateReady() {
   const credited = VisionSearchPricing.canAfford(state);
   let pending = false;
   try { pending = signedIn && !!searchJournal.read(state?.accountId); } catch { /* Run reports the recovery problem. */ }
-  const ready = serviceReadiness.canSearch(pending) && (pending || (hasInput && countReady && includeReady && generationReady && signedIn && credited && onSite));
-  $("ready-badge").textContent = !pending && !countReady ? `Choose 1–${number(resultLimit)} places` : hasInput ? "Ready" : "Needs input";
-  $("ready-badge").classList.toggle("ok", hasInput && (pending || countReady));
+  const ready = serviceReadiness.canSearch(pending, selectedLane()) && (pending || (hasInput && countReady && includeReady && generationReady && signedIn && credited && onSite));
+  $("ready-badge").textContent = !pending && selectedLane() !== "scene" ? "Choose Scene"
+    : !pending && !countReady ? `Choose 1–${number(resultLimit)} places` : hasInput ? "Ready" : "Needs input";
+  $("ready-badge").classList.toggle("ok", hasInput && (pending || (countReady && selectedLane() === "scene")));
   $("run-search").disabled = !ready || deletionBlocksSearch();
   $("run-search").textContent = pending ? "Recover search" : "Run Search";
   if ($('cancel-search')) $('cancel-search').hidden = !pending || state?.searchDelivery !== 'queued' || deletionBlocksSearch();
   if ($('search-delivery-note')) $('search-delivery-note').hidden = state?.searchDelivery !== 'queued';
   if (!signedIn) {
     $("run-search").title = "Get a private account to use your banked search credits";
+  } else if (selectedLane() !== "scene" && !pending) {
+    $("run-search").title = "Objects will follow later. Choose Scene to start a new search.";
   } else if (!onSite && !pending) {
     $("run-search").title = "Online search is unavailable. Your banked credits remain saved.";
   } else {
@@ -948,7 +949,7 @@ async function refresh(options = {}) {
   }
   signedIn = Boolean(state.accountId);
   const testSite = state.environment === "staging";
-  $("site-description").textContent = testSite ? "Test website · separate accounts and credits" : "Scene and object search";
+  $("site-description").textContent = testSite ? "Test website · separate accounts and credits" : "Scene search";
   document.title = testSite ? "VISION — Test website" : "VISION";
   if (previous?.accountId !== state.accountId) {
     closePriceReview();
@@ -1559,8 +1560,10 @@ $("run-search").addEventListener("click", async () => {
   let pending;
   try { pending = searchJournal.read(state?.accountId); }
   catch (error) { $("search-status").textContent = explain(error); updateReady(); return; }
-  if (!serviceReadiness.canSearch(!!pending)) {
-    $("search-status").textContent = ERRORS.search_unavailable;
+  if (!serviceReadiness.canSearch(!!pending, selectedLane())) {
+    $("search-status").textContent = selectedLane() !== "scene" && !pending
+      ? "Objects will follow later. Choose Scene to start a new search. Your saved requests are preserved."
+      : ERRORS.search_unavailable;
     updateReady();
     return;
   }
