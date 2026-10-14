@@ -1,5 +1,15 @@
 # Development constraints
 
+## First-release priority: Scenes only
+
+Read [Scenes first](docs/SCENES_FIRST_RELEASE.md) before choosing new work. The user
+requested a Scene-processing/online-Scene-search first release to get contributors
+started sooner; Objects follow later. Prioritize actual Scene activation, platform
+qualification/install, earned-credit search, recovery, cost and unattended-operation
+gaps. Object development and its launch gates are deferred, not erased or approved.
+Keep Object capability/routes closed. This changes product priority, not the
+operational spending stop, signing requirements or private-transfer authority.
+
 ## Latest product decision (13 October 2026)
 
 Read [the approved hybrid direction](docs/HYBRID_LAUNCH_DECISION_20261013.md)
