@@ -4,6 +4,7 @@ history.replaceState(null, '', '/');
 const el = id => document.getElementById(id);
 let initialized = false;
 let enabled = false;
+let savedWorkType = 'scene';
 let locked = false;
 let closed = false;
 function buttons() {
@@ -11,8 +12,9 @@ function buttons() {
     for (const id of ['enable','pause','resume','remove','refresh','quit']) el(id).disabled = true;
     return;
   }
-  el('enable').disabled = locked || !initialized || !el('accept').checked;
+  el('enable').disabled = locked || !initialized || !el('accept').checked || el('workType').value !== 'scene';
   for (const id of ['pause', 'resume', 'remove']) el(id).disabled = locked || !enabled;
+  el('resume').disabled ||= savedWorkType !== 'scene';
   el('refresh').disabled = locked;
   el('quit').disabled = locked;
 }
@@ -29,6 +31,7 @@ function render(value) {
   el('status').textContent = value.message;
   if (value.settings) {
     enabled = value.enabled;
+    savedWorkType = value.settings.workType || 'scene';
     el('code-label').hidden = value.accountSaved;
     if (!initialized) {
       for (const [id, setting] of Object.entries(value.settings)) {
@@ -41,6 +44,10 @@ function render(value) {
   buttons();
 }
 async function act(name, body) {
+  if ((name === 'enable' && body?.settings?.workType !== 'scene') || (name === 'resume' && savedWorkType !== 'scene')) {
+    el('status').textContent = 'Choose Scenes, then Save and enable. Your saved Object work and settings are kept.';
+    return;
+  }
   locked = true; buttons(); el('status').textContent = 'Please wait. Any current batch will finish safely.';
   try {
     render(await request(name, body)); el('code').value = '';
@@ -57,6 +64,7 @@ el('settings').addEventListener('submit', event => {
   act('enable', {settings, code: el('code').value, accept: el('accept').checked});
 });
 el('accept').addEventListener('change', buttons);
+el('workType').addEventListener('change', buttons);
 for (const id of ['pause','resume','remove','quit']) el(id).addEventListener('click', () => act(id));
 el('refresh').addEventListener('click', async () => {
   try {render(await request());} catch (error) {el('status').textContent = error.message;}

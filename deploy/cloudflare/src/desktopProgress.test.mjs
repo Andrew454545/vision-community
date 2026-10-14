@@ -17,16 +17,41 @@ async function screen() {
     return nodes.get(id);
   };
   let unavailable = false;
+  const calls = [];
   const scope = { document: { getElementById: element, body: element("body") },
     location: { hash: "#disposable-local-token" }, history: { replaceState() {} }, setInterval() {},
-    fetch: async () => {
+    fetch: async (path, options) => {
+      calls.push({ path, options });
       if (unavailable) throw new Error("temporary local disconnect");
       return { ok: true, json: async () => state() };
     } };
   runInNewContext(script, scope);
   await scope.poll();
-  return { scope, element, setUnavailable(value) { unavailable = value; } };
+  return { scope, element, calls, setUnavailable(value) { unavailable = value; } };
 }
+
+test("Scene-first desktop preserves old lane state but cannot prepare, qualify or start it", async () => {
+  const { scope, element, calls } = await screen();
+  for (const workType of ["object", "both"]) {
+    scope.render(state({ workType, laneAvailability: { object: true }, pending: 2 }));
+    assert.equal(element("work-type").value, workType);
+    assert.match(element("next-step").textContent, /Choose Scenes.*saved Object work/);
+    for (const id of ["prepare", "check-pc", "start"]) assert.equal(element(id).disabled, true, id);
+    assert.equal(element("quit").disabled, false);
+    calls.length = 0;
+    for (const path of ["/api/prepare", "/api/check-pc", "/api/start"]) await scope.action(path);
+    await scope.action("/api/work-type", { workType });
+    assert.equal(calls.length, 0);
+    assert.equal(element("work-type").value, workType);
+    assert.match(element("error").textContent, /saved Object work is kept/);
+    scope.render(state({ workType, phase: "indexing", busy: true }));
+    assert.equal(element("stop").disabled, false);
+  }
+  scope.render(state({ workType: "scene" }));
+  assert.equal(element("prepare").disabled, false);
+  assert.equal(element("start").disabled, false);
+  assert.equal(element("work-type").value, "scene");
+});
 
 test("computer check and current-batch progress use actual totals and never imply accepted credit", async () => {
   const { scope, element } = await screen();

@@ -24,10 +24,11 @@ function showError(message) {
 function render(state) {
   latest = state;
   const workType = ["scene", "object", "both"].includes(state.workType) ? state.workType : "scene";
+  const sceneSelected = workType === "scene";
   byId("work-type").value = workType;
-  byId("work-description").textContent = ({scene:"Scenes downloads about 1 GB.",object:"Objects downloads about 1 GB. Object batches can take longer.",both:"Both downloads about 2 GB and processes one batch at a time."})[workType];
-  byId("check-description").textContent = workType === "scene" ? "Scenes tests 112 locations. Keep the internet connected." : workType === "object" ? "Objects needs its own fixed-input computer check and approval." : "Scenes and Objects each need approval. One check cannot approve the other.";
-  byId("lane-availability").textContent = state.laneAvailability?.object === true ? "Objects is available with its own approved processing files and computer check." : "Objects is not open yet. Choose Scenes, or wait for the Object release.";
+  byId("work-description").textContent = sceneSelected ? "Scenes downloads about 1 GB." : "Your saved work choice is kept. Choose Scenes to use this release.";
+  byId("check-description").textContent = sceneSelected ? "Scenes tests 112 locations. Keep the internet connected." : "Choose Scenes before running the computer check. Saved reports stay kept.";
+  byId("lane-availability").textContent = "Start with Scenes. Objects will follow later; saved Object work is kept.";
   byId("windows-background").hidden = state.backgroundAvailable !== true;
   byId("mac-background").hidden = state.backgroundAvailable === true;
   for (const platform of ["windows", "mac"]) {
@@ -37,8 +38,9 @@ function render(state) {
   byId("phase").textContent = ({setup:"GETTING READY",download:"PREPARING THIS COMPUTER",checking:"RUNNING THE SHORT COMPUTER CHECK",ready:"READY",indexing:"INDEXING ON THIS COMPUTER",error:"NEEDS ATTENTION"})[state.phase] || "VISION";
   byId("message").textContent = state.message;
   byId("detail").textContent = state.phase === "indexing" ? (state.stopping ? "Pausing after the current batch. Please wait." : "Keep your computer awake and connected. Your credits update when results are accepted.") : state.phase === "checking" ? "Please wait. Regular work starts after the computer check is approved." : "Keep this page and the small VISION starter window open.";
-  const step = !state.ready ? 1 : !state.connected || !state.savedCode ? 2 : !state.qualified ? 3 : 4;
-  const next = state.busy ? "Please wait for this step to finish." : state.connected && !state.savedCode ? "Next: Save your private account code in step 2." : `Next: Step ${step} — ${["set up this computer", "create an account, or use your saved code", "run the computer check", "start helping"][step - 1]}.`;
+  const step = !sceneSelected || !state.ready ? 1 : !state.connected || !state.savedCode ? 2 : !state.qualified ? 3 : 4;
+  const next = state.busy ? "Please wait for this step to finish." : !sceneSelected ? "Choose Scenes in step 1. Your saved Object work and reports stay kept."
+    : state.connected && !state.savedCode ? "Next: Save your private account code in step 2." : `Next: Step ${step} — ${["set up this computer", "create an account, or use your saved code", "run the computer check", "start helping"][step - 1]}.`;
   if (byId("next-step").textContent !== next) byId("next-step").textContent = next;
   byId("go-next").textContent = `Go to step ${step}`;
   byId("go-next").disabled = state.busy || requesting;
@@ -68,18 +70,23 @@ function render(state) {
   byId("account-status").textContent = state.connected ? "Your account is connected." : "Keep your private code. You will also use it on the search website.";
   const busy = state.busy || requesting;
   byId("work-type").disabled = busy;
-  byId("prepare").disabled = busy;
+  byId("prepare").disabled = busy || !sceneSelected;
   byId("prepare").textContent = state.ready ? "Check setup again" : "Set up this computer";
   byId("connect").disabled = busy || !state.ready;
   byId("create").disabled = busy || !state.ready;
-  byId("check-pc").disabled = busy || !state.ready || !state.connected || !state.savedCode || state.qualified;
+  byId("check-pc").disabled = busy || !sceneSelected || !state.ready || !state.connected || !state.savedCode || state.qualified;
   byId("check-pc").textContent = state.qualified ? "Computer approved" : "Run the computer check";
-  byId("start").disabled = busy || !state.ready || !state.connected || !state.savedCode || !state.qualified;
+  byId("start").disabled = busy || !sceneSelected || !state.ready || !state.connected || !state.savedCode || !state.qualified;
   byId("stop").disabled = state.phase !== "indexing" || !state.busy || state.stopping;
   byId("quit").disabled = busy;
 }
 async function action(path, body={}) {
   if (requesting) return;
+  if ((["/api/prepare", "/api/check-pc", "/api/start"].includes(path) && ["object", "both"].includes(latest.workType))
+      || (path === "/api/work-type" && body.workType !== "scene")) {
+    showError("Choose Scenes to use this release. Your saved Object work is kept.");
+    return;
+  }
   requesting = true; showError(""); render(latest);
   try { return await request(path, body); }
   catch (error) { showError(error.message); }

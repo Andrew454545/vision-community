@@ -32,6 +32,12 @@ recomputation. The existing audited mode remains distinct.
   records 67 passing Node and 15 passing Python checks on Windows, including actual
   browser action/readiness execution in a local VM and Scene router/credit regressions.
   This is source-only synthetic evidence, not a deployed site or new device qualification.
+- [Desktop and automatic-processing controls](SCENE_RESTRICTED_ACTIVATION_20261014.md)
+  now guide new setup to Scenes while preserving saved Object/Both work. Local
+  control checks passed; the installed laptop's saved Scene profile matches its
+  existing processing files. Andrew supplied actual exact-commit Mac package and
+  sleep-assertion evidence. These do not replace server qualification, signing
+  or clean-device installation.
 
 Reuse this evidence. Repeat a check only for changed inputs/behavior, an unresolved
 failure or an actual release gate. Local synthetic checks do not establish live
@@ -41,7 +47,7 @@ acceptance of the new hybrid deployment.
 
 | Step | Completion evidence |
 |---|---|
-| Resolve restricted Scene activation | Andrew answers the [existing narrow staging request](https://github.com/Andrew454545/VISION/pull/17#issuecomment-6141429467). Preserve the operational stop until that specific scope is approved; it is not public-launch or private-upload consent. |
+| Resolve restricted Scene activation | Andrew [approved the exact finite staging scope](https://github.com/Andrew454545/VISION/pull/17#issuecomment-6161800642). [Current preflight and bounds](SCENE_RESTRICTED_ACTIVATION_20261014.md) record the direct laptop-user cloud-read question still required by automatic approval review. Preserve the general stop, zero native allowance and separate private-transfer authority. |
 | Finish the bounded Scene service | Current qualification/profile pins, valid exclusive assignments, qualified uploads, automatic search membership refresh and online earned-credit search work together under the approved budget. Measure actual startup/shutdown and whole-job cost before enabling cloud compute; keep missing/exhausted budget paths closed. |
 | Finish the contributor experience | Scenes-only installation/onboarding/search, simple account recovery, saved uploads, day/night scheduling and crash/restart recovery on each supported platform. Trusted signed downloads and clean-device/nontechnical checks remain required for public distribution. |
 | Rehearse recovery and open a small invited cohort | Restore current Scene publications, account-deletion authority, balances and exact paid replies; establish a fresh consistent cutoff and safe rollback. Limit accounts, work and spending while collecting real accepted work. An invitation does not waive device/download or data-transfer requirements. |

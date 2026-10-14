@@ -6,6 +6,14 @@ downloads, cost/recovery and Scene endurance work. Objects/Both are deferred and
 not block this first release. Preserve Object source/evidence and closed capability;
 the Object engineering descriptions below are later-release work, not today's queue.
 
+**14 October update:** Andrew [approved the one finite restricted staging scope](https://github.com/Andrew454545/VISION/pull/17#issuecomment-6161800642)
+and delegated routine release decisions within the spending/access limits.
+[Current preflight/bounds](SCENE_RESTRICTED_ACTIVATION_20261014.md) record matched
+saved laptop assets, Scene-first local controls and actual exact-commit Mac
+package/assertion evidence. Automatic approval review still requires the laptop
+user's direct cloud-read approval; that narrow question is pending. The broad
+cost hold below is not lifted outside the named finite staging exception.
+
 **Latest decision:** implement the [approved hybrid mode](HYBRID_LAUNCH_DECISION_20261013.md):
 sample qualification, explicitly marked lighter routine upload checks, online
 search, $10/month processing plus R2, and local overflow. Its first monthly host
