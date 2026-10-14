@@ -8,8 +8,8 @@
 <section class="status" aria-live="polite"><span id="phase">GETTING READY</span><h2 id="message">Checking this computer…</h2><p id="detail">Keep this page and the small VISION starter window open.</p><div id="batch-progress" hidden><label for="progress" id="progress-label">Processing locations</label><progress id="progress" aria-labelledby="progress-label"></progress></div><p id="next-step">Next: Step 1 — set up this computer.</p><button id="go-next" class="secondary" type="button">Go to step 1</button><div id="connection-error" role="alert" hidden></div><div id="error" role="alert" hidden></div></section>
 <div class="steps">
 <section class="card" id="step-1"><div class="number">1</div><h2>Set up this computer</h2>
-<label for="work-type">What would you like to help with?</label><select id="work-type"><option value="scene">Scenes · what places look like</option><option value="object">Objects · things in places</option><option value="both">Both · take turns</option></select>
-<p id="work-description">Scenes downloads about 1 GB.</p><p id="lane-availability" class="note">Objects needs its own approved release and computer check.</p>
+<label for="work-type">Work to process</label><select id="work-type"><option value="scene">Scenes · what places look like</option><option value="object" disabled>Objects · later</option><option value="both" disabled>Both · later</option></select>
+<p id="work-description">Scenes downloads about 1 GB.</p><p id="lane-availability" class="note">Start with Scenes. Objects will follow later; saved Object work is kept.</p>
 <button id="prepare" type="button">Set up this computer</button><p class="note">No extra installation steps needed.</p></section>
 <section class="card" id="step-2"><div class="number">2</div><h2>Create an account</h2><p>No name or email needed.</p>
 <button id="create" type="button">Create account</button>
@@ -19,7 +19,7 @@
 <section class="card" id="step-4"><div class="number">4</div><h2>Start helping</h2><p>Accepted results earn credits.</p><div class="buttons"><button id="start" type="button" disabled>Start helping</button><button id="stop" class="secondary" type="button" disabled>Pause after this batch</button></div><p class="note">Keep VISION open, your computer awake and the internet connected. To stop, choose Pause after this batch.</p></section>
 </div>
 <section class="totals"><div><strong id="completed">0</strong><span>locations accepted this session</span></div><div><strong id="units">0</strong><span>credit units in your account</span></div><div><strong id="elapsed">—</strong><span>current step time</span></div></section>
-<p>An accepted Scene location earns 1 unit. An accepted Object location earns 10 units. The search website shows the current price and your saved credits.</p>
+<p>Each accepted Scene location earns 1 unit. The search website shows the current price and your saved credits.</p>
 <p id="undelivered" role="status" hidden></p>
 <p id="pending" role="status" hidden></p>
 <details id="windows-background" hidden><summary>Run automatically with a day and night schedule</summary><p>After setup, pause processing and close VISION. <span class="folder-download" id="windows-background-folder">Open <strong>Background VISION.cmd</strong> in the extracted folder.</span><span class="native-app" id="windows-background-native" hidden>In the <strong>VISION Community</strong> window, choose <strong>Automatic processing</strong>. You can also find it in the Start menu under <strong>VISION Community</strong>.</span> Paste your saved code once, choose the schedule and select <strong>Save and enable</strong>. You can close those controls while the worker continues.</p><p>After a restart, sign into Windows to resume. Sleep or power-off stops processing until the computer is awake again.</p></details>

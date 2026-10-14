@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "scope": "owner-reported-actual-mac-package-and-sleep-assertion-checks",
+  "sourceComment": "https://github.com/Andrew454545/VISION/pull/17#issuecomment-6162119444",
+  "reportedBy": "Andrew454545",
+  "independentlyExecutedOnThisWindowsHost": false,
+  "revision": "6c673e88e30aef89e90b936d0d4d5ab6f5e15925",
+  "cleanBefore": true,
+  "platform": "Darwin",
+  "architecture": "arm64",
+  "macOS": "27.0.1",
+  "macOSBuild": "26A434",
+  "pythonVersion": "3.12.14",
+  "swiftVersion": "swift-driver version: 1.168.6 Apple Swift version 6.4 (swiftlang-6.4.0.34.1 clang-2100.3.34.1)\nTarget: arm64-apple-macosx27.0.0",
+  "clangVersion": "Apple clang version 21.0.0 (clang-2100.3.34.2)",
+  "startedUTC": "2026-10-14T06:10:00.307076+00:00",
+  "overallTimeoutSeconds": 600,
+  "commands": [
+    {
+      "name": "build",
+      "exitCode": 0,
+      "timeout": false,
+      "seconds": 2.475
+    },
+    {
+      "name": "guards",
+      "exitCode": 0,
+      "timeout": false,
+      "seconds": 0.187
+    },
+    {
+      "name": "actual-assertions",
+      "exitCode": 0,
+      "timeout": false,
+      "seconds": 0.294
+    }
+  ],
+  "cleanAfter": true,
+  "elapsedSeconds": 2.97,
+  "packageReceipt": {
+    "version": 1,
+    "sourceRevision": "6c673e88e30aef89e90b936d0d4d5ab6f5e15925",
+    "sourceWorktreeDirty": false,
+    "platform": "darwin-arm64",
+    "publicDistributionReady": false,
+    "productionQualified": false,
+    "nativeRuntimesQualified": false,
+    "artifact": "MAINTAINER-UNSIGNED-VISION-Mac.zip",
+    "bytes": 2869988,
+    "sha256": "fc0bd13ac31d53c78bcd5f3a3599691f6ead729bbf190d3ca49029382270e82e",
+    "inventorySha256": "7a1d050884f30c737079bc13805d1bcef5f02cf118d0bb421893e3872b60ec85",
+    "signedAndNotarized": false
+  },
+  "completedUTC": "2026-10-14T06:10:03.277594+00:00",
+  "packageGuard": {
+    "status": "PACKAGE_GUARDS_PASS",
+    "changedFileRefused": true,
+    "extraFileRefused": true,
+    "symlinkRefused": true
+  },
+  "actualAssertions": {
+    "tests": 2,
+    "passed": 2,
+    "skipped": 0,
+    "failed": 0,
+    "nestedReleaseAfterBodyFailure": "PASS",
+    "abruptCallerReleaseAndPreservedWork": "PASS"
+  },
+  "cleanup": {
+    "testOwnedAssertionRemaining": false,
+    "callerCleanupVerifiedByActualTest": true,
+    "checkoutCleanAfter": true
+  },
+  "archiveHashReadBackVerified": true
+}

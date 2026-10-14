@@ -1,5 +1,41 @@
 # Development constraints
 
+## Narrow staging exception and delegated release work (14 October 2026)
+
+Andrew approved [the exact restricted Scene staging scope](https://github.com/Andrew454545/VISION/pull/17#issuecomment-6161800642)
+after accepting possible small coordinator/database usage charges. This narrowly
+lifts the account-read/deployment hold below **only for the existing
+`vision-community-staging` gateway and its confirmed D1/R2 resources**: inspect
+configuration, check saved laptop qualification, deploy qualified Scene
+assignment/upload, and run at most one finite assigned laptop Scene cohort when
+its prerequisites and destination-specific transfer approvals are satisfied.
+Report exact finite request/row/upload bounds before a batch. Stop on unexpected
+usage/failure, preserve work/credit/evidence, and restore staging's paused posture
+afterward. Do not activate only to discover that saved qualification is unusable.
+
+Automatic approval review subsequently refused the account/D1 reads because it
+requires the laptop user's direct approval of that exception, rather than the
+owner agent's GitHub report. A narrow user question for configuration/status and
+up to eight qualification reads is pending. Until answered, continue offline;
+do not route the blocked cloud action through another tool or the Mac agent.
+
+Native cloud allowances stay zero; native endpoints/previews/crons and general
+recurring jobs stay disabled. This exception does not authorize fresh qualification
+or model tests, online native search, new resources/accounts/plans, Actions,
+public admission, unrelated account access or separate private uploads. An unusable
+saved qualification is a concrete requirement to report, not permission to renew
+it or bypass its expiry. The general hold below remains for everything outside
+this scope. No guaranteed zero invoice or recurring monthly activation is claimed.
+
+Andrew also [delegated implementation/product/release decisions](https://github.com/Andrew454545/VISION/pull/17#issuecomment-6161867559)
+within those spending/access limits; another routine launch approval or independent
+review from his Mac agent is unnecessary. Actual release gates still apply.
+For [work that requires macOS](https://github.com/Andrew454545/VISION/pull/17#issuecomment-6161878936),
+send one exact pinned task, inputs and safe evidence destination through the
+authorized PR17 handoff. Do not ask for duplicate broad matrices or unavailable
+human signing enrollments. Current finite Mac package/sleep-assertion task:
+[6162053287](https://github.com/Andrew454545/VISION/pull/17#issuecomment-6162053287).
+
 ## First-release priority: Scenes only
 
 Read [Scenes first](docs/SCENES_FIRST_RELEASE.md) before choosing new work. The user

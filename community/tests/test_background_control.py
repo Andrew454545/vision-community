@@ -142,12 +142,35 @@ class BackgroundControlTests(unittest.TestCase):
             self.assertEqual(ui['times'], ['06:00', '00:00'])
             choices = {choice['name']: choice for choice in ui['choices']}
             self.assertEqual(choices['Work to process']['value'], 'Scenes')
-            self.assertEqual(choices['Work to process']['items'], ['Scenes', 'Objects', 'Both - one batch at a time'])
+            self.assertEqual(choices['Work to process']['items'], ['Scenes'])
             self.assertEqual(choices['Day processing speed']['value'], 'Medium')
             self.assertEqual(choices['Night processing speed']['value'], 'Maximum')
             for label in ('Save and enable', 'Pause after batch', 'Resume', 'Check status', 'Open saved files'):
                 self.assertIn(label, ui['buttons'])
             self.assertFalse((root / 'account.json').exists())
+
+    def test_scene_first_form_keeps_saved_object_choice_and_blocks_activation(self):
+        for choice in ('object', 'both'):
+            with self.subTest(choice=choice), tempfile.TemporaryDirectory() as folder:
+                root = Path(folder)
+                settings = {'workType': choice, 'dayStart': '06:00', 'nightStart': '00:00',
+                            'dayPace': 'medium', 'nightPace': 'max', 'storageLimitGB': 20,
+                            'keepAwake': True, 'retryMinutes': 30}
+                saved = json.dumps(settings).encode()
+                (root / 'background-settings.json').write_bytes(saved)
+                code = ("function Get-ScheduledTask { $null }; function Start-ScheduledTask { throw 'must not start' }; "
+                        "$NoWindow=$true; $form = Show-VisionBackgroundControl " + ps_string(root) + '; '
+                        "function Read-Controls($c) { foreach($child in $c.Controls) { $child; Read-Controls $child } }; "
+                        "$controls=@(Read-Controls $form); $work=$controls | Where-Object AccessibleName -eq 'Work to process'; "
+                        "@{choice=$work.Text;items=@($work.Items);blocked=@($controls | Where-Object { $_.Text -in @('Save and enable','Resume') } | ForEach-Object { -not $_.Enabled })} | ConvertTo-Json -Compress; $form.Dispose()")
+                ui = json.loads(self.command(code))
+                self.assertEqual(ui['items'], ['Scenes', f'Saved {choice} - available later'])
+                self.assertEqual(ui['choice'], f'Saved {choice} - available later')
+                self.assertEqual(ui['blocked'], [True, True])
+                self.command('Assert-VisionSceneControlWork ' + ps_string(choice), expected=1)
+                self.command("Assert-VisionSceneControlWork 'scene'")
+                self.assertEqual((root / 'background-settings.json').read_bytes(), saved)
+                self.assertFalse((root / 'account.json').exists())
 
 
 if __name__ == '__main__':

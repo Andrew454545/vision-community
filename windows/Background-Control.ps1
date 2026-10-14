@@ -183,6 +183,10 @@ function Get-VisionControlStatus([string]$Folder) {
     return "Worker running. Last saved status: $label.`r`nLast saved report: $updated. Changes appear after the current step."
 }
 
+function Assert-VisionSceneControlWork([string]$WorkType) {
+    if ($WorkType -ne 'scene') { throw 'Choose Scenes, then Save and enable. Saved Object work and settings are kept for later.' }
+}
+
 function Show-VisionBackgroundControl([string]$Folder) {
     Add-Type -AssemblyName System.Windows.Forms
     Add-Type -AssemblyName System.Drawing
@@ -209,12 +213,12 @@ function Show-VisionBackgroundControl([string]$Folder) {
     $null = Add-ControlLabel 'Let VISION help automatically. You can close these controls while it works.'
     $statusLabel = Add-ControlLabel ''
     $statusLabel.ForeColor = [Drawing.Color]::DarkSlateGray
-    $null = Add-ControlLabel 'Work to process. Each type needs its own approval; Both takes turns.'
+    $null = Add-ControlLabel 'Work to process. Start with Scenes; Objects will follow later.'
     $workChoice = New-Object Windows.Forms.ComboBox
     $workChoice.DropDownStyle = [Windows.Forms.ComboBoxStyle]::DropDownList
     $workChoice.Width = 350; $workChoice.AccessibleName = 'Work to process'
-    $workCodes = @('scene', 'object', 'both')
-    $workChoice.Items.AddRange(@('Scenes', 'Objects', 'Both - one batch at a time'))
+    $workCodes = @('scene')
+    $workChoice.Items.AddRange(@('Scenes'))
     $workChoice.SelectedIndex = 0; $layout.Controls.Add($workChoice)
     $null = Add-ControlLabel 'Times follow this PC clock. Medium rests between batches; Maximum skips extra rests. Both use approved processing settings.'
     $scheduleRow = New-Object Windows.Forms.FlowLayoutPanel
@@ -244,6 +248,11 @@ function Show-VisionBackgroundControl([string]$Folder) {
     $dayStart = '06:00'; $nightStart = '00:00'; $dayChoice = 1; $nightChoice = 2; $limit = 20; $keepAwake = $true; $retryMinutes = 30
     if ($settings) {
         if ($settings.PSObject.Properties['workType']) {
+            if ([string]$settings.workType -notin @('scene', 'object', 'both')) { throw 'The saved work choice needs review.' }
+            if ([string]$settings.workType -ne 'scene') {
+                $workCodes += [string]$settings.workType
+                $null = $workChoice.Items.Add('Saved ' + [string]$settings.workType + ' - available later')
+            }
             $chosenWork = [Array]::IndexOf($workCodes, [string]$settings.workType)
             if ($chosenWork -lt 0) { throw 'The saved work choice needs review.' }
             $workChoice.SelectedIndex = $chosenWork
@@ -290,7 +299,11 @@ function Show-VisionBackgroundControl([string]$Folder) {
     $null = Add-ControlLabel 'After a restart, sign into Windows to resume. Sleep, power-off or a closed laptop lid stops computation until the PC is awake again. Plug the PC into power for long runs.'
     $null = Add-ControlLabel 'Internet or service problems retry after a rest. Rejected checks, unsafe files or other lasting problems stop for review. Keep saved files; this preview has not passed a months-long endurance test.'
     function Refresh-ControlStatus {
-        try { $statusLabel.Text = Get-VisionControlStatus $Folder }
+        try {
+            $statusLabel.Text = Get-VisionControlStatus $Folder
+            $savedSettings = Read-VisionControlJson (Join-Path $Folder 'background-settings.json')
+            $resume.Enabled = -not $savedSettings -or -not $savedSettings.PSObject.Properties['workType'] -or $savedSettings.workType -eq 'scene'
+        }
         catch { $statusLabel.Text = 'The status could not be checked safely. Your files were kept. Ask the maintainer for help.' }
     }
     function Show-ControlError {
@@ -300,7 +313,13 @@ function Show-VisionBackgroundControl([string]$Folder) {
     }
     $refresh.Add_Click({ Refresh-ControlStatus })
     $pause.Add_Click({ try { $statusLabel.Text = Set-VisionControlPause $Folder $true } catch { Show-ControlError $_ } })
-    $resume.Add_Click({ try { $statusLabel.Text = Set-VisionControlPause $Folder $false } catch { Show-ControlError $_ } })
+    $resume.Add_Click({
+        try {
+            $savedSettings = Read-VisionControlJson (Join-Path $Folder 'background-settings.json')
+            if ($savedSettings -and $savedSettings.PSObject.Properties['workType']) { Assert-VisionSceneControlWork ([string]$savedSettings.workType) }
+            $statusLabel.Text = Set-VisionControlPause $Folder $false
+        } catch { Show-ControlError $_ }
+    })
     $openFolder.Add_Click({
         try {
             Assert-VisionControlPath $Folder
@@ -311,6 +330,7 @@ function Show-VisionBackgroundControl([string]$Folder) {
     $enable.Add_Click({
         $enable.Enabled = $false
         try {
+            Assert-VisionSceneControlWork $workCodes[$workChoice.SelectedIndex]
             if (-not $consent.Checked) { throw 'Tick the permission box to allow automatic processing.' }
             if ($day.Clock.Value.ToString('HH:mm') -eq $night.Clock.Value.ToString('HH:mm')) { throw 'Choose different day and night start times.' }
             # Validate a complete setup before persisting any supplied code.
@@ -329,7 +349,7 @@ function Show-VisionBackgroundControl([string]$Folder) {
                 StorageLimitGB = [int]$storage.Value; RetryMinutes = $retryMinutes; AllowSleep = -not $awake.Checked }
             $null = & (Join-Path $PSScriptRoot 'Install-Background.ps1') @options
             Refresh-ControlStatus
-        } catch { Show-ControlError $_ } finally { $enable.Enabled = $true }
+        } catch { Show-ControlError $_ } finally { $enable.Enabled = $workCodes[$workChoice.SelectedIndex] -eq 'scene' }
     })
     $remove.Add_Click({
         try {
@@ -338,6 +358,8 @@ function Show-VisionBackgroundControl([string]$Folder) {
             Refresh-ControlStatus
         } catch { Show-ControlError $_ }
     })
+    $workChoice.Add_SelectedIndexChanged({ $enable.Enabled = $workCodes[$workChoice.SelectedIndex] -eq 'scene' })
+    $enable.Enabled = $workCodes[$workChoice.SelectedIndex] -eq 'scene'
     Refresh-ControlStatus
     if ($NoWindow) { return $form }
     try { $null = $form.ShowDialog() } finally { $code.Clear(); $form.Dispose() }
