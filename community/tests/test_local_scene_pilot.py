@@ -182,6 +182,26 @@ class PilotTest(unittest.TestCase):
 
 
 class UITest(unittest.TestCase):
+    def test_reopen_only_never_starts_another_server_when_window_is_unavailable(self):
+        from community.local_scene_ui import main
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder);source=packet(root,2)
+            with patch('sys.argv',['pilot','--packet',str(source),'--data-dir',str(root/'data'),'--reopen-only']), \
+                 patch('community.local_scene_ui.reopen_existing',return_value=False), \
+                 patch('community.local_scene_ui.ThreadingHTTPServer',side_effect=AssertionError('no replacement server')):
+                with self.assertRaisesRegex(RuntimeError,'local_pilot_window_unavailable'):main()
+    def test_packet_check_exits_before_setup_server_browser_or_processing(self):
+        from community.local_scene_ui import main
+        import io
+        from contextlib import redirect_stdout
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder);source=packet(root,2);output=io.StringIO()
+            with patch('sys.argv',['pilot','--packet',str(source),'--check-only']), \
+                 patch('community.local_scene_ui.LocalScenePilot',side_effect=AssertionError('no worker')), \
+                 patch('community.local_scene_ui.ThreadingHTTPServer',side_effect=AssertionError('no server')), \
+                 patch('community.local_scene_ui.webbrowser.open',side_effect=AssertionError('no browser')),redirect_stdout(output):
+                main()
+            self.assertEqual(json.loads(output.getvalue()),{'ok':True,'locations':2,'localOnly':True})
     def test_actual_loopback_http_requires_secret_host_origin_and_empty_action(self):
         class App:
             calls=[]

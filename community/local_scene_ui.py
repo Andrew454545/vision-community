@@ -151,10 +151,19 @@ def main():
     parser.add_argument('--data-dir', type=Path, default=community_support_root()/'local-scene-pilot')
     parser.add_argument('--runtime-root', type=Path, default=community_support_root()/'desktop/runtime')
     parser.add_argument('--no-browser', action='store_true')
+    parser.add_argument('--check-only', action='store_true', help='validate this packet without setup or processing')
+    parser.add_argument('--reopen-only', action='store_true', help='reopen the existing local window without starting a server')
     args = parser.parse_args()
+    if args.check_only:
+        from community.local_scene_packets import load_packet
+        packet=load_packet(args.packet)
+        print(json.dumps({'ok':True,'locations':len(packet['rows']),'localOnly':True}))
+        return
     app = LocalScenePilot(args.packet, args.data_dir, args.runtime_root)
     if not args.no_browser and reopen_existing(app):
         return
+    if args.reopen_only:
+        raise RuntimeError('local_pilot_window_unavailable')
     token = secrets.token_hex(32)
     server = ThreadingHTTPServer(('127.0.0.1',0), handler_for(app, token))
     server.daemon_threads = True
