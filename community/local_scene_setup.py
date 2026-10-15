@@ -28,6 +28,8 @@ def setup_runtime(kit_runtime, destination, *, download_models=False, downloader
         target=regular(destination/item['path'],missing=True)
         if item['path'].startswith('bin/'):
             immutable(target,(kit_runtime/item['path']).read_bytes())
+            if item.get('executable'):
+                target.chmod(0o755)
         elif file_identity(target)!={'bytes':item['bytes'],'sha256':item['sha256']}:
             if not download_models:raise ValueError('pilot_models_download_consent_required')
             target.parent.mkdir(parents=True,exist_ok=True)

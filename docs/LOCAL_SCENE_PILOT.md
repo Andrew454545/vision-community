@@ -83,7 +83,7 @@ execution marker fails closed and does not make an approved result.
 Build locally, using the directory of the pinned native binary and dependencies:
 
 ```text
-python packaging/build_local_scene_pilot.py --output ../pilot-kit --native-dir /path/to/native/bin --revision FULL_COMMIT_SHA --platform windows-x86_64
+python packaging/build_local_scene_pilot.py --output /absolute/path/pilot-kit --native-dir /absolute/path/native/bin --revision FULL_COMMIT_SHA --platform windows-x86_64
 ```
 
 The builder validates native pins and uses the existing named public-source

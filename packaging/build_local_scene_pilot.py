@@ -3,9 +3,11 @@ import argparse
 import json
 from pathlib import Path
 import sys
+import hashlib
+import zipfile
 
 sys.path.insert(0,str(Path(__file__).parent))
-from stage import REPO, regular, inventory, archive, source_state
+from stage import REPO, regular, inventory, source_state
 from community.mac_starter import source_inventory
 from community.vision_index import file_identity
 from community.bootstrap import files_for_platform
@@ -37,7 +39,20 @@ def build(output, native_dir, revision, platform='windows-x86_64'):
         if item.get('executable'):target.chmod(0o755)
     checksum=inventory(project,revision)
     zipped=output/f'VISION-Local-Scenes-{platform}-MAINTAINER.zip'
-    sha=archive(project,zipped)
+    # The shared native-app archive stores resources as regular data. This kit
+    # exposes .command starters directly, so retain their executable Unix mode.
+    with zipfile.ZipFile(zipped,'x',compression=zipfile.ZIP_DEFLATED) as package:
+        for path in sorted(project.rglob('*')):
+            if path.is_file():
+                regular(path)
+                name=path.relative_to(project).as_posix()
+                entry=zipfile.ZipInfo(name,date_time=(2026,1,1,0,0,0))
+                entry.compress_type=zipfile.ZIP_DEFLATED
+                executable=name.endswith('.command') or name=='pilot-runtime/bin/mma-vision'
+                entry.create_system=3
+                entry.external_attr=(0o100755 if executable else 0o100644)<<16
+                package.writestr(entry,path.read_bytes())
+    sha=hashlib.sha256(zipped.read_bytes()).hexdigest()
     report={'sourceRevision':revision,'sourceWorktreeDirty':dirty,'platform':platform,
         'inventorySha256':checksum,'sha256':sha,'artifact':zipped.name,
         'modelFilesBundled':False,'packetsBundled':False,'publicDistributionReady':False,
