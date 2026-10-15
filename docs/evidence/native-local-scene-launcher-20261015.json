@@ -1,0 +1,78 @@
+{
+  "date": "2026-10-15",
+  "scope": "native-Windows-launcher-for-local-Scene-pilot",
+  "behavior": {
+    "nativeGUI": true,
+    "powershellRequired": false,
+    "adminInstallRequired": false,
+    "existingVerifiedPrivateBootstrapReused": true,
+    "packetValidatedBeforeModelSetup": true,
+    "localBrowserReopenDoesNotStartReplacementWorker": true,
+    "automaticTasksRegistered": 0
+  },
+  "verification": {
+    "newPythonCommandChecksPassed": 2,
+    "nativePackageGuardChecks": [
+      {
+        "case": "intact-package",
+        "passed": true,
+        "exitCode": 0
+      },
+      {
+        "case": "extra-file-refused",
+        "passed": true,
+        "exitCode": 1
+      },
+      {
+        "case": "changed-source-refused",
+        "passed": true,
+        "exitCode": 1
+      },
+      {
+        "case": "extra-directory-refused",
+        "passed": true,
+        "exitCode": 1
+      },
+      {
+        "case": "intact-restored-package",
+        "passed": true,
+        "exitCode": 0
+      }
+    ],
+    "actualOfflineNativeRehearsal": {
+      "status": "LOCAL_PILOT_OFFLINE_PASS",
+      "privatePythonVerified": true,
+      "sourceSnapshotVerified": true,
+      "cachedSceneFilesVerified": true,
+      "syntheticPacketValidated": true,
+      "windowConstructedWithoutShowing": true,
+      "hiddenChildren": true,
+      "powershellUsed": false,
+      "downloadsAllowed": false,
+      "accountsCreated": 0,
+      "imageryCalls": 0,
+      "cloudCalls": 0,
+      "inferenceRuns": 0,
+      "productionQualified": false
+    },
+    "visualInspection": "Native beginner window rendered offscreen with controls; inspected locally. No visible app window or fresh-device install.",
+    "priorEvidenceReused": "local-scene-pilot-20261015.json; no repeated model matrix or unchanged pilot tests"
+  },
+  "preservedDiagnostics": [
+    "Initial offscreen render omitted controls because handles were not created; original blank image retained. Explicit hidden handle creation fixed rendering.",
+    "Sandbox execution of cached private Python returned unsupported_platform during platform detection. The owned offline rehearsal passed outside sandbox with unchanged platform guards; original logs retained."
+  ],
+  "limits": {
+    "freshParticipantInstallation": false,
+    "freshPilotIndexing": false,
+    "signedDistribution": false,
+    "macLauncherChanged": false,
+    "privatePythonDownloads": 0,
+    "modelDownloads": 0,
+    "cloudCalls": 0,
+    "actionsRuns": 0,
+    "imageryCalls": 0,
+    "nativeInferenceRuns": 0
+  },
+  "pending": "Existing Mac/source task 6186095586; actual fresh disjoint packet and participant start/pause/resume remains."
+}

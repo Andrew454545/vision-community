@@ -10,7 +10,7 @@ implementation of this separate local pilot.
 
 The maintainer supplies a prepared **VISION Local Scenes** kit and one assigned
 Scene packet. Extract the kit to a regular local folder. On Windows open
-**Start Local Scenes.cmd**; on Apple-silicon Mac open **Start Local Scenes.command**.
+**VISION Local Scenes.exe**; on Apple-silicon Mac open **Start Local Scenes.command**.
 Choose the packet when prompted and accept setup downloads if wanted. The private
 Python and about 0.9 GB of model files come from python.org and the project's
 existing GitHub release. No administrator installation, account, contribution,
@@ -22,6 +22,9 @@ inference on their CPU. **Pause** completes the current group of at most 16
 locations, then stops. A native child is bounded to ten minutes. Closing the
 browser tab leaves work running; **Exit** waits for the current group and stops.
 Reopening the launcher with the same packet checks and resumes saved work.
+The Windows native launcher uses the existing verified private setup code and
+does not invoke PowerShell or change execution policy. **Reopen pilot window**
+returns to an existing browser window without starting another worker.
 CPU1/fp32, batch shape and four-view v4 indexes retain the existing processing
 semantics. Medium scheduling priority is used; parallel profiles and automatic
 day/night scheduling are separate follow-up work.
@@ -89,6 +92,11 @@ python packaging/build_local_scene_pilot.py --output /absolute/path/pilot-kit --
 The builder validates native pins and uses the existing named public-source
 inventory. It includes no model files, assigned packets, credentials, logs, database,
 private Python or checkout. The ZIP is explicitly a **maintainer unsigned** artifact.
+The Windows ZIP contains a native `VISION Local Scenes.exe`, a short participant
+`START-HERE.md` and a separately sealed `project` folder. The launcher validates
+every named file before setup and refuses changed files or unexpected entries.
+It installs no shortcut, service, scheduled task or account. The earlier script
+starter is retained inside `project` for maintainer use; participants use the EXE.
 Model setup copies those checked native files and downloads only the four pinned
 Scene models from the existing project release, with resumable digest checks.
 Do not publish or invite users from a dirty build or claim a signed release.
@@ -108,8 +116,10 @@ uncheckpointed bytes stay in a separate attempt. Failed attempts are preserved.
 
 ## Next actions
 
-1. Verify the prepared Windows kit/setup locally without downloading files, then
-   exercise one genuinely fresh local packet on an installed participant machine.
+1. The Windows native kit's package guard, checked private Python, copied source
+   and cached-model setup now pass a finite offline rehearsal; its beginner window
+   is constructed/rendered offscreen. Exercise one genuinely fresh local packet
+   on an installed participant machine next. This is not a clean-device check.
 2. Obtain the exact Mac-only pilot launcher/runtime execution result through PR17;
    fix only a relevant changed input or actual failure. No Actions or cloud is needed.
 3. Choose the approved metadata-only source, retain one issuer registry, and make

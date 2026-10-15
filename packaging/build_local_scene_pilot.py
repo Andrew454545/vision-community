@@ -5,12 +5,42 @@ from pathlib import Path
 import sys
 import hashlib
 import zipfile
+import os
+import subprocess
 
 sys.path.insert(0,str(Path(__file__).parent))
 from stage import REPO, regular, inventory, source_state
 from community.mac_starter import source_inventory
 from community.vision_index import file_identity
 from community.bootstrap import files_for_platform
+
+
+def windows_launcher(output,kit,project,revision,checksum):
+    names=json.loads((project/'release-inventory.json').read_text())['files']
+    snapshot=sorted(name for name in names if name.startswith(('community/','calibration/')))
+    generated=output/'BuildLocal.cs'
+    generated.write_text('static class Build { public const string Revision='+json.dumps(revision)+'; '+
+        'public const string InventorySHA='+json.dumps(checksum)+'; '+
+        'public static readonly string[] PackageNames=new string[]{'+','.join(json.dumps(n) for n in sorted(names))+'}; '+
+        'public static readonly string[] SnapshotNames=new string[]{'+','.join(json.dumps(n) for n in snapshot)+'}; }\n')
+    compiler=Path(os.environ['WINDIR'])/'Microsoft.NET/Framework64/v4.0.30319/csc.exe'
+    executable=kit/'VISION Local Scenes.exe'
+    flags=subprocess.CREATE_NO_WINDOW if os.name=='nt' else 0
+    result=subprocess.run([str(compiler),'/nologo','/target:winexe','/platform:x64','/optimize+',
+        '/out:'+str(executable),'/reference:System.Windows.Forms.dll','/reference:System.Drawing.dll',
+        '/reference:System.Web.Extensions.dll','/reference:System.IO.Compression.dll',
+        '/reference:System.IO.Compression.FileSystem.dll','/reference:System.Net.Http.dll',
+        str(generated),str(REPO/'packaging/windows/LocalScenes.cs'),str(REPO/'packaging/windows/Starter.cs')],
+        capture_output=True,creationflags=flags,timeout=60)
+    (output/'native-launcher-build.stdout.log').write_bytes(result.stdout)
+    (output/'native-launcher-build.stderr.log').write_bytes(result.stderr)
+    if result.returncode:raise ValueError('local_scene_launcher_build_failed')
+    result=subprocess.run([str(executable),'--self-check'],capture_output=True,creationflags=flags,timeout=60)
+    (output/'native-launcher-self-check.log').write_bytes(result.stdout+result.stderr)
+    if result.returncode or b'LOCAL_PILOT_PACKAGE_VERIFIED' not in result.stdout:
+        raise ValueError('local_scene_launcher_self_check_failed')
+    return {'nativeLauncherSha256':hashlib.sha256(executable.read_bytes()).hexdigest(),
+            'nativeLauncherSelfCheck':True,'powershellRequired':False}
 
 
 def build(output, native_dir, revision, platform='windows-x86_64'):
@@ -29,7 +59,10 @@ def build(output, native_dir, revision, platform='windows-x86_64'):
     if platform=='windows-x86_64':names|={'Start Local Scenes.cmd','windows/Start-LocalScenes.ps1','windows/Start-Vision.ps1'}
     else:names|={'macos/Start-Vision.command','Start Local Scenes.command'}
     for name in names:regular(REPO/name)
-    output.mkdir();project=output/'VISION Local Scenes';project.mkdir()
+    output.mkdir();kit=output/'VISION Local Scenes';kit.mkdir()
+    (kit/'START-HERE.md').write_bytes(regular(REPO/'LOCAL-SCENES-START-HERE.md').read_bytes())
+    project=kit/'project' if platform=='windows-x86_64' else kit
+    project.mkdir(exist_ok=True)
     for name in sorted(names):
         target=project/name;target.parent.mkdir(parents=True,exist_ok=True)
         target.write_bytes((REPO/name).read_bytes())
@@ -38,14 +71,15 @@ def build(output, native_dir, revision, platform='windows-x86_64'):
         target.write_bytes((native_dir/Path(item['path']).name).read_bytes())
         if item.get('executable'):target.chmod(0o755)
     checksum=inventory(project,revision)
+    launcher=windows_launcher(output,kit,project,revision,checksum) if platform=='windows-x86_64' else {}
     zipped=output/f'VISION-Local-Scenes-{platform}-MAINTAINER.zip'
     # The shared native-app archive stores resources as regular data. This kit
     # exposes .command starters directly, so retain their executable Unix mode.
     with zipfile.ZipFile(zipped,'x',compression=zipfile.ZIP_DEFLATED) as package:
-        for path in sorted(project.rglob('*')):
+        for path in sorted(kit.rglob('*')):
             if path.is_file():
                 regular(path)
-                name=path.relative_to(project).as_posix()
+                name=path.relative_to(kit).as_posix()
                 entry=zipfile.ZipInfo(name,date_time=(2026,1,1,0,0,0))
                 entry.compress_type=zipfile.ZIP_DEFLATED
                 executable=name.endswith('.command') or name=='pilot-runtime/bin/mma-vision'
@@ -56,7 +90,7 @@ def build(output, native_dir, revision, platform='windows-x86_64'):
     report={'sourceRevision':revision,'sourceWorktreeDirty':dirty,'platform':platform,
         'inventorySha256':checksum,'sha256':sha,'artifact':zipped.name,
         'modelFilesBundled':False,'packetsBundled':False,'publicDistributionReady':False,
-        'signed':False,'cloudCalls':0,'actionsRuns':0}
+        'signed':False,'cloudCalls':0,'actionsRuns':0,**launcher}
     (output/'pilot-kit-receipt.json').write_text(json.dumps(report,indent=2)+'\n')
     return report
 
