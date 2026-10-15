@@ -4,7 +4,7 @@ unset BASH_ENV ENV PERL5OPT PERL5LIB PYTHONPATH PYTHONHOME DYLD_INSERT_LIBRARIES
 source_root="$(cd -- "$(dirname -- "$0")" && pwd -P)"
 packet="${1:-}"
 if [[ -z "$packet" ]]; then
-    packet=$(/usr/bin/osascript -e 'POSIX path of (choose file with prompt "Choose your assigned VISION Scene packet")') || exit 0
+    packet=$(/usr/bin/osascript -e 'POSIX path of (choose file with prompt "Choose Check this computer.json first, or your approved campaign.json")') || exit 0
 fi
 exec /bin/bash --noprofile --norc "$source_root/macos/Start-Vision.command" \
     --root "${HOME}/Library/Application Support/VISION Local Scenes" --local-scene-packet "$packet"

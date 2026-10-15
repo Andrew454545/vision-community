@@ -68,16 +68,23 @@ def _same_bytes(left, right):
 
 def _completed_parts(root, packet):
     found = []
-    for number, start in enumerate(range(0, len(packet['rows']), CHUNK)):
+    layout = root / 'work-layout.json'
+    size = CHUNK
+    if layout.exists():
+        value = _json(_read(layout))
+        if set(value) != {'groupSize'} or type(value['groupSize']) is not int or value['groupSize'] not in (16,128):
+            raise ValueError('saved_work_changed')
+        size = value['groupSize']
+    for number, start in enumerate(range(0, len(packet['rows']), size)):
         name = f'part-{number:04d}'
         folder = regular(root / name, directory=True, missing=True)
         receipt = regular(folder / 'complete.json', missing=True)
         if receipt.exists():
-            found.append((name, packet['rows'][start:start + CHUNK]))
+            found.append((name, packet['rows'][start:start + size]))
     return found
 
 
-def export_saved_results(root: Path, destination: Path) -> dict:
+def export_saved_results(root: Path, destination: Path, *, portable=False) -> dict:
     """Create a new deterministic ZIP from verified completed groups only.
 
     Callers must hold their pilot's guard and OS packet lock while paused or
@@ -102,6 +109,8 @@ def export_saved_results(root: Path, destination: Path) -> dict:
     if not parts:
         raise ValueError('no_completed_scene_work')
     captured = {'packet.json': packet_body, 'runtime-profile.json': profile_body}
+    if (root / 'work-layout.json').exists():
+        captured['work-layout.json'] = _read(root / 'work-layout.json')
     total_bytes = sum(map(len, captured.values()))
 
     def capture(name):
@@ -158,9 +167,31 @@ def export_saved_results(root: Path, destination: Path) -> dict:
             'parts': [name for name, _rows in parts], 'qualityStatus': 'LOCAL_PROVISIONAL',
             'uploaded': False, 'creditsEarned': 0,
             'files': {name: _pin(body) for name, body in sorted(captured.items())}}
+        # Portable contributions retain the exact packed vectors, masks, TSV and
+        # original hashes. Native resume files can contain personal home paths;
+        # normalize their two known path fields in the copy only. This archive
+        # is an import/backup artifact, never a replacement for a live checkpoint.
+        exported = dict(captured)
+        if portable:
+            for name, _rows, receipt in receipts:
+                prefix = f"{name}/{receipt['attempt']}/"
+                for relative in ('checkpoint.json', 'index/manifest.json'):
+                    key = prefix + relative
+                    document = _json(exported[key])
+                    if 'sourceTsv' in document:
+                        document['sourceTsv'] = 'locations.tsv'
+                    if 'modelDir' in document:
+                        document['modelDir'] = 'models/siglip-b16-224-canonical'
+                    exported[key] = canonical(document) + b'\n'
+                updated = dict(receipt)
+                updated['files'] = {relative: _pin(exported[prefix + relative]) for relative in sorted(ARTIFACTS)}
+                exported[f'{name}/complete.json'] = canonical(updated) + b'\n'
+            manifest.update(contract='vision-local-scene-archive-v2', portable=True,
+                resumeFromOriginalsOnly=True, originalFiles=manifest['files'],
+                files={name: _pin(body) for name, body in sorted(exported.items())})
         archive = snapshot / 'archive.zip'
         with zipfile.ZipFile(archive, 'x', compression=zipfile.ZIP_STORED, allowZip64=False) as output:
-            for name, body in sorted({**captured, 'export-manifest.json': canonical(manifest) + b'\n'}.items()):
+            for name, body in sorted({**exported, 'export-manifest.json': canonical(manifest) + b'\n'}.items()):
                 info = zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0))
                 info.create_system = 3
                 info.external_attr = 0o100600 << 16

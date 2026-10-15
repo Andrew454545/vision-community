@@ -54,6 +54,7 @@ def connection(registry):
         CREATE TABLE IF NOT EXISTS packets(allocation TEXT PRIMARY KEY, participant TEXT NOT NULL,
           count INTEGER NOT NULL, body TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS assigned(pano TEXT PRIMARY KEY, allocation TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS excluded(pano TEXT PRIMARY KEY);
     ''')
     return db
 
@@ -162,6 +163,7 @@ def allocate_packet(registry: Path, participant: str, count: int, allocation_id:
                 raise ValueError('catalog_required')
             rows = db.execute('''SELECT ordinal,line,pano FROM source_rows s WHERE source=?
                 AND NOT EXISTS(SELECT 1 FROM assigned a WHERE a.pano=s.pano)
+                AND NOT EXISTS(SELECT 1 FROM excluded e WHERE e.pano=s.pano)
                 ORDER BY ordinal LIMIT ?''', (active[0], count)).fetchall()
             if len(rows) != count:
                 raise ValueError('not_enough_unassigned_locations')

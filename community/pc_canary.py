@@ -45,20 +45,24 @@ def fingerprint(value):
     return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
 
 
-def runtime_profile(binary: Path, model_dir: Path, *, inference_threads=1):
+def runtime_profile(binary: Path, model_dir: Path, *, inference_threads=1, platform_name=None):
     if type(inference_threads) is not int or inference_threads not in (1, 2, 4):
         raise ValueError("invalid_inference_threads")
     binary, model_dir = Path(binary), Path(model_dir)
+    platform_name = sys.platform if platform_name is None else platform_name
+    if platform_name not in ('win32', 'darwin', 'linux'):
+        raise ValueError('unsupported_profile_platform')
     assets = {"binary": sha(binary)}
     for name in REQUIRED_MODEL_FILES:
         assets["models/" + name] = sha(model_dir / name)
-    if sys.platform == "win32":
+    if platform_name == "win32":
         for name in DLLS:
             assets["bin/" + name] = sha(binary.parent / name)
     spec = four_view_input(total=LOCATIONS, pace="slow", run_id="canary")
     settings = {key: spec[key] for key in ("chunkSize", "concurrency", "embeddingBatchSize",
                                          "imageEncoderSessions", "dutyCyclePercent", "thermalStateLimit", "sceneFp32")}
-    profile = {"version": 1, "platform": sys.platform, "assets": assets,
+    settings['thermalStateLimit'] = None if platform_name == 'win32' else 2
+    profile = {"version": 1, "platform": platform_name, "assets": assets,
                "settings": settings,
                "threads": {key: str(inference_threads) for key in THREAD_ENVIRONMENT_KEYS},
                "pipeline": {name: sha(Path(__file__).with_name(name))
@@ -262,7 +266,7 @@ def released_canary_policy(manifest, runtime_root, *, platform_name='windows-x86
 
 def index_synthetic_canary(source_tsv, *, index_dir, checkpoint, output, binary, model_dir,
                            inference_threads, run_id, sealed_rgb, sealed_sha256,
-                           progress_callback=None, **unused):
+                           progress_callback=None, runner=None, **unused):
     """Run only the private fixed readiness input, through the existing owner.
 
     This does not replace the ordinary contribution fetch path or query ranker.
@@ -278,7 +282,7 @@ def index_synthetic_canary(source_tsv, *, index_dir, checkpoint, output, binary,
             '--output', str(output), '--evidence-dir', str(work/'synthetic-evidence'),
             '--evidence-budget-mib', '384', '--scene-fp32', '--sealed-rgb', str(sealed_rgb),
             '--sealed-sha256', sealed_sha256]
-    code, _stdout, stderr = default_runner(argv,inference_environment(work,inference_threads),work)
+    code, _stdout, stderr = (runner or default_runner)(argv,inference_environment(work,inference_threads),work)
     if code:
         raise ValueError('synthetic_canary_native_failed')
     # study-four-views reports its graph in structured evidence. Its stderr

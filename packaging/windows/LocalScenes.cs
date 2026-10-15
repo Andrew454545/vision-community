@@ -76,7 +76,7 @@ static class LocalScenes {
     public static Process Start(string packet,string root,bool downloads) {
         Starter.Architecture();Package.Verify(Package.Project);Package.Plain(root);Directory.CreateDirectory(root);
         Package.Plain(packet);
-        if(Starter.Size(packet)>2*1024*1024)throw new IOException("packet_limit");
+        if(Starter.Size(packet)>16*1024*1024)throw new IOException("packet_limit");
         var lockPath=Path.Combine(root,"launcher.lock");Package.Plain(lockPath);
         using(var guard=new FileStream(lockPath,FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.None)) {
             if(new DriveInfo(Path.GetPathRoot(root)).AvailableFreeSpace<3L*1024*1024*1024) throw new IOException("storage_required");
@@ -89,7 +89,7 @@ static class LocalScenes {
             if(Run(Child(python,snapshot,root,"local_scene_setup.py",setup),root,"scene-setup",1900)!=0) throw new IOException("local_scene_setup_failed");
             // Recheck Python/source before the long-lived user-controlled UI.
             Starter.Python(root,false);Starter.Snapshot(Package.Project,root);
-            var info=Child(python,snapshot,root,"local_scene_ui.py","--packet "+Package.Quote(packet)+" --data-dir "+Package.Quote(Path.Combine(root,"results"))+" --runtime-root "+Package.Quote(runtime));
+            var info=Child(python,snapshot,root,"local_scene_supervisor.py","--packet "+Package.Quote(packet)+" --data-dir "+Package.Quote(Path.Combine(root,"results"))+" --runtime-root "+Package.Quote(runtime));
             var child=new Process {StartInfo=info};
             // The UI writes durable worker diagnostics. It does not send private
             // paths or native output into this beginner-facing launcher window.
@@ -137,11 +137,11 @@ sealed class PilotWindow:Form {
         FormBorderStyle=FormBorderStyle.FixedDialog;MaximizeBox=false;StartPosition=FormStartPosition.CenterScreen;
         var title=new Label {Text="Process your assigned Scenes locally.",Font=new Font("Segoe UI",19,FontStyle.Bold),Left=24,Top=22,Width=560,Height=65};
         var intro=new Label {Text="Your computer does the processing and keeps the indexes. No account, upload, search or cloud processing is needed.",Left=24,Top=95,Width=560,Height=70};
-        status=new Label {Text="Choose the Scene packet supplied by the maintainer.",Left=24,Top=173,Width=560,Height=75};
-        choose=new Button {Text="Choose Scene packet",Left=24,Top=260,Width=250,Height=48};
+        status=new Label {Text="First choose Readiness / Check this computer.json from your kit. After approval, choose your personal campaign.json.",Left=24,Top=173,Width=560,Height=75};
+        choose=new Button {Text="Choose check or queue",Left=24,Top=260,Width=250,Height=48};
         open=new Button {Text="Open local pilot",Left=290,Top=260,Width=285,Height=48,Enabled=false};
         Controls.AddRange(new Control[]{title,intro,status,choose,open,new Label {Text="Pause or Exit in the local pilot window before closing this launcher.",Left=24,Top=328,Width=560,Height=44}});
-        choose.Click+=(s,e)=>{using(var picker=new OpenFileDialog {Title="Choose your assigned Scene packet",Filter="VISION Scene packet (*.json)|*.json"})
+        choose.Click+=(s,e)=>{using(var picker=new OpenFileDialog {Title="Choose Check this computer.json or your approved campaign.json",Filter="VISION check or queue (*.json)|*.json"})
             if(picker.ShowDialog(this)==DialogResult.OK){packet=picker.FileName;status.Text="Assigned packet selected. Open the local pilot to continue.";open.Enabled=true;}};
         open.Click+=(s,e)=>OpenPilot();
         FormClosing+=(s,e)=>{if(preparing||(child!=null&&!child.HasExited)){e.Cancel=true;MessageBox.Show(this,"Finish setup, or choose Exit in the local pilot window and wait for the current group to finish.","Keep your work safe");}};
