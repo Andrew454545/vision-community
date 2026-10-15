@@ -10,6 +10,7 @@ root="${HOME}/Library/Application Support/VISION Community"
 mode=app
 accepted=0
 phase=platform
+local_scene_packet=''
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --root) [[ $# -ge 2 ]] || exit 2; root="$2"; shift 2 ;;
@@ -18,6 +19,7 @@ while [[ $# -gt 0 ]]; do
         --snapshot-only) mode=snapshot; shift ;;
         --prepare-only) mode=prepare; shift ;;
         --background-controls) mode=background; shift ;;
+        --local-scene-packet) [[ $# -ge 2 ]] || exit 2; mode=local_scene; local_scene_packet="$2"; shift 2 ;;
         *) printf 'That startup option is not supported.\n'; exit 2 ;;
     esac
 done
@@ -115,6 +117,7 @@ else
     [[ "$mode" != snapshot ]] || arguments+=(--snapshot-only)
     [[ "$mode" != prepare ]] || arguments+=(--prepare-only)
     [[ "$mode" != background ]] || arguments+=(--background-controls)
+    [[ "$mode" != local_scene ]] || arguments+=(--local-scene-packet "$local_scene_packet")
     /usr/bin/env -i HOME="$HOME" PATH="$PATH" SSL_CERT_FILE="$SSL_CERT_FILE" "$python" -I -B \
         "$source_root/community/mac_starter.py" "${arguments[@]}"
 fi

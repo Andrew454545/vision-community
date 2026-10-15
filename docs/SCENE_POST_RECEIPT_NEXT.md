@@ -1,4 +1,7 @@
-# Next Scene activation
+# Deferred: next online Scene activation
+
+The user now prioritizes [local-only processing](LOCAL_SCENE_PILOT.md). Keep this
+activation packet for later; it is not the current pilot work queue.
 
 The existing two-Scene acceptance and original two-unit award are
 [reconciled](SCENE_RECEIPT_OPERATOR.md). The two-query approval is consumed.
@@ -41,8 +44,8 @@ state and failures remain unchanged.
    a new destination or arbitrary database/sample copy. No new reads are
    authorized by the completed receipt scope.
 2. Obtain a fresh private dynamic native-head check under that future scope.
-   The last cached 26-Scene head is `67d644…f675`; the gateway's configured
-   fallback snapshot is `05433e…589`. With dynamic snapshots enabled, that
+   The last cached 26-Scene head is `67d644â€¦f675`; the gateway's configured
+   fallback snapshot is `05433eâ€¦589`. With dynamic snapshots enabled, that
    fallback field is **not** independent evidence of the current native head.
    Never reset the service to the old ten-location seed or overwrite a changed
    head. The existing guarded expected-bundle comparison still applies.

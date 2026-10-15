@@ -42,9 +42,9 @@ function Get-VisionSourceFiles([string]$Source) {
         'indexed_local', 'local_search', 'measure', 'mma', 'mma_cloud', 'object_index', 'object_features', 'object_canary', 'work_plan',
         'pano', 'parts', 'pc_canary', 'prompt', 'rank', 'scene_pipeline', 'scene_quality', 'search',
         'seal_index', 'segments', 'send_mma', 'server', 'service', 'source', 'store', 'submission_outbox',
-        'verify', 'vision_handoff', 'vision_index', 'process_owner', 'worker')
+        'verify', 'vision_handoff', 'vision_index', 'process_owner', 'worker', 'mac_starter', 'local_scene_packets', 'local_scene_pilot', 'local_scene_ui', 'local_scene_setup')
     $relative = @($modules | ForEach-Object { 'community/{0}.py' -f $_ })
-    $relative += @('community/runtime_manifest.json', 'community/country-names.txt',
+    $relative += @('community/runtime_manifest.json', 'community/local_scene_runtime.json', 'community/country-names.txt',
         'community/desktop_web/index.html', 'community/desktop_web/style.css', 'community/desktop_web/app.js',
         'calibration/run_windows.py', 'calibration/quality.py', 'calibration/synthetic_canary.py')
     $relative += @('checksums.json', 'canary-112.tsv', 'fixture-1024.tsv', 'fixture-manifest.json',

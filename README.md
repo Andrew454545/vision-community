@@ -3,7 +3,9 @@
 Process Street View locations on your computer. Accepted contributions earn
 credits for visual searches.
 
-**Processing and online search are paused.** Please wait before downloading,
+**The next milestone is a small invited local-only Scene pilot.** See [the pilot plan](docs/LOCAL_SCENE_PILOT.md). Participants will process distinct batches and keep indexes locally; uploads, searches and Objects follow later. Pilot source is implemented; trusted distribution and real participant setup are still being completed.
+
+**The hosted contribution service and online search are paused.** Please wait before downloading,
 setting up or restarting VISION. Download links will return when the service is
 ready. [Current guidance](START-HERE.md).
 
@@ -28,5 +30,5 @@ Each accepted Scene location earns **1 unit**; an accepted Object location earns
 **10 units**. Unused credits stay saved. The account shows the search price before
 you confirm. Keep your account code private; lost codes cannot be recovered.
 
-[How locations are allocated](docs/CONTRIBUTOR_POOL.md) ·
-[Developer guide](docs/DEVELOPER_GUIDE.md) · [Contributing](CONTRIBUTING.md)
+[How locations are allocated](docs/CONTRIBUTOR_POOL.md) Â·
+[Developer guide](docs/DEVELOPER_GUIDE.md) Â· [Contributing](CONTRIBUTING.md)

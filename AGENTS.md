@@ -1,5 +1,18 @@
 # Development constraints
 
+## Immediate priority: invited local-only Scene processing (15 October 2026)
+
+The latest human instruction prioritizes a small Windows/Apple-silicon Mac group
+processing Scenes and saving indexes locally. Follow [the local pilot plan](docs/LOCAL_SCENE_PILOT.md).
+Uploads, credits, shared search, week-long endurance and broader production audits
+are deferred beyond this immediate milestone; they must not block local pilot
+engineering. Objects/Both remain deferred. The user authorizes implementing this
+local path; source packet integrity and honest runtime provenance still apply.
+No old cloud trial, task restart, private transfer, public signed release or paid
+service activation is inferred. Preserve all existing paused tasks, closed cloud
+configuration, data, credits and historical evidence. The service gates below are
+retained for the later online release, not the current local-pilot work queue.
+
 ## Narrow staging exception and delegated release work (14 October 2026)
 
 Andrew approved [the exact restricted Scene staging scope](https://github.com/Andrew454545/VISION/pull/17#issuecomment-6161800642)
