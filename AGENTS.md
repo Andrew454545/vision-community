@@ -41,9 +41,19 @@ or resume recurring jobs from this consent. Continue authorized local metadata,
 read-cost and release engineering; retain accepted work and all original failures.
 The [existing-receipt recovery and additive-maintenance plan](docs/SCENE_ACCEPTANCE_RECOVERY.md)
 is prepared locally, with an expired candidate and verified offline rollback build.
-It is not another approved trial. Do not execute its new live maintenance/deployment/
-readback scope until the precise new permission is resolved; no assignment, inference,
-upload, qualification renewal, task restart or online search is part of that plan.
+The laptop user then directly answered **"Approve this staging maintenance and
+receipt recovery"** to that exact plan. The three additive lookup indexes were
+applied and their definitions verified (409 observed D1 reads / 88 writes including
+definition readback). The frozen private gateway was deployed, but the local
+supervisor failed before launching its request child because it omitted the
+required `env` argument. Zero receipt requests ran. Mandatory restoration and
+independent exact closed configuration/snapshot/subdomain/schedule verification
+succeeded. [Supplemental evidence](docs/evidence/scene-receipt-maintenance-20261014.json)
+preserves this failure and the original incomplete trial. The approved no-retry
+attempt has ended; do not redeploy/retry from that consent or repeat the indexes.
+The local launcher fix passes an actual windowless offline owned-child check.
+A separately scoped readback-only activation is prepared, not authorized. No
+assignment, inference, upload, renewal, task restart or online search is included.
 
 Native cloud allowances stay zero; native endpoints/previews/crons and general
 recurring jobs stay disabled. This exception does not authorize fresh qualification

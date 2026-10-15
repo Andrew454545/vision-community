@@ -1,6 +1,6 @@
 # Bounded Scene coordinator reads
 
-**Implemented and checked locally; not deployed or migrated.** The real
+**Lookup indexes applied; normal coordinator/browser changes remain undeployed.** The real
 [two-Scene trial](FINITE_SCENE_TRIAL.md) remains incomplete. Its accepted work,
 credit replies, failure and independently verified closure are unchanged.
 
@@ -84,7 +84,7 @@ its data shape differs from the earlier 2,053-read fixture above. Queued reserva
 price-review, cancellation, account-switch/deletion and stale-response paths were
 checked with synthetic authority. No source-only result establishes provider prices,
 capacity or a live release. Worker/assets must be deployed together after approval;
-the pending existing-receipt maintenance scope does not include this website update.
+the existing-receipt maintenance scope does not include this website update.
 
 ## Activation boundary
 
@@ -95,13 +95,18 @@ no HTTP request creates indexes and historical migration 0004 stays unchanged.
 `schema-plan.mjs --read-cost --output <new-file>` generates the same data-free plan.
 It can be applied repeatedly without changing account, ledger, publication, paid
 reply, trigger or schema-contract data. Building indexes itself can incur database
-read/write/storage charges and needs resolved activation scope; it was not applied
-to Cloudflare here. Do not deploy the next trial assuming those indexes exist.
+read/write/storage charges. The laptop user approved the specific maintenance:
+all three were applied to existing staging and their definitions read back at
+409 observed reads / 88 writes in total. [The operation](SCENE_ACCEPTANCE_RECOVERY.md)
+restored and independently verified exact closed staging. No normal source/browser
+activation or invoice-cap/capacity proof follows from index installation.
 
 The single hosted-trial consent is consumed. [Recovery is now prepared](SCENE_ACCEPTANCE_RECOVERY.md)
 from the real sealed local delivery and saved native files, with a read-only private
-route checked locally. It still needs new resolved operational scope, with the current
-configuration/financial authority preserved and mandatory closure. Do not raise the
+route checked locally. The approved maintenance/recovery attempt then stopped on
+a local launcher failure before any receipt request. Its fix is checked with an
+actual offline owned child; readback-only activation still needs new scope, with
+current configuration/financial authority preserved and mandatory closure. Do not raise the
 old threshold, take another assignment or renew qualification from these fixtures.
 Automatic contributor-only snapshot refresh and genuinely earned online search,
 trusted Windows/Mac installation, measured provider costs/recovery and endurance

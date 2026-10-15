@@ -1,8 +1,28 @@
 # Recover the existing Scene receipt
 
-**Prepared and verified locally; live reconciliation still awaits new approval.**
+**Lookup maintenance completed; receipt reconciliation remains incomplete.**
 The [original two-Scene trial](FINITE_SCENE_TRIAL.md) and its failure remain intact.
-No replacement assignment, inference, upload or hosted request was made.
+No replacement assignment, inference, upload or hosted receipt request was made.
+
+The laptop user directly approved the precise maintenance/recovery plan below.
+All three additive indexes were applied and their definitions read back:
+**409 observed D1 reads / 88 writes**, including definition readback. The fresh
+configuration matched the pinned closure before mutation. The private gateway
+used frozen source `737d585`; both offline builds and deployment succeeded.
+The local supervisor then failed before launching its child: `run_owned` requires
+an explicit environment, which the caller omitted. **Zero receipt requests ran**;
+no current award/balance was read. Staging was restored in `finally`, then its
+exact previous variables, bindings, current snapshot, disabled workers.dev/previews
+and empty schedules were independently verified. Completed indexes are retained.
+
+[Supplemental evidence](evidence/scene-receipt-maintenance-20261014.json) preserves
+the failed operator/child records and original trial. The launcher now copies its
+existing environment into the owned child; private TEMP and credentials stay in
+that process environment and are not printed. A strict-signature regression and
+an actual windowless owned-child **offline** preparation passed with the other
+targeted Python checks (11 total, zero skips). The new regression failed before
+the fix. This is not a hosted readback or a renewed platform qualification.
+The no-retry operational attempt has ended; it was not silently repeated.
 
 ## Recover saved work, without resubmitting
 
@@ -52,10 +72,12 @@ are not a real hosted child or a new endurance run.
 
 Preparation against the actual preserved trial matched its reconstructed payload
 and unchanged original files, with zero network requests. Private recovery and
-rollback configurations both passed offline Wrangler dry runs. They have not been
-deployed; the prepared candidate deadline is zero and therefore already closed.
+rollback configurations both passed offline Wrangler dry runs. Those original
+records describe preparation before approval. The later approved operation and
+restored closure are recorded separately above; no failed receipt is rewritten
+as a success.
 
-## Proposed finite operational scope — not yet authorized
+## Executed approved scope — original bounds preserved
 
 1. Inspect only the existing staging gateway's settings, subdomain and schedules;
    require them to match the pinned verified closure before changing anything.
@@ -82,12 +104,26 @@ deployed; the prepared candidate deadline is zero and therefore already closed.
    and preserve both successful and failed private receipts. Do not mark child
    completion as verified closure. Native allowances and all paused tasks stay closed.
 
-The private plan/configs/SQL live in `work/scene-receipt-recovery-20261014`.
-Source must be pinned/frozen and configuration baseline checked again before any
-approved execution. The earlier trial approval is consumed; this maintenance and
-readback requires its own explicit scope. Small staging usage/storage charges are
-possible. No recurring processing, provider/model test, cloud-native compute/search,
-new account/resource/plan, public rollout or Actions run is included.
+The private plan/configs/SQL and separate approved-operation records live in
+`work/scene-receipt-recovery-20261014`. Both the earlier trial and this maintenance/
+recovery attempt are consumed. Small staging usage/storage charges were possible;
+observed row metadata is not an invoice measurement. No recurring processing,
+provider/model test, cloud-native compute/search, new account/resource/plan,
+public rollout or Actions run occurred.
+
+## Prepared follow-up: readback only — new approval required
+
+The three indexes need no repeat. After a new precise approval, inspect only
+the same staging settings/subdomain/schedules and require equality with its
+independently verified closed baseline. Pin the unchanged `737d585` gateway and
+the reviewed launcher fix, a new private credential and at most 20-minute expiry.
+Temporarily deploy that same one-batch gateway; run at most two read-only requests,
+2 KiB each, under a 120-second owned child and cumulative 200-observed-read stop,
+with zero database writes, R2 access, credential rotation or retries. Restore in
+`finally` and independently verify exact prior closed configuration and current
+snapshot. One operation may cross the observed read stop; it is not an invoice cap.
+No index statements, inference, indexing, uploads, search, website update, new
+qualification, new resources or background tasks are part of this follow-up.
 
 After current receipt recovery, finish automatic contributed-Scene snapshot refresh
 and a separately bounded genuinely earned online search/paid-result replay. Existing

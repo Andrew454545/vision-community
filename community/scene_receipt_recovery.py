@@ -11,6 +11,7 @@ import base64
 from contextlib import closing
 import hashlib
 import json
+import os
 from pathlib import Path
 import re
 import sqlite3
@@ -254,7 +255,7 @@ def supervise_recovery(arguments, output, *, owned_runner=run_owned):
         with output.with_suffix('.stdout.private.log').open('xb') as stdout, output.with_suffix('.stderr.private.log').open('xb') as stderr:
             child = owned_runner([sys.executable, '-B', '-m', 'community.scene_receipt_recovery',
                 *arguments, '--owned-child'], cwd=Path(__file__).resolve().parents[1],
-                stdout=stdout, stderr=stderr, timeout=120)
+                env=dict(os.environ), stdout=stdout, stderr=stderr, timeout=120)
         result['childExitCode'] = child.returncode
         if output.is_file() and output.stat().st_size <= MAX_FILE:
             receipt = json.loads(output.read_bytes())
