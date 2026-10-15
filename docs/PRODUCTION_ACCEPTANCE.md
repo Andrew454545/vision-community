@@ -1,5 +1,18 @@
 # Production acceptance
 
+## Immediate priority: invited local-only Scene processing (15 October 2026)
+
+The latest human instruction prioritizes a small Windows/Apple-silicon Mac group
+processing Scenes and saving indexes locally. Follow [the local pilot plan](LOCAL_SCENE_PILOT.md).
+Uploads, credits, shared search, week-long endurance and broader production audits
+are deferred beyond this immediate milestone; they must not block local pilot
+engineering. Objects/Both remain deferred. The user authorizes implementing this
+local path; source packet integrity and honest runtime provenance still apply.
+No old cloud trial, task restart, private transfer, public signed release or paid
+service activation is inferred. Preserve all existing paused tasks, closed cloud
+configuration, data, credits and historical evidence. The service gates below are
+retained for the later online release, not the current local-pilot work queue.
+
 **First release: [Scenes only](SCENES_FIRST_RELEASE.md).** Scene processing and
 online Scene search are the launch priority. Objects/Both, Object qualification,
 Object search and Object endurance are deferred to a later release. The five gates

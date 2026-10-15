@@ -17,9 +17,9 @@ MODULES = ('__init__ admin all_locations_full all_locations_tail background boot
     'contribute delivery desktop features four_view indexed_local local_search measure mma mma_cloud '
     'object_index object_features object_canary pano parts pc_canary prompt rank scene_pipeline scene_quality search mac_launch_agent mac_launch_guard mac_starter mac_runtime mac_worker mac_background mac_background_control '
     'mac_remove seal_index segments send_mma server service source store submission_outbox verify '
-    'vision_handoff vision_index process_owner work_plan worker windows_worker').split()
+    'vision_handoff vision_index process_owner work_plan worker windows_worker local_scene_packets local_scene_pilot local_scene_ui local_scene_setup').split()
 FILES = tuple('community/'+name+'.py' for name in MODULES) + (
-    'community/runtime_manifest.json', 'community/country-names.txt',
+    'community/runtime_manifest.json', 'community/local_scene_runtime.json', 'community/country-names.txt',
     'community/desktop_web/index.html', 'community/desktop_web/style.css', 'community/desktop_web/app.js',
     'calibration/run_windows.py', 'calibration/quality.py', 'calibration/synthetic_canary.py',
     'community/background_web/index.html', 'community/background_web/style.css', 'community/background_web/app.js',
@@ -115,12 +115,20 @@ def main():
     parser.add_argument('--snapshot-only',action='store_true')
     parser.add_argument('--prepare-only',action='store_true')
     parser.add_argument('--background-controls',action='store_true')
+    parser.add_argument('--local-scene-packet',type=Path)
     args=parser.parse_args()
     root=regular(args.root,directory=True,missing=True);root.mkdir(parents=True,exist_ok=True)
     try:
         if sys.platform!='darwin':raise SnapshotError('mac_required')
         source=Path(__file__).resolve().parents[1]
         app,digest=copy_source(source,root)
+        if args.local_scene_packet:
+            sys.path.insert(0,str(source))
+            from community.local_scene_setup import setup_runtime
+            setup_runtime(source/'pilot-runtime',root/'local-scene-runtime',download_models=True)
+            return subprocess.run([sys.executable,'-I','-B',str(app/'community/local_scene_ui.py'),
+                '--packet',str(args.local_scene_packet),'--data-dir',str(root/'local-scene-results'),
+                '--runtime-root',str(root/'local-scene-runtime')],check=False).returncode
         if args.snapshot_only:
             with (root/'mac-source-check.json').open('x',encoding='utf-8') as output:
                 json.dump({'status':'PRIVATE_SOURCE_VERIFIED','sourceSha256':digest,
