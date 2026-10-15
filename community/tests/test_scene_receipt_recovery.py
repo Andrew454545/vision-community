@@ -1,6 +1,7 @@
 from contextlib import closing
 import io
 import json
+import os
 from pathlib import Path
 import sqlite3
 import subprocess
@@ -133,13 +134,32 @@ class SavedReceiptTests(unittest.TestCase):
 
     def test_supervisor_requires_child_success_and_never_claims_gateway_closure(self):
         output = self.root/'recovery.json'
-        def child(args, **kwargs):
-            self.assertEqual(kwargs['timeout'], 120)
+        def child(args, *, env, cwd, stdout, stderr, timeout):
+            self.assertEqual(timeout, 120)
+            self.assertEqual(env, dict(os.environ))
+            self.assertIsNot(env, os.environ)
             self.assertIn('--owned-child', args)
             output.write_text(json.dumps({'status': 'EXISTING_SCENE_RECEIPT_RECONCILED'}))
             return subprocess.CompletedProcess(args, 0)
         result = recovery.supervise_recovery(['--run'], output, owned_runner=child)
         self.assertTrue(result['currentServerReconciled']); self.assertFalse(result['gatewayClosed'])
+
+    def test_actual_owned_child_prepares_offline_receipt_with_inherited_environment(self):
+        output = self.root/'owned-offline.json'
+        original = self.original.read_bytes()
+        result = recovery.supervise_recovery([
+            '--trial-dir', str(self.root), '--account-file', str(self.account),
+            '--trial-sha256', self.pin, '--policy-id', 'staging.synthetic',
+            '--output', str(output)], output)
+        self.assertEqual(result.get('childExitCode'), 0, result)
+        self.assertFalse(result['currentServerReconciled'])
+        self.assertFalse(result['gatewayClosed'])
+        plan = json.loads(output.read_bytes())
+        self.assertEqual(plan['status'], 'OFFLINE_EXISTING_RECEIPT_PREPARED')
+        self.assertEqual(plan['targetSha256'], self.prepare()['targetSha256'])
+        self.assertEqual(plan['networkRequests'], 0)
+        self.assertEqual(self.original.read_bytes(), original)
+        self.assertEqual(output.with_suffix('.stderr.private.log').read_bytes(), b'')
 
     def test_supervisor_timeout_retains_incomplete_receipt(self):
         output = self.root/'recovery-timeout.json'
