@@ -24,6 +24,11 @@ The local window shows where your work is saved. Keep that whole folder and your
 assigned packet. Reopen the same packet to resume. Do not share your packet with
 another contributor; each person receives separate work.
 
+After pausing or finishing, choose **Save results (.zip)** in the pilot window.
+Your browser saves a portable copy of the finished groups. A partial backup is
+clearly marked and excludes unfinished locations. Keep the original folder and
+packet to resume; the backup does not replace them. Nothing is uploaded.
+
 Your results stay on your computer. Uploads, shared search and credits come later.
 Local results will need validation before entering the shared pool.
 

@@ -4,8 +4,8 @@
     {
       "asset": "mma-vision",
       "path": "bin/mma-vision",
-      "bytes": 35059824,
-      "sha256": "be0d98af2fab5e96f3cd6397365cfb2523dad66a93612a2b23358a8ae91419f2",
+      "bytes": 35526000,
+      "sha256": "b48e9e020e5e052c9c8c5fe91d0643551be255eeeaa36cba74f975dd801394a9",
       "executable": true,
       "platforms": [
         "darwin-arm64"

@@ -103,7 +103,21 @@ class LocalScenePilot:
             return {'phase': self.phase, 'message': self.message, 'completed': self.completed,
                 'total': len(self.packet['rows']), 'packetId': self.packet['packetId'],
                 'participant': self.packet['participant'], 'outputDirectory': str(self.root),
+                'exportAvailable': self.completed > 0 and not (self.thread and self.thread.is_alive()),
                 'localOnly': True, 'uploaded': False, 'creditsEarned': 0}
+
+    def export_results(self):
+        """Back up finished groups only, without starting processing or uploading."""
+        from .background import single_instance
+        from .local_scene_archive import export_saved_results
+        with self.guard:
+            if self.thread and self.thread.is_alive():
+                raise ValueError('pause_before_export')
+            with single_instance(self.root):
+                self._refresh_completed()
+                destination = self.root.parent / 'exports' / (
+                    f'VISION-Scenes-{self.packet["packetId"][:12]}-{self.completed}.zip')
+                return export_saved_results(self.root, destination)
 
     def start(self):
         with self.guard:
