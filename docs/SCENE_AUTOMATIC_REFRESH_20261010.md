@@ -1,5 +1,15 @@
 # Automatic Scene search refresh
 
+**15 October saved-evidence supplement:** the stopped pilot's preserved records
+contain four later successful audited refreshes: **10 -> 20 -> 22 -> 24 -> 26**
+Scenes. Their local sealed snapshots/bundles, successful saved activation replies
+and exact policy/runtime/snapshot/bundle head replies were checked offline.
+All prior member IDs, source indexes and values remain unchanged. This supplements
+the original ten-location baseline below; it is not another live run or a current
+hosted-head check. [Evidence and mixed-authority preparation](evidence/scene-mixed-refresh-preparation-20261015.json)
+preserve the original failures and stopped pilot. The historical audited append
+has evidence; a real new **qualified-device** append/earned search remains open.
+
 **14 October source update:** the live pilot/refresher remain paused under the
 cost hold; the operational results below are historical. The private collector
 now accepts explicitly pinned `qualified-device-v1|staging.…` policy IDs as well
@@ -19,7 +29,7 @@ wrong credit reasons still refuse sealing. No financial or publication writer ch
 18 Python and nine actual local workerd/D1/R2 checks passed, without skips. Outputs,
 authority, credits and activation are synthetic. These source fixes did not restart
 the task, access Cloudflare or activate a snapshot. Native/provider/search activation
-remains outside the pending [existing-receipt recovery scope](SCENE_ACCEPTANCE_RECOVERY.md).
+remains outside the consumed [existing-receipt recovery scope](SCENE_ACCEPTANCE_RECOVERY.md).
 
 The restricted staging pilot now has a windowless hourly refresher independent
 of Codex. It collects accepted Scene publications, verifies their native audit
@@ -36,9 +46,10 @@ leaving **six banked units**. No synthetic funding was added.
 
 The actual scheduled refresher completed its first collection and seal with
 `CURRENT_NO_CHANGE`: all ten locations already belonged to the active snapshot.
-It performed no activation. **The first future real append activation still needs
-an actual scheduled receipt.** Component append/restart tests pass; this baseline
-is not evidence that another real batch has already been refreshed.
+It performed no activation. At that baseline the first future append was still
+unevidenced. The later saved scheduled receipts in the supplement now provide
+four historical audited append activations; they do not qualify the new hybrid
+admission path or establish a current hosted head.
 
 ## Recovery and limits
 

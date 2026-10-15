@@ -59,11 +59,22 @@ stopped and sent no second request. The cause and database read usage are unknow
 Exact prior closed staging was restored and independently verified again.
 [Evidence](docs/evidence/scene-receipt-readback-20261014.json) preserves the refusal.
 This no-retry scope is consumed; no further gateway attempt is authorized.
-The [direct D1 operator readback](docs/SCENE_RECEIPT_OPERATOR.md) is prepared locally
-and requires a separately resolved direct-user scope. It reuses the same SELECT/
-validator, not another gateway or a weaker admission writer. No deployment, index
-maintenance, R2 access, assignment, inference, upload, renewal, task restart or
-online search is included. Do not use Wrangler file import for this read-only path.
+The laptop user then directly answered **"Approve the two direct database
+checks"**. The [direct D1 operator readback](docs/SCENE_RECEIPT_OPERATOR.md) completed
+two SELECT requests, validating the first before the second. Both confirmed the
+two accepted Scenes, one original two-unit award, identical current banked balance
+and zero new credit; cumulative actual usage was 32 reads / zero writes, one
+provider attempt per query, no retries. [Supplemental evidence](docs/evidence/scene-receipt-direct-20261014.json)
+keeps balances/raw rows private. It reuses the same receipt/schema/authority
+validator, not another gateway or a weaker admission writer. This scope is now
+consumed: do not repeat reads from it. No deployment/configuration mutation,
+index maintenance, R2 access, assignment, inference, upload, renewal, task restart
+or online search occurred. The prior verified closed posture was untouched; no
+new closure readback was performed. Original failed trials and the unexplained
+403 remain unchanged; this does not verify public gateway authentication or full
+financial/provider recovery. Next prepare the separately bounded contributed-pool
+refresh and earned-credit Scene search scope. Do not use Wrangler file import
+for read-only database checks.
 
 Native cloud allowances stay zero; native endpoints/previews/crons and general
 recurring jobs stay disabled. This exception does not authorize fresh qualification

@@ -1,8 +1,25 @@
 # Recover the existing Scene receipt
 
-**Lookup maintenance completed; receipt reconciliation remains incomplete.**
+**Existing-batch operator reconciliation completed; original failures preserved.**
 The [original two-Scene trial](FINITE_SCENE_TRIAL.md) and its failure remain intact.
-No replacement assignment, inference, upload or hosted receipt request was made.
+No replacement assignment, inference or upload was made.
+
+After separate direct-user approval, [two direct D1 checks](SCENE_RECEIPT_OPERATOR.md)
+confirmed the two accepted Scenes, one original two-unit award and identical
+current banked balance, with zero newly awarded units. The first result was
+validated before the second request. Actual cumulative usage was **32 reads /
+zero writes**, with one provider attempt per query and no retries. Current schema,
+active account/recovery hash, lease, contributed publication digests and stored
+zero-credit replay contract passed the existing validator. Raw rows and balance
+values stay private. [Evidence](evidence/scene-receipt-direct-20261014.json) supplements
+the preserved original trial, launcher failure and HTTP refusal below.
+
+The read-only operation made no deployment/configuration change, R2 call, native
+inference, new assignment, upload, search, renewal, credential rotation or task
+restart. Prior verified closed staging was untouched, without another closure
+readback. That two-query scope is consumed. This is one current accepted-batch/
+account reconciliation, not a full financial/deletion cutoff, R2 artifact recovery,
+public gateway authentication, provider recovery or release acceptance.
 
 The laptop user directly approved the precise maintenance/recovery plan below.
 All three additive indexes were applied and their definitions read back:
@@ -31,8 +48,8 @@ unknown, not inferred from the receipt's zero initialized usage counters. Exact
 closed configuration/snapshot/subdomain/schedules were restored and independently
 verified again. The original failures remain unchanged. That new no-retry scope
 is also consumed. [Direct read-only D1 reconciliation](SCENE_RECEIPT_OPERATOR.md)
-is now prepared as a separate operator path requiring its own approval; it opens
-no gateway and reuses the existing receipt/schema/authority validator.
+was then prepared as a separate operator path and completed under its own approval,
+as recorded above. It opened no gateway and reused the receipt/schema/authority validator.
 
 Future recovery HTTP failures now retain a bounded diagnostic: an allowlisted
 content type, body-read/truncation flags and only a recognized fixed gateway error
@@ -46,7 +63,7 @@ the discarded response from the original 403 or change its unknown cause.
 [Local evidence](evidence/scene-recovery-diagnostics-20261014.json) records 14 passing
 Python checks, including synthetic refusals/privacy/truncation and an actual hidden
 offline owned child. No hosted request or direct-D1 check was run for this change;
-the separate pending direct-D1 scope and its pinned JavaScript packet are unchanged.
+the separately approved direct-D1 operation above used its unchanged JavaScript packet.
 
 ## Recover saved work, without resubmitting
 
@@ -138,10 +155,10 @@ public rollout or Actions run occurred.
 ## Corrected gateway follow-up — approved, refused, closed
 
 The three indexes needed no repeat. The separate precise approval permitted only
-the same staging settings/subdomain/schedules and require equality with its
-independently verified closed baseline. Pin the unchanged `737d585` gateway and
-the reviewed launcher fix, a new private credential and at most 20-minute expiry.
-Temporarily deploy that same one-batch gateway; run at most two read-only requests,
+the same staging settings/subdomain/schedules, matching its independently verified
+closed baseline, the unchanged `737d585` gateway, reviewed launcher fix, new private
+credential and at most 20-minute expiry. It permitted temporary deployment of
+that same one-batch gateway and at most two read-only requests,
 2 KiB each, under a 120-second owned child and cumulative 200-observed-read stop,
 with zero database writes, R2 access, credential rotation or retries. Restore in
 `finally` and independently verify exact prior closed configuration and current
@@ -149,9 +166,10 @@ snapshot. One operation may cross the observed read stop; it is not an invoice c
 No index statements, inference, indexing, uploads, search, website update, new
 qualification, new resources or background tasks were part of this follow-up.
 The first HTTP refusal ended this attempt; the paragraph above preserves its result.
-Use the separately prepared [direct operator plan](SCENE_RECEIPT_OPERATOR.md) as the
-next proposal, not permission to repeat gateway deployment or requests.
+The separately approved [direct operator check](SCENE_RECEIPT_OPERATOR.md) later
+completed reconciliation; neither ended scope permits more gateway or database calls.
 
-After current receipt recovery, finish automatic contributed-Scene snapshot refresh
-and a separately bounded genuinely earned online search/paid-result replay. Existing
+With existing-batch receipt recovery complete, follow the
+[next activation preparation](SCENE_POST_RECEIPT_NEXT.md): qualified-device pool
+refresh and a separately bounded genuinely earned online search/paid-result replay. Existing
 platform, trusted-download, cost/recovery and Scene endurance launch gates remain.

@@ -107,8 +107,9 @@ route checked locally. The approved maintenance/recovery attempt then stopped on
 a local launcher failure before any receipt request. Its fix is checked with an
 actual offline owned child. A separately approved corrected attempt stopped on its
 first HTTP 403 without usage metadata; exact closed staging was verified again.
-The [direct D1 operator path](SCENE_RECEIPT_OPERATOR.md) is now prepared without
-deployment; its distinct scope remains unresolved. Do not raise the
+The separately approved [direct D1 operator path](SCENE_RECEIPT_OPERATOR.md) then
+confirmed the existing two-Scene award and stable balance twice at 32 actual reads /
+zero writes, without deployment. Its scope is consumed. Do not raise the
 old threshold, take another assignment or renew qualification from these fixtures.
 Automatic contributor-only snapshot refresh and genuinely earned online search,
 trusted Windows/Mac installation, measured provider costs/recovery and endurance
