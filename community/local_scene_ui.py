@@ -41,10 +41,13 @@ until a later contribution step. No account is needed.</p>
 plugged in. Pause finishes the current group of up to 16 locations; it can take several minutes.</p>
 <p>Closing this browser tab keeps processing running. Use Pause or Exit to stop.</p>
 <p>Saved work folder:</p><p id="folder"></p>
+<button id="save" disabled>Save results (.zip)</button><p id="backup-message" role="status"></p>
+<p>Pause first to save a portable backup of finished groups. Your original folder is kept.
+A partial backup does not include unfinished locations. Keep your packet and original folder to resume.</p>
 <small>Local pilot results await later validation. Uploads, search and credit earning are not enabled.</small>
 </main><script nonce="NONCE">
 const token=location.hash.slice(1);history.replaceState(null,'',location.pathname);
-let ended=false;
+let ended=false,saving=false;
 async function request(path,method='GET'){
 const r=await fetch(path,{method,headers:{Authorization:'Bearer '+token},cache:'no-store'});
 if(!r.ok)throw Error('local_window_unavailable');return r.json();}
@@ -53,10 +56,25 @@ document.getElementById('batch').textContent='Assigned to '+s.participant+' · '
 document.getElementById('bar').max=s.total;document.getElementById('bar').value=s.completed;
 document.getElementById('count').textContent=s.completed+' of '+s.total+' saved';
 document.getElementById('message').textContent=s.message;document.getElementById('folder').textContent=s.outputDirectory;
-document.getElementById('start').disabled=['processing','pausing','complete'].includes(s.phase);
+document.getElementById('start').disabled=saving||['processing','pausing','complete'].includes(s.phase);
 document.getElementById('pause').disabled=s.phase!=='processing';
+document.getElementById('save').disabled=saving||!s.exportAvailable;
 }catch(e){document.getElementById('message').textContent='This local window is unavailable. Reopen the pilot launcher to continue your saved work.';
-document.getElementById('start').disabled=true;document.getElementById('pause').disabled=true;}}
+document.getElementById('start').disabled=true;document.getElementById('pause').disabled=true;
+document.getElementById('save').disabled=true;}}
+document.getElementById('save').onclick=async()=>{
+if(saving||ended)return;saving=true;
+document.getElementById('save').disabled=true;document.getElementById('start').disabled=true;
+document.getElementById('exit').disabled=true;
+document.getElementById('backup-message').textContent='Checking finished groups and preparing your backup…';
+try{const r=await fetch('/api/export',{method:'POST',headers:{Authorization:'Bearer '+token},cache:'no-store'});
+if(!r.ok)throw Error('export_unavailable');
+const blob=await r.blob(),url=URL.createObjectURL(blob),link=document.createElement('a');
+link.href=url;link.download='VISION-Scene-results.zip';document.body.appendChild(link);link.click();link.remove();
+setTimeout(()=>URL.revokeObjectURL(url),60000);
+document.getElementById('backup-message').textContent='Your results backup is ready. Check your browser downloads. Keep the original folder to resume; nothing was uploaded.';
+}catch(e){document.getElementById('backup-message').textContent='The backup could not be made. Pause processing first. If it still fails, keep your original folder and ask the maintainer for help.';}
+finally{saving=false;document.getElementById('exit').disabled=ended;await update();}};
 for(const action of ['start','pause','exit'])document.getElementById(action).onclick=async()=>{
 try{await request('/api/'+action,'POST');if(action==='exit'){ended=true;
 document.getElementById('message').textContent='Exiting after the current group. Your saved work is kept.';
@@ -72,11 +90,13 @@ def handler_for(app, token):
         def log_message(self, *_args):
             pass
 
-        def send(self, status, body, mime='application/json'):
+        def send(self, status, body, mime='application/json', *, download=False):
             body = body if isinstance(body, bytes) else json.dumps(body).encode()
             self.send_response(status)
             self.send_header('Content-Type', mime)
             self.send_header('Content-Length', str(len(body)))
+            if download:
+                self.send_header('Content-Disposition', 'attachment; filename="VISION-Scene-results.zip"')
             self.send_header('Cache-Control', 'no-store')
             self.send_header('X-Content-Type-Options', 'nosniff')
             self.send_header('Referrer-Policy', 'no-referrer')
@@ -106,10 +126,18 @@ def handler_for(app, token):
                 self.send(403, {'error':'local_access_denied'})
                 self.close_connection = True
                 return
-            if self.path not in ('/api/start', '/api/pause', '/api/exit'):
+            if self.path not in ('/api/start', '/api/pause', '/api/exit', '/api/export'):
                 self.send(404, {'error':'unknown_action'})
                 return
             try:
+                if self.path == '/api/export':
+                    from community.mac_starter import regular
+                    archive = app.export_results()
+                    path = regular(Path(archive['path']))
+                    if path.stat().st_size > 64 * 1024 * 1024:
+                        raise ValueError('backup_too_large')
+                    self.send(200, path.read_bytes(), 'application/zip', download=True)
+                    return
                 if self.path == '/api/start':
                     app.start()
                 else:

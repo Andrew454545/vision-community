@@ -289,7 +289,7 @@ class SetupTest(unittest.TestCase):
         repo=Path(__file__).resolve().parents[2]
         names=source_inventory(repo)
         for name in ('local_scene_packets.py','local_scene_pilot.py','local_scene_ui.py','local_scene_setup.py',
-                     'local_scene_runtime.json'):
+                     'local_scene_runtime.json','local_scene_archive.py'):
             self.assertIn('community/'+name,names)
 
 

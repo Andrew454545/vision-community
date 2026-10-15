@@ -36,6 +36,17 @@ Later admission must verify compatibility and provenance. The index is about
 3,080 bytes per location plus masks, metadata and logs; native temporary usage
 and model/Python installation require additional space.
 
+After pausing or finishing, **Save results (.zip)** creates a portable local
+backup and downloads it through the authenticated loopback window. It checks
+every completed group's packet, runtime profile, saved-file hashes and complete
+index masks before including it. A partial backup contains only finished groups
+and records the finished/assigned totals; it does not claim a whole-batch pass.
+The archive includes the packet, profile, exact completed artifacts and a
+provisional export manifest, with no session token, arbitrary logs or unrelated
+files. Original attempts, failures and unfinished work stay untouched. Keep the
+original folder to resume. Export performs no inference, account or upload call
+and does not establish acceptance into the shared pool.
+
 Project hosting and Actions are absent from this processing path. Participants
 still use their own electricity, storage and ordinary internet data. No imagery
 or model download occurred during source verification. Setup itself does not
@@ -77,9 +88,9 @@ packets. Do not distribute a private catalog without its applicable consent.
 ## Maintainer preparation
 
 `community/local_scene_runtime.json` pins only Scene files. Windows uses the actual
-CPU1 binary from the recorded Windows cohort (`6ce8f5…91ba`) and its DLLs; the
+CPU1 binary from the recorded Windows cohort (`6ce8f5Ã¢â‚¬Â¦91ba`) and its DLLs; the
 canonical four model files are unchanged. The Mac pin currently retains the
-previously published `be0d98…19f2` binary. Its execution of the new pilot path and
+previously published `be0d98Ã¢â‚¬Â¦19f2` binary. Its execution of the new pilot path and
 explicit fp32/CPU1 messages must be confirmed on Mac before invitation; a missing
 execution marker fails closed and does not make an approved result.
 
@@ -120,10 +131,14 @@ uncheckpointed bytes stay in a separate attempt. Failed attempts are preserved.
    and cached-model setup now pass a finite offline rehearsal; its beginner window
    is constructed/rendered offscreen. Exercise one genuinely fresh local packet
    on an installed participant machine next. This is not a clean-device check.
-2. Obtain the exact Mac-only pilot launcher/runtime execution result through PR17;
-   fix only a relevant changed input or actual failure. No Actions or cloud is needed.
-3. Choose the approved metadata-only source, retain one issuer registry, and make
-   disjoint packets for the small invited group. Provide trusted installation help.
+2. Andrew completed the exact c458155 Mac source/kit/layout check in PR17
+   comment 6188354978. Use the replacement b48e9e CPU binary for a narrow changed
+   kit/startup check; the older binary was incompatible. Reuse the existing CPU1
+   comparison evidence instead of another model matrix.
+3. The approved historical remaining-pool source is identified in that reply,
+   but it does not exclude later Community assignments. Obtain a complete
+   exclusion inventory or source-approved bounded derivative before issuing
+   packets. Retain one issuer registry and provide trusted installation help.
 4. Record actual setup/start/pause/resume and saved-index evidence on each platform,
    then invite that platform's participants. No week-long wait is imposed here.
 
@@ -132,3 +147,9 @@ recorded so far; no fresh pilot indexing, participant installation, packet deliv
 model download, cloud operation or invitation is claimed. The separately paused
 old tasks and operational cloud hold remain untouched. Later uploads/search use
 the preserved service roadmap and their own activation/transfer authority.
+
+The portable backup checks and existing Mac artifact retrieval are recorded in
+[evidence](evidence/local-scene-results-export-20261015.json). The 12 Python checks
+include an actual authenticated localhost ZIP download; two offline browser-script
+flows cover saving and refusal. All indexed test output is synthetic. The retained
+Mac build was downloaded and hashed, not rebuilt or executed on this Windows PC.
