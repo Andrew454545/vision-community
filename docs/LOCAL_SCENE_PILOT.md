@@ -40,6 +40,11 @@ group is held while other work continues. Resume retries held groups explicitly.
 If all remaining groups are held, the UI asks for attention rather than spinning.
 
 The launcher supervises the local window and retries abnormal exits with backoff.
+The initial queue import stages all packet metadata into private application storage,
+checks it packet by packet, and publishes a completion marker last. Interrupted
+imports retain their verified files. Recovery uses that owned copy, rather than
+depending on the original download folder. Native/UI failures have private local
+diagnostics; those logs are not selected for contribution exports.
 Explicit Exit ends supervision. The separate optional **Resume automatically when
 I sign in** setting adds only this campaign's own user-login entry, without admin
 rights or altering old VISION jobs. It must be saved explicitly. Previously enabled
@@ -185,3 +190,13 @@ Mac compilation or synthetic tests can certify. GitHub Actions were not used.
 The loopback UI uses exact Host/Origin, a random session token, bounded named
 settings and OS instance locks. No online endpoint, background cloud refresh,
 recurring paid compute or old task restart was enabled.
+
+The final local regression run passed 108 Python tests and two executed browser
+flows. An actual CLI opened its private window and exited through authenticated
+loopback without processing. A disposable Mac login entry bootstrapped a readiness
+window and was removed successfully; its owned child stopped. Earlier probes
+exposed a missing window-lock directory and are retained with the correction.
+This is not a real logout/login cycle or a clean-user installation. The numerical
+CPU1/2/4 checks passed owner recomputation with identical packed outputs; the first
+CPU4 hash-guard refusal remains preserved alongside the isolated-temp passing run.
+See [the dated implementation evidence](evidence/local-scene-unattended-20261015.json).

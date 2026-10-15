@@ -45,6 +45,36 @@ class ExclusionTests(unittest.TestCase):
 
 
 class WindowSettingsTests(unittest.TestCase):
+    def test_actual_cli_opens_and_exits_a_private_window_without_processing(self):
+        from community.tests.test_local_scene_pilot import packet
+        from community.local_scene_packets import load_packet
+        import os,subprocess,sys,time,urllib.request
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder);assigned=packet(root,2);identity=load_packet(assigned)['packetId']
+            with (root/'cli.log').open('wb') as log:
+                process=subprocess.Popen([sys.executable,'-I','-B',
+                    str(Path(__file__).resolve().parents[1]/'local_scene_ui.py'),
+                    '--packet',str(assigned),'--data-dir',str(root/'private'),'--no-browser'],
+                    stdout=log,stderr=log,creationflags=subprocess.CREATE_NO_WINDOW if os.name=='nt' else 0)
+                try:
+                    window=root/'private'/identity/'window.json'
+                    for _ in range(100):
+                        if window.exists():break
+                        if process.poll() is not None:self.fail((root/'cli.log').read_text())
+                        time.sleep(.05)
+                    self.assertTrue(window.exists(),'CLI did not open its local window')
+                    url,token=json.loads(window.read_text())['url'].split('/#')
+                    opener=urllib.request.build_opener(urllib.request.ProxyHandler({}))
+                    headers={'Authorization':'Bearer '+token}
+                    with opener.open(urllib.request.Request(url+'/api/status',headers=headers),timeout=5) as response:
+                        status=json.load(response)
+                    self.assertEqual(status['phase'],'ready');self.assertEqual(status['completed'],0)
+                    with opener.open(urllib.request.Request(url+'/api/exit',data=b'',headers={**headers,'Origin':url}),timeout=5) as response:
+                        self.assertEqual(response.status,200)
+                    self.assertEqual(process.wait(timeout=5),0)
+                finally:
+                    if process.poll() is None:process.kill();process.wait(timeout=5)
+
     def test_settings_need_exact_origin_token_and_bounded_named_fields(self):
         from community.tests.test_local_scene_campaign import UnattendedTests
         with tempfile.TemporaryDirectory() as folder:

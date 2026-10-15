@@ -19,6 +19,7 @@ from .local_scene_packets import canonical, digest
 from .local_scene_pilot import CheckedRuntime, LocalScenePilot, atomic_json, immutable, verify_runtime
 from .local_scene_qualification import validate_approval
 from .mac_starter import regular
+from .vision_index import assert_not_live_vision_path
 
 
 def on_battery():
@@ -45,9 +46,30 @@ class LocalSceneCampaign:
                  clock=datetime.now, battery=on_battery, disk=shutil.disk_usage):
         self.path = regular(manifest_path)
         self.manifest = load_manifest(self.path)
+        data_dir = regular(data_dir, directory=True, missing=True)
+        assert_not_live_vision_path(data_dir)
         self.root = regular(Path(data_dir) / self.manifest['sha256'], directory=True, missing=True)
         self.root.mkdir(mode=0o700, parents=True, exist_ok=True)
         immutable(self.root / 'campaign.json', canonical(self.manifest) + b'\n')
+        # Login agents read the private application folder, never a Downloads/
+        # Documents packet selected through an interactive file picker. Stage
+        # metadata once, bounded packet by packet; retain a partial import on
+        # interruption and publish the completion marker last.
+        staged = self.root / 'assigned-input-complete.json'
+        expected = canonical({'campaignSha256': self.manifest['sha256'],
+                              'packets': len(self.manifest['packets'])}) + b'\n'
+        if staged.exists():
+            if regular(staged).read_bytes() != expected:
+                raise ValueError('saved_campaign_input_changed')
+        else:
+            for i, entry in enumerate(self.manifest['packets']):
+                source = campaign_packet(self.path.parent, self.manifest, i)
+                target = regular(self.root / entry['path'], missing=True)
+                if not target.exists() and disk(self.root).free < 5 * 1024**3 + source.stat().st_size:
+                    raise ValueError('campaign_import_storage_required')
+                immutable(target, source.read_bytes())
+            immutable(staged, expected)
+        self.path = self.root / 'campaign.json'
         identity = regular(Path(data_dir) / 'installation-id.json', missing=True)
         if installation_id is not None:
             immutable(identity, canonical({'id': installation_id}) + b'\n')
