@@ -74,5 +74,27 @@
     "imageryCalls": 0,
     "nativeInferenceRuns": 0
   },
-  "pending": "Existing Mac/source task 6186095586; actual fresh disjoint packet and participant start/pause/resume remains."
+  "pending": "Existing Mac/source task 6186095586; actual fresh disjoint packet and participant start/pause/resume remains.",
+  "cleanWindowsKit": {
+    "sourceRevision": "d6dab53c9659c36ab644d93dbe0ec8af1248ca95",
+    "sourceWorktreeDirty": false,
+    "platform": "windows-x86_64",
+    "inventorySha256": "f31ff77ba8e2149dffce75bdb111fcb6782a7383c8823ade21c1e4769485f0c5",
+    "sha256": "81db77f708e0b4d978edf4d7f0cfdbbf55ee134bc2d70b144d38bb060fb6c861",
+    "artifact": "VISION-Local-Scenes-windows-x86_64-MAINTAINER.zip",
+    "modelFilesBundled": false,
+    "packetsBundled": false,
+    "publicDistributionReady": false,
+    "signed": false,
+    "cloudCalls": 0,
+    "actionsRuns": 0,
+    "nativeLauncherSha256": "2841f78f68ae63256d811f387543a1997f2471eaa64f086df0f4cd395dd94c4c",
+    "nativeLauncherSelfCheck": true,
+    "powershellRequired": false,
+    "bytes": 23197804,
+    "archiveInventoryVerified": true,
+    "cleanOwnedOfflineRehearsal": true,
+    "participantInstall": false,
+    "nativeLauncherSHA256": "2841f78f68ae63256d811f387543a1997f2471eaa64f086df0f4cd395dd94c4c"
+  }
 }
