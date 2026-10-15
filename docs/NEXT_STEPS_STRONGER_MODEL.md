@@ -1,5 +1,14 @@
 # Continue the release
 
+**Latest completed gap:** [direct operator reconciliation](SCENE_RECEIPT_OPERATOR.md)
+confirmed the existing two accepted Scenes, one original two-unit award and stable
+current balance twice (32 actual reads / zero writes). Its explicit two-query scope
+is consumed. No further cloud call, deployment or search is authorized by it.
+The old trial/launcher/403 failures remain unchanged. Follow
+[the post-receipt sequence](SCENE_POST_RECEIPT_NEXT.md), with the prepared inactive
+mixed-authority packet and verified historical audited refresh evidence. Do not
+repeat those historical refreshes or the completed credit checks.
+
 **First release is now [Scenes only](SCENES_FIRST_RELEASE.md).** Stop adding Object
 components as the next task. Reuse the real Windows Scene cohort, qualification-based
 Scene upload evidence, shared queue and finite Scene executor. First close current

@@ -66,6 +66,13 @@ refuses qualified records. Snapshot integrity, current inventory/deletion contro
 anonymous contribution retention and once-only financial reconciliation remain
 required. The financial recovery checker validates qualified-work awards too.
 
+The [next activation packet](SCENE_POST_RECEIPT_NEXT.md) now contains an inactive
+private mixed authority for the saved measured profile. Its preflight preserves
+26 real historical audited members and matches the two reconciled qualified
+record digests locally. It fabricates no qualified control rows and seals/activates
+no new pool. Fresh current capture, actual artifact delivery and live-head authority
+remain required before use.
+
 ## Evidence and next activation work
 
 The [automatic Scene pool collector](SCENE_AUTOMATIC_REFRESH_20261010.md) now

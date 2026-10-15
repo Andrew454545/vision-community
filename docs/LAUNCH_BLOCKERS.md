@@ -32,9 +32,18 @@ verified. The missing child environment is fixed and 11 targeted Python checks p
 including an actual offline owned child. A separately approved corrected attempt
 then received one HTTP 403 without usage metadata; it stopped before the second
 request and independently verified exact closed restoration again. Both no-retry
-scopes ended. The [direct D1 readback](SCENE_RECEIPT_OPERATOR.md) now reuses the
-existing validator without deployment; its separate scope remains unresolved.
-No live receipt reconciliation is claimed; the original trial remains incomplete.
+scopes ended. The separately approved [direct D1 readback](SCENE_RECEIPT_OPERATOR.md)
+then confirmed the two accepted Scenes, original unique two-unit award and stable
+current balance twice, with 32 actual reads / zero writes and no retries. This
+existing-batch reconciliation is complete; its scope is consumed. The original
+trial remains incomplete, the 403 remains unexplained, and no public authentication,
+full financial cutoff, R2/provider recovery or release acceptance is claimed.
+Next prepare actual contributed-pool refresh and earned-credit Scene search under
+one separately bounded scope, using local overflow where its real pins qualify.
+The [inactive mixed-authority packet](SCENE_POST_RECEIPT_NEXT.md) preserves 26 cached
+audited members and verifies the two new local record digests. Four historical
+audited append activations now have reconciled saved evidence; do not repeat them
+as if they never happened. A new qualified-device append/live head remains open.
 
 **Latest decision:** implement the [approved hybrid mode](HYBRID_LAUNCH_DECISION_20261013.md):
 sample qualification, explicitly marked lighter routine upload checks, online
@@ -99,7 +108,7 @@ Public Object admission remains closed.
 |---|---|---|
 | Portable live protection | Codex | Andrew's [source handoff is complete](PROTECTED_CAPTURE_CONSUMPTION.md). Finish portable/live authority without copying or fabricating MMA database files. Its expired origin capture alone cannot authorize hosted imports. |
 | Repeatable real Object contributions | Codex | Bounded [registry rollover](OBJECT_REGISTRY_ROLLOVER.md) and [published native-job cleanup](OBJECT_NATIVE_RETENTION.md) are implemented. Finish trusted assignment automation and verified deployment; qualify measured Mac/Windows policies on identical inputs; publish the first real batch and exercise once-only earned-credit search. No human object labelling is required. |
-| Repeatable Scenes and search | Codex/platform operator | Observe a meaningful future accepted append and automatic refresh, finish exact Mac/parallel profiles and equivalent real earned-credit search. Existing fixed-input matrices and the Windows finite trial need no routine repeat. |
+| Repeatable Scenes and search | Codex/platform operator | Finish the new qualified-device append/earned search, exact Mac/parallel profiles and equivalent real earned-credit search. Reuse four historical audited refresh activations, fixed-input matrices and current existing-batch reconciliation; do not repeat them. |
 | Full accepted-work endurance | Codex/platform operators | Preserve the intentionally stopped Windows Scene-only pilot; it cannot pass an uninterrupted week. After an explicit architecture/budget/restart decision, reconcile its saved work and start each full OS soak only when authentic lanes/search qualify. |
 | Recovery and capacity | Codex | Complete isolated provider/R2/native-bundle/secret recovery using independent current deletion/financial authority; obtain a fresh consistent cutoff; measure resource costs and spending limits. Preserve accepted work, paid replies and deletion fences. |
 | Trusted beginner downloads | User supplies legal publisher/testers; Codex implements | Finish privacy-preserving organization enrollment and supported clean Windows/Mac tests. User offered both testers; actual signing identities, jurisdiction and signed acceptance are outstanding. Andrew has already reported these resources unavailable; do not repeatedly ask him. |

@@ -18,11 +18,15 @@ Staging is verified closed again. [Existing acceptance recovery](SCENE_ACCEPTANC
 is prepared against the real saved output. Direct-human-approved lookup maintenance
 is complete; the private gateway deployment was restored after a local launcher
 failure before any receipt request. The launcher fix passes an actual offline
-owned-child regression. Current database award/balance readback remains unexecuted;
-the no-retry attempt ended. A separately approved corrected gateway attempt then
+owned-child regression. Database award/balance readback was still unexecuted at
+that point; the no-retry attempt ended. A separately approved corrected gateway attempt then
 stopped on its first HTTP 403 with unknown usage, and exact closure was verified
-again. The [direct D1 operator check](SCENE_RECEIPT_OPERATOR.md) is prepared locally,
-not executed or authorized. This does not complete the hybrid release gates.
+again. The separately approved [direct D1 operator check](SCENE_RECEIPT_OPERATOR.md)
+then confirmed the original two accepted Scenes, unique two-unit award and stable
+current balance twice, with 32 actual reads / zero writes. That existing-batch
+reconciliation is complete; the original failures remain. Public authentication,
+actual pool refresh/earned search and full financial/provider recovery are still
+open. This does not complete the hybrid release gates.
 The trusted
 contribution gate requires real numerical device qualification and qualified
 admission with integrity/eligibility/once-only credit; it no longer requires
@@ -78,7 +82,7 @@ status. Use [next actions](LAUNCH_BLOCKERS.md) to continue work.
 | Gate | Evidence already available | Required to finish |
 |---|---|---|
 | Trusted contributions | Real restricted Windows CPU1 Scene publication and complete fixed-input Scene comparisons; qualification-based Scene admission implemented in source. | Current exact runtime/policy qualification and real qualified Windows/Mac Scene admission under the selected hybrid deployment; exclusive assignment, integrity and once-only credit. |
-| Earned-credit search | Real Windows Scene searches funded by accepted contributions; exact paid-result recovery without another debit; contributor-only index authority. | Equivalent Mac earned-credit Scene search, future real publication refresh, real hybrid Scene execution/shutdown and measured initial pricing/capacity. |
+| Earned-credit search | Real Windows Scene searches funded by accepted contributions; exact paid-result recovery; four saved audited-pool refreshes grew 10 to 26 Scenes, with stable members and matching saved native head replies. | Equivalent Mac earned-credit Scene search, a real qualified-device append, real hybrid Scene execution/shutdown and measured initial pricing/capacity. |
 | Unattended operation | Native startup/recovery controls, saved uploads, day/night scheduling and descendant ownership; separate Windows Scene pilot intentionally stopped under the cost hold. | Approved affordable Scene activation, verified qualified parallel profiles, real interruption/schedule checks and a new seven-day accepted-Scene/earned-search run on each supported OS. |
 | Beginner downloads | Guided lane choices, private runtime/model setup, platform packaging and lifecycle source checks. | Legitimate organization signing accounts, trusted immutable downloads, clean Windows/Mac installation/update/removal and nontechnical-user acceptance. |
 | Production operations | Consented full historical database rehearsal; offline deletion/financial recovery; Object acceptance and credit survive local upgrade/SQL restore; durable native compute allowance. | Full provider/R2/native-bundle/secret recovery with independent current deletion/financial authority, a fresh consistent cutoff, measured load/storage costs and enforceable spending bounds. |
@@ -118,7 +122,7 @@ bypassed.
 
 | Completed component | Evidence and limits |
 |---|---|
-| Windows real Scene publication/search | [Finite controlled cohort](WINDOWS_SCENE_COHORT_20261010.md); [automatic refresh](SCENE_AUTOMATIC_REFRESH_20261010.md). The first future real append and equivalent Mac/Object work remain open. |
+| Windows real Scene publication/search | [Finite controlled cohort](WINDOWS_SCENE_COHORT_20261010.md); [historical automatic refresh](SCENE_AUTOMATIC_REFRESH_20261010.md); [current two-Scene award reconciliation](SCENE_RECEIPT_OPERATOR.md). The new qualified-device append and equivalent Mac work remain open; Object work is deferred. |
 | Interrupted Scene endurance pilot | [Start and frozen configuration](WINDOWS_SCENE_WEEK_PILOT_20261010.md); [intentional cost stop](COST_STOP_20261012.md). No final seven-day success is claimed. |
 | Failed offline diagnostic | [Terminal result](WINDOWS_WINDOWLESS_ENDURANCE_20261009.md). Original failed attempts remain preserved. |
 | Object comparison | [Mac/Windows exploration](OBJECT_CROSS_PLATFORM_20261009.md). Three saved locations are not general production qualification. |
