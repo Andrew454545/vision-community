@@ -1,162 +1,187 @@
-# Invited local Scene pilot
+# Invited local Scene processing
 
-The user chose this immediate milestone on 15 October: a small group processes
-Scenes on its own computers and keeps indexes locally. Uploads, credits, shared
-search and seven-day endurance come later. Objects remain deferred. The earlier
-cloud service and full-production checklist remain preserved; they do not gate
-implementation of this separate local pilot.
+The immediate milestone is 3–4 invited Windows x64 and Apple-silicon Mac users
+processing Scenes locally. [Participant instructions](../LOCAL-SCENES-START-HERE.md)
+are included in each kit. Objects, local search/MMA connections, credits, automatic
+sharing and the hosted service remain deferred. Existing paused jobs stay paused.
 
 ## Participant flow
 
-The maintainer supplies a prepared **VISION Local Scenes** kit and one assigned
-Scene packet. Extract the kit to a regular local folder. On Windows open
-**VISION Local Scenes.exe**; on Apple-silicon Mac open **Start Local Scenes.command**.
-Choose the packet when prompted and accept setup downloads if wanted. The private
-Python and about 0.9 GB of model files come from python.org and the project's
-existing GitHub release. No administrator installation, account, contribution,
-search, cloud inference or recurring task is created.
+The maintainer supplies a platform kit containing **Readiness / Check this computer.json**.
+The participant opens the Windows EXE or Mac command file, chooses that check,
+accepts the first private Python/model setup, and clicks Start in the local window.
+They do not install Python manually, use a terminal, create an account or supply keys.
+The setup downloads only the existing pinned Python distribution and four Scene
+models. The native binary and Windows DLLs are checked and bundled in the kit.
 
-Choose **Start / Resume** in the local browser window. The native VISION indexer
-retrieves imagery through that participant's connection and performs Scene
-inference on their CPU. **Pause** completes the current group of at most 16
-locations, then stops. A native child is bounded to ten minutes. Closing the
-browser tab leaves work running; **Exit** waits for the current group and stops.
-Reopening the launcher with the same packet checks and resumes saved work.
-The Windows native launcher uses the existing verified private setup code and
-does not invoke PowerShell or change execution policy. **Reopen pilot window**
-returns to an existing browser window without starting another worker.
-CPU1/fp32, batch shape and four-view v4 indexes retain the existing processing
-semantics. Medium scheduling priority is used; parallel profiles and automatic
-day/night scheduling are separate follow-up work.
+The check uses the same frozen, locally generated RGB images at 112 unique fixture
+locations for each offered 1/2/4-thread profile. It makes no live imagery request.
+Successful reports are retained across restarts. Save results exports the numerical
+records, profile, timings and installation ID for private owner review. It does not
+approve the computer or allocate bulk work by itself. A failing faster profile can
+be omitted from the owner grant while the successful CPU1 baseline is retained.
 
-The window shows the saved-work folder. Keep the whole folder, including packet,
-part receipts, checkpoints, native logs, index files and `result.json`. Results
-are **local and provisional**: they earn no credit and are not yet pool members.
-Later admission must verify compatibility and provenance. The index is about
-3,080 bytes per location plus masks, metadata and logs; native temporary usage
-and model/Python installation require additional space.
+After approval the participant receives one personal **campaign.json** and its
+**packets** folder, containing up to five million locations. They keep that whole
+folder in place, open campaign.json in the same launcher, and click Start / Resume.
+Day defaults to Medium from 06:00 to midnight; night defaults to the largest
+approved thread count from midnight to 06:00, using the computer's local clock.
+Gentle/Medium use one inference thread with lower scheduling priorities; Maximum
+uses the largest approved count, up to four. This changes real inference threads.
+Batch size, sessions, four views, fp32 graph and packed-index format stay fixed.
+Any offered profile must have its own successful check and owner approval.
 
-After pausing or finishing, **Save results (.zip)** creates a portable local
-backup and downloads it through the authenticated loopback window. It checks
-every completed group's packet, runtime profile, saved-file hashes and complete
-index masks before including it. A partial backup contains only finished groups
-and records the finished/assigned totals; it does not claim a whole-batch pass.
-The archive includes the packet, profile, exact completed artifacts and a
-provisional export manifest, with no session token, arbitrary logs or unrelated
-files. Original attempts, failures and unfinished work stay untouched. Keep the
-original folder to resume. Export performs no inference, account or upload call
-and does not establish acceptance into the shared pool.
+Each packet contains at most 128 rows. Native checkpoints remain every 16 rows.
+Pause finishes the current bounded group; the native child has a ten-minute limit.
+Completed groups are never credited or silently reassigned. Interrupted groups
+resume their native checkpoint; uncheckpointed orphan bytes and failures are kept
+separately. Failures back off from one minute to one hour; after five failures a
+group is held while other work continues. Resume retries held groups explicitly.
+If all remaining groups are held, the UI asks for attention rather than spinning.
 
-Project hosting and Actions are absent from this processing path. Participants
-still use their own electricity, storage and ordinary internet data. No imagery
-or model download occurred during source verification. Setup itself does not
-start processing. Public downloads, signatures and actual participant installation
-are not claimed by a locally built unsigned maintainer kit. If OS policy refuses
-the launcher, stop and use a legitimate trusted installation route; do not disable
-security protections.
+The launcher supervises the local window and retries abnormal exits with backoff.
+Explicit Exit ends supervision. The separate optional **Resume automatically when
+I sign in** setting adds only this campaign's own user-login entry, without admin
+rights or altering old VISION jobs. It must be saved explicitly. Previously enabled
+work resumes after a crash/login; explicit Pause remains paused. A computer must
+be awake and signed in to work. Pause on battery defaults on; low disk space stops
+processing safely and asks the user to free space and resume. No week-long waiting
+period is imposed for this invited milestone.
 
-## Issuing distinct work without cloud coordination
+## Numerical acceptance and local VISION compatibility
 
-Keep **one authoritative private issuer SQLite registry** on the maintainer PC.
-Back it up together with its packets. Import a source-approved metadata-only
-11-column native VISION TSV; this tool makes no provider call and infers no
-coverage or rights authority:
+Owner policy: **all 448 views** must have cosine similarity **at least 0.9999**
+and relative L2 **at most 0.02**, with a complete valid fixed-input index. These
+bounds reuse the existing full Windows and Mac comparison evidence; a new user
+runs only the 112-location check. CPU1/2/4 full trials are not repeated per user.
+The owner tool decodes and compares the actual submitted packed records itself;
+client pass flags and reported extrema cannot grant work. It binds the approval
+to installation ID, binary/DLL/model/pipeline hashes, thread profile and policy.
+Changed runtime identity needs a new check. The local hash cache checks file
+metadata before each group and rehashes changed runtime files; this is cooperative
+local integrity checking, not tamper-proof hardware attestation.
+
+The owner also supplies a private correspondence record for the reference and
+installed VISION application. Its scope distinguishes a reference regenerated by
+the installed binary from a narrower installed index-consumer compatibility check.
+On 15 October the b48e9e Mac CPU1 check passed at minimum cosine 0.9999932066 and
+maximum relative L2 0.0036860489. The actual installed 4e3a42 VISION sidecar loaded
+both the original reference vectors and candidate index and searched all 112
+locations for three retained text queries. Maximum winning-score difference was
+0.00012007, with no selected-view changes or inversions across reference gaps
+larger than 0.00050. This is a read-only isolated consumer check. The supplied
+numerical reference was produced by e0c4dc, **not** the currently installed 4e3a42;
+it was not regenerated by that binary. Three queries do not establish every
+possible query's ranking. Personal VISION indexes and its reserved queue were
+not changed. Further actual implementation results are in the dated evidence.
+
+Approvals permit **local processing only**. They are owner-reviewed cooperative
+receipts, not signed server credentials, production approval or earned credit.
+Free local processing does not remove the participant's electricity/data/storage
+usage. The five-million-location vectors alone require about 15.4 GB; metadata,
+models, temporary files and a separate backup need additional space.
+
+## One private issuer and complete exclusions
+
+Use one authoritative private SQLite registry. Never clone it for independent
+issuers, release a lost allocation automatically, or reopen cloud assignment
+against the same source while offline reservations remain unsynchronized.
+Whole-campaign reservations commit before files are delivered. Interrupted exports
+retain all reservations and can be reexported with the same allocation ID. An
+insufficient inventory rolls back the entire new allocation.
+
+The approved remaining pool already excludes the historical owner-indexed corpus
+and Andrew's separately reserved five million. It alone does not prove exclusion
+of later Community work. `community.local_scene_exclusions` reconciles saved,
+independently pinned metadata snapshots for both production and staging, retained
+pre-cutover IDs and the verified remaining-pool manifest. It conservatively
+quarantines **whole advanced replacement shards** and approves only explicitly
+selected never-advanced source hashes. Every retained Scene ID, including pending
+and failed work, is excluded. Its authority applies only to those source hashes;
+it is not a general statement that all historical assignment rows were exported.
+The authority requires the online allocator to remain paused. Source/table reset
+or missing history invalidates this method and requires new reconciliation.
+
+Two specifically approved metadata SELECT requests ran on 15 October: production
+111,445 rows read, staging 118, zero writes, no retries and no R2 access. The first
+exceeded its prepared observed-read stop, so staging ran only after fresh explicit
+approval. The saved production catalog has 618 shards, of which one has advanced;
+617 remain eligible for the scoped offline inventory. Reconciled exclusion count
+is 110,943. A private 500,000-row cached source was imported into the one private
+issuer with no participant allocation. Additional approved source shards must be
+rendered/imported locally before issuing five million rows. No new cloud metadata
+read is implied by this source maintenance.
+
+Maintainer commands, using a prepared private Python environment:
 
 ```text
-python -m community.local_scene_packets prepare --tsv approved-locations.tsv --registry issuer.sqlite
-python -m community.local_scene_packets assign --registry issuer.sqlite --participant tester-01 --count 100 --allocation-id tester-01-001 --output tester-01-001.json
+python -m community.local_scene_exclusions --help
+python -m community.local_scene_packets prepare --tsv approved-shard.tsv --registry issuer.sqlite
+python -m community.local_scene_campaign exclude --registry issuer.sqlite --ids excluded-panorama-ids.private.txt --authority exclusion-authority.private.json
+python -m community.local_scene_qualification approve --report canary-report.json --policy threads-1.json --policy-sha256 POLICY_SHA --gold gold-correspondence.private.json --installation-id INSTALLATION_ID --output approval-1.json
+python -m community.local_scene_campaign assign --registry issuer.sqlite --participant tester-01 --count 5000000 --allocation-id tester-01-first --approvals approvals.private.json --output tester-01
 ```
 
-Use opaque participant labels. Start with 100 locations per participant (maximum
-1,000 per packet), then issue another packet when appropriate. The registry
-reserves panorama IDs atomically before delivery, across imported catalog versions.
-Concurrent allocations cannot overlap. Repeating the same allocation ID reexports
-the exact retained packet; changed parameters fail. Lost export or interrupted
-delivery does not free the reservation. Do not automatically reassign abandoned
-packets or clone independent issuer registries. This is cooperative offline
-coordination; copies of a packet can still be processed by another person.
-Checksums detect accidental changes and do not authenticate a dishonest issuer
-or participant. Disjointness covers this registry's issued work, not earlier
-service assignments: use a source export already excluding those when needed.
+`approvals.private.json` is an array of the independently approved CPU1 plus any
+approved CPU2/4 receipts, all from the same installation. Repeat the approval
+command against each matching trusted policy/report. Keep the original owner
+records private. Import enough eligible shards first. A five-million allocation
+produces 39,063 bounded packets and an under-16-MiB manifest, not a five-million-row
+JSON load. The Windows launcher accepts this manifest size. Keep the registry,
+source provenance and delivered packets backed up together. No real bulk indexing
+or participant allocation starts as a side effect of preparation.
 
-Rows preserve original source index, source TSV digest, country/generation tags,
-heading/pitch/zoom and native source IDs. Generation tags retain their existing
-basis: Gen2/3/Badcam can be heuristic, unknown stays unknown. No Object or official
-coverage authority is created. No account codes or source database are placed in
-packets. Do not distribute a private catalog without its applicable consent.
+Exact native TSV lines retain source map/row identity, panorama, coordinates,
+heading, pitch, zoom, country and existing generation/camera labels. A campaign's
+`sourceIndex` is its allocation offset; original native row identity remains in the
+TSV line. Unknown metadata remains unknown. Historical official Google membership
+is not a fresh Gen4 guarantee. No private account/MMA database is included.
 
-## Maintainer preparation
+## Saved results and eventual owner import
 
-`community/local_scene_runtime.json` pins only Scene files. Windows uses the actual
-CPU1 binary from the recorded Windows cohort (`6ce8f5ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦91ba`) and its DLLs; the
-canonical four model files are unchanged. The Mac pin currently retains the
-previously published `be0d98ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦19f2` binary. Its execution of the new pilot path and
-explicit fp32/CPU1 messages must be confirmed on Mac before invitation; a missing
-execution marker fails closed and does not make an approved result.
+Pause and choose Save results once. A campaign exports **all completed packets**
+into a local exports folder, plus a checksum inventory. Each independent ZIP is
+bounded; neither Python nor the browser loads a multi-GB campaign archive. Saving
+again verifies/reuses unchanged ZIPs and adds newly finished work. Space checks
+preserve originals and already exported packets if a backup is interrupted.
+The collection manifest is published only after every selected archive succeeds.
 
-Build locally, using the directory of the pinned native binary and dependencies:
+The portable v2 archive retains the exact packed vectors, masks and TSV. It changes
+only known source/model paths in the copied native manifest/checkpoint, updates
+copied receipts, and records both original and portable file hashes. Personal
+home paths, session tokens, arbitrary logs and unrelated files are not selected.
+Original checkpoints remain the only supported resume source. Legacy packet
+backups retain their earlier v1 exact-artifact contract. Nothing is uploaded.
+Owner-side admission/import into the real VISION repository is a later explicit
+step; a portable ZIP is not itself a live VISION index registration.
+
+## Kit preparation and remaining platform checks
+
+`community.local_scene_prepare` builds platform-specific 1/2/4 policy descriptors
+from the pinned fixed112 template/reference and existing owner-reviewed full
+runtime evidence. Its evidence document is `{"profiles":[...]}`, each entry having
+`threads`, `approved:true`, `locations:1024`, `repetitions:3` and `evidenceSha256`.
+It verifies every native/model asset without executing a model or granting work.
+Build the matching Readiness folder into each platform kit:
 
 ```text
-python packaging/build_local_scene_pilot.py --output /absolute/path/pilot-kit --native-dir /absolute/path/native/bin --revision FULL_COMMIT_SHA --platform windows-x86_64
+python -m community.local_scene_prepare --help
+python packaging/build_local_scene_pilot.py --output /absolute/kit --native-dir /absolute/native --revision FULL_COMMIT_SHA --platform darwin-arm64 --readiness-dir /absolute/readiness/darwin-arm64
 ```
 
-The builder validates native pins and uses the existing named public-source
-inventory. It includes no model files, assigned packets, credentials, logs, database,
-private Python or checkout. The ZIP is explicitly a **maintainer unsigned** artifact.
-The Windows ZIP contains a native `VISION Local Scenes.exe`, a short participant
-`START-HERE.md` and a separately sealed `project` folder. The launcher validates
-every named file before setup and refuses changed files or unexpected entries.
-It installs no shortcut, service, scheduled task or account. The earlier script
-starter is retained inside `project` for maintainer use; participants use the EXE.
-Model setup copies those checked native files and downloads only the four pinned
-Scene models from the existing project release, with resumable digest checks.
-Do not publish or invite users from a dirty build or claim a signed release.
+Windows uses the existing tested 6ce8f5 binary and pinned DLLs; Mac uses b48e9e.
+Do not substitute older public release binaries. The builder seals the existing
+named source/native inventory. It includes no models, private Python, assigned
+queue, account, owner grant, private database or diagnostic log. Models are
+installed only after the participant accepts setup. Kits remain unsigned invited
+previews. Public trusted downloads/signing and genuinely fresh-device setup are
+not claimed. Never disable OS security to run a refused kit.
 
-For an already prepared machine, the account-free entrypoint is also available:
-
-```text
-python -m community.local_scene_ui --packet tester-01-001.json --runtime-root /path/to/prepared/runtime --data-dir /path/to/private/results
-```
-
-The local UI binds only `127.0.0.1`, uses a random session token, exact Host and
-Origin checks and no remote assets. Browser requests cannot select filesystem
-paths, accounts, uploads or cloud APIs. OS file locking prevents two pilot processes
-writing the same packet folder. Each completed part is checked against saved
-hashes, complete view masks, index layout and runtime profile on resume. Orphaned
-uncheckpointed bytes stay in a separate attempt. Failed attempts are preserved.
-
-## Next actions
-
-1. The Windows native kit's package guard, checked private Python, copied source
-   and cached-model setup now pass a finite offline rehearsal; its beginner window
-   is constructed/rendered offscreen. Exercise one genuinely fresh local packet
-   on an installed participant machine next. This is not a clean-device check.
-2. Andrew completed the exact c458155 Mac source/kit/layout check in PR17
-   comment 6188354978. Use the replacement b48e9e CPU binary for a narrow changed
-   kit/startup check; the older binary was incompatible. Reuse the existing CPU1
-   comparison evidence instead of another model matrix.
-3. The approved historical remaining-pool source is identified in that reply,
-   but it does not exclude later Community assignments. Obtain a complete
-   exclusion inventory or source-approved bounded derivative before issuing
-   packets. Retain one issuer registry and provide trusted installation help.
-4. Record actual setup/start/pause/resume and saved-index evidence on each platform,
-   then invite that platform's participants. No week-long wait is imposed here.
-
-Only source/synthetic local verification and actual installed-file checks are
-recorded so far; no fresh pilot indexing, participant installation, packet delivery,
-model download, cloud operation or invitation is claimed. The separately paused
-old tasks and operational cloud hold remain untouched. Later uploads/search use
-the preserved service roadmap and their own activation/transfer authority.
-
-The portable backup checks and existing Mac artifact retrieval are recorded in
-[evidence](evidence/local-scene-results-export-20261015.json). The 12 Python checks
-include an actual authenticated localhost ZIP download; two offline browser-script
-flows cover saving and refusal. All indexed test output is synthetic. The retained
-Mac build was downloaded and hashed, not rebuilt or executed on this Windows PC.
-
-Both unsigned preview kits were built from clean `d3c467a` and their full ZIP
-inventories were checked locally. The Windows native package self-check passed;
-its packaged backup code also ran under the cached private Python 3.14.7 against
-two synthetic completed records. The Mac archive has executable launchers and
-the corrected native binary, but has not been run on this PC. See the
-[kit hashes and limits](evidence/local-scene-results-kits-20261015.json).
+Windows can be cross-compiled on Mac using cached .NET/reference assemblies and
+`--windows-reference-dir`, `VISION_LOCAL_DOTNET`, `VISION_LOCAL_CSC`. That receipt
+explicitly leaves native launcher self-check/Windows execution unverified. Actual
+Windows install/start/pause/resume remains a Windows-device check, not something
+Mac compilation or synthetic tests can certify. GitHub Actions were not used.
+The loopback UI uses exact Host/Origin, a random session token, bounded named
+settings and OS instance locks. No online endpoint, background cloud refresh,
+recurring paid compute or old task restart was enabled.

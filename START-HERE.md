@@ -1,5 +1,9 @@
 # Start here
 
+**Invited local Scene tester?** Follow [these short steps](LOCAL-SCENES-START-HERE.md)
+with the kit supplied by the maintainer. This separate local preview requires no
+service account. The hosted-service pause below still applies.
+
 **Processing and online search are paused.** Please wait before downloading,
 setting up or restarting VISION. Download links and setup steps will return when
 the service is ready.

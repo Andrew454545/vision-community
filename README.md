@@ -3,7 +3,7 @@
 Process Street View locations on your computer. Accepted contributions earn
 credits for visual searches.
 
-**The next milestone is a small invited local-only Scene pilot.** See [the pilot plan](docs/LOCAL_SCENE_PILOT.md). Participants will process distinct batches and keep indexes locally; uploads, searches and Objects follow later. Pilot source is implemented; trusted distribution and real participant setup are still being completed.
+**Invited to process Scenes locally?** [Start here](LOCAL-SCENES-START-HERE.md). Your kit checks the computer first; after owner approval it can run a separate personal queue with day/night speeds and saved progress. Results stay local. [Maintainer preparation and current limits](docs/LOCAL_SCENE_PILOT.md). Kits remain unsigned previews; actual Windows execution of the new path and fresh-device setup are still required.
 
 **The hosted contribution service and online search are paused.** Please wait before downloading,
 setting up or restarting VISION. Download links will return when the service is

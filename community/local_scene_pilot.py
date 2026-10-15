@@ -28,7 +28,7 @@ def immutable(path, body):
     path = regular(path, missing=True)
     path.parent.mkdir(parents=True, exist_ok=True)
     try:
-        with path.open('xb') as stream:
+        with os.fdopen(os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), 'wb') as stream:
             stream.write(body)
             stream.flush()
             os.fsync(stream.fileno())
@@ -40,14 +40,14 @@ def immutable(path, body):
 def atomic_json(path, value):
     regular(path, missing=True)
     pending = path.with_name(path.name + '.' + secrets.token_hex(5) + '.tmp')
-    with pending.open('xb') as stream:
+    with os.fdopen(os.open(pending, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), 'wb') as stream:
         stream.write(canonical(value) + b'\n')
         stream.flush()
         os.fsync(stream.fileno())
     pending.replace(path)
 
 
-def verify_runtime(root):
+def verify_runtime(root, *, inference_threads=1):
     root = regular(root, directory=True)
     manifest = json.loads(MANIFEST.read_text(encoding='utf-8'))
     platform = runtime_platform()
@@ -59,12 +59,47 @@ def verify_runtime(root):
             raise ValueError('pilot_runtime_mismatch')
     binary = root / 'bin' / ('mma-vision.exe' if sys.platform == 'win32' else 'mma-vision')
     models = root / 'models/siglip-b16-224-canonical'
-    return binary, models, runtime_profile(binary, models, inference_threads=1)
+    return binary, models, runtime_profile(binary, models, inference_threads=inference_threads)
+
+
+class CheckedRuntime:
+    """Hash once per unchanged local runtime, recheck file identity each group.
+
+    This is a performance cache for cooperative local installations, not an
+    adversarial attestation boundary. Changed file metadata forces full pinned
+    validation before any new group can run.
+    """
+    def __init__(self):
+        self.signature = None
+        self.profiles = {}
+
+    def __call__(self, root, *, inference_threads=1):
+        root = regular(root, directory=True)
+        manifest = json.loads(regular(MANIFEST).read_text())
+        paths = [MANIFEST, *[root / item['path'] for item in
+                 files_for_platform(manifest, runtime_platform(), lane='scene')],
+                 *[Path(__file__).with_name(name) for name in
+                   ('vision_index.py', 'four_view.py', 'process_owner.py')]]
+        signature = []
+        for path in paths:
+            info = regular(path).stat()
+            signature.append((str(path), info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns))
+        if signature != self.signature:
+            self.profiles.clear()
+            self.signature = None
+        if inference_threads not in self.profiles:
+            result = verify_runtime(root, inference_threads=inference_threads)
+            self.profiles[inference_threads] = result
+            self.signature = signature
+        return self.profiles[inference_threads]
 
 
 class LocalScenePilot:
     def __init__(self, packet: Path, data_dir: Path, runtime_root: Path, *, indexer=index_locations_tsv,
-                 runtime_verifier=verify_runtime):
+                 runtime_verifier=verify_runtime, inference_threads=1, pace='medium', group_size=CHUNK):
+        if inference_threads not in (1, 2, 4) or pace not in ('slow', 'medium', 'max') or group_size not in (16, 128):
+            raise ValueError('invalid_local_processing_profile')
+        self.inference_threads, self.pace, self.group_size = inference_threads, pace, group_size
         self.packet = load_packet(packet)
         data_dir = regular(data_dir, directory=True, missing=True)
         assert_not_live_vision_path(data_dir)
@@ -73,6 +108,9 @@ class LocalScenePilot:
         self.runtime_root = Path(runtime_root)
         self.indexer, self.runtime_verifier = indexer, runtime_verifier
         immutable(self.root / 'packet.json', canonical(self.packet) + b'\n')
+        layout = self.root / 'work-layout.json'
+        if layout.exists() or group_size != CHUNK:
+            immutable(layout, canonical({'groupSize': group_size}) + b'\n')
         self.guard = threading.RLock()
         self.stop = threading.Event()
         self.thread = None
@@ -87,10 +125,10 @@ class LocalScenePilot:
 
     def _refresh_completed(self):
         count = 0
-        for number, start in enumerate(range(0, len(self.packet['rows']), CHUNK)):
+        for number, start in enumerate(range(0, len(self.packet['rows']), self.group_size)):
             receipt = checkpoint_state(self._chunk_path(number) / 'complete.json')
             if receipt is not None:
-                expected = [row['id'] for row in self.packet['rows'][start:start+CHUNK]]
+                expected = [row['id'] for row in self.packet['rows'][start:start+self.group_size]]
                 if receipt.get('packetId') != self.packet['packetId'] or receipt.get('rowIds') != expected:
                     raise ValueError('saved_work_changed')
                 count += len(expected)
@@ -132,7 +170,7 @@ class LocalScenePilot:
         with self.guard:
             self.stop.set()
             if self.thread and self.thread.is_alive():
-                self.phase, self.message = 'pausing', 'Pausing after the current group of up to 16 locations.'
+                self.phase, self.message = 'pausing', f'Pausing after the current saved group of up to {self.group_size} locations.'
 
     def close(self):
         self.pause()
@@ -143,7 +181,7 @@ class LocalScenePilot:
 
     def _runner(self, argv, env, cwd):
         if sys.platform == 'darwin':
-            argv = ['/usr/bin/nice', '-n', '8', *argv]
+            argv = ['/usr/bin/nice', '-n', str({'slow':19, 'medium':8, 'max':0}[self.pace]), *argv]
         stem = Path(cwd) / ('native-' + str(time.time_ns()))
         env = {**env, 'TEMP': str(cwd), 'TMP': str(cwd), 'TMPDIR': str(cwd)}
         receipt = {'status': 'STARTED', 'timeoutSeconds': CHILD_SECONDS}
@@ -152,7 +190,8 @@ class LocalScenePilot:
             with stem.with_suffix('.stdout.log').open('xb') as out, stem.with_suffix('.stderr.log').open('xb') as err:
                 result = run_owned(argv, env=env, cwd=cwd, stdout=out, stderr=err,
                     timeout=60 if 'index-layout' in argv else CHILD_SECONDS,
-                    creationflags=subprocess.BELOW_NORMAL_PRIORITY_CLASS if os.name == 'nt' else 0)
+                    creationflags=(subprocess.NORMAL_PRIORITY_CLASS if self.pace == 'max'
+                        else subprocess.BELOW_NORMAL_PRIORITY_CLASS) if os.name == 'nt' else 0)
             receipt.update(status='EXITED', exitCode=result.returncode)
         except BaseException as error:
             receipt.update(status='STOPPED', error=type(error).__name__)
@@ -192,8 +231,8 @@ class LocalScenePilot:
                 binary, models, profile = self.runtime_verifier(self.runtime_root)
                 immutable(self.root/'runtime-profile.json', canonical(profile) + b'\n')
                 with keep_awake():
-                    for number, start in enumerate(range(0, len(self.packet['rows']), CHUNK)):
-                        rows = self.packet['rows'][start:start+CHUNK]
+                    for number, start in enumerate(range(0, len(self.packet['rows']), self.group_size)):
+                        rows = self.packet['rows'][start:start+self.group_size]
                         folder = self._chunk_path(number)
                         regular(folder, directory=True, missing=True).mkdir(exist_ok=True)
                         receipt = checkpoint_state(folder/'complete.json')
@@ -216,8 +255,8 @@ class LocalScenePilot:
                             self.message = 'Processing Scenes. Pause keeps completed work.'
                         self.indexer(attempt/'locations.tsv', index_dir=attempt/'index',
                             checkpoint=attempt/'checkpoint.json', output=attempt/'output.json',
-                            binary=binary, model_dir=models, pace='medium', run_id=self.packet['packetId']+f'-{number}',
-                            inference_threads=1, runner=self._runner, use_nice=False)
+                            binary=binary, model_dir=models, pace=self.pace, run_id=self.packet['packetId']+f'-{number}',
+                            inference_threads=self.inference_threads, runner=self._runner, use_nice=False)
                         require_complete_index(attempt/'checkpoint.json', attempt/'index', len(rows))
                         if self.runtime_verifier(self.runtime_root)[2] != profile:
                             raise ValueError('pilot_runtime_changed')
@@ -236,7 +275,7 @@ class LocalScenePilot:
                             'packetId': self.packet['packetId'], 'packetSha256': self.packet['payloadSha256'],
                             'locations': self.completed, 'runtimeProfile': profile,
                             'parts': [json.loads((self._chunk_path(i)/'complete.json').read_text())
-                                      for i in range((self.completed+CHUNK-1)//CHUNK)],
+                                      for i in range((self.completed+self.group_size-1)//self.group_size)],
                             'qualityStatus': 'LOCAL_PROVISIONAL', 'uploaded': False, 'creditsEarned': 0})
                         self.phase, self.message = 'complete', 'Finished. Keep this folder for later contribution.'
                     else:

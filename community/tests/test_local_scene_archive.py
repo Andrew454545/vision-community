@@ -83,6 +83,33 @@ class ArchiveTest(unittest.TestCase):
                 self.assertEqual(len(json.loads(archive.read('packet.json'))['rows']),17)
             self.assertEqual((unfinished/'orphan.i8').read_bytes(),b'partial')
 
+    def test_portable_export_rewrites_only_native_paths_and_keeps_vector_bytes(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder);app=self.make(root,2)
+            part=app.root/'part-0000';attempt=part/'attempt-0001'
+            receipt=json.loads((part/'complete.json').read_text())
+            for name in ('checkpoint.json','index/manifest.json'):
+                path=attempt/name;document=json.loads(path.read_text())
+                document['sourceTsv']='/Users/private-person/private-map.tsv'
+                if name.startswith('index/'):document['modelDir']='C:\\Users\\private-person\\models'
+                path.write_bytes(canonical(document))
+                body=path.read_bytes();receipt['files'][name]={'bytes':len(body),'sha256':hashlib.sha256(body).hexdigest()}
+            (part/'complete.json').write_bytes(canonical(receipt))
+            before=self.snapshot(app.root)
+            result=export_saved_results(app.root,root/'portable.zip',portable=True)
+            with zipfile.ZipFile(result['path']) as archive:
+                manifest=json.loads(archive.read('export-manifest.json'))
+                self.assertEqual(manifest['contract'],'vision-local-scene-archive-v2')
+                self.assertTrue(manifest['resumeFromOriginalsOnly'])
+                self.assertEqual(manifest['originalFiles']['part-0000/complete.json']['sha256'],
+                                 hashlib.sha256(before['part-0000/complete.json']).hexdigest())
+                for name in archive.namelist():
+                    self.assertNotIn(b'private-person',archive.read(name))
+                for name in ('index/shard-000000.i8','index/shard-000000.mask','locations.tsv'):
+                    key='part-0000/attempt-0001/'+name
+                    self.assertEqual(archive.read(key),before[key])
+            self.assertEqual(before,self.snapshot(app.root))
+
     def test_identical_saved_work_produces_identical_archive_and_conflicts_refuse(self):
         with tempfile.TemporaryDirectory() as folder:
             root=Path(folder); app=self.make(root,2)
