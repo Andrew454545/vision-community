@@ -14,6 +14,26 @@ def owned_window(arguments, *, stdin, stdout, stderr, creationflags):
     # Reuse existing parent-death/Windows Job ownership. Removing this campaign's
     # login entry must not leave an orphaned browser server or native worker.
     from community.process_owner import run_owned
+    if '--data-dir' in arguments:
+        from community.local_scene_pilot import atomic_json
+        from community.mac_starter import regular
+        folder = regular(Path(arguments[arguments.index('--data-dir') + 1]) / 'supervisor-diagnostics',
+                         directory=True, missing=True)
+        folder.mkdir(mode=0o700, parents=True, exist_ok=True)
+        stem = folder / str(time.time_ns())
+        receipt = {'status': 'STARTED'}
+        try:
+            with os.fdopen(os.open(stem.with_suffix('.stdout.log'), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), 'wb') as out, \
+                 os.fdopen(os.open(stem.with_suffix('.stderr.log'), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), 'wb') as err:
+                result = run_owned(arguments, env=dict(os.environ), cwd=REPO, stdout=out,
+                    stderr=err, timeout=None, creationflags=creationflags)
+                receipt.update(status='EXITED', exitCode=result.returncode)
+                return result
+        except BaseException as error:
+            receipt.update(status='STOPPED', errorClass=type(error).__name__)
+            raise
+        finally:
+            atomic_json(stem.with_suffix('.json'), receipt)
     return run_owned(arguments, env=dict(os.environ), cwd=REPO, stdout=stdout,
                      stderr=stderr, timeout=None, creationflags=creationflags)
 

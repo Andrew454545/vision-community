@@ -275,7 +275,9 @@ def main():
         raise RuntimeError('local_pilot_window_unavailable')
     token = secrets.token_hex(32)
     from community.background import single_instance
-    window_guard=single_instance(app.root/'window-owner')
+    window_root=regular(app.root/'window-owner',directory=True,missing=True)
+    window_root.mkdir(mode=0o700,exist_ok=True)
+    window_guard=single_instance(window_root)
     window_guard.__enter__()
     server = ThreadingHTTPServer(('127.0.0.1',0), handler_for(app, token))
     server.daemon_threads = True

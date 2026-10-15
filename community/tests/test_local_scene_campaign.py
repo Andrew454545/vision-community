@@ -172,6 +172,16 @@ class UnattendedTests(unittest.TestCase):
             self.assertEqual(json.loads(app.settings_path.read_text())['dayStart'],'07:00')
             app.resume_automatically();self.assertIsNone(app.thread)
 
+    def test_owned_queue_survives_removal_of_the_downloaded_original(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder);app=self.make(root)
+            self.assertEqual(app.path,app.root/'campaign.json')
+            (root/'assigned').rename(root/'moved-download')
+            self.assertTrue(campaign_packet(app.path.parent,app.manifest,0).is_file())
+            reopened=LocalSceneCampaign(app.path,root/'data',root/'runtime',installation_id=DEVICE,
+                runtime_verifier=lambda _root,*,inference_threads=1:(Path('test'),Path('models'),profile(inference_threads)))
+            self.assertEqual(reopened.path,app.path)
+
     def test_low_disk_preserves_resume_intent_and_does_not_start_native(self):
         with tempfile.TemporaryDirectory() as folder:
             app=self.make(Path(folder),pilot_factory=lambda *a,**k:self.fail('native must not start'))
