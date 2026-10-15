@@ -32,6 +32,10 @@ HEADERS = {'read': 'x-vision-trial-rows-read', 'written': 'x-vision-trial-rows-w
            'puts': 'x-vision-trial-r2-puts', 'bytes': 'x-vision-trial-r2-bytes'}
 LIMITS = {'read': 200, 'written': 0, 'puts': 0, 'bytes': 0}
 MAX_FILE = 1048576
+HTTP_DIAGNOSTIC_BYTES = 4096
+KNOWN_GATEWAY_ERRORS = frozenset(('unauthorized', 'not_found', 'invalid_recovery_target',
+    'scene_recovery_target_changed', 'scene_receipt_conflict', 'finite_scene_budget_required',
+    'schema_update_required', 'finite_scene_usage_limit', 'scene_recovery_unavailable'))
 
 
 class ReceiptRecoveryError(ValueError):
@@ -167,6 +171,36 @@ def verify_reply(value, plan):
         raise ReceiptRecoveryError('current_replay_mismatch')
 
 
+def _http_error_diagnostic(error, *, allow_read=True):
+    """Retain only fixed classifications, never response text or arbitrary headers.
+
+    A recognized JSON code is a diagnostic hint, not proof of response origin.
+    The existing owned-child deadline bounds a slow error body as well as success.
+    """
+    result = {'contentType': 'other', 'bodyRead': False}
+    try:
+        content_type = error.headers.get('content-type', '').split(';', 1)[0].strip().lower()
+        if content_type in ('application/json', 'text/html', 'text/plain'):
+            result['contentType'] = content_type
+        if not allow_read:
+            return result
+        raw = error.read(HTTP_DIAGNOSTIC_BYTES + 1)
+        result.update(bodyRead=True, bodyBytesRead=len(raw), bodyTruncated=len(raw) > HTTP_DIAGNOSTIC_BYTES)
+        if content_type == 'application/json' and not result['bodyTruncated']:
+            try:
+                value = json.loads(raw)
+            except (ValueError, UnicodeError):
+                value = None
+            code = value.get('error') if isinstance(value, dict) else None
+            if isinstance(code, str) and code in KNOWN_GATEWAY_ERRORS:
+                result['recognizedGatewayError'] = code
+    except Exception:
+        # Diagnostic failures must not mask the original usage/HTTP stop or
+        # copy an exception message containing private response data.
+        result['diagnosticUnavailable'] = True
+    return result
+
+
 def run_recovery(plan, token, *, opener=None, clock=time.monotonic):
     """Two read-only replies, no retries, no credential rotation, no outbox writes."""
     if not re.fullmatch(r'[0-9a-f]{64}', token):
@@ -218,6 +252,7 @@ def run_recovery(plan, token, *, opener=None, clock=time.monotonic):
             except urllib.error.HTTPError as error:
                 attempt['httpStatus'] = error.code
                 try:
+                    attempt['responseDiagnostic'] = _http_error_diagnostic(error, allow_read=clock() < end)
                     measure(error.headers, attempt)
                 finally:
                     error.close()

@@ -123,6 +123,69 @@ class SavedReceiptTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'saved_evidence_changed'): recovery.run_recovery(plan, 'd'*64, opener=transport)
         self.assertEqual(transport.calls, [])
 
+    def test_unmetered_refusal_keeps_only_safe_diagnostics_and_never_retries(self):
+        plan = self.prepare()
+        secret = 'private-response-value-do-not-log'
+        cases = [
+            ('application/json; charset=utf-8', json.dumps({'error': 'unauthorized', 'recoveryCode': secret}).encode(), 'unauthorized'),
+            ('text/html', ('<html>'+secret+'</html>').encode(), None),
+            ('application/json', json.dumps({'error': secret, 'token': secret}).encode(), None),
+            ('private-header-value', secret.encode(), None),
+            ('application/json', b'x'*(recovery.HTTP_DIAGNOSTIC_BYTES+100), None),
+        ]
+        for content_type, raw, expected in cases:
+            with self.subTest(content_type=content_type, bytes=len(raw)):
+                body = TrackedBody(raw)
+                class Refused:
+                    calls = 0
+                    def open(self, request, timeout):
+                        self.calls += 1
+                        raise urllib.error.HTTPError(request.full_url, 403, secret,
+                            {'content-type': content_type}, body)
+                transport = Refused()
+                result = recovery.run_recovery(plan, 'd'*64, opener=transport)
+                self.assertEqual(transport.calls, 1)
+                self.assertEqual(result['reason'], 'recovery_usage_unknown')
+                self.assertFalse(result['currentServerReconciled'])
+                diagnostic = result['requestUsage'][0]['responseDiagnostic']
+                self.assertEqual(diagnostic.get('recognizedGatewayError'), expected)
+                self.assertLessEqual(diagnostic['bodyBytesRead'], recovery.HTTP_DIAGNOSTIC_BYTES+1)
+                self.assertEqual(diagnostic['bodyTruncated'], len(raw)>recovery.HTTP_DIAGNOSTIC_BYTES)
+                self.assertEqual(body.read_sizes, [recovery.HTTP_DIAGNOSTIC_BYTES+1])
+                self.assertTrue(body.closed)
+                self.assertNotIn(secret, json.dumps(result))
+                self.assertNotIn('synthetic-code-123456', json.dumps(result))
+
+    def test_diagnostic_read_failure_does_not_replace_usage_stop_or_log_exception(self):
+        plan = self.prepare()
+        class BrokenBody(io.BytesIO):
+            def read(self, size=-1): raise OSError('private-error-message')
+        body = BrokenBody()
+        class Refused:
+            calls = 0
+            def open(self, request, timeout):
+                self.calls += 1
+                raise urllib.error.HTTPError(request.full_url, 403, 'private-reason',
+                    {'content-type': 'text/html'}, body)
+        transport = Refused()
+        result = recovery.run_recovery(plan, 'd'*64, opener=transport)
+        self.assertEqual(transport.calls, 1)
+        self.assertEqual(result['reason'], 'recovery_usage_unknown')
+        self.assertTrue(result['requestUsage'][0]['responseDiagnostic']['diagnosticUnavailable'])
+        self.assertNotIn('private-error-message', json.dumps(result))
+        self.assertTrue(body.closed)
+
+    def test_diagnostic_does_not_start_body_read_after_deadline(self):
+        body = TrackedBody(b'not-read')
+        error = urllib.error.HTTPError('https://fixture.test', 403, 'private-reason',
+            {'content-type': 'text/plain'}, body)
+        try:
+            diagnostic = recovery._http_error_diagnostic(error, allow_read=False)
+            self.assertFalse(diagnostic['bodyRead'])
+            self.assertEqual(body.read_sizes, [])
+        finally:
+            error.close()
+
     def test_changed_current_credit_or_ledger_or_publication_refuses_success(self):
         plan = self.prepare(); reply = self.reply(plan)
         for patch in ({'unitsEarned': 2}, {'ledgerEntries': 2}, {'publicationDigestsMatched': False}, {'accepted': True}):
@@ -167,6 +230,15 @@ class SavedReceiptTests(unittest.TestCase):
         result = recovery.supervise_recovery(['--run'], output, owned_runner=child)
         self.assertEqual(result['reason'], 'recovery_child_timeout')
         self.assertFalse(result['currentServerReconciled']); self.assertTrue(output.with_suffix('.supervisor.private.json').is_file())
+
+
+class TrackedBody(io.BytesIO):
+    def __init__(self, raw):
+        super().__init__(raw)
+        self.read_sizes = []
+    def read(self, size=-1):
+        self.read_sizes.append(size)
+        return super().read(size)
 
 
 class Reply(io.BytesIO):

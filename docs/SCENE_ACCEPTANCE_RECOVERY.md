@@ -34,6 +34,20 @@ is also consumed. [Direct read-only D1 reconciliation](SCENE_RECEIPT_OPERATOR.md
 is now prepared as a separate operator path requiring its own approval; it opens
 no gateway and reuses the existing receipt/schema/authority validator.
 
+Future recovery HTTP failures now retain a bounded diagnostic: an allowlisted
+content type, body-read/truncation flags and only a recognized fixed gateway error
+code. At most 4 KiB plus a truncation byte is read; no body text, arbitrary headers,
+unknown error strings, credentials or exception messages enter the receipt.
+Diagnostic read failure cannot replace the original usage/HTTP stop, and no body
+read starts after the deadline. The existing owned-child deadline still bounds a
+slow body. No extra request or retry is introduced. A recognized code is only a
+hint, not proof of which service generated it. These diagnostics cannot recover
+the discarded response from the original 403 or change its unknown cause.
+[Local evidence](evidence/scene-recovery-diagnostics-20261014.json) records 14 passing
+Python checks, including synthetic refusals/privacy/truncation and an actual hidden
+offline owned child. No hosted request or direct-D1 check was run for this change;
+the separate pending direct-D1 scope and its pinned JavaScript packet are unchanged.
+
 ## Recover saved work, without resubmitting
 
 The [offline preparer](../community/scene_receipt_recovery.py) opens the sealed
