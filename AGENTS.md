@@ -52,8 +52,18 @@ succeeded. [Supplemental evidence](docs/evidence/scene-receipt-maintenance-20261
 preserves this failure and the original incomplete trial. The approved no-retry
 attempt has ended; do not redeploy/retry from that consent or repeat the indexes.
 The local launcher fix passes an actual windowless offline owned-child check.
-A separately scoped readback-only activation is prepared, not authorized. No
-assignment, inference, upload, renewal, task restart or online search is included.
+The laptop user then directly answered **"Approve one corrected readback-only
+attempt"**. That attempt deployed the same pinned gateway and launched the fixed
+client. Its first request returned HTTP 403 without usage information; the client
+stopped and sent no second request. The cause and database read usage are unknown.
+Exact prior closed staging was restored and independently verified again.
+[Evidence](docs/evidence/scene-receipt-readback-20261014.json) preserves the refusal.
+This no-retry scope is consumed; no further gateway attempt is authorized.
+The [direct D1 operator readback](docs/SCENE_RECEIPT_OPERATOR.md) is prepared locally
+and requires a separately resolved direct-user scope. It reuses the same SELECT/
+validator, not another gateway or a weaker admission writer. No deployment, index
+maintenance, R2 access, assignment, inference, upload, renewal, task restart or
+online search is included. Do not use Wrangler file import for this read-only path.
 
 Native cloud allowances stay zero; native endpoints/previews/crons and general
 recurring jobs stay disabled. This exception does not authorize fresh qualification

@@ -29,8 +29,11 @@ the original unique award and current balance without inference, uploads or cred
 rotation. The approved gateway deployment succeeded, but its local supervisor failed
 before sending any receipt requests. Exact closed staging was restored and independently
 verified. The missing child environment is fixed and 11 targeted Python checks pass,
-including an actual offline owned child. The no-retry attempt ended; a separately
-bounded readback-only activation needs new approval, not repeated indexes.
+including an actual offline owned child. A separately approved corrected attempt
+then received one HTTP 403 without usage metadata; it stopped before the second
+request and independently verified exact closed restoration again. Both no-retry
+scopes ended. The [direct D1 readback](SCENE_RECEIPT_OPERATOR.md) now reuses the
+existing validator without deployment; its separate scope remains unresolved.
 No live receipt reconciliation is claimed; the original trial remains incomplete.
 
 **Latest decision:** implement the [approved hybrid mode](HYBRID_LAUNCH_DECISION_20261013.md):
