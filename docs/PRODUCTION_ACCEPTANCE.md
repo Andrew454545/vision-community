@@ -19,7 +19,10 @@ is prepared against the real saved output. Direct-human-approved lookup maintena
 is complete; the private gateway deployment was restored after a local launcher
 failure before any receipt request. The launcher fix passes an actual offline
 owned-child regression. Current database award/balance readback remains unexecuted;
-the no-retry attempt ended. This does not complete the hybrid release gates.
+the no-retry attempt ended. A separately approved corrected gateway attempt then
+stopped on its first HTTP 403 with unknown usage, and exact closure was verified
+again. The [direct D1 operator check](SCENE_RECEIPT_OPERATOR.md) is prepared locally,
+not executed or authorized. This does not complete the hybrid release gates.
 The trusted
 contribution gate requires real numerical device qualification and qualified
 admission with integrity/eligibility/once-only credit; it no longer requires

@@ -24,6 +24,16 @@ targeted Python checks (11 total, zero skips). The new regression failed before
 the fix. This is not a hosted readback or a renewed platform qualification.
 The no-retry operational attempt has ended; it was not silently repeated.
 
+The user separately approved **one corrected readback-only attempt**. The fixed
+client launched, but its first request returned HTTP 403 without usage headers.
+It stopped immediately; no second request ran. The cause and database reads are
+unknown, not inferred from the receipt's zero initialized usage counters. Exact
+closed configuration/snapshot/subdomain/schedules were restored and independently
+verified again. The original failures remain unchanged. That new no-retry scope
+is also consumed. [Direct read-only D1 reconciliation](SCENE_RECEIPT_OPERATOR.md)
+is now prepared as a separate operator path requiring its own approval; it opens
+no gateway and reuses the existing receipt/schema/authority validator.
+
 ## Recover saved work, without resubmitting
 
 The [offline preparer](../community/scene_receipt_recovery.py) opens the sealed
@@ -111,9 +121,9 @@ observed row metadata is not an invoice measurement. No recurring processing,
 provider/model test, cloud-native compute/search, new account/resource/plan,
 public rollout or Actions run occurred.
 
-## Prepared follow-up: readback only — new approval required
+## Corrected gateway follow-up — approved, refused, closed
 
-The three indexes need no repeat. After a new precise approval, inspect only
+The three indexes needed no repeat. The separate precise approval permitted only
 the same staging settings/subdomain/schedules and require equality with its
 independently verified closed baseline. Pin the unchanged `737d585` gateway and
 the reviewed launcher fix, a new private credential and at most 20-minute expiry.
@@ -123,7 +133,10 @@ with zero database writes, R2 access, credential rotation or retries. Restore in
 `finally` and independently verify exact prior closed configuration and current
 snapshot. One operation may cross the observed read stop; it is not an invoice cap.
 No index statements, inference, indexing, uploads, search, website update, new
-qualification, new resources or background tasks are part of this follow-up.
+qualification, new resources or background tasks were part of this follow-up.
+The first HTTP refusal ended this attempt; the paragraph above preserves its result.
+Use the separately prepared [direct operator plan](SCENE_RECEIPT_OPERATOR.md) as the
+next proposal, not permission to repeat gateway deployment or requests.
 
 After current receipt recovery, finish automatic contributed-Scene snapshot refresh
 and a separately bounded genuinely earned online search/paid-result replay. Existing

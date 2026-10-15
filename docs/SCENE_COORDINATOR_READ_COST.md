@@ -105,8 +105,10 @@ The single hosted-trial consent is consumed. [Recovery is now prepared](SCENE_AC
 from the real sealed local delivery and saved native files, with a read-only private
 route checked locally. The approved maintenance/recovery attempt then stopped on
 a local launcher failure before any receipt request. Its fix is checked with an
-actual offline owned child; readback-only activation still needs new scope, with
-current configuration/financial authority preserved and mandatory closure. Do not raise the
+actual offline owned child. A separately approved corrected attempt stopped on its
+first HTTP 403 without usage metadata; exact closed staging was verified again.
+The [direct D1 operator path](SCENE_RECEIPT_OPERATOR.md) is now prepared without
+deployment; its distinct scope remains unresolved. Do not raise the
 old threshold, take another assignment or renew qualification from these fixtures.
 Automatic contributor-only snapshot refresh and genuinely earned online search,
 trusted Windows/Mac installation, measured provider costs/recovery and endurance
