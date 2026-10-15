@@ -88,9 +88,9 @@ packets. Do not distribute a private catalog without its applicable consent.
 ## Maintainer preparation
 
 `community/local_scene_runtime.json` pins only Scene files. Windows uses the actual
-CPU1 binary from the recorded Windows cohort (`6ce8f5Ã¢â‚¬Â¦91ba`) and its DLLs; the
+CPU1 binary from the recorded Windows cohort (`6ce8f5ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦91ba`) and its DLLs; the
 canonical four model files are unchanged. The Mac pin currently retains the
-previously published `be0d98Ã¢â‚¬Â¦19f2` binary. Its execution of the new pilot path and
+previously published `be0d98ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦19f2` binary. Its execution of the new pilot path and
 explicit fp32/CPU1 messages must be confirmed on Mac before invitation; a missing
 execution marker fails closed and does not make an approved result.
 
@@ -153,3 +153,10 @@ The portable backup checks and existing Mac artifact retrieval are recorded in
 include an actual authenticated localhost ZIP download; two offline browser-script
 flows cover saving and refusal. All indexed test output is synthetic. The retained
 Mac build was downloaded and hashed, not rebuilt or executed on this Windows PC.
+
+Both unsigned preview kits were built from clean `d3c467a` and their full ZIP
+inventories were checked locally. The Windows native package self-check passed;
+its packaged backup code also ran under the cached private Python 3.14.7 against
+two synthetic completed records. The Mac archive has executable launchers and
+the corrected native binary, but has not been run on this PC. See the
+[kit hashes and limits](evidence/local-scene-results-kits-20261015.json).
