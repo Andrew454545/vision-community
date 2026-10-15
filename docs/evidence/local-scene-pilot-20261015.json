@@ -54,7 +54,8 @@
   },
   "preservedFailures": [
     "first local HTTP fixture blocked by sandbox WinError10013; exact changed loopback checks passed outside sandbox",
-    "existing model hardlink blocked by sandbox WinError5; approved local hardlink/hash/layout preflight passed without another model copy"
+    "existing model hardlink blocked by sandbox WinError5; approved local hardlink/hash/layout preflight passed without another model copy",
+    "initial kit command used parent-traversal relative paths rejected by regular-path guard; absolute-path clean build succeeded; failed log preserved"
   ],
   "operationalEffects": {
     "cloudCalls": 0,
@@ -70,5 +71,26 @@
     "intervalHours": 1,
     "priority": "local-only Scenes"
   },
-  "futureAdmission": "Local provisional results; no pool membership, credit or authentic inference claimed from fixtures"
+  "futureAdmission": "Local provisional results; no pool membership, credit or authentic inference claimed from fixtures",
+  "windowsMaintainerKit": {
+    "sourceRevision": "c458155efbc7d733377ad120c637343bd0b4c4b0",
+    "sourceWorktreeDirty": false,
+    "platform": "windows-x86_64",
+    "inventorySha256": "56a24f86dced0287650d1c5994ed13617577d56d6b1faf4ac75064a43ddb48a9",
+    "sha256": "d9dcd0c853d891abd487db1fd723b2791243b631ec867ee324d23e74251eb936",
+    "artifact": "VISION-Local-Scenes-windows-x86_64-MAINTAINER.zip",
+    "modelFilesBundled": false,
+    "packetsBundled": false,
+    "publicDistributionReady": false,
+    "signed": false,
+    "cloudCalls": 0,
+    "actionsRuns": 0,
+    "archiveInventoryVerified": true,
+    "bytes": 23172891,
+    "cachedExistingModelSetupVerified": true,
+    "existingWindowsProfileSha256": "de1ed392dfebd25a1a4e6d08d59fdeeabee9bed9a26015978f1fee50e8f64a86",
+    "isolatedPrivateSnapshotImportsVerified": true,
+    "freshParticipantInstall": false,
+    "freshPilotInference": false
+  }
 }
