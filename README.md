@@ -1,34 +1,46 @@
 # VISION Community
 
-Process Street View locations on your computer. Accepted contributions earn
-credits for visual searches.
+Process Street View locations on your own computer and keep the results locally.
+The **invited Local Scenes preview** is available for Windows PCs and
+Apple-silicon Macs. No account, subscription, global Python installation or
+administrator password is needed.
 
-**Invited to process Scenes locally?** [Start here](LOCAL-SCENES-START-HERE.md). Your kit checks the computer first; after owner approval it can run a separate personal queue with day/night speeds and saved progress. Results stay local. [Maintainer preparation and current limits](docs/LOCAL_SCENE_PILOT.md). [Download the unsigned invited preview](https://github.com/Andrew454545/vision-community/releases/tag/local-scenes-preview-20261015). [Prompt for a friend’s Windows Codex](PC-CODEX-PROMPT.md). The first invited runs provide Windows setup feedback; Google must permit live imagery access on each connection.
+## Start here
 
-**The hosted contribution service and online search are paused.** Please wait before downloading,
-setting up or restarting VISION. Download links will return when the service is
-ready. [Current guidance](START-HERE.md).
+1. [Download the Local Scenes preview](https://github.com/Andrew454545/vision-community/releases/tag/local-scenes-preview-20261015).
+   Choose the ZIP for Windows x64 or Apple-silicon Mac and extract all its files.
+2. Windows: open **VISION Local Scenes.exe**. Mac: open **Start Local Scenes.command**.
+3. Choose **Check this computer**, accept setup downloads, then choose **Start / Resume**.
+4. When the checks finish, choose **Save results**. Send that ZIP privately to the
+   maintainer, who reviews it and sends your personal queue.
+5. Open your personal queue and choose your day and night speeds. A tiny live
+   trial comes first; after it succeeds, the maintainer can issue up to five
+   million separate locations for this computer.
 
-## Already have VISION?
+[Full simple instructions](https://github.com/Andrew454545/vision-community/releases/download/local-scenes-preview-20261015/START-HERE.md)
+· [Prompt for a friend's Windows Codex](https://github.com/Andrew454545/vision-community/releases/download/local-scenes-preview-20261015/PC-CODEX-PROMPT.md)
 
-Keep your VISION folder and private account code. If automatic processing is
-still running, choose **Pause after batch** and leave it paused. Saved work and
-previously earned credits are being preserved; you do not need to reinstall.
+Work saves locally and resumes after interruptions. You can opt into automatic
+resume when you sign in. Choose **Pause** to keep it paused. Each person's queue
+is separate; do not share it or post private check reports on GitHub.
 
-## When the service opens
+This is an unsigned invited preview. Its first Windows run supplies actual
+Windows feedback. Google must permit live imagery access on your connection;
+the app stops if access is refused. See the release notes for checksums and
+current limits. Do not disable computer security to run it. Your own electricity,
+internet and storage are used; five million locations need about15.4 GB for
+vectors alone, plus setup, metadata and backups.
 
-The release is intended for Windows PCs and Apple-silicon Macs, with **Scenes**,
-**Objects** or **Both**. Setup will guide you through installation, saving your
-account code and checking your computer before processing.
+## What comes next
 
-Automatic processing supports daytime and nighttime speeds. The default is
-**Medium during the day** and **Maximum from midnight to 6 am**. A sleeping or
-switched-off computer cannot process; recovery resumes saved work when it is
-awake, signed in and online.
+Local searching, metadata filters, importing contributions into the owner's
+VISION library, MMA connections and Objects follow in
+[the next-phase outline](https://github.com/Andrew454545/vision-community/releases/download/local-scenes-preview-20261015/NEXT-PHASE.md).
 
-Each accepted Scene location earns **1 unit**; an accepted Object location earns
-**10 units**. Unused credits stay saved. The account shows the search price before
-you confirm. Keep your account code private; lost codes cannot be recovered.
+**The older hosted contribution service, uploads, credits and online search
+remain closed.** Keep old VISION folders, saved work and private account codes.
+Leave older automatic-processing jobs paused. The local preview does not upload
+results or earn credits.
 
-[How locations are allocated](docs/CONTRIBUTOR_POOL.md) Â·
-[Developer guide](docs/DEVELOPER_GUIDE.md) Â· [Contributing](CONTRIBUTING.md)
+[Developer guide](https://github.com/Andrew454545/vision-community/blob/codex/windows-production-readiness/docs/DEVELOPER_GUIDE.md)
+· [Contributing](CONTRIBUTING.md)
