@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "scope": "INVITED_LOCAL_SCENE_OPERATIONAL_HANDOFF",
+  "inventory": {
+    "imported": 5500000,
+    "available": 5499105,
+    "sourceShards": 11,
+    "ownerIndexedAndReservedExcluded": true,
+    "cloudCallsForPreparation": 0
+  },
+  "ownerIntake": {
+    "scope": "REAL_SAVED_CHECK_RECORDS_AND_SYNTHETIC_SOURCE_DELIVERY",
+    "reviewedThreads": [
+      1,
+      2,
+      4
+    ],
+    "assignedLocations": 2,
+    "repackedReportReusedSameAllocation": true,
+    "nativeInferenceRuns": 0,
+    "liveImageryRequests": 0,
+    "cloudCalls": 0
+  },
+  "checks": {
+    "focusedNewChecks": 3,
+    "newBroadSuitesRun": 0,
+    "existing108CheckEvidenceReused": true,
+    "headlessEntryReusedPreviouslyQualifiedReports": true,
+    "newNumericalMatricesRun": 0
+  },
+  "liveTrial": {
+    "locationsReserved": 2,
+    "completed": 0,
+    "status": "GOOGLE_REFUSED_THIS_CONNECTION",
+    "observedFetchRefusalsBeforeNewStopGuard": 24,
+    "inferenceErrorsObserved": 0,
+    "diagnosticGetRequests": 1,
+    "providerMessage": "Computer or network may be sending automated queries; request cannot be processed right now.",
+    "initialControllerIdentityCopyRacePreserved": true,
+    "noProviderBypassAttempted": true,
+    "noCompletedWorkFabricated": true
+  },
+  "newBehavior": [
+    "Owner review/queue delivery in one command",
+    "Stable allocation identity across re-zipped check results",
+    "No-desktop-control Windows computer check with private Python setup",
+    "First-run Check this computer selected automatically",
+    "Whole campaign stops on provider403/429 instead of continuing through the allocation"
+  ],
+  "oldIndexingJobsRestarted": false,
+  "cloudflareOrR2Requests": 0,
+  "actionsRuns": 0,
+  "windowsWrapperExecutionClaimed": false,
+  "publicProductionApproval": false
+}

@@ -1,5 +1,17 @@
 # Development constraints
 
+## Owner delivery priority (15 October continuation)
+
+The owner asked to finish operational slices aggressively, with minimal focused
+checks and iteration after first use. Do not repeat broad suites or model matrices
+for each small feature. Keep the existing numerical qualification, exclusions,
+privacy and honest evidence. First invited use supplies actual Windows feedback;
+separate full clean-device/endurance audits must not block this invited preview.
+This does not lift the Cloudflare/Actions spending hold, authorize old job restarts,
+make an unsigned kit signed, or override an imagery-provider refusal. Stop the
+campaign on provider403/429; never rotate routes or evade a denied connection.
+See docs/LOCAL_APP_NEXT_PHASE.md for the next local-application slices.
+
 ## Immediate priority: invited local-only Scene processing (15 October 2026)
 
 The latest human instruction prioritizes a small Windows/Apple-silicon Mac group

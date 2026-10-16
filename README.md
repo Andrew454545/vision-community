@@ -3,7 +3,7 @@
 Process Street View locations on your computer. Accepted contributions earn
 credits for visual searches.
 
-**Invited to process Scenes locally?** [Start here](LOCAL-SCENES-START-HERE.md). Your kit checks the computer first; after owner approval it can run a separate personal queue with day/night speeds and saved progress. Results stay local. [Maintainer preparation and current limits](docs/LOCAL_SCENE_PILOT.md). Kits remain unsigned previews; actual Windows execution of the new path and fresh-device setup are still required.
+**Invited to process Scenes locally?** [Start here](LOCAL-SCENES-START-HERE.md). Your kit checks the computer first; after owner approval it can run a separate personal queue with day/night speeds and saved progress. Results stay local. [Maintainer preparation and current limits](docs/LOCAL_SCENE_PILOT.md). [Download the unsigned invited preview](https://github.com/Andrew454545/vision-community/releases/tag/local-scenes-preview-20261015). [Prompt for a friend’s Windows Codex](PC-CODEX-PROMPT.md). The first invited runs provide Windows setup feedback; Google must permit live imagery access on each connection.
 
 **The hosted contribution service and online search are paused.** Please wait before downloading,
 setting up or restarting VISION. Download links will return when the service is

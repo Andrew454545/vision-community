@@ -115,7 +115,7 @@ def campaign_packet(folder, manifest, index):
     return path
 
 
-def allocate_campaign(registry, participant, count, allocation_id, approvals, destination):
+def allocate_campaign(registry, participant, count, allocation_id, approvals, destination=None):
     """Commit all reservations before writing any packet. A failed delivery is retained."""
     if (not re.fullmatch('[A-Za-z0-9_-]{1,48}', participant)
             or not re.fullmatch('[A-Za-z0-9_-]{1,80}', allocation_id)
@@ -189,6 +189,8 @@ def allocate_campaign(registry, participant, count, allocation_id, approvals, de
             db.execute('INSERT INTO campaigns VALUES(?,?,?,?)',
                        (allocation_id, participant, count, canonical(manifest).decode()))
         db.commit()
+        if destination is None:
+            return manifest  # Durable reservation; stream a portable delivery separately.
         destination = regular(destination, directory=True, missing=True)
         destination.mkdir(parents=True, exist_ok=True)
         for number, entry in enumerate(manifest['packets']):
@@ -202,6 +204,50 @@ def allocate_campaign(registry, participant, count, allocation_id, approvals, de
         raise
     finally:
         db.close()
+
+
+def export_campaign_zip(registry, allocation_id, destination):
+    """Stream retained packets into one delivery ZIP, without an unpacked duplicate."""
+    import os
+    import tempfile
+    import zipfile
+    destination = regular(destination, missing=True)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    with campaign_connection(registry) as db:
+        row = db.execute('SELECT body FROM campaigns WHERE id=?', (allocation_id,)).fetchone()
+        if not row:
+            raise ValueError('unknown_campaign')
+        manifest = validate_manifest(json.loads(row[0]))
+        with tempfile.TemporaryDirectory(prefix='.scene-delivery-', dir=destination.parent) as temporary:
+            pending = Path(temporary) / 'queue.zip'
+            with zipfile.ZipFile(pending, 'x', compression=zipfile.ZIP_DEFLATED, compresslevel=3) as archive:
+                def write(name, body):
+                    info = zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0))
+                    info.compress_type = zipfile.ZIP_DEFLATED
+                    info.external_attr = 0o100600 << 16
+                    archive.writestr(info, body)
+                write('campaign.json', canonical(manifest) + b'\n')
+                write('START-HERE.txt', b'Extract this whole folder. Open VISION Local Scenes and choose campaign.json.\nKeep the packets folder together with it. Nothing starts until you choose Start.\n')
+                for number, entry in enumerate(manifest['packets']):
+                    saved = db.execute('SELECT body FROM packets WHERE allocation=?',
+                                       (f'{allocation_id}:{number}',)).fetchone()
+                    if not saved:
+                        raise ValueError('retained_campaign_packet_missing')
+                    body = saved[0].encode('utf-8') + b'\n'
+                    if hashlib.sha256(body).hexdigest() != entry['sha256']:
+                        raise ValueError('retained_campaign_packet_changed')
+                    write(entry['path'], body)
+            with pending.open('rb') as stream:
+                checksum = hashlib.file_digest(stream, 'sha256').hexdigest()
+            size = pending.stat().st_size
+            if destination.exists():
+                with regular(destination).open('rb') as stream:
+                    if hashlib.file_digest(stream, 'sha256').hexdigest() != checksum:
+                        raise ValueError('campaign_delivery_conflict')
+            else:
+                os.link(pending, destination)
+    return {'path': str(destination), 'bytes': size, 'sha256': checksum,
+            'campaignId': allocation_id, 'locations': manifest['locations']}
 
 
 def main():

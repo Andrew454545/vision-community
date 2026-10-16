@@ -252,6 +252,18 @@ class LocalSceneCampaign:
                             break
                     pilot.close()
                     state = pilot.status()
+                    if state.get('errorCode') in ('imagery_access_denied', 'imagery_rate_limited'):
+                        # A provider refusal applies to the connection, not just
+                        # this panorama. Stop instead of marching through the
+                        # whole allocation and repeatedly requesting denied data.
+                        self.current = None
+                        with self.guard:
+                            self.settings['enabled'] = False
+                            self._save_settings()
+                            self.phase = 'imagery_unavailable'
+                            self.message = ('Google refused or limited imagery access on this connection. '
+                                'Processing is stopped and your queue is saved. Resume after normal imagery access is available.')
+                        return
                     if state['phase'] == 'complete':
                         with self._db() as db:
                             changed = db.execute('UPDATE work SET status="complete",profile=?,error=NULL WHERE ordinal=? AND status!="complete"',
