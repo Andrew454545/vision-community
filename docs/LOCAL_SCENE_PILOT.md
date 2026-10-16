@@ -2,8 +2,9 @@
 
 The immediate milestone is 3–4 invited Windows x64 and Apple-silicon Mac users
 processing Scenes locally. [Participant instructions](../LOCAL-SCENES-START-HERE.md)
-are included in each kit. Objects, local search/MMA connections, credits, automatic
-sharing and the hosted service remain deferred. Existing paused jobs stay paused.
+are included in each kit. Local Scene library/search and MMA-compatible map export
+are now available. Objects, direct MMA connections, credits, automatic sharing and
+the hosted service remain deferred. Existing paused jobs stay paused.
 
 ## Participant flow
 
