@@ -50,10 +50,29 @@ that whole folder to the maintainer using your agreed private transfer method.
 For the compatibility check or a small legacy packet, a ZIP goes to your browser downloads.
 Nothing is uploaded automatically. Keep the original saved-work folder to resume.
 
+## Search your saved Scenes
+
+Open the launcher and choose **My library**. You can also switch to **My library**
+in the processing window. Finished groups are added automatically; **Refresh library**
+recovers completed work if an earlier version or interruption missed it.
+
+Pause processing before searching. Describe what you want, optionally choose a
+country, generation or camera direction, then choose **Search my Scenes**.
+Text searches run on this computer using your saved indexes. The first search
+prepares searchable segments and needs additional disk space, roughly another
+15.4 GB for five million locations. Later searches reuse unchanged segments.
+
+Choose **Open Street View** to inspect a result, or **Save results as a map** to
+download an MMA-compatible JSON map. Under **Use a Street View example**, you
+can supply a panorama and camera pose, or choose **Use as example** on a result.
+Reference-example searches retrieve imagery from Google; text searches do not.
+If Google refuses access, use text search or wait for normal access on that
+connection. Uploading an arbitrary photo and direct MMA connections come later.
+
 This invited preview is unsigned. If your computer refuses it, stop and ask the
 maintainer for trusted installation help. Do not disable security settings.
 The app is free; your electricity, internet data and storage are still used.
-Local searching, Objects and automatic sharing are planned for later.
+Objects and automatic sharing are planned for later.
 
 If Google refuses imagery access, the app stops and keeps your queue. Resume
 only after imagery access works normally on that connection. The computer check

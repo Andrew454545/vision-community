@@ -127,7 +127,8 @@ def handler_for(app, token):
             self.send_header('Content-Type', mime)
             self.send_header('Content-Length', str(len(body)))
             if download:
-                self.send_header('Content-Disposition', 'attachment; filename="VISION-Scene-results.zip"')
+                filename = 'VISION-search-results.json' if download == 'map' else 'VISION-Scene-results.zip'
+                self.send_header('Content-Disposition', 'attachment; filename="'+filename+'"')
             self.send_header('Cache-Control', 'no-store')
             self.send_header('X-Content-Type-Options', 'nosniff')
             self.send_header('Referrer-Policy', 'no-referrer')
@@ -145,13 +146,47 @@ def handler_for(app, token):
 
         def do_GET(self):
             if self.path == '/' and self.headers.get('Host') == f'127.0.0.1:{self.server.server_port}':
-                self.send(200, PAGE.replace('NONCE', nonce).encode(), 'text/html; charset=utf-8')
+                from community.local_scene_library_ui import page_with_library
+                self.send(200, page_with_library(PAGE).replace('NONCE', nonce).encode(), 'text/html; charset=utf-8')
             elif self.path == '/api/status' and self.allowed():
-                self.send(200, app.status())
+                self.send(200, {**app.status(),'libraryAvailable':getattr(app,'library_session',None) is not None})
+            elif self.path in ('/api/library','/api/library/map') and self.allowed():
+                session = getattr(app,'library_session',None)
+                if session is None:
+                    self.send(404,{'error':'library_unavailable'})
+                elif self.path == '/api/library':
+                    self.send(200,session.status())
+                else:
+                    with session.guard:
+                        document = (session.result or {}).get('map')
+                        if document:
+                            self.send(200,document,download='map')
+                        else:
+                            self.send(409,{'error':'library_results_missing'})
             else:
                 self.send(403, {'error': 'local_access_denied'})
 
         def do_POST(self):
+            if self.path in ('/api/library/refresh','/api/library/search'):
+                if not self.allowed(action=True) or self.headers.get('Transfer-Encoding') is not None:
+                    self.send(403,{'error':'local_access_denied'})
+                    self.close_connection = True
+                    return
+                try:
+                    length = int(self.headers.get('Content-Length','0'))
+                    if not 0 < length <= 32*1024:
+                        raise ValueError('invalid_library_request')
+                    value = json.loads(self.rfile.read(length))
+                    session = getattr(app,'library_session',None)
+                    if session is None or not isinstance(value,dict) or (self.path.endswith('/refresh') and value):
+                        raise ValueError('invalid_library_request')
+                    session.begin(value if self.path.endswith('/search') else None)
+                    self.send(202,{'ok':True})
+                except Exception as error:
+                    code = str(error) if str(error) in ('pause_processing_before_search','library_busy') else 'library_action_failed'
+                    self.send(409,{'error':code})
+                self.close_connection = True
+                return
             if self.path in ('/api/settings', '/api/startup'):
                 if not self.allowed(action=True) or self.headers.get('Transfer-Encoding') is not None:
                     self.send(403, {'error':'local_access_denied'})
@@ -197,6 +232,9 @@ def handler_for(app, token):
                     self.send(200, path.read_bytes(), 'application/zip', download=True)
                     return
                 if self.path == '/api/start':
+                    session = getattr(app,'library_session',None)
+                    if session and session.thread and session.thread.is_alive():
+                        raise ValueError('library_busy')
                     app.start()
                 else:
                     app.pause()
@@ -249,7 +287,9 @@ def main():
     if args.check_only:
         from community.local_scene_packets import load_packet
         candidate=json.loads(args.packet.read_text())
-        if candidate.get('contract') == 'vision-local-scene-campaign-v1':
+        if candidate == {'contract':'vision-local-scene-library-v1'}:
+            count = 0
+        elif candidate.get('contract') == 'vision-local-scene-campaign-v1':
             from community.local_scene_campaign import load_manifest
             candidate=load_manifest(args.packet)
             count=candidate['locations']
@@ -261,7 +301,10 @@ def main():
         print(json.dumps({'ok':True,'locations':count,'localOnly':True}))
         return
     candidate=json.loads(args.packet.read_text())
-    if candidate.get('contract') == 'vision-local-scene-campaign-v1':
+    if candidate == {'contract':'vision-local-scene-library-v1'}:
+        from community.local_scene_library_ui import LibraryWindow
+        app = LibraryWindow(args.data_dir,args.runtime_root)
+    elif candidate.get('contract') == 'vision-local-scene-campaign-v1':
         from community.local_scene_unattended import LocalSceneCampaign
         app=LocalSceneCampaign(args.packet, args.data_dir, args.runtime_root)
     elif candidate.get('contract') == 'vision-local-scene-readiness-v1':
@@ -273,6 +316,9 @@ def main():
         return
     if args.reopen_only:
         raise RuntimeError('local_pilot_window_unavailable')
+    if not hasattr(app,'setup'):
+        from community.local_scene_library_ui import LibrarySession
+        app.library_session = LibrarySession(app,args.data_dir)
     token = secrets.token_hex(32)
     from community.background import single_instance
     window_root=regular(app.root/'window-owner',directory=True,missing=True)
@@ -295,6 +341,9 @@ def main():
         pass
     finally:
         server.server_close()
+        session = getattr(app,'library_session',None)
+        if session:
+            session.close()
         app.close()
         window_guard.__exit__(None,None,None)
 

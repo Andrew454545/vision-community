@@ -277,6 +277,9 @@ class LocalScenePilot:
                         atomic_json(folder/'complete.json', receipt)
                         with self.guard:
                             self._refresh_completed()
+                        callback = getattr(self,'on_completed_pilot',None)
+                        if callback:
+                            callback(self.root)
                 with self.guard:
                     if self.completed == len(self.packet['rows']):
                         atomic_json(self.root/'result.json', {'contract': 'vision-local-scene-result-v1',

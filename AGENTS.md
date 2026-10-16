@@ -1,5 +1,15 @@
 # Development constraints
 
+## Local library delivery (15 October continuation)
+
+The invited local path now includes My library, native text/reference-pose Scene
+search, recorded country/generation/direction filters, MMA-compatible JSON export
+and assignment-checked private owner import. See docs/LOCAL_SCENE_LIBRARY.md.
+The core indexing pipeline/model qualification is unchanged. Reuse that evidence;
+do not repeat broad qualification matrices for these UI/import changes. Selectable
+storage, actual owner-catalog registration, direct MMA and Objects remain next.
+No cloud activation or provider-refusal workaround follows from local search.
+
 ## Owner delivery priority (15 October continuation)
 
 The owner asked to finish operational slices aggressively, with minimal focused

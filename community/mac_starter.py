@@ -17,10 +17,10 @@ MODULES = ('__init__ admin all_locations_full all_locations_tail background boot
     'contribute delivery desktop features four_view indexed_local local_search measure mma mma_cloud '
     'object_index object_features object_canary pano parts pc_canary prompt rank scene_pipeline scene_quality search mac_launch_agent mac_launch_guard mac_starter mac_runtime mac_worker mac_background mac_background_control '
     'mac_remove seal_index segments send_mma server service source store submission_outbox verify '
-    'local_scene_qualification local_scene_campaign local_scene_unattended local_scene_startup local_scene_readiness local_scene_supervisor local_scene_check '
+    'local_scene_qualification local_scene_campaign local_scene_unattended local_scene_startup local_scene_readiness local_scene_supervisor local_scene_check local_scene_library local_scene_library_ui '
     'vision_handoff vision_index process_owner work_plan worker windows_worker local_scene_packets local_scene_pilot local_scene_ui local_scene_setup local_scene_archive').split()
 FILES = tuple('community/'+name+'.py' for name in MODULES) + (
-    'community/runtime_manifest.json', 'community/local_scene_runtime.json', 'community/country-names.txt',
+    'community/runtime_manifest.json', 'community/local_scene_runtime.json', 'community/local_scene_library.json', 'community/country-names.txt',
     'community/desktop_web/index.html', 'community/desktop_web/style.css', 'community/desktop_web/app.js',
     'calibration/run_windows.py', 'calibration/quality.py', 'calibration/synthetic_canary.py',
     'community/background_web/index.html', 'community/background_web/style.css', 'community/background_web/app.js',

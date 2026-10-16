@@ -270,6 +270,9 @@ class LocalSceneCampaign:
                                                  (profile['sha256'], i)).rowcount
                             if changed:
                                 db.execute('UPDATE totals SET completed=completed+? WHERE id=1', (count,))
+                        callback = getattr(self,'on_completed_pilot',None)
+                        if callback:
+                            callback(pilot.root)
                     elif not self.stop.is_set():
                         failures += 1
                         with self._db() as db:
