@@ -1,35 +1,46 @@
 # VISION Community
 
-Process Street View locations on your computer. Accepted contributions earn
-credits for visual searches.
+Process Street View locations on your own computer and keep the results locally.
+The **invited Local Scenes preview** is available for Windows PCs and
+Apple-silicon Macs. No account, subscription, global Python installation or
+administrator password is needed.
 
-Processing and online search are currently closed.
-The current download is a **Windows Scenes preview**. The public release will
-also offer Mac, Objects and Both when those options are ready.
+## Start here
 
-## Get started on Windows
+1. [Download the Local Scenes preview](https://github.com/Andrew454545/vision-community/releases/tag/local-scenes-preview-20261015).
+   Choose the ZIP for Windows x64 or Apple-silicon Mac and extract all its files.
+2. Windows: open **VISION Local Scenes.exe**. Mac: open **Start Local Scenes.command**.
+3. Choose **Check this computer**, accept setup downloads, then choose **Start / Resume**.
+4. When the checks finish, choose **Save results**. Send that ZIP privately to the
+   maintainer, who reviews it and sends your personal queue.
+5. Open your personal queue and choose your day and night speeds. A tiny live
+   trial comes first; after it succeeds, the maintainer can issue up to five
+   million separate locations for this computer.
 
-1. [Download VISION](https://github.com/Andrew454545/vision-community/releases/download/windows-starter-preview-20261004-recovery/VISION-Community-Windows.zip).
-2. Right-click the ZIP → **Extract All**. Open **VISION Community** → **Start VISION.cmd**.
-3. Type **Y** and press **Enter** when asked. Follow the four steps in VISION.
+[Full simple instructions](https://github.com/Andrew454545/vision-community/releases/download/local-scenes-preview-20261015/START-HERE.md)
+· [Prompt for a friend's Windows Codex](https://github.com/Andrew454545/vision-community/releases/download/local-scenes-preview-20261015/PC-CODEX-PROMPT.md)
 
-For Intel or AMD Windows PCs. No Python, Git or administrator password needed.
+Work saves locally and resumes after interruptions. You can opt into automatic
+resume when you sign in. Choose **Pause** to keep it paused. Each person's queue
+is separate; do not share it or post private check reports on GitHub.
 
-[Setup guide](START-HERE.md) · The download includes **START HERE.html**.
+This is an unsigned invited preview. Its first Windows run supplies actual
+Windows feedback. Google must permit live imagery access on your connection;
+the app stops if access is refused. See the release notes for checksums and
+current limits. Do not disable computer security to run it. Your own electricity,
+internet and storage are used; five million locations need about15.4 GB for
+vectors alone, plus setup, metadata and backups.
 
-## Automatic processing
+## What comes next
 
-Open **Background VISION.cmd**, enter your saved account code and choose your
-daytime and nighttime speeds. Select **Save and enable**.
+Local searching, metadata filters, importing contributions into the owner's
+VISION library, MMA connections and Objects follow in
+[the next-phase outline](https://github.com/Andrew454545/vision-community/releases/download/local-scenes-preview-20261015/NEXT-PHASE.md).
 
-[Automatic processing guide](START-HERE.md#automatic-processing)
+**The older hosted contribution service, uploads, credits and online search
+remain closed.** Keep old VISION folders, saved work and private account codes.
+Leave older automatic-processing jobs paused. The local preview does not upload
+results or earn credits.
 
-## Search credits
-
-Each accepted Scene location earns **1 unit**; an accepted Object location earns
-**10 units**. A search costs **100,000 units**.
-Unused credits stay saved. Keep your account code private; lost codes cannot be recovered.
-
-[Open the website](https://vision-community.visioncommunity.workers.dev) ·
-[Developer guide](https://github.com/Andrew454545/vision-community/blob/codex/windows-production-readiness/docs/DEVELOPER_GUIDE.md) ·
-[Contributing](CONTRIBUTING.md)
+[Developer guide](https://github.com/Andrew454545/vision-community/blob/codex/windows-production-readiness/docs/DEVELOPER_GUIDE.md)
+· [Contributing](CONTRIBUTING.md)
