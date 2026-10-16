@@ -103,6 +103,27 @@ static class LocalScenes {
         return Run(Child(python,snapshot,root,"local_scene_ui.py","--packet "+Package.Quote(packet)+" --data-dir "+
             Package.Quote(Path.Combine(root,"results"))+" --runtime-root "+Package.Quote(Path.Combine(root,"runtime"))+" --reopen-only"),root,"reopen-window",15);
     }
+    public static int CheckComputer() {
+        var root=Root;
+        Starter.Architecture();Package.Verify(Package.Project);Package.Plain(root);Directory.CreateDirectory(root);
+        var packet=Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),"Readiness","Check this computer.json");
+        Package.Plain(packet);
+        if(!File.Exists(packet))throw new IOException("readiness_files_missing");
+        var lockPath=Path.Combine(root,"launcher.lock");Package.Plain(lockPath);
+        using(var guard=new FileStream(lockPath,FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.None)) {
+            if(new DriveInfo(Path.GetPathRoot(root)).AvailableFreeSpace<3L*1024*1024*1024)throw new IOException("storage_required");
+            var snapshot=Starter.Snapshot(Package.Project,root);
+            var python=Starter.Python(root,true);
+            var runtime=Path.Combine(root,"runtime");
+            var setup="--kit-runtime "+Package.Quote(Path.Combine(Package.Project,"pilot-runtime"))+" --runtime-root "+Package.Quote(runtime)+" --download-models";
+            if(Run(Child(python,snapshot,root,"local_scene_setup.py",setup),root,"scene-setup",1900)!=0)throw new IOException("local_scene_setup_failed");
+            var result=Path.Combine(root,"computer-check-"+Guid.NewGuid().ToString("N")+".json");
+            var args="--check "+Package.Quote(packet)+" --data-dir "+Package.Quote(Path.Combine(root,"results"))+" --runtime-root "+Package.Quote(runtime)+" --result "+Package.Quote(result);
+            var code=Run(Child(python,snapshot,root,"local_scene_check.py",args),root,"computer-check",2200);
+            if(File.Exists(result))Console.WriteLine(Encoding.UTF8.GetString(Starter.Read(result,16384)));
+            return code;
+        }
+    }
     public static int Offline(string root) {
         var prefix=Path.GetFullPath(Path.GetTempPath()).TrimEnd(Path.DirectorySeparatorChar)+Path.DirectorySeparatorChar;
         root=Path.GetFullPath(root);Package.Plain(root);
@@ -138,11 +159,13 @@ sealed class PilotWindow:Form {
         var title=new Label {Text="Process your assigned Scenes locally.",Font=new Font("Segoe UI",19,FontStyle.Bold),Left=24,Top=22,Width=560,Height=65};
         var intro=new Label {Text="Your computer does the processing and keeps the indexes. No account, upload, search or cloud processing is needed.",Left=24,Top=95,Width=560,Height=70};
         status=new Label {Text="First choose Readiness / Check this computer.json from your kit. After approval, choose your personal campaign.json.",Left=24,Top=173,Width=560,Height=75};
-        choose=new Button {Text="Choose check or queue",Left=24,Top=260,Width=250,Height=48};
-        open=new Button {Text="Open local pilot",Left=290,Top=260,Width=285,Height=48,Enabled=false};
+        choose=new Button {Text="Open personal queue",Left=24,Top=260,Width=250,Height=48};
+        open=new Button {Text="Check this computer",Left=290,Top=260,Width=285,Height=48,Enabled=false};
+        var readiness=Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),"Readiness","Check this computer.json");
+        if(File.Exists(readiness)) {packet=readiness;open.Enabled=true;status.Text="Click Check this computer to begin. When the checks finish, save results and send them to the maintainer.";}
         Controls.AddRange(new Control[]{title,intro,status,choose,open,new Label {Text="Pause or Exit in the local pilot window before closing this launcher.",Left=24,Top=328,Width=560,Height=44}});
         choose.Click+=(s,e)=>{using(var picker=new OpenFileDialog {Title="Choose Check this computer.json or your approved campaign.json",Filter="VISION check or queue (*.json)|*.json"})
-            if(picker.ShowDialog(this)==DialogResult.OK){packet=picker.FileName;status.Text="Assigned packet selected. Open the local pilot to continue.";open.Enabled=true;}};
+            if(picker.ShowDialog(this)==DialogResult.OK){packet=picker.FileName;status.Text="Your file is selected. Open the local pilot to continue.";open.Text="Open local pilot";open.Enabled=true;}};
         open.Click+=(s,e)=>OpenPilot();
         FormClosing+=(s,e)=>{if(preparing||(child!=null&&!child.HasExited)){e.Cancel=true;MessageBox.Show(this,"Finish setup, or choose Exit in the local pilot window and wait for the current group to finish.","Keep your work safe");}};
     }
@@ -155,7 +178,7 @@ sealed class PilotWindow:Form {
                 status.Text=e.Error==null&&(int)e.Result==0?"Your existing local pilot window has been reopened.":"The pilot window could not be reopened. Keep your files and ask the maintainer for help.";};
             reopen.RunWorkerAsync();return;
         }
-        if(MessageBox.Show(this,"Setup uses your connection to download private Python and about 1 GB of Scene model files from python.org and this project on GitHub. Start in the pilot window retrieves imagery and uses your CPU. Results stay on this computer. Continue?","Local Scene setup",MessageBoxButtons.OKCancel)!=DialogResult.OK)return;
+        if(MessageBox.Show(this,"Setup downloads private Python and about 1 GB of Scene models once. The first computer check uses fixed local images. Your approved personal queue later retrieves Street View imagery and uses your CPU. Results stay on this computer. Continue?","Local Scene setup",MessageBoxButtons.OKCancel)!=DialogResult.OK)return;
         preparing=true;choose.Enabled=open.Enabled=false;status.Text="Preparing the local Scene files. Keep this window open; the first download may take a few minutes.";
         var setup=new BackgroundWorker();
         setup.DoWork+=(s,e)=>{e.Result=LocalScenes.Start(packet,LocalScenes.Root,true);};
@@ -177,13 +200,15 @@ static class Program {
         try {
             if(args.Length==1&&args[0]=="--self-check") {Starter.Architecture();Package.Verify(Package.Project);
                 Console.WriteLine("LOCAL_PILOT_PACKAGE_VERIFIED");return 0;}
+            if(args.Length==2&&args[0]=="--check-computer"&&args[1]=="--accept-downloads")return LocalScenes.CheckComputer();
             if(args.Length==2&&args[0]=="--offline-check")return LocalScenes.Offline(args[1]);
             if(args.Length!=0)return 2;
             Starter.Architecture();Package.Verify(Package.Project);
             Application.EnableVisualStyles();Application.SetCompatibleTextRenderingDefault(false);
             Application.Run(new PilotWindow());return 0;
         } catch(Exception error) {
-            if(args.Length==0){Starter.Failure(LocalScenes.Root,error);MessageBox.Show("VISION Local Scenes could not start. Ask the maintainer for a complete trusted pilot kit. Your saved work is kept.","VISION Local Scenes");}
+            Starter.Failure(LocalScenes.Root,error);
+            if(args.Length==0){MessageBox.Show("VISION Local Scenes could not start. Ask the maintainer for a complete trusted pilot kit. Your saved work is kept.","VISION Local Scenes");}
             else Console.WriteLine("LOCAL_PILOT_CHECK_FAILED");return 1;
         }
     }

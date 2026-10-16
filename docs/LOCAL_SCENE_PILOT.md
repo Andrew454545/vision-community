@@ -200,3 +200,55 @@ This is not a real logout/login cycle or a clean-user installation. The numerica
 CPU1/2/4 checks passed owner recomputation with identical packed outputs; the first
 CPU4 hash-guard refusal remains preserved alongside the isolated-temp passing run.
 See [the dated implementation evidence](evidence/local-scene-unattended-20261015.json).
+
+## Completing the first cohort without another audit cycle
+
+The owner now has **5,499,105 available source rows** in the authoritative issuer:
+5.5 million imported,893 excluded Community matches, and2 exclusively reserved
+for a finite live check. Ten additional native TSV shards were regenerated
+locally, matched byte-for-byte to the already verified pool manifest, and imported.
+The whole advanced source shard was skipped. No R2 or Cloudflare request was made.
+Temporary exported TSV copies were removed only after their matching import committed.
+
+Use one owner command for a tester's private check ZIP:
+
+```text
+python -m community.local_scene_intake --check-zip check-results.zip --policies /private/readiness --gold /private/gold-correspondence.private.json --registry /private/issuer.sqlite --participant tester-01 --count 2 --output /private/tester-01
+```
+
+It accepts only the named bounded report ZIP members, recomputes every view with
+trusted local policies, requires CPU1, preserves rejected faster profiles and
+produces one delivery ZIP. No manual JSON editing/extraction is necessary. After
+that tester's two live locations work, repeat with `--count 5000000`. Allocation
+identity uses participant, installation and requested size, so re-zipping a report
+or repeating a check does not silently issue another allocation. Changed runtime
+profiles need an explicit update rather than an automatic second long queue.
+Both probe and long queues retain disjoint reservations. ZIP delivery streams from
+the registry without a second unpacked copy on the owner computer.
+
+The first real two-location check on this Mac was refused by Google with HTTP403
+for all views. A single diagnostic response explicitly reported possible automated
+queries from this computer/network. No inference error or completed Scene resulted.
+The first controller invocation also had an identity-copy race and exited before
+native work; that controller sequencing error was corrected and is preserved.
+The native retry loop initially repeated the refusal. The runner now classifies
+provider403/429 errors and stops the entire campaign after that native failure,
+disables automatic resume and retains the queue, indexes and diagnostic. It does
+not work around provider access controls. Battery pausing was observed too; only
+the isolated two-location test temporarily disabled it, then restored it.
+
+Windows Codex can now use `VISION Local Scenes.exe --check-computer --accept-downloads`
+without a preinstalled Python or desktop control. The helper installs the same
+checked private runtime/models, runs fixed112, exports private reports and returns
+a bounded result JSON. The Mac execution of this new headless entry reused its
+already successful reports; no numerical matrix was repeated. Three focused new
+checks cover intake ZIP safety, retained delivery integrity and stopping a whole
+campaign on provider refusal. The earlier108-test evidence is retained, not rerun
+for these UI/delivery changes. Windows execution of the new wrapper is still a
+first-user check, not a claimed completed test.
+
+Use [the short friend-Codex prompt](../PC-CODEX-PROMPT.md). Treat the first invited
+installations as normal first use with feedback; broader fresh-device/endurance
+and signed public production work do not hold this small preview hostage.
+The [next-phase outline](LOCAL_APP_NEXT_PHASE.md) starts with a useful local library
+and search using the owner's VISION workflow and native format.

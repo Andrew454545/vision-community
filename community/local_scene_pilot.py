@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import secrets
+import re
 import subprocess
 import sys
 import threading
@@ -17,7 +18,7 @@ from .mac_starter import regular
 from .pc_canary import runtime_profile
 from .process_owner import run_owned
 from .vision_index import (assert_not_live_vision_path, checkpoint_state, file_identity,
-                           index_locations_tsv, require_complete_index)
+                           index_locations_tsv, require_complete_index, VisionIndexError)
 
 CHUNK = 16
 CHILD_SECONDS = 600
@@ -116,6 +117,7 @@ class LocalScenePilot:
         self.thread = None
         self.phase, self.message = 'ready', 'Ready to process this Scene batch on your computer.'
         self.completed = 0
+        self.error_code = None
         self._refresh_completed()
         if self.completed:
             self.phase, self.message = 'ready', 'Saved work found. Choose Start to check it and continue.'
@@ -142,7 +144,7 @@ class LocalScenePilot:
                 'total': len(self.packet['rows']), 'packetId': self.packet['packetId'],
                 'participant': self.packet['participant'], 'outputDirectory': str(self.root),
                 'exportAvailable': self.completed > 0 and not (self.thread and self.thread.is_alive()),
-                'localOnly': True, 'uploaded': False, 'creditsEarned': 0}
+                'localOnly': True, 'uploaded': False, 'creditsEarned': 0, 'errorCode': self.error_code}
 
     def export_results(self):
         """Back up finished groups only, without starting processing or uploading."""
@@ -162,6 +164,7 @@ class LocalScenePilot:
             if self.thread and self.thread.is_alive():
                 return
             self.stop.clear()
+            self.error_code = None
             self.phase, self.message = 'processing', 'Checking processing files, then starting Scenes.'
             self.thread = threading.Thread(target=self._work, name='local-scene-pilot', daemon=False)
             self.thread.start()
@@ -202,7 +205,12 @@ class LocalScenePilot:
             with path.open('rb') as stream:
                 stream.seek(max(0, path.stat().st_size - 1024 * 1024))
                 return stream.read().decode('utf-8', errors='replace')
-        return result.returncode, tail(stem.with_suffix('.stdout.log')), tail(stem.with_suffix('.stderr.log'))
+        output, errors = tail(stem.with_suffix('.stdout.log')), tail(stem.with_suffix('.stderr.log'))
+        if result.returncode and re.search(r'candidate fetch failed [^\n]*: HTTP 403(?: Forbidden)?(?:\r?\n|$)', errors):
+            raise VisionIndexError('imagery_access_denied')
+        if result.returncode and re.search(r'candidate fetch failed [^\n]*: HTTP 429(?: Too Many Requests)?(?:\r?\n|$)', errors):
+            raise VisionIndexError('imagery_rate_limited')
+        return result.returncode, output, errors
 
     def _verify_saved_part(self, folder, receipt, rows, profile):
         if (receipt.get('runtimeProfile') != profile or receipt.get('packetId') != self.packet['packetId']
@@ -282,6 +290,7 @@ class LocalScenePilot:
                         self.phase, self.message = 'paused', 'Paused. Choose Start to continue your saved batch.'
         except BaseException as error:
             code = getattr(error, 'code', None) or (str(error) if isinstance(error, ValueError) else type(error).__name__)
+            self.error_code = code
             atomic_json(self.root/('failure-'+str(time.time_ns())+'.json'), {'code': code, 'savedWorkPreserved': True})
             with self.guard:
                 self.phase, self.message = 'error', 'Processing stopped. Your work and a local report are saved. Ask the maintainer to review it before restarting.'

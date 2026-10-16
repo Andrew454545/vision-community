@@ -8,7 +8,7 @@ No account, subscription or Python installation is needed.
 1. Extract the whole **VISION Local Scenes** kit. Keep its files together.
 2. Windows: open **VISION Local Scenes.exe**. Apple-silicon Mac: open
    **Start Local Scenes.command**.
-3. Choose **Readiness → Check this computer.json** from the kit.
+3. Click **Check this computer**. It is already selected on Windows.
 4. Accept setup downloads, then choose **Start / Resume** in the local window.
    Setup downloads private Python and about 1 GB of model files once.
 5. When the checks finish, choose **Save results**. Send that ZIP to the maintainer.
@@ -20,7 +20,8 @@ doesn't pass is not approved. You do not need to understand the test report.
 ## When you receive your queue
 
 1. Extract your whole personal queue folder. Keep it somewhere permanent.
-2. Open the same launcher and choose **campaign.json** in that folder.
+2. Open the same launcher, choose **Open personal queue** (Windows) or **Open my queue**
+   (Mac), and select **campaign.json** in that folder.
 3. Choose your day and night speeds. Choose **Save settings**, then **Start / Resume**.
 
 The default is Medium during the day and Maximum checked speed at night.
@@ -53,3 +54,7 @@ This invited preview is unsigned. If your computer refuses it, stop and ask the
 maintainer for trusted installation help. Do not disable security settings.
 The app is free; your electricity, internet data and storage are still used.
 Local searching, Objects and automatic sharing are planned for later.
+
+If Google refuses imagery access, the app stops and keeps your queue. Resume
+only after imagery access works normally on that connection. The computer check
+uses fixed local images, so passing it does not guarantee Google will supply live imagery.
