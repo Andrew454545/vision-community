@@ -1,0 +1,18 @@
+# Keep this Worker private. It is reached only through the Community Worker's
+# service binding and uses a separate, operator-controlled policy bucket.
+name = "vision-scene-verifier-staging"
+main = "worker.js"
+compatibility_date = "2026-09-29"
+workers_dev = false
+preview_urls = false
+
+[[r2_buckets]]
+binding = "POLICY"
+bucket_name = "vision-community-verification-staging"
+
+[vars]
+VERIFIER_MODE = "staging-reference-only"
+SCENE_POLICY_KEY = "scene-policy.json"
+CANARY_REFERENCE_KEY = "canary-reference.i8"
+# SHA-256 of the exact policy object. Never use a contributor-writable bucket.
+SCENE_POLICY_SHA256 = "REPLACE_WITH_POLICY_SHA256"

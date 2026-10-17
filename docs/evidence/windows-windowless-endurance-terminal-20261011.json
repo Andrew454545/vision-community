@@ -1,0 +1,142 @@
+{
+  "version": 1,
+  "status": "FAILED_DIAGNOSTIC_RETIRED",
+  "checkedAt": "2026-10-11T09:35:19.8517708Z",
+  "startedUnix": 1791590358.754714,
+  "deadlineUnix": 1791683958.754714,
+  "failedUnix": 1791601986.8210204,
+  "plannedRounds": 24,
+  "completedRounds": [
+    {
+      "round": 1,
+      "threads": 1,
+      "recovery": {
+        "tests": 131,
+        "failures": 0,
+        "errors": 0,
+        "skips": [
+          {
+            "id": "community.tests.test_storage_restore.StorageRestoreTest.test_linked_cache_file_is_not_followed",
+            "reason": "Filesystem does not permit unprivileged symlinks"
+          }
+        ],
+        "seconds": 215.5
+      },
+      "nativeSeconds": 575.0,
+      "comparisonSha256": "7b769e21e0abfd4ffe37ed00684ec0e4850f407a57f6b710bcc2c42b34e67eb5",
+      "ownedNativeCommands": 4
+    },
+    {
+      "round": 2,
+      "threads": 2,
+      "recovery": {
+        "tests": 131,
+        "failures": 0,
+        "errors": 0,
+        "skips": [
+          {
+            "id": "community.tests.test_storage_restore.StorageRestoreTest.test_linked_cache_file_is_not_followed",
+            "reason": "Filesystem does not permit unprivileged symlinks"
+          }
+        ],
+        "seconds": 269.375
+      },
+      "nativeSeconds": 314.703,
+      "comparisonSha256": "7b769e21e0abfd4ffe37ed00684ec0e4850f407a57f6b710bcc2c42b34e67eb5",
+      "ownedNativeCommands": 4
+    },
+    {
+      "round": 3,
+      "threads": 4,
+      "recovery": {
+        "tests": 131,
+        "failures": 0,
+        "errors": 0,
+        "skips": [
+          {
+            "id": "community.tests.test_storage_restore.StorageRestoreTest.test_linked_cache_file_is_not_followed",
+            "reason": "Filesystem does not permit unprivileged symlinks"
+          }
+        ],
+        "seconds": 225.34399999998277
+      },
+      "nativeSeconds": 165.922,
+      "comparisonSha256": "7b769e21e0abfd4ffe37ed00684ec0e4850f407a57f6b710bcc2c42b34e67eb5",
+      "ownedNativeCommands": 4
+    }
+  ],
+  "failedRound": 4,
+  "failureCode": "native_round_failed",
+  "measurementFailure": {
+    "stage": "process_name",
+    "errorType": "OSError",
+    "win32Error": 5
+  },
+  "ownedDescendantsStopped": true,
+  "completeResourceMeasurement": false,
+  "officialCoverageVerified": false,
+  "acceptedWorkSoak": false,
+  "productionQualified": false,
+  "acceptedContributions": 0,
+  "searchCreditsCreated": 0,
+  "retirement": {
+    "status": "FAILED_DIAGNOSTIC_RETIRED",
+    "checkedAt": "2026-10-11T09:35:19.8517708Z",
+    "deadlinePassed": true,
+    "taskOwnerAndActionVerified": true,
+    "taskDisabled": true,
+    "hidden": true,
+    "originalSummarySha256": "ef082f14d1cda17056cc15bb52601cfc9cff3f24822155f861e60f94649f916d",
+    "originalSummaryUnchanged": true,
+    "completedRounds": 3,
+    "failedRound": 4,
+    "productionQualified": false,
+    "acceptedWorkSoak": false,
+    "scenePilotOrRefresherModified": false,
+    "contributorTaskModified": false
+  },
+  "receipts": {
+    "work/endurance-v4-windowless-20261009/scheduled/summary.private.json": {
+      "bytes": 27979,
+      "sha256": "ef082f14d1cda17056cc15bb52601cfc9cff3f24822155f861e60f94649f916d"
+    },
+    "work/endurance-v4-windowless-20261009/scheduled/round-04-attempt-1/recovery.private.json": {
+      "bytes": 241,
+      "sha256": "3e8da1f3601034a4bde4f4396efaf6b066aa77b408ce8d4f2e066f35ae621a98"
+    },
+    "work/endurance-v4-windowless-20261009/scheduled/round-04-attempt-1/native/replay-receipt.private.json": {
+      "bytes": 5264,
+      "sha256": "9dd6797d2cfe24915a94adac828be7759b7d52fbb7eb10ae32eea8c62702e54d"
+    },
+    "work/endurance-v4-windowless-20261009/scheduled/round-04-attempt-1/native-command-03-resources.private.json": {
+      "bytes": 1636,
+      "sha256": "58b92b60cab9c7cd2a98e0b6369d6740d14dae5ae546552c921e93ea245073a5"
+    },
+    "work/object-origin-audit-20261011/diagnostic-retirement.private.json": {
+      "bytes": 525,
+      "sha256": "d4906aa2e9c23ec2897b7be57b2f9bbb5ba6633b3145d0ff5f271115050c13e9"
+    },
+    "work/object-origin-audit-20261011/diagnostic-task-before.private.xml": {
+      "bytes": 2262,
+      "sha256": "cb5efb9dcb380c93939d815d05a930e52d5ebeb6d9acd01dc8c1ac44cbf24bc9"
+    },
+    "work/object-origin-audit-20261011/diagnostic-task-disabled.private.xml": {
+      "bytes": 2292,
+      "sha256": "0df000f09546cf3c131c85d00dced6f986efb0b2cca2a7442412148080cb27a5"
+    },
+    "work/endurance-v4-windowless-20261009/scheduled/round-01-attempt-1/cross-platform-comparison.private.json": {
+      "bytes": 47203,
+      "sha256": "7b769e21e0abfd4ffe37ed00684ec0e4850f407a57f6b710bcc2c42b34e67eb5"
+    },
+    "work/endurance-v4-windowless-20261009/scheduled/round-02-attempt-1/cross-platform-comparison.private.json": {
+      "bytes": 47203,
+      "sha256": "7b769e21e0abfd4ffe37ed00684ec0e4850f407a57f6b710bcc2c42b34e67eb5"
+    },
+    "work/endurance-v4-windowless-20261009/scheduled/round-03-attempt-1/cross-platform-comparison.private.json": {
+      "bytes": 47203,
+      "sha256": "7b769e21e0abfd4ffe37ed00684ec0e4850f407a57f6b710bcc2c42b34e67eb5"
+    }
+  },
+  "originalFailuresUnchanged": true,
+  "scenePilotAndRefresherUnchanged": true
+}

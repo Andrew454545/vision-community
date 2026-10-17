@@ -1,0 +1,195 @@
+{
+  "version": 1,
+  "scope": "object-contribution-flow-component",
+  "recordedAt": "2026-10-12T03:42:31.402872+00:00",
+  "baseCommit": "cf87d8f02014e4c513acbb0025fa2d82c7fcc272",
+  "platform": "Windows x64",
+  "status": "LOCAL_COMPONENT_PASSED_NOT_PUBLIC_ACCEPTANCE",
+  "qualificationScope": "batch-only-every-batch-independently-compared",
+  "sourceSha256": {
+    "community/delivery.py": "cd1fb13296285a98811b5b8990c08c7c7f52bb5b7525209e9d683d812848394b",
+    "community/object_audit_jobs.py": "0400b81d1e1b18601991710b5e942c1b08db6c7a5ea82e39e612679b3e27fb59",
+    "community/submission_outbox.py": "ede11f52cb86c14464eccc104c8ce9d1776d89309f1f1c230e68aac1cbabf1d8",
+    "community/tests/test_object_pending_delivery.py": "3546268cdeb7727af53359f760481db006e5b35be7ff68ec579e549db4770a93",
+    "community/tests/test_object_settlement_evidence.py": "5655ed327948b50058c527c51a9f26c5660f788d2f7d85c12ec4cbb0cfa16b4f",
+    "deploy/cloudflare/native-object-verifier-bridge/worker.js": "9288a0a93b5a5fcc73ffff0413c5c2d1c7504442ebb128d67af0e951fb9dbaa3",
+    "deploy/cloudflare/native-object-verifier-bridge/worker.test.mjs": "d2f4d44020cffd4a48af10f2a5a348d80d3e3e876a6d953d20de4b30b21d4f5b",
+    "deploy/cloudflare/src/objectAuditDispatch.js": "783d4ff4fed8181db094a663c7d04cdd0187c9e4c45c6d14025aeebfe89b2188",
+    "deploy/cloudflare/src/objectSettlementCheck.js": "2257cb1a4360697d0dc07b697e3879447d4631eab22681ae7841893df19fb7f3",
+    "deploy/cloudflare/src/worker.js": "fc5a5e673760660b11637e2a4eb7845c197b502b16ffae8111aba2c9376ef484",
+    "deploy/cloudflare/src/objectAuditFlow.js": "55f1569f896248a7869ffddf4ef23c343075540035b3413acfc323319775ad65",
+    "deploy/cloudflare/src/objectSettlement.js": "cd899e775c7ec6b45500247fe99649f7bc85525a748e05a3ed28e357e97e8758",
+    "deploy/cloudflare/src/objectSettlement.test.mjs": "eb4aabc074d2602b32bb4bb33dec5bab2ee92215504228007a16a272e298e9ad",
+    "deploy/cloudflare/tools/check-local-object-acceptance.mjs": "10f8df044358b129113181a9c330bbf70a2c91bd9b4f1504a998a0242b9a4a9e",
+    "deploy/cloudflare/tools/object-acceptance.fixture.mjs": "2f577afd7b958f976e2c8ab8ddfd5d07476bbb729dba52c6750dd77bce9f352f",
+    "deploy/cloudflare/tools/prepare-object-settlement.mjs": "2b4ba25751a2ce4308012753a13cb560b176e820a249f25da760329156a4bb3b"
+  },
+  "tests": [
+    {
+      "group": "javascript",
+      "passed": 142,
+      "skipped": 0,
+      "exitCode": 0,
+      "windowless": true,
+      "owned": true,
+      "syntheticInference": true,
+      "receiptSha256": "a63483b0848cfb2762ed895f1580d72dfea06d697636d213116c428a90cf1d33",
+      "stdoutSha256": "9bc3551455b153f3876112039bc50a48ed533b1c6b1919518a877a846800fac4",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "group": "python-native",
+      "passed": 7,
+      "skipped": 0,
+      "exitCode": 0,
+      "windowless": true,
+      "owned": true,
+      "syntheticInference": true,
+      "receiptSha256": "079b33057075774ac3ad9164613d5c9774a47e7ecb888433dc6a91e24773c51c",
+      "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSha256": "37c85e95a03ff19978198196826365555c03671f8d2cb5e1796f3e555ce3d52c"
+    },
+    {
+      "group": "python-delivery",
+      "passed": 43,
+      "skipped": 0,
+      "exitCode": 0,
+      "windowless": true,
+      "owned": true,
+      "syntheticInference": true,
+      "receiptSha256": "69c8ce11b781f6c8927ac0eb84e634cc1ae8cd3702e43f72aacc001d3da3d34c",
+      "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSha256": "05f12b9c8e35d0a1471e5fbca116df91094bdfacfb4e5271d31c1fb5fd6c98ca"
+    },
+    {
+      "group": "workerd",
+      "passed": 10,
+      "skipped": 0,
+      "exitCode": 0,
+      "windowless": true,
+      "owned": true,
+      "syntheticInference": true,
+      "receiptSha256": "d991be8bf7d5eb1bd30ed07dcced2061a57e09d8f3648afc8b7b44f1e8999387",
+      "stdoutSha256": "ee58bb593b527d412cda6523a7df86dd545129850243e8c24f5c2d38ce567afb",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "totals": {
+    "javascript": 142,
+    "python": 50,
+    "workerdCases": 10,
+    "workerdSeparateProcesses": 3
+  },
+  "demonstrated": [
+    "sanitized-create-only-artifacts",
+    "atomic-acceptance-publication-ledger-balance",
+    "lost-commit-reply-recovery",
+    "no-double-credit",
+    "partial-R2-upload-recovery",
+    "current-ownership-pose-coverage-and-receipt-guards",
+    "database-clock-expiry",
+    "account-deletion-preserves-accepted-contributions",
+    "fresh-full-native-evidence-without-new-inference",
+    "authenticated-audit-and-upload-replay-routes",
+    "pending-object-delivery-across-client-restart"
+  ],
+  "syntheticAcceptedLocations": 2,
+  "syntheticCreditAward": 20,
+  "realAcceptedObjectContributions": 0,
+  "realEarnedObjectCredits": 0,
+  "publicObjectAdmission": false,
+  "deployed": false,
+  "githubActionsUsed": false,
+  "scenePilotChanged": false,
+  "liveCloudflareCalls": 0,
+  "originalFailures": [
+    {
+      "label": "focused1",
+      "usedForAcceptance": false,
+      "originalEvidencePreserved": true,
+      "preservedFileSha256": {
+        "focused1.stdout.log": "4ecc5b0fec06898393dcd747f6c7c7b71e90a0d8a3e16a5f4d7e9e846da89d18",
+        "focused1.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "focused1.receipt.json": "8dfdb0c9534dc671eb03e141db7a71c048568dd40c760ddd0c9f807ba1ada09d"
+      }
+    },
+    {
+      "label": "focused2",
+      "usedForAcceptance": false,
+      "originalEvidencePreserved": true,
+      "preservedFileSha256": {
+        "focused2.stdout.log": "8c2b9ab109ea951e5869f23e1549ce1011b58f38b5cdabc129830cda8ab0912d",
+        "focused2.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "focused2.receipt.json": "2005f433cbc0137e8b3b9587d49105900e1f33d7c4b7c106fbcc2a55b35a0cf7"
+      }
+    },
+    {
+      "label": "focused3",
+      "usedForAcceptance": false,
+      "originalEvidencePreserved": true,
+      "preservedFileSha256": {
+        "focused3.stdout.log": "0e7f2c49d42f354e2804e899292aff6970e0e3c5fa4f059786c82ccb76ffbcdd",
+        "focused3.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "focused3.receipt.json": "59840bc54f26542dad6f115b4860d17e246da348ab92b8a7142c06a37caf1071"
+      }
+    },
+    {
+      "label": "worker1",
+      "usedForAcceptance": false,
+      "originalEvidencePreserved": true,
+      "preservedFileSha256": {
+        "worker1.stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "worker1.stderr.log": "1dc0a88b00c2dcc8b35a3ccc331702d49ad08f83b70617106b034931d085a81f",
+        "worker1.receipt.json": "ad350b0edbe321bb89dc65d5d365f573f3cccf361c1a6547295a8cd701f62ea1"
+      }
+    },
+    {
+      "label": "native1",
+      "usedForAcceptance": false,
+      "originalEvidencePreserved": true,
+      "preservedFileSha256": {
+        "native1.stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "native1.stderr.log": "747c6e0d0df78cd640659e26264ae7d4c449bf17af92d98e180b6bcfbb2df3db"
+      }
+    },
+    {
+      "label": "native2",
+      "usedForAcceptance": false,
+      "originalEvidencePreserved": true,
+      "preservedFileSha256": {
+        "native2.stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "native2.stderr.log": "2337a3a030289b4017a4f51d1eb6f81c6fc39caf471e1103da2319a48fc0711b",
+        "native2.receipt.json": "66b1e0c5d20bd5a99b0e05c83c1df33bbc536ba352b538625f67b4091dd7262e"
+      }
+    },
+    {
+      "label": "delivery1",
+      "usedForAcceptance": false,
+      "originalEvidencePreserved": true,
+      "preservedFileSha256": {
+        "delivery1.stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "delivery1.stderr.log": "7bd98c3b884ebd1d04cc0b53ec2186e6e9a2dfd76172218e3419b823d2fb03ef",
+        "delivery1.receipt.json": "945ec6651b0241571106e0954da63cad5e3bdcafbc937bfebc4d40c683e655dd"
+      }
+    },
+    {
+      "label": "regression2",
+      "usedForAcceptance": false,
+      "originalEvidencePreserved": true,
+      "preservedFileSha256": {
+        "regression2.stdout.log": "bf30ae9aac2616832579ad1f4a7b05505da230062d2c0d4b4a2da7eaa0115005",
+        "regression2.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "regression2.receipt.json": "db98bc61d5b14e6393ff1d8ae2de333a49d44cdc09326f0724268b2008f9b51b"
+      }
+    }
+  ],
+  "remaining": [
+    "authentic-protected-handoff-and-runtime-qualification",
+    "first-real-trusted-object-assignment-and-earned-credit-search",
+    "registry-rotation-and-terminal-job-retention",
+    "measured-full-revalidation-latency-and-capacity",
+    "both-platform-accepted-work-soaks",
+    "signed-clean-device-and-nontechnical-user-acceptance",
+    "full-recovery-and-controlled-rollout"
+  ]
+}

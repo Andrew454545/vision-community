@@ -77,11 +77,11 @@ class CommunityServiceTest(unittest.TestCase):
         self.assertEqual(self.service.status(account)["units"], 0)
         with self.assertRaisesRegex(ServiceError, "incomplete_submission"):
             self.service.submit(account, lease["leaseId"], valid[:-1])
-        with sqlite3.connect(self.service.database) as connection:
+        with self.service._connection() as connection:
             self.assertEqual(connection.execute("SELECT COUNT(*) FROM published_index").fetchone()[0], 0)
         accepted = self.service.submit(account, lease["leaseId"], valid)
         self.assertEqual(accepted["unitsEarned"], 4)
-        with sqlite3.connect(self.service.database) as connection:
+        with self.service._connection() as connection:
             self.assertEqual(connection.execute("SELECT COUNT(*) FROM published_index").fetchone()[0], 4)
         replay = self.service.submit(account, lease["leaseId"], valid)
         self.assertTrue(replay["replayed"])
@@ -156,7 +156,7 @@ class CommunityServiceTest(unittest.TestCase):
         self.assertEqual(audit(destination)["counts"]["published_index"], 4)
 
     def test_audit_detects_credit_drift(self):
-        with sqlite3.connect(self.service.database) as connection:
+        with self.service._connection() as connection:
             connection.execute("UPDATE accounts SET units=units+1 WHERE id=?", (self.first["accountId"],))
         self.assertIn("credit_ledger_mismatch", audit(self.service.database)["issues"])
 
@@ -209,7 +209,8 @@ class PoseCatalogLeaseTest(unittest.TestCase):
                 )
             source.write_text("\n".join(lines) + "\n", encoding="utf-8")
             shards = root / "shards"
-            manifest = split_shards(source, shards, rows_per_shard=2, row_start=1000)
+            manifest = split_shards(source, shards, rows_per_shard=2, row_start=1000,
+                                    key_prefix='catalog/official-remaining-v1/offline-fixture')
             service = CommunityService(root / "db.sqlite", search_cost=4, artifacts=root / "artifacts")
             report = service.install_pose_catalog(manifest, source_dir=shards)
             self.assertEqual(report["rows"], 4)

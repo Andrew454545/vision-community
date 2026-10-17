@@ -1,0 +1,9 @@
+name = "vision-community-native-scene-search"
+main = "worker.js"
+compatibility_date = "2026-09-19"
+workers_dev = false
+preview_urls = false
+
+# Private service only: no browser routes, D1, R2 or public preview.
+# Configure NATIVE_ENGINE_URL as the operator's HTTPS /search endpoint and
+# NATIVE_ENGINE_SECRET as a Worker secret before connecting SEARCH_ENGINE.

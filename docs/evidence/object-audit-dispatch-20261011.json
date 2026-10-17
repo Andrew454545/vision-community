@@ -1,0 +1,160 @@
+{
+  "version": 1,
+  "date": "2026-10-11",
+  "scope": "private-object-candidate-dispatch-component",
+  "platform": "Windows x64",
+  "javascript": {
+    "tests": 197,
+    "passed": 194,
+    "failed": 0,
+    "skipped": 3,
+    "skipReason": "Windows file-symlink permission unavailable",
+    "newDispatchCases": 22
+  },
+  "actualLocalCloudflare": {
+    "status": "ACTUAL_WORKERD_OBJECT_DISPATCH_RECOVERY_PASSED",
+    "cases": 10,
+    "separateProcesses": 4,
+    "syntheticInference": true,
+    "objectAdmissionReady": false,
+    "nativeInferences": 0,
+    "earnedCredits": 0,
+    "liveCalls": 0
+  },
+  "actualNodePythonProtocol": {
+    "tests": 1,
+    "passed": 1,
+    "loopbackHttp": true,
+    "realPythonSQLiteSpool": true,
+    "syntheticNativeCalls": [
+      "runtime-info",
+      "index-segment",
+      "verify-index",
+      "verify-index"
+    ],
+    "nativeJobs": 1,
+    "nativeAttempts": 1,
+    "startRequests": 2,
+    "nativeManifestMatches": true,
+    "erased": true
+  },
+  "preservedFailures": [
+    {
+      "labels": [
+        "interop-v1",
+        "interop-v2"
+      ],
+      "meaning": "Two-second harness observation expired while synthetic native comparison was still running; not an authentic inference or production acceptance result.",
+      "correction": "Finite twelve-second observation, with the synthetic runner retained until its owned worker stops."
+    }
+  ],
+  "runs": [
+    {
+      "label": "focused-v1",
+      "exitCode": 0,
+      "wallSeconds": 0.766,
+      "receiptSha256": "fe45b336ab0f44cd080f8a8b2b9e6a71c8a70ad46f308233491785f11e829085",
+      "stdoutSha256": "6a17278ec0bbfdbee70819f2e8a9ba94b7b80e37c68d4ff1d7df590a44161a92",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "worker-v1",
+      "exitCode": 0,
+      "wallSeconds": 4.625,
+      "receiptSha256": "2efb1fa24404061c89f68bf248574bf389ca2e17184d2cbcfc11ee97647611c1",
+      "stdoutSha256": "15330ebec0ad539d26856403b7836ca8c018ebe39358fab909a27b35ef389ac3",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "regression-v1",
+      "exitCode": 0,
+      "wallSeconds": 27.235,
+      "receiptSha256": "4df42e2ae343763a081e610c204c95f342f27851fd682bea58972b5a2399734b",
+      "stdoutSha256": "cd48aa9109c89262a0d88d8a3d7914d721d93fbf06a6da09e6df3d75fdf2c8fc",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "interop-v1",
+      "exitCode": 1,
+      "wallSeconds": 6.203,
+      "receiptSha256": "8687c07c22262bdfb9b96109c582ea68933f2da64836f255c3b9886e81d3b54c",
+      "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSha256": "147476e5ef50bda68aa575634f057b3af748571e9f58bb588235db09d3375f29"
+    },
+    {
+      "label": "interop-v2",
+      "exitCode": 1,
+      "wallSeconds": 6.234,
+      "receiptSha256": "a445bdb27a2d5641808d8993d458187d459c0e771fb25076220aecb7c7aa63c4",
+      "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSha256": "66fe47fc034e1a12a35eb6da2d94682e1645ec101ca8085fb7c8d377002211a6"
+    },
+    {
+      "label": "interop-v3",
+      "exitCode": 0,
+      "wallSeconds": 8.781,
+      "receiptSha256": "459b1be97c1f6561fe90e69f4d1706703a7e9cfabcce30aae23ffeae5460f410",
+      "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSha256": "3e7416272fd39a8f68d970e2dddf78dd74eaad1ba6b0f459f446e93fbb531570"
+    },
+    {
+      "label": "regression-v2",
+      "exitCode": 0,
+      "wallSeconds": 27.39,
+      "receiptSha256": "5b94d1c5350655233c04ef3fbb022fffecbd2879cf21b2b893dc3876d668d6c7",
+      "stdoutSha256": "6c7777e02842e456c9034a1622df672d5faa479aa0dba80fd62c9fe5c5e0d5d0",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "worker-v2",
+      "exitCode": 0,
+      "wallSeconds": 5.031,
+      "receiptSha256": "a4cfbadc25eb1f4c22e314034806e46b3529f07d4e63df8654aeffcbec0362f9",
+      "stdoutSha256": "15330ebec0ad539d26856403b7836ca8c018ebe39358fab909a27b35ef389ac3",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "interop-v4",
+      "exitCode": 0,
+      "wallSeconds": 8.719,
+      "receiptSha256": "b42e78260fe66780beea570cd4ff7575cc53c4a3df30d15d14b25f9b9fe4a2e9",
+      "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSha256": "766f781ea66c96dd25ed529ebee8c6338902b8d8195be4d8405f27dc5c53ee1e"
+    }
+  ],
+  "sourcePins": {
+    "deploy/cloudflare/src/objectAuditDispatch.js": "159e0ab5e4a4678988bec9a54eb42d5fc49dc815129e19bac9b97629611b1b91",
+    "deploy/cloudflare/src/objectAuditDispatch.test.mjs": "ea49a7e809854b9cb1119332d96019416a4f40f1831e8c0693e022995b7be431",
+    "deploy/cloudflare/src/worker.js": "5aed40bce70326bcf8687f78139ada13f337558dfb125eded2f5c3bb34a7b6fd",
+    "deploy/cloudflare/native-object-verifier-bridge/worker.js": "ac9ac3acc3e2863ddfa1d058fbd05c7c2e246c605edcc99598f20005a51a06b4",
+    "deploy/cloudflare/tools/prepare-object-audit-dispatch.mjs": "ae9f6a10fe9e44747b0ec50a8de4b9bace7b684c235fbad3d2eb8ca7d3a4a8eb",
+    "deploy/cloudflare/tools/object-dispatch.fixture.mjs": "c5723df548e215564487cd4ef83ff06e5dc4817f1bf05ea09cecf6d2bb416795",
+    "deploy/cloudflare/tools/check-local-object-dispatch.mjs": "436bbc9bc757780832213cded83a3bc71b477ab6e39a15229810a0c495287b53",
+    "deploy/cloudflare/tools/object-dispatch-interop.mjs": "da3b93d94ca73ddf434ddcbc69743a4b15174f56ab814d26f11be0b3913a68e0",
+    "community/tests/test_object_dispatch_interop.py": "f9df41171e11d1934826008cc1e776d3c40d9fd46f5e0f2a6822428f90a38902"
+  },
+  "originalOfflineDiagnosticSha256": "ef082f14d1cda17056cc15bb52601cfc9cff3f24822155f861e60f94649f916d",
+  "ownerMerge": {
+    "repository": "Andrew454545/VISION",
+    "pullRequest": 16,
+    "reportedMergeSha": "a3e3bd0cc3897d7324e2177e786fe003587c42e4",
+    "ownerComment": "https://github.com/Andrew454545/VISION/pull/15#issuecomment-6107929290"
+  },
+  "deployment": false,
+  "globalInstalls": 0,
+  "actionsRuns": 0,
+  "liveCalls": 0,
+  "realNativeInferences": 0,
+  "realAcceptedContributions": 0,
+  "realEarnedCredits": 0,
+  "objectAdmissionReady": false,
+  "frozenScenePilotModified": false,
+  "optionalSchemaInstalledOnProvider": false,
+  "remaining": [
+    "Authenticated exact Object qualification/assignment registration and public router integration",
+    "Fresh portable protected/runtime authority and actual Gen4/Object admission",
+    "Atomic publication/once-only credit and real paid Object search",
+    "Operator retry/cancel/retention capacity and provider recovery",
+    "Mac execution, signing/devices/testers and full accepted-work endurance gates"
+  ]
+}

@@ -1,5 +1,9 @@
 # VISION Community: production design
 
+The current release gates and owner requirements are maintained in
+[Production acceptance](docs/PRODUCTION_ACCEPTANCE.md). That checklist supersedes
+older corpus-access and unconditional cost assumptions below.
+
 The running code imports panorama **metadata** (IDs and pose), never imagery.
 Search queries and results use map-making.app `customCoordinates` JSON. Credits,
 leases, and verification stay on trusted server code. A 200M index-only corpus
@@ -76,8 +80,9 @@ and verify.
   persist JPEG/PNG bytes or tile URLs.
 - Port and verify the existing scene/object workers and ranked search to a
   deployable runtime, then compare outputs and ranking to the Mac app.
-- Add abuse limits, backups and restore tests, TLS, monitoring, key rotation,
-  and a data deletion policy before exposing the service publicly.
+- Configure the staging Worker’s native per-account/per-route rate limiter and
+  keep request bodies bounded. Backups and restore tests, TLS, monitoring, key
+  rotation, and a data deletion policy remain required before public exposure.
 
 The work pool is finite. Once all useful locations are indexed, new users
 cannot earn searches from those same locations without wasting work. Before

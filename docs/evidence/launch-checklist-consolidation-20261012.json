@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "scope": "current-launch-checklist-consolidation",
+  "recordedAt": "2026-10-12T05:12:28.815180+00:00",
+  "sourceParent": "1a1f8451ff54130644246c1631232e98f76c104b",
+  "originalReportsPreservedByteForByte": true,
+  "releaseScopeChanged": false,
+  "fiveLaunchGatesRemainOpen": true,
+  "publicAdmissionChanged": false,
+  "localProcessingChanged": false,
+  "pendingPrivateUploadApprovalsChanged": false,
+  "files": [
+    {
+      "current": "PRODUCTION_ACCEPTANCE.md",
+      "archive": "PRODUCTION_ACCEPTANCE_HISTORY_20261012.md",
+      "archiveSha256": "36758519600067a4431eb544c76cb2fa2cb6b579130a30ed0946a751b8508cb5",
+      "currentSha256": "68b65e18ff99b46be62159afe7fb7c05f93180fba6b6cb8143507713c5614468",
+      "oldLines": 929,
+      "currentLines": 75
+    },
+    {
+      "current": "LAUNCH_BLOCKERS.md",
+      "archive": "LAUNCH_BLOCKERS_HISTORY_20261012.md",
+      "archiveSha256": "918690bca60a9361c076847367cf3d4049c45e04d9527009b8462254ccfc26e0",
+      "currentSha256": "84d99875b5322ffeb26a836e0b3dd2433c4c2d3de40f104bf2a2f8f5454f62b8",
+      "oldLines": 223,
+      "currentLines": 28
+    },
+    {
+      "current": "NEXT_STEPS_STRONGER_MODEL.md",
+      "archive": "NEXT_STEPS_STRONGER_MODEL_HISTORY_20261012.md",
+      "archiveSha256": "5bf2b9668fb42d6d3f3c31b1d7030cc4fdd983ab052902a16acff5d3145fce05",
+      "currentSha256": "c13c4bd7891e298212f3c8eef06346d5d353ef8f48d799a4a43c9fa6b6d52f61",
+      "oldLines": 165,
+      "currentLines": 33
+    }
+  ]
+}

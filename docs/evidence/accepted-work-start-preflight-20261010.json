@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "scope": "seven-day-accepted-work-start-preflight",
+  "date": "2026-10-10",
+  "sourceCommit": "2af0ad0451fe2160174f648540e537ca439e9bed",
+  "result": "BLOCKED_NOT_STARTED",
+  "windowsStartedAt": null,
+  "macStartedAt": null,
+  "checks": [
+    {
+      "url": "https://vision-community.visioncommunity.workers.dev/api/capabilities",
+      "checkedAt": "2026-10-10T05:12:28.0325791Z",
+      "httpStatus": 404,
+      "response": {"error": "not_found"},
+      "interpretation": "The default contributor endpoint does not expose the required capability contract. This response does not establish the state of all legacy production workloads."
+    },
+    {
+      "url": "https://vision-community-staging.visioncommunity.workers.dev/api/capabilities",
+      "checkedAt": "2026-10-10T05:12:28.3139402Z",
+      "httpStatus": 200,
+      "sceneContributions": {"ready": false, "reason": "scene_verification_unavailable"},
+      "objectContributions": {"ready": false, "reason": "object_verification_unavailable"}
+    },
+    {
+      "scope": "saved-installed-contributor-status",
+      "savedAt": "2026-10-10T05:07:02Z",
+      "state": "waiting_for_service",
+      "acceptedThisRun": 0,
+      "undeliveredBatches": 0,
+      "usesCodex": false,
+      "dayPace": "medium",
+      "nightPace": "max",
+      "dayStart": "06:00",
+      "nightStart": "00:00"
+    }
+  ],
+  "missingPrerequisites": [
+    "Working qualified contribution admission and publication for the selected lanes",
+    "Fresh accepted background work with independently reconciled once-only credit and duplicate replay",
+    "A successful online search paid from genuinely earned credit under the selected price"
+  ],
+  "privateHandoff": {
+    "repository": "Andrew454545/VISION",
+    "pullRequest": 15,
+    "latestOwnerCommentId": 6079277208,
+    "newPortableObjectAuthorityDelivered": false
+  },
+  "actions": {
+    "newSevenDayTaskRegistered": false,
+    "existingDiagnosticChanged": false,
+    "installedContributorChanged": false,
+    "publicAdmissionOpened": false,
+    "githubActionsStarted": false,
+    "creditsCreated": 0
+  },
+  "next": "Finish genuine admission, publication and earned-credit search, then start each ready operating system independently. Do not count closed-service waiting or the existing saved-image diagnostic as accepted-work endurance."
+}

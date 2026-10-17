@@ -1,0 +1,228 @@
+{
+  "version": 1,
+  "scope": "offline-owner-outbound-published-object-retirement-v1",
+  "recordedAtUTC": "2026-10-13T06:43:44.001840+00:00",
+  "sourceParent": "ef7f197d66feeb6fe68fda33cc08273ad3505d06",
+  "branch": "codex/windows-production-readiness",
+  "platform": {
+    "os": "Windows",
+    "version": "10.0.26200",
+    "machine": "AMD64",
+    "python": "3.12.14",
+    "node": "24.19.0"
+  },
+  "implementation": [
+    "Optional retirement/retirement-ack routes use existing immutable acceptance, publication/earned-credit authority and optional cleanup journal; no new schema or financial writer.",
+    "One matching policy/profile/resource command and durable backoff reservation per poll; no hosted/native inference or R2 reads/writes.",
+    "Separate two-phase owner outbox persists the command before native action and completed native reply before acknowledgement; audit completion recovery precedes new maintenance.",
+    "Dedicated native cleanup_once only executes existing owned erasure/retirement steps and cannot fall through to queued inference.",
+    "Saved completed acknowledgement replays without native assets/current policy; partial writes and conflicting commands remain preserved.",
+    "Account deletion retains stronger pending erasure authority; retirement never acknowledges account deletion or changes accepted work/credit."
+  ],
+  "verification": {
+    "pythonPassed": 80,
+    "nodePassed": 100,
+    "failed": 0,
+    "skipped": 0,
+    "counting": "80 distinct Python cases: 76 initial units, 2 assembled pipeline cases, 1 additional configured-mode case and 1 new saved-reply/lock-race case. The final 15-case lock-race/native-cleanup run repeats 14 existing cases, not added again. 100 relevant Node cases include 12 new retirement cases. Older passing runs are not added.",
+    "pythonCases": [
+      "test_ambiguous_ack_retains_exact_ready_bytes_and_does_not_repeat_cleanup (community.tests.test_owner_object_retirement.OwnerObjectRetirementTests.test_ambiguous_ack_retains_exact_ready_bytes_and_does_not_repeat_cleanup)",
+      "test_audit_saved_while_waiting_for_owner_lock_still_precedes_maintenance (community.tests.test_owner_object_retirement.OwnerObjectRetirementTests.test_audit_saved_while_waiting_for_owner_lock_still_precedes_maintenance)",
+      "test_authentication_latch_stays_across_configured_restarts_without_probes (community.tests.test_owner_object_service.ObjectServiceTests.test_authentication_latch_stays_across_configured_restarts_without_probes)",
+      "test_authentication_latches_without_probes_and_explicit_resume_keeps_outbox (community.tests.test_owner_search_supervisor.OwnerSearchSupervisorTests.test_authentication_latches_without_probes_and_explicit_resume_keeps_outbox)",
+      "test_backend_selects_only_dedicated_account_on_both_platforms (community.tests.test_owner_object_service.ObjectProvisionTests.test_backend_selects_only_dedicated_account_on_both_platforms)",
+      "test_candidate_mismatch_is_not_native_work_or_private_echo (community.tests.test_owner_object_agent.OwnerObjectAgentTests.test_candidate_mismatch_is_not_native_work_or_private_echo)",
+      "test_capacity_cleanup_backlog_retains_command_without_ack_or_native_inference (community.tests.test_owner_object_retirement.OwnerObjectRetirementTests.test_capacity_cleanup_backlog_retains_command_without_ack_or_native_inference)",
+      "test_claim_lost_after_fresh_proof_also_stops_without_new_submission (community.tests.test_owner_object_agent.OwnerObjectAgentTests.test_claim_lost_after_fresh_proof_also_stops_without_new_submission)",
+      "test_claim_lost_discards_only_delivery_not_native_saved_work (community.tests.test_owner_object_agent.OwnerObjectAgentTests.test_claim_lost_discards_only_delivery_not_native_saved_work)",
+      "test_cli_bad_arguments_or_private_exception_return_fixed_message_without_echo (community.tests.test_owner_object_service.ObjectServiceTests.test_cli_bad_arguments_or_private_exception_return_fixed_message_without_echo)",
+      "test_cli_requires_two_hidden_prompts_and_never_accepts_redirected_secret (community.tests.test_owner_object_service.ObjectProvisionTests.test_cli_requires_two_hidden_prompts_and_never_accepts_redirected_secret)",
+      "test_clock_rollback_does_not_turn_waiting_work_into_immediate_retry (community.tests.test_owner_search_supervisor.OwnerSearchSupervisorTests.test_clock_rollback_does_not_turn_waiting_work_into_immediate_retry)",
+      "test_competing_supervisor_cannot_overwrite_timer_or_call_agent (community.tests.test_owner_search_supervisor.OwnerSearchSupervisorTests.test_competing_supervisor_cannot_overwrite_timer_or_call_agent)",
+      "test_complete_pending_recovers_and_incomplete_pending_bytes_are_preserved (community.tests.test_owner_object_agent.OwnerObjectAgentTests.test_complete_pending_recovers_and_incomplete_pending_bytes_are_preserved)",
+      "test_complete_pending_retry_state_recovers_rename_without_new_request (community.tests.test_owner_search_supervisor.OwnerSearchSupervisorTests.test_complete_pending_retry_state_recovers_rename_without_new_request)",
+      "test_config_change_or_ambiguous_readback_preserves_possibly_written_key (community.tests.test_owner_object_service.ObjectProvisionTests.test_config_change_or_ambiguous_readback_preserves_possibly_written_key)",
+      "test_configuration_pin_and_activation_cannot_be_retargeted (community.tests.test_owner_object_service.ObjectServiceTests.test_configuration_pin_and_activation_cannot_be_retargeted)",
+      "test_configured_finite_service_delivers_exact_binding_and_closes_without_activation_changes (community.tests.test_owner_object_service.ObjectServiceTests.test_configured_finite_service_delivers_exact_binding_and_closes_without_activation_changes)",
+      "test_configured_runner_constructs_real_saved_auditor_and_replays_committed_reply_lazily (community.tests.test_owner_object_pipeline.OwnerObjectPipelineTests.test_configured_runner_constructs_real_saved_auditor_and_replays_committed_reply_lazily)",
+      "test_corrupt_state_and_partial_pending_are_preserved_and_never_poll (community.tests.test_owner_search_supervisor.OwnerSearchSupervisorTests.test_corrupt_state_and_partial_pending_are_preserved_and_never_poll)",
+      "test_crash_after_completed_reply_flush_promotes_ack_without_repeating_cleanup (community.tests.test_owner_object_retirement.OwnerObjectRetirementTests.test_crash_after_completed_reply_flush_promotes_ack_without_repeating_cleanup)",
+      "test_crash_after_durable_attempt_start_cannot_reset_retry_timer (community.tests.test_owner_search_supervisor.OwnerSearchSupervisorTests.test_crash_after_durable_attempt_start_cannot_reset_retry_timer)",
+      "test_crash_after_saving_command_promotes_it_before_any_native_call (community.tests.test_owner_object_retirement.OwnerObjectRetirementTests.test_crash_after_saving_command_promotes_it_before_any_native_call)",
+      "test_credential_scope_is_distinct_and_never_falls_back_to_search (community.tests.test_owner_object_agent.ObjectCredentialTests.test_credential_scope_is_distinct_and_never_falls_back_to_search)",
+      "test_dedicated_setup_preserves_pause_and_activation_and_never_uses_search_scope (community.tests.test_owner_object_service.ObjectProvisionTests.test_dedicated_setup_preserves_pause_and_activation_and_never_uses_search_scope)",
+      "test_existing_audit_completion_is_recovered_before_any_new_retirement (community.tests.test_owner_object_retirement.OwnerObjectRetirementTests.test_existing_audit_completion_is_recovered_before_any_new_retirement)",
+      "test_existing_key_rotation_requires_independent_old_pin_and_readback (community.tests.test_owner_object_service.ObjectProvisionTests.test_existing_key_rotation_requires_independent_old_pin_and_readback)",
+      "test_explicit_expired_proof_refresh_preserves_old_completion_and_native_identity (community.tests.test_owner_object_agent.OwnerObjectAgentTests.test_explicit_expired_proof_refresh_preserves_old_completion_and_native_identity)",
+      "test_explicit_loop_waits_interruptibly_and_exits_on_operator_latch_or_stop (community.tests.test_owner_search_supervisor.OwnerSearchSupervisorTests.test_explicit_loop_waits_interruptibly_and_exits_on_operator_latch_or_stop)",
+      "test_explicit_retirement_mode_polls_then_reuses_same_connection_for_finite_audit (community.tests.test_owner_object_service.ObjectServiceTests.test_explicit_retirement_mode_polls_then_reuses_same_connection_for_finite_audit)",
+      "test_full_candidate_is_digest_bound_before_native_and_only_current_proof_is_sent (community.tests.test_owner_object_agent.OwnerObjectAgentTests.test_full_candidate_is_digest_bound_before_native_and_only_current_proof_is_sent)",
+      "test_guard_change_after_jobs_open_closes_owned_spool_and_does_not_cache_engine (community.tests.test_owner_object_service.ObjectServiceTests.test_guard_change_after_jobs_open_closes_owned_spool_and_does_not_cache_engine)",
+      "test_healthy_capacity_wait_has_no_failure_report_and_durable_fifteen_minute_pacing (community.tests.test_owner_object_agent.OwnerObjectAgentTests.test_healthy_capacity_wait_has_no_failure_report_and_durable_fifteen_minute_pacing)",
+      "test_https_fixed_origin_route_and_bounded_raw_candidate_without_redirects (community.tests.test_owner_object_agent.ObjectTransportTests.test_https_fixed_origin_route_and_bounded_raw_candidate_without_redirects)",
+      "test_idle_timer_survives_restart_and_jitter_never_undercuts_thirty_seconds (community.tests.test_owner_search_supervisor.OwnerSearchSupervisorTests.test_idle_timer_survives_restart_and_jitter_never_undercuts_thirty_seconds)",
+      "test_incomplete_pending_or_different_command_is_preserved_and_blocks_calls (community.tests.test_owner_object_retirement.OwnerObjectRetirementTests.test_incomplete_pending_or_different_command_is_preserved_and_blocks_calls)",
+      "test_invalid_backoff_hint_latches_without_repeated_work (community.tests.test_owner_object_agent.ObjectSupervisionTests.test_invalid_backoff_hint_latches_without_repeated_work)",
+      "test_invalid_clocks_and_jitter_fail_before_agent_calls (community.tests.test_owner_search_supervisor.OwnerSearchSupervisorTests.test_invalid_clocks_and_jitter_fail_before_agent_calls)",
+      "test_lazy_constructor_passes_exact_pins_never_caches_wrong_binding_and_closes_owned_spool (community.tests.test_owner_object_service.ObjectServiceTests.test_lazy_constructor_passes_exact_pins_never_caches_wrong_binding_and_closes_owned_spool)",
+      "test_lost_ack_restart_needs_neither_native_assets_nor_native_spool (community.tests.test_owner_object_service.ObjectServiceTests.test_lost_ack_restart_needs_neither_native_assets_nor_native_spool)",
+      "test_lost_ack_restart_replays_exact_ready_outbox_without_native_access (community.tests.test_owner_object_retirement.OwnerObjectRetirementTests.test_lost_ack_restart_replays_exact_ready_outbox_without_native_access)",
+      "test_lost_reply_restart_replays_exact_completion_before_any_native_or_claim (community.tests.test_owner_object_agent.OwnerObjectAgentTests.test_lost_reply_restart_replays_exact_completion_before_any_native_or_claim)",
+      "test_mac_add_and_read_use_dedicated_account_in_memory_preserving_normal_consent (community.tests.test_owner_object_service.DedicatedVaultAPITests.test_mac_add_and_read_use_dedicated_account_in_memory_preserving_normal_consent)",
+      "test_mac_uses_only_dedicated_account_and_login_item_no_secret_arguments (community.tests.test_owner_object_agent.ObjectCredentialTests.test_mac_uses_only_dedicated_account_and_login_item_no_secret_arguments)",
+      "test_malformed_claim_binding_cannot_reach_candidate_or_native (community.tests.test_owner_object_agent.OwnerObjectAgentTests.test_malformed_claim_binding_cannot_reach_candidate_or_native)",
+      "test_malformed_command_or_private_native_echo_never_reaches_ack (community.tests.test_owner_object_retirement.OwnerObjectRetirementTests.test_malformed_command_or_private_native_echo_never_reaches_ack)",
+      "test_native_failures_back_off_and_idle_success_resets_failure_count (community.tests.test_owner_search_supervisor.OwnerSearchSupervisorTests.test_native_failures_back_off_and_idle_success_resets_failure_count)",
+      "test_native_spool_pause_is_preserved_and_stops_before_credential_access (community.tests.test_owner_object_service.ObjectServiceTests.test_native_spool_pause_is_preserved_and_stops_before_credential_access)",
+      "test_no_maintenance_command_falls_back_to_existing_finite_audit (community.tests.test_owner_object_retirement.OwnerObjectRetirementTests.test_no_maintenance_command_falls_back_to_existing_finite_audit)",
+      "test_one_cleanup_only_step_requires_completed_native_state_before_ack (community.tests.test_owner_object_retirement.OwnerObjectRetirementTests.test_one_cleanup_only_step_requires_completed_native_state_before_ack)",
+      "test_outage_auth_quota_and_ambiguous_ack_retain_original_exact_outbox (community.tests.test_owner_object_agent.OwnerObjectAgentTests.test_outage_auth_quota_and_ambiguous_ack_retain_original_exact_outbox)",
+      "test_outbox_private_echo_and_unrelated_pending_are_preserved_never_delivered (community.tests.test_owner_object_agent.OwnerObjectAgentTests.test_outbox_private_echo_and_unrelated_pending_are_preserved_never_delivered)",
+      "test_owner_retirement_releases_only_successful_bulk_and_recovers_ack_without_native_inputs (community.tests.test_owner_object_pipeline.OwnerObjectPipelineTests.test_owner_retirement_releases_only_successful_bulk_and_recovers_ack_without_native_inputs)",
+      "test_pause_and_stop_prevent_execution_and_explicit_reset_never_clears_markers (community.tests.test_owner_search_supervisor.OwnerSearchSupervisorTests.test_pause_and_stop_prevent_execution_and_explicit_reset_never_clears_markers)",
+      "test_pause_during_cleanup_keeps_command_and_does_not_ack_or_report_approval (community.tests.test_owner_object_retirement.OwnerObjectRetirementTests.test_pause_during_cleanup_keeps_command_and_does_not_ack_or_report_approval)",
+      "test_pause_stop_and_competing_writer_never_touch_coordinator_native_or_guard (community.tests.test_owner_object_agent.OwnerObjectAgentTests.test_pause_stop_and_competing_writer_never_touch_coordinator_native_or_guard)",
+      "test_pause_stop_and_missing_or_other_purpose_activation_never_read_key_or_native (community.tests.test_owner_object_service.ObjectServiceTests.test_pause_stop_and_missing_or_other_purpose_activation_never_read_key_or_native)",
+      "test_pause_stop_and_second_writer_prevent_all_calls (community.tests.test_owner_object_retirement.OwnerObjectRetirementTests.test_pause_stop_and_second_writer_prevent_all_calls)",
+      "test_pause_written_after_preflight_still_prevents_agent_execution (community.tests.test_owner_search_supervisor.OwnerSearchSupervisorTests.test_pause_written_after_preflight_still_prevents_agent_execution)",
+      "test_permanent_protocol_or_policy_mismatch_requests_operator_repair_not_endless_retry (community.tests.test_owner_object_agent.ObjectTransportTests.test_permanent_protocol_or_policy_mismatch_requests_operator_repair_not_endless_retry)",
+      "test_private_state_cannot_overlap_source_or_native_spool (community.tests.test_owner_object_agent.OwnerObjectAgentTests.test_private_state_cannot_overlap_source_or_native_spool)",
+      "test_queued_work_is_one_finite_step_and_pause_during_work_preserves_job (community.tests.test_owner_object_agent.OwnerObjectAgentTests.test_queued_work_is_one_finite_step_and_pause_during_work_preserves_job)",
+      "test_quota_and_outage_backoff_is_durable_capped_and_preserves_first_failure (community.tests.test_owner_search_supervisor.OwnerSearchSupervisorTests.test_quota_and_outage_backoff_is_durable_capped_and_preserves_first_failure)",
+      "test_refresh_atomic_rename_crash_promotes_saved_new_proof_without_recomputation (community.tests.test_owner_object_agent.OwnerObjectAgentTests.test_refresh_atomic_rename_crash_promotes_saved_new_proof_without_recomputation)",
+      "test_refresh_requires_real_proof_and_keeps_old_outbox_on_changed_source (community.tests.test_owner_object_agent.OwnerObjectAgentTests.test_refresh_requires_real_proof_and_keeps_old_outbox_on_changed_source)",
+      "test_repeated_crashes_increase_backoff_and_malformed_agent_results_latch (community.tests.test_owner_search_supervisor.OwnerSearchSupervisorTests.test_repeated_crashes_increase_backoff_and_malformed_agent_results_latch)",
+      "test_retirement_is_explicit_only_and_invalid_flag_cannot_activate_it (community.tests.test_owner_object_service.ObjectServiceTests.test_retirement_is_explicit_only_and_invalid_flag_cannot_activate_it)",
+      "test_saved_job_is_read_without_fetch_or_automatic_retry_even_when_failed (community.tests.test_owner_object_agent.OwnerObjectAgentTests.test_saved_job_is_read_without_fetch_or_automatic_retry_even_when_failed)",
+      "test_shared_service_lock_refuses_overlapping_runner_and_keeps_saved_work (community.tests.test_owner_object_service.ObjectServiceTests.test_shared_service_lock_refuses_overlapping_runner_and_keeps_saved_work)",
+      "test_stale_owner_bindings_latch_across_restart_without_repeated_probes (community.tests.test_owner_search_supervisor.OwnerSearchSupervisorTests.test_stale_owner_bindings_latch_across_restart_without_repeated_probes)",
+      "test_state_cannot_accept_extra_fields_nonfinite_values_or_private_error_text (community.tests.test_owner_search_supervisor.OwnerSearchSupervisorTests.test_state_cannot_accept_extra_fields_nonfinite_values_or_private_error_text)",
+      "test_storage_failure_prevents_any_network_or_native_work (community.tests.test_owner_search_supervisor.OwnerSearchSupervisorTests.test_storage_failure_prevents_any_network_or_native_work)",
+      "test_stronger_native_erasure_does_not_claim_account_deletion_complete (community.tests.test_owner_object_retirement.OwnerObjectRetirementTests.test_stronger_native_erasure_does_not_claim_account_deletion_complete)",
+      "test_transport_error_codes_are_fixed_and_all_statuses_and_limits_close_connection (community.tests.test_owner_object_agent.ObjectTransportTests.test_transport_error_codes_are_fixed_and_all_statuses_and_limits_close_connection)",
+      "test_unavailable_verification_is_distinct_from_search_and_supervisor_preserves_hint (community.tests.test_owner_object_agent.OwnerObjectAgentTests.test_unavailable_verification_is_distinct_from_search_and_supervisor_preserves_hint)",
+      "test_unknown_error_latches_and_cannot_echo_private_details (community.tests.test_owner_search_supervisor.OwnerSearchSupervisorTests.test_unknown_error_latches_and_cannot_echo_private_details)",
+      "test_windows_requires_exact_dedicated_account_and_frees_native_memory (community.tests.test_owner_object_agent.ObjectCredentialTests.test_windows_requires_exact_dedicated_account_and_frees_native_memory)",
+      "test_windows_write_uses_dedicated_account_and_reader_accepts_only_that_scope (community.tests.test_owner_object_service.DedicatedVaultAPITests.test_windows_write_uses_dedicated_account_and_reader_accepts_only_that_scope)",
+      "test_wrong_configuration_or_service_lock_refuses_vault_access (community.tests.test_owner_object_service.ObjectProvisionTests.test_wrong_configuration_or_service_lock_refuses_vault_access)",
+      "test_wrong_resource_binding_private_paths_or_source_state_fail_closed (community.tests.test_owner_object_service.ObjectServiceTests.test_wrong_resource_binding_private_paths_or_source_state_fail_closed)"
+    ],
+    "logs": {
+      "configured-mode.stderr.log": {
+        "bytes": 335,
+        "sha256": "86151c349a6d492396074d65513068b09fd1734db5425944b737b4495ec57b12"
+      },
+      "configured-mode.stdout.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "node.stderr.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "node.stdout.log": {
+        "bytes": 10326,
+        "sha256": "b95590f1a917d1df3e08b72234e5b6c74c49586a3e6ed718d25a3862450d60e3"
+      },
+      "pipeline.stderr.log": {
+        "bytes": 618,
+        "sha256": "fc4c77d9077606abd9e8e33069f3d28fd2befa214341cadd14cf88ea681a2ba2"
+      },
+      "pipeline.stdout.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "python.stderr.log": {
+        "bytes": 16760,
+        "sha256": "ee1f8b136914a62b6701632c67a91c34e709d7ac29be7ae40462bc535bd278e7"
+      },
+      "python.stdout.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "replay-race.stderr.log": {
+        "bytes": 3475,
+        "sha256": "a7df060f8a5955da76e8a7dfcab72174a7e4645f11cf8a03d7f2216df00ae9e7"
+      },
+      "replay-race.stdout.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    "coverage": [
+      "Actual Worker handlers and local SQLite retirement/publication/ledger/deletion journals; optional missing setup, authentication before body/database, request bounds, independent policy, concurrent polling/backoff, forged or incomplete acknowledgements.",
+      "Native approval without committed accepted work cannot initiate cleanup. Prior-policy jobs stay preserved; committed replay survives unavailable current policy.",
+      "Account deletion racing acknowledgement preserves published contributions, original verified ledger and pending stronger account-erasure outbox; forfeiture remains its own transaction.",
+      "Actual saved Python auditor and owned filesystem cleanup release only successful bulk, retain original audit report, preserve publication/credit and recover a lost acknowledgement without native inputs or new inference.",
+      "Private command/response outbox flush/rename crash recovery, exact replay, partial bytes, PAUSE/STOP/writer locks, native backlog, private-echo refusal and explicit configured-mode wiring.",
+      "Existing owner delivery, supervisor, configured runner, settlement, dispatch and privacy regressions.",
+      "A completion saved while maintenance waits for the shared owner lock is replayed before any cleanup poll; final actual native cleanup/outbox recovery also passes with that change."
+    ],
+    "unresolvedFailures": 0,
+    "preservedFailures": "No failing verification run in this increment; earlier component failures/receipts remain untouched."
+  },
+  "sourceFiles": {
+    "community/owner_object_agent.py": {
+      "bytes": 19012,
+      "sha256": "cf606fe6dff819db9c8df9b816268f139936bd989b2cd236358f1e007686032a"
+    },
+    "community/owner_object_service.py": {
+      "bytes": 9024,
+      "sha256": "857df4be4964897f087e5a5b81d938e81475ffa709bfca51220b7d8ab50dd059"
+    },
+    "community/owner_object_verifier.py": {
+      "bytes": 8754,
+      "sha256": "8a77cc01b68d422122499a548bc97747152c5b6ff2aceba207c9a2f3414f365d"
+    },
+    "community/owner_object_retirement.py": {
+      "bytes": 7462,
+      "sha256": "fba7f6c2ba49f5cbb92fb8e19aa1b7e5407d7562f6b528e2b73ebdacd9db1f85"
+    },
+    "community/tests/test_owner_object_retirement.py": {
+      "bytes": 11034,
+      "sha256": "058d4feaf0cc42550f33564d9083426e2541eaebf108d4253ee96a1555323dd4"
+    },
+    "community/tests/test_owner_object_service.py": {
+      "bytes": 18587,
+      "sha256": "69e13371fb8a4176c927238ffc8346728576deccde4c9e61683f9bf08c505b0b"
+    },
+    "community/tests/test_owner_object_pipeline.py": {
+      "bytes": 15579,
+      "sha256": "b69faec6268db6ccc3986e9181387e1dd676ad07dd4f68b8ea3ecb69d9dd77af"
+    },
+    "deploy/cloudflare/src/ownerObjectRetirement.js": {
+      "bytes": 7927,
+      "sha256": "9b1fd5155cae5aa4d86edb7373ea37e01a3689aa42c5f789ef1135b999fdcf8a"
+    },
+    "deploy/cloudflare/src/ownerObjectRetirement.test.mjs": {
+      "bytes": 8054,
+      "sha256": "d37efe6dc51eeb04653663c3624eebaa0107045ac0f8a1a4a875876fba383c70"
+    },
+    "deploy/cloudflare/src/worker.js": {
+      "bytes": 66944,
+      "sha256": "75e1d95f1f7bb38295ad32998d69cf861a9e1d5c8c980eeeb98173f6a2718e8a"
+    }
+  },
+  "boundaries": {
+    "syntheticOnly": true,
+    "nativeInferenceExecuted": false,
+    "realCoverageValidated": false,
+    "ownedSyntheticNativeFilesystemCleanupExecuted": true,
+    "cloudflareRequests": 0,
+    "providerRequests": 0,
+    "deployments": 0,
+    "actionsStarted": 0,
+    "realCredentialsAccessed": false,
+    "realActivationCreated": false,
+    "startupTasksInstalled": false,
+    "indexingRestarted": false,
+    "accountsOrResourcesMigrated": false,
+    "launchApproved": false
+  },
+  "remaining": [
+    "Outbound cancellation and stronger account erasure, including private delivery-state cleanup.",
+    "Trusted assignment automation, bounded metadata/import and measured retained-history/disk/capacity bounds.",
+    "Approved actual owner setup/startup, provider/migration recovery, authentic Mac/PC qualification/parallel/endurance, signing and controlled rollout."
+  ],
+  "priorPrivateReceiptSha256": "ac35be4d3be8938c97d9960b89b0cdaa0b8fef24c587798c9da585e18656cf34"
+}

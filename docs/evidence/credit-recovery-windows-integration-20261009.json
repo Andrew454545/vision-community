@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "recordedDate": "2026-10-09",
+  "platform": {
+    "os": "Windows",
+    "architecture": "x64",
+    "node": "24.19.0"
+  },
+  "source": {
+    "supportPullRequest": 19,
+    "supportHead": "8e981962ae7e05fbabe05ee676a5cb66e7620be3",
+    "integrationRevision": "20258b7",
+    "orderedChecklistPullRequest": 20,
+    "orderedChecklistHead": "9ccefe2e4188fd368c5d84959e267718118f0a0e"
+  },
+  "service": {
+    "tests": 440,
+    "passed": 437,
+    "failed": 0,
+    "cancelled": 0,
+    "skipped": 3,
+    "durationMs": 23012.6714,
+    "skipReason": "Windows file-symlink creation requires unavailable privileges; one new accounting check and two existing checks skipped",
+    "includesNewAccountingChecks": 26,
+    "logSha256": "3589b515109aa27d6b719a3875ac855f72935dbc70266fc752530ca4811e1108"
+  },
+  "command": "node --test deploy/cloudflare/src/*.test.mjs deploy/cloudflare/scene-verifier/*.test.mjs deploy/cloudflare/native-scene-bridge/*.test.mjs deploy/cloudflare/native-scene-verifier-bridge/*.test.mjs deploy/cloudflare/native-container-host/*.test.mjs",
+  "syntheticPublicationsOnly": true,
+  "actualSearchSettlementAndDeletionFunctions": true,
+  "actionsRun": false,
+  "providerWrites": false,
+  "productionDataExported": false,
+  "sevenDayAcceptedWorkStarted": false,
+  "creditRecoveryVerified": false,
+  "providerRecoveryVerified": false,
+  "liveReady": false,
+  "productionQualified": false
+}

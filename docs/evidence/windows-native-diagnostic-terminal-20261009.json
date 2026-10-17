@@ -1,0 +1,160 @@
+{
+  "date": "2026-10-09",
+  "scope": "supplemental-terminal-readback-not-rewritten-launch-receipt",
+  "platform": "Windows",
+  "status": "FAILED",
+  "endedAt": "2026-10-09T23:04:09.648408+00:00",
+  "elapsedWallSeconds": 11015.231,
+  "maximumRounds": 24,
+  "completedNativeRounds": [
+    {
+      "round": 1,
+      "requestedThreads": 1,
+      "recoveryTests": 130,
+      "recoveryPassed": 129,
+      "recoverySkipped": 1,
+      "nativeReplaySeconds": 601.266,
+      "nativeQueries": 4,
+      "fullNativeVerifications": 2,
+      "queryHitCounts": [
+        1,
+        0,
+        0,
+        1
+      ],
+      "comparisonSha256": "7b769e21e0abfd4ffe37ed00684ec0e4850f407a57f6b710bcc2c42b34e67eb5"
+    },
+    {
+      "round": 2,
+      "requestedThreads": 2,
+      "recoveryTests": 130,
+      "recoveryPassed": 129,
+      "recoverySkipped": 1,
+      "nativeReplaySeconds": 294.875,
+      "nativeQueries": 4,
+      "fullNativeVerifications": 2,
+      "queryHitCounts": [
+        1,
+        0,
+        0,
+        1
+      ],
+      "comparisonSha256": "7b769e21e0abfd4ffe37ed00684ec0e4850f407a57f6b710bcc2c42b34e67eb5"
+    },
+    {
+      "round": 3,
+      "requestedThreads": 4,
+      "recoveryTests": 130,
+      "recoveryPassed": 129,
+      "recoverySkipped": 1,
+      "nativeReplaySeconds": 165.235,
+      "nativeQueries": 4,
+      "fullNativeVerifications": 2,
+      "queryHitCounts": [
+        1,
+        0,
+        0,
+        1
+      ],
+      "comparisonSha256": "7b769e21e0abfd4ffe37ed00684ec0e4850f407a57f6b710bcc2c42b34e67eb5"
+    }
+  ],
+  "distinctLocations": 1,
+  "failure": {
+    "round": 4,
+    "stage": "recovery",
+    "test": "BackgroundControlTests.test_status_input_is_bounded_and_invalid_json_does_not_claim_health",
+    "recoveryTests": 130,
+    "passed": 128,
+    "failed": 1,
+    "skipped": 1,
+    "errors": 0,
+    "expectedExit": 1,
+    "actualExit": 3221225786,
+    "windowsStatus": "0xC000013A",
+    "classification": "console-interruption-exit-source-unresolved",
+    "nativeStageStarted": false,
+    "inheritedCurrentThreadsFieldIsNotNewTrial": true
+  },
+  "task": {
+    "found": true,
+    "ownershipAndExactActionVerified": true,
+    "disabledAfterTerminalFailure": true,
+    "checkedAt": "2026-10-09T23:11:46.8120773Z"
+  },
+  "correction": {
+    "earlierMissingTaskClaimRetracted": true,
+    "earlierIncompleteFourThreadClaimRetracted": true,
+    "originalTerminalReceiptAndFailureLogsUnchanged": true,
+    "originalPinnedSourceAndSupervisorUnchanged": true
+  },
+  "freshIsolatedRecoveryRecheck": {
+    "scope": "fresh-isolated-local-recovery-regression",
+    "tests": 130,
+    "passed": 129,
+    "failures": 0,
+    "errors": 0,
+    "skips": [
+      {
+        "id": "community.tests.test_storage_restore.StorageRestoreTest.test_linked_cache_file_is_not_followed",
+        "reason": "Filesystem does not permit unprivileged symlinks"
+      }
+    ],
+    "seconds": 123.891,
+    "productionQualified": false,
+    "originalFailureReclassified": false,
+    "originalFailureCauseEstablished": false
+  },
+  "retainedEvidence": {
+    "terminalSummary": {
+      "bytes": 27904,
+      "sha256": "60d4520a572eeb01baec0a320c7970a3ec30cd506dd7dcd190e9971d2574c6b1"
+    },
+    "failedRecovery": {
+      "bytes": 252,
+      "sha256": "0968ede6ac8611de5a2d3081671461d03c17bc51bc09f40d6c5d709e5bbe6bad"
+    },
+    "failedRecoveryStderr": {
+      "bytes": 26224,
+      "sha256": "3f670c656c06575f9fe01312bf971091505ecd639c9b00cb3fced1da6fdd09e6"
+    },
+    "capture": {
+      "bytes": 1285,
+      "sha256": "edce2383616a7ec74e59f72579c4b197b407a6ea98514c238aa01936ddc59cb9"
+    },
+    "taskBefore": {
+      "bytes": 4474,
+      "sha256": "a1db53cf9bfbde69d26ccf10d63502c126761e5ea7477bbc0bba2e45201ec0ec"
+    },
+    "taskAfter": {
+      "bytes": 4534,
+      "sha256": "ce988051a3554a62330033283991ba7173a6a850df9e114764041ffc86322ee2"
+    },
+    "newTestHelper": {
+      "bytes": 10248,
+      "sha256": "de3bb0728877d829cb6d4656b8c19d5df8af7afcad846fbd342f1b49bbb5cced"
+    },
+    "freshRecoveryRecheck": {
+      "bytes": 485,
+      "sha256": "90d37cb1be11e2f5fd031318334072cc229d3cc5a9a88ff80e017e1c3f8d7be4"
+    },
+    "freshRecoveryStderr": {
+      "bytes": 25181,
+      "sha256": "e6bc8f1ee7603672cf07e51bbde700e0d39fd0ac313488b3c576acea142c6815"
+    },
+    "previousTwoLocationFailure": {
+      "bytes": 1127,
+      "sha256": "62b3c63bfb2a7168b917397b2eaf9ad1d0df788ccae4f1110976173167999566"
+    }
+  },
+  "previousTwoLocationFailurePreserved": true,
+  "nativeTimeoutIncreased": false,
+  "installedContributorChanged": false,
+  "githubActionsRun": false,
+  "imageryRetrieved": false,
+  "acceptedContributions": 0,
+  "searchCreditsCreated": 0,
+  "acceptedWorkSoakStarted": false,
+  "publicAdmissionOpened": false,
+  "productionQualified": false
+}

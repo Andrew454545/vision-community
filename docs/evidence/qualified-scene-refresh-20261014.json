@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "date": "2026-10-14",
+  "status": "QUALIFIED_SCENE_REFRESH_SOURCE_CONNECTED",
+  "cloudResourcesAccessed": false,
+  "nativeInference": false,
+  "actionsRuns": 0,
+  "tasksRestarted": false,
+  "snapshotActivated": false,
+  "realCreditGranted": 0,
+  "productionQualified": false,
+  "changedBehavior": [
+    "Accept exactly pinned qualified policy IDs in the private staging publication collector",
+    "Audited-only capture does not implicitly include qualified-device work",
+    "Preserve original verified_work and qualified_device_work reasons for the existing authority sealer",
+    "Use qualified/mixed receipt labels instead of claiming native audit",
+    "Preserve stable contributed search IDs and lost-reply pointer recovery"
+  ],
+  "checks": {
+    "node": 7,
+    "python": 18,
+    "actualLocalWorkerdD1R2": 9,
+    "skips": 0,
+    "authorityFeaturesCreditsAndActivationSynthetic": true,
+    "covered": [
+      "exact audited/qualified/mixed D1 selection",
+      "mixed append through existing pinned-authority sealer",
+      "stable global location IDs and source indexes",
+      "qualified-only lost activation response recovered without second activation",
+      "wrong qualified credit reason refused",
+      "existing artifact/digest/pointer/budget/restart protections"
+    ]
+  },
+  "preservedFailures": [
+    "New Python fixture initially read members.json IDs using the wrong key; corrected fixture to locationId/sourceIndex",
+    "Local workerd failed during implicit SQLite persistence initialization; explicit private per-run persistence passed"
+  ],
+  "privateEvidenceSha256": {
+    "node.stdout.private.log": "70880983c638a9146f6f612a641c467a37f6b22c819cce56525e991212c1a1ec",
+    "python-final.stderr.private.log": "9a88ae80279daae47bdc03a8ee0492721e23964ce526264aa8435c4b7cdc7f73",
+    "workerd-persistent.stdout.private.log": "d31e1bc8de2cc1fb03f791807bda8983479b0e8f29f19544375b723663c8c7fb"
+  },
+  "limits": [
+    "No real snapshot collected, sealed, uploaded or activated",
+    "This source fix grants no private transfer or cloud/native activation authority",
+    "The pending maintenance/receipt approval does not include refresh, native search or task restarts",
+    "Capacity, provider recovery, signed-device acceptance and Scene endurance gates remain"
+  ]
+}
