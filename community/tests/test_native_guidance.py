@@ -79,8 +79,8 @@ class NativeGuidanceTests(unittest.TestCase):
         self.assertIn('byId(`${platform}-background-folder`).hidden = state.nativeApp === true', script)
 
     def test_paused_public_guides_do_not_offer_an_old_download(self):
-        sources = [ROOT / name for name in ('README.md', 'START-HERE.md', 'START HERE.html')]
-        sources += [ROOT / 'community' / 'web' / name for name in ('index.html', 'getting-started.html')]
+        # Hosted pages stay paused; repository guides may offer the separate local preview.
+        sources = [ROOT / 'community' / 'web' / name for name in ('index.html', 'getting-started.html')]
         links = set()
         pattern = re.compile(r'https://github\.com/Andrew454545/vision-community/releases/download/[^)" ]+')
         for path in sources:
@@ -96,8 +96,7 @@ class NativeGuidanceTests(unittest.TestCase):
             self.assertNotIn(forbidden, text)
 
     def test_paused_guides_preserve_saved_work_without_reinstalling(self):
-        sources = [ROOT / 'START-HERE.md', ROOT / 'START HERE.html',
-                   ROOT / 'community' / 'web' / 'getting-started.html']
+        sources = [ROOT / 'community' / 'web' / 'getting-started.html']
         for path in sources:
             text = path.read_text(encoding='utf-8').lower()
             self.assertIn('processing and online search are paused', text)
