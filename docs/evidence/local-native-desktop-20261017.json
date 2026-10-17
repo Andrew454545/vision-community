@@ -1,0 +1,60 @@
+{
+  "date": "2026-10-17",
+  "scope": "LOCAL_NATIVE_DESKTOP_WINDOWS",
+  "sourceRevision": "cb5f62e70d5f6269ff75da7e2ef93521459ee16b",
+  "checks": {
+    "nativeTrustAuthFallback": "PASS (one focused loopback case)",
+    "macHostAndLauncherSelfChecks": "PASS, no GUI",
+    "windowsCompilation": "PASS on macOS, not executed",
+    "macHiddenRenderer": {
+      "cloudflareCalls": 0,
+      "googleRequests": 0,
+      "inferenceCommands": 0,
+      "liveProcessing": false,
+      "macHostExecuted": true,
+      "nativeFilePanelsExercised": false,
+      "scope": "HIDDEN_NATIVE_WEBKIT_SHIPPED_PAGE_AND_AUTH",
+      "status": "PASS",
+      "visibleWindowCreated": false,
+      "wallSeconds": 0.502,
+      "windowsExecuted": false,
+      "windowsHostProvisionedAndHashed": true
+    },
+    "packages": "PASS clean builds, all ZIP members and inventories"
+  },
+  "preservedFailure": {
+    "status": "FAILED_PREDECESSOR",
+    "sourceRevision": "1aed22592060bef2feceae209bc3bf8fb3291e4d",
+    "code": "linked_connection",
+    "detail": "Foundation rewrote /private/tmp to /tmp before page load; corrected raw POSIX/no-link read retains regular-file/size bounds"
+  },
+  "sdk": {
+    "version": "1.0.2792.45",
+    "nugetCatalogSha512Verified": true,
+    "licenseIncluded": true,
+    "globalInstall": false,
+    "runtimeInstallAttempted": false
+  },
+  "objectInventory": {
+    "scope": "Retained Mac-reference fixture TSVs only",
+    "distinctPanoramas": 16,
+    "completeGold112AvailableInTheseFixtures": false,
+    "existingCrossPlatformDistinctCases": 3,
+    "qualified": false
+  },
+  "limits": {
+    "visibleMacWindowUsed": false,
+    "nativeFilePanelsExercised": false,
+    "windowsExecuted": false,
+    "freshInstallVerified": false,
+    "signed": false,
+    "productionApproved": false
+  },
+  "operations": {
+    "googleRequests": 0,
+    "cloudflareCalls": 0,
+    "newIndexInference": 0,
+    "actionsDispatched": 0,
+    "oldJobsRestarted": 0
+  }
+}
