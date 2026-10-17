@@ -13,8 +13,10 @@ photo/text blending and native ranking passed one actual offline synthetic use.
 Serial downloads/group pauses and owned bounded recovery are also implemented
 in source. Personal MMA-map import/private queues are now implemented too,
 including saved-reference admission, cross-map reservation recovery, separate
-personal result storage and combined local search. Next: local Objects and a complete
-app shell. Existing operational holds still
+personal result storage and combined local search. The My library window now opens
+prepared/saved personal queues directly, with explicit Start, exclusive ownership
+and queue-specific settings/login registration. Next: local Objects and further
+desktop-shell integration. Existing operational holds still
 apply. See the library guide for exact photo-query scope and private scratch limits.
 
 ## Delivery order
@@ -26,7 +28,7 @@ owner-catalog preparation/apply. See [library/import details](LOCAL_SCENE_LIBRAR
 The owner's Google requests remain paused. Current CPU speed settings are not a
 per-request network rate limit; serial downloads and30-second group pauses are now
 implemented without a live provider test. First-user Windows/live feedback, actual returned
-work registration, local Objects and a complete app shell remain. Signed public downloads
+work registration, local Objects and further desktop-shell integration remain. Signed public downloads
 need signing enrollment. No actual contributor output or personal VISION catalog
 has been changed by the development checks.
 

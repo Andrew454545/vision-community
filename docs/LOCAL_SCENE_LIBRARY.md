@@ -33,8 +33,12 @@ not guess missing countries or resolve missing panoramas online. Camera generati
 without a recognized saved value remain unknown. Only supported poses, map name
 and tags are retained; arbitrary export fields are discarded.
 
-Choose **Prepare my private queue**, then **Save my personal queue**. Extract
-the ZIP and open its **campaign.json** using the VISION launcher. Existing
+Choose **Prepare my private queue**, then **Open my queue here**. The same window
+shows processing controls; choose your speeds and explicitly Start. A **My saved
+queues** menu opens earlier queues from the selected storage folder. The last
+prepared queue is remembered after restarting the app. Opening/switching never
+starts processing automatically, and an exclusive queue-window lock prevents two
+windows from opening the same queue. Existing
 day/night settings, pause/resume, provider-refusal stop and saved-index recovery
 apply. New imports omit panoramas already reserved by another personal map or
 indexed in the personal library. Reimporting the same map reexports the same queue;
@@ -55,6 +59,13 @@ preserve tags. This private workflow grants no Community approval, assignment,
 credit or upload authority. Its private queue registry is not a global Community
 exclusion list. Owner imports retain their original assignment checks. Personal
 collection exports use a distinct contract rejected by the Community owner importer.
+
+**Save a queue backup** remains available. Extract that ZIP and open its
+**campaign.json** with the launcher if needed. Older standalone processing
+windows can prepare a new map but direct queue opening is available through the
+launcher's **My library** window. Actual queue settings/exports/login registration
+remain bound to that queue, independently of the library window. Switching queues
+holds the previous queue; its original progress is retained.
 
 The library and API bind only to authenticated127.0.0.1. Writes require the exact
 local Origin. Results use text DOM nodes and ordinary user-clicked Street View
