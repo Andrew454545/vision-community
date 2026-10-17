@@ -1,6 +1,6 @@
 # Start here: VISION Local Scenes
 
-[Download the invited local preview](https://github.com/Andrew454545/vision-community/releases/tag/local-scenes-native-desktop-preview-20261017). Choose Windows x64 or Apple-silicon Mac.
+[Download the invited local preview](https://github.com/Andrew454545/vision-community/releases/tag/local-scenes-desktop-app-preview-20261017). Choose Windows x64 or Apple-silicon Mac.
 
 
 Your computer does the processing. Your results stay on your computer.
@@ -10,7 +10,8 @@ No account, subscription or Python installation is needed.
 
 1. Extract the whole **VISION Local Scenes** kit. Keep its files together.
 2. Windows: open **VISION Local Scenes.exe**. Apple-silicon Mac: open
-   **VISION Local Scenes.app** (macOS13+).
+   **VISION Local Scenes.app** (macOS13+). The Mac app can be moved on its own;
+   keep the Windows extracted folder together.
 3. Click **Check this computer**. It is already selected on Windows.
 4. Accept setup downloads, then choose **Start / Resume** in the local window.
    Setup downloads private Python and about 1 GB of model files once.
