@@ -1,6 +1,6 @@
 # Start here: VISION Local Scenes
 
-[Download the invited local preview](https://github.com/Andrew454545/vision-community/releases/tag/local-scenes-unified-app-preview-20261017). Choose Windows x64 or Apple-silicon Mac.
+[Download the invited local preview](https://github.com/Andrew454545/vision-community/releases/tag/local-scenes-native-desktop-preview-20261017). Choose Windows x64 or Apple-silicon Mac.
 
 
 Your computer does the processing. Your results stay on your computer.
@@ -10,7 +10,7 @@ No account, subscription or Python installation is needed.
 
 1. Extract the whole **VISION Local Scenes** kit. Keep its files together.
 2. Windows: open **VISION Local Scenes.exe**. Apple-silicon Mac: open
-   **Start Local Scenes.command**.
+   **VISION Local Scenes.app** (macOS13+).
 3. Click **Check this computer**. It is already selected on Windows.
 4. Accept setup downloads, then choose **Start / Resume** in the local window.
    Setup downloads private Python and about 1 GB of model files once.
@@ -63,7 +63,7 @@ in place. Work resumes from saved progress after a program interruption. A power
 failure may repeat the last unfinished group. Explicit **Pause** stays paused.
 
 Keep the computer plugged in. Processing pauses on battery by default. Closing the
-browser tab leaves processing running; **Pause** or **Exit** stops after saving the
+browser tab leaves processing running; the native window asks to pause and close. **Pause** or **Exit** stops after saving the
 current group. This can take several minutes. Reopen the launcher to return.
 
 The window shows your saved-work folder. Keep it and your assigned queue. Never
@@ -133,3 +133,14 @@ stays local. Choose **My MMA maps** to search only your personal map results.
 
 Downloads now run serially, with 30-second pauses between saved groups. This
 reduces request pressure; it does not guarantee that Google will allow access.
+
+## Native app windows
+
+On Mac, use **VISION Local Scenes.app** on macOS13 or later; the older command
+starter is a fallback. Windows uses a WebView2 app window when available and
+the browser interface otherwise. Setup does not install WebView2 automatically.
+Native windows ask to pause before closing. Save maps and report ZIPs using the
+native save dialog; the browser fallback uses normal browser downloads.
+
+The Mac page was checked with hidden WebKit. Interactive file dialogs and actual
+Windows use still need first-user feedback. These downloads remain unsigned.
