@@ -6,8 +6,8 @@ to the maintainer. After review, you receive a personal queue. No terminal,
 account, subscription or global Python installation is needed.
 
 For your own MMA maps, complete the computer check and choose **My library →
-Add my own MMA map**. Prepare/save the private queue, extract it and open
-**campaign.json** in the launcher. This local personal path grants no Community
+Add my own MMA map**. Choose **Prepare my private queue → Open my queue here**,
+then set your speeds and Start. **My saved queues** reopens earlier personal maps. This local personal path grants no Community
 assignment, upload approval or credit.
 
 Each person has separate assigned locations. Never give your queue to someone
