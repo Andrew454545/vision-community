@@ -22,18 +22,26 @@ struct Connection {
 }
 
 func readConnection(_ path: String) throws -> Connection {
-    var current = URL(fileURLWithPath:path).standardizedFileURL
-    while current.path != "/" {
+    // Foundation canonicalization rewrites /private/tmp to /tmp, introducing a
+    // symlink into a path that the backend already validated. Check the exact
+    // supplied POSIX spelling, retaining the same no-link rule on every parent.
+    guard path.hasPrefix("/"),!path.contains("\0"),!path.split(separator:"/").contains(".."),
+          !path.split(separator:"/").contains(".") else {throw NSError(domain:"invalid_connection",code:1)}
+    var current = path
+    while current != "/" {
         var value=stat()
-        guard lstat(current.path,&value)==0,UInt32(value.st_mode)&UInt32(S_IFMT) != UInt32(S_IFLNK) else {
+        guard lstat(current,&value)==0,UInt32(value.st_mode)&UInt32(S_IFMT) != UInt32(S_IFLNK) else {
             throw NSError(domain:"linked_connection",code:1)
         }
-        current.deleteLastPathComponent()
+        current=(current as NSString).deletingLastPathComponent
     }
-    let file=URL(fileURLWithPath:path)
-    let info=try file.resourceValues(forKeys:[.isRegularFileKey,.fileSizeKey])
-    guard info.isRegularFile==true,(info.fileSize ?? 1025)<=1024 else {throw NSError(domain:"invalid_connection",code:1)}
-    let bytes=try Data(contentsOf:file)
+    let descriptor=open(path,O_RDONLY|O_NOFOLLOW)
+    guard descriptor>=0 else {throw NSError(domain:"invalid_connection",code:1)}
+    let file=FileHandle(fileDescriptor:descriptor,closeOnDealloc:true);defer {try? file.close()}
+    var info=stat()
+    guard fstat(descriptor,&info)==0,UInt32(info.st_mode)&UInt32(S_IFMT)==UInt32(S_IFREG),
+          info.st_size<=1024 else {throw NSError(domain:"invalid_connection",code:1)}
+    let bytes=file.readData(ofLength:1025)
     guard bytes.count<=1024,let value=try JSONSerialization.jsonObject(with:bytes) as? [String:Any],
           Set(value.keys)==["version","url"],value["version"] as? Int==1,let raw=value["url"] as? String else {
         throw NSError(domain:"invalid_connection",code:1)
