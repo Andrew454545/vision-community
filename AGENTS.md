@@ -1,14 +1,24 @@
 # Development constraints
 
-## Local library delivery (15 October continuation)
+## Local application delivery and Google hold (16 October continuation)
 
-The invited local path now includes My library, native text/reference-pose Scene
-search, recorded country/generation/direction filters, MMA-compatible JSON export
-and assignment-checked private owner import. See docs/LOCAL_SCENE_LIBRARY.md.
-The core indexing pipeline/model qualification is unchanged. Reuse that evidence;
-do not repeat broad qualification matrices for these UI/import changes. Selectable
-storage, actual owner-catalog registration, direct MMA and Objects remain next.
-No cloud activation or provider-refusal workaround follows from local search.
+The invited local path includes My library, native text/reference-pose Scene
+search, recorded metadata filters, storage selection, optional memory-only MMA
+export, assignment-checked private owner import and additive catalog tools.
+See docs/LOCAL_SCENE_LIBRARY.md. The core indexing pipeline/model qualification
+is unchanged: reuse its evidence and use focused checks for changed boundaries.
+Actual Windows installation, real online MMA, physical external storage and real
+contributor ingestion still need ordinary first-use feedback; do not claim those
+have been tested. Two Documents-path storage recovery stalls remain unexplained.
+
+The owner reported possible Google rate limiting and asked to slow requests.
+Keep this Mac's development offline: no live imagery probes, reference fetches,
+processing restart or automatic retries to discover whether access recovered.
+CPU pace is not a per-request network rate limit. Lower fetch concurrency and
+explicit request spacing remain work before a future live development run;
+do not claim those are already implemented. Text-only local search is offline.
+Ordinary continuation does not lift this hold or the cloud/Actions limits below.
+Do not bypass provider refusals. Objects and automatic sharing remain deferred.
 
 ## Owner delivery priority (15 October continuation)
 

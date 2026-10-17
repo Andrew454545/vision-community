@@ -7,7 +7,7 @@ administrator password is needed.
 
 ## Start here
 
-1. [Download the Local Scenes preview](https://github.com/Andrew454545/vision-community/releases/tag/local-scenes-library-preview-20261015).
+1. [Download the Local Scenes preview](https://github.com/Andrew454545/vision-community/releases/tag/local-scenes-local-app-preview-20261016).
    Choose the ZIP for Windows x64 or Apple-silicon Mac and extract all its files.
 2. Windows: open **VISION Local Scenes.exe**. Mac: open **Start Local Scenes.command**.
 3. Choose **Check this computer**, accept setup downloads, then choose **Start / Resume**.
@@ -17,8 +17,8 @@ administrator password is needed.
    trial comes first; after it succeeds, the maintainer can issue up to five
    million separate locations for this computer.
 
-[Full simple instructions](https://github.com/Andrew454545/vision-community/releases/download/local-scenes-library-preview-20261015/START-HERE.md)
-· [Prompt for a friend's Windows Codex](https://github.com/Andrew454545/vision-community/releases/download/local-scenes-library-preview-20261015/PC-CODEX-PROMPT.md)
+[Full simple instructions](https://github.com/Andrew454545/vision-community/releases/download/local-scenes-local-app-preview-20261016/START-HERE.md)
+· [Prompt for a friend's Windows Codex](https://github.com/Andrew454545/vision-community/releases/download/local-scenes-local-app-preview-20261016/PC-CODEX-PROMPT.md)
 
 Work saves locally and resumes after interruptions. You can opt into automatic
 resume when you sign in. Choose **Pause** to keep it paused. Each person's queue
@@ -40,9 +40,13 @@ choose **Search my Scenes**. Use **Save results as a map** for an MMA-compatible
 JSON map. Text searches run locally without live imagery requests. Street View
 examples retrieve reference imagery from Google.
 
-Selectable storage, owner-catalog integration, direct MMA connections and Objects
-are next in
-[the next-phase outline](https://github.com/Andrew454545/vision-community/releases/download/local-scenes-library-preview-20261015/NEXT-PHASE.md).
+Choose **Choose storage folder** in the launcher for a local or external disk.
+Existing queues keep their original location and progress. Small MMA JSON maps
+can supply reference views; online MMA export is optional and uses a key held
+only in memory. Owner import and catalog preparation tools are available.
+
+First-user Windows/live feedback, actual contributor ingestion and Objects are
+next in [the next-phase outline](https://github.com/Andrew454545/vision-community/releases/download/local-scenes-local-app-preview-20261016/NEXT-PHASE.md).
 
 **The older hosted contribution service, uploads, credits and online search
 remain closed.** Keep old VISION folders, saved work and private account codes.

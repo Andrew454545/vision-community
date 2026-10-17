@@ -11,6 +11,7 @@ mode=app
 accepted=0
 phase=platform
 local_scene_packet=''
+scene_storage=''
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --root) [[ $# -ge 2 ]] || exit 2; root="$2"; shift 2 ;;
@@ -20,6 +21,7 @@ while [[ $# -gt 0 ]]; do
         --prepare-only) mode=prepare; shift ;;
         --background-controls) mode=background; shift ;;
         --local-scene-packet) [[ $# -ge 2 ]] || exit 2; mode=local_scene; local_scene_packet="$2"; shift 2 ;;
+        --select-scene-storage) [[ $# -ge 2 ]] || exit 2; scene_storage="$2"; shift 2 ;;
         *) printf 'That startup option is not supported.\n'; exit 2 ;;
     esac
 done
@@ -118,6 +120,7 @@ else
     [[ "$mode" != prepare ]] || arguments+=(--prepare-only)
     [[ "$mode" != background ]] || arguments+=(--background-controls)
     [[ "$mode" != local_scene ]] || arguments+=(--local-scene-packet "$local_scene_packet")
+    [[ -z "$scene_storage" ]] || arguments+=(--select-scene-storage "$scene_storage")
     /usr/bin/env -i HOME="$HOME" PATH="$PATH" SSL_CERT_FILE="$SSL_CERT_FILE" "$python" -I -B \
         "$source_root/community/mac_starter.py" "${arguments[@]}"
 fi

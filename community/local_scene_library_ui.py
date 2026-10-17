@@ -38,9 +38,10 @@ class LibraryWindow:
 
 
 class LibrarySession:
-    def __init__(self, app, data_dir, *, searcher=None):
+    def __init__(self, app, data_dir, *, searcher=None, source_roots=None):
         self.app = app
         self.data_dir = regular(data_dir, directory=True)
+        self.source_roots = list(dict.fromkeys([self.data_dir, *(source_roots or [])]))
         self.library = SceneLibrary(self.data_dir/'library')
         self.searcher = searcher or self.library.search
         self.guard = threading.RLock()
@@ -48,6 +49,7 @@ class LibrarySession:
         self.stop = threading.Event()
         self.phase, self.message = 'ready', 'Your completed Scenes appear here. Refresh to recover saved work.'
         self.result = None
+        self.mma = None
         # The callback adds only metadata/references. Vector compaction waits
         # until a search, so every128-location batch does not rewrite a segment.
         app.on_completed_pilot = self.add_completed
@@ -62,7 +64,13 @@ class LibrarySession:
     def _recover(self):
         with self.library.guard, self.library._db() as db:
             known = {Path(row[0]).parents[1] for row in db.execute('SELECT path FROM sources')}
-        for root in sorted(self.data_dir.iterdir()):
+        for data_dir in self.source_roots:
+            data_dir = regular(data_dir, directory=True, missing=True)
+            if data_dir.exists():
+                self._recover_root(data_dir, known)
+
+    def _recover_root(self, data_dir, known):
+        for root in sorted(data_dir.iterdir()):
             if self.stop.is_set():
                 return
             if not re.fullmatch('[a-f0-9]{64}', root.name):
@@ -140,9 +148,11 @@ class LibrarySession:
             self.thread.join(200)
             if self.thread.is_alive():
                 raise RuntimeError('library_child_not_stopped')
+        if self.mma:
+            self.mma.disconnect()
 
 
-HTML = '''<section id="library-panel" hidden>
+HTML = r'''<section id="library-panel" hidden>
 <h1>My Scene library</h1><p>Search the Scenes you have saved on this computer.</p>
 <div class="card"><p id="library-count">Loading your library…</p>
 <button id="library-refresh">Refresh library</button>
@@ -154,6 +164,8 @@ HTML = '''<section id="library-panel" hidden>
 <label>View <select id="library-view"><option value="bestOfFour">Any direction</option><option value="original">Forward</option><option value="right">Right</option><option value="opposite">Backward</option><option value="left">Left</option><option value="originalAxis">Forward or backward</option><option value="sideAxis">Either side</option></select></label></p>
 <details><summary>Use a Street View example</summary>
 <p>This retrieves the reference view from Google. Text-only searches use saved indexes without imagery requests.</p>
+<label>Or choose a small MMA reference map <input id="library-reference-file" type="file" accept=".json,application/json"></label>
+<p id="library-reference-note">Up to eight evenly spaced panorama views from a JSON map, at most 2 MB.</p>
 <label>Panorama ID <input id="library-pano" maxlength="80"></label><br>
 <label>Heading <input id="library-heading" type="number" min="0" max="359.99" value="0"></label>
 <label>Pitch <input id="library-pitch" type="number" min="-90" max="90" value="0"></label>
@@ -161,12 +173,20 @@ HTML = '''<section id="library-panel" hidden>
 </details>
 <p>Pause processing before searching. Unknown metadata stays unknown.</p>
 <button id="library-search">Search my Scenes</button>
-<button id="library-save" disabled>Save results as a map</button></div>
+<button id="library-save" disabled>Save results as a map</button>
+<p>For local MMA, open a map and drop the saved JSON file onto its window.</p>
+<details><summary>Send to an online MMA map (optional)</summary>
+<p>Use your own map-making.app API key. It stays in memory until you disconnect or exit. It is never sent to Community.</p>
+<label>API key <input id="mma-key" type="password" autocomplete="off" maxlength="2048"></label>
+<button id="mma-connect">Connect</button><button id="mma-disconnect">Disconnect</button>
+<p><label>Destination map <select id="mma-map"><option value="">Connect to choose a map</option></select></label></p>
+<button id="mma-send" disabled>Send these results to this map</button>
+<p id="mma-message" role="status"></p></details></div>
 <div id="library-results"></div><p id="library-folder" style="overflow-wrap:anywhere"></p>
 </section>'''
 
-SCRIPT = '''
-let libraryTimer=null,libraryFilterKey='',libraryOpened=false;
+SCRIPT = r'''
+let libraryTimer=null,libraryFilterKey='',libraryOpened=false,mmaConnected=false,referenceExamples=[];
 function fillLibrarySelect(id,values,title){const el=document.getElementById(id),prior=el.value;
 el.replaceChildren();const all=document.createElement('option');all.value='';all.textContent=title;el.append(all);
 for(const v of values){const option=document.createElement('option');option.value=v;option.textContent=v;el.append(option);}el.value=values.includes(prior)?prior:'';}
@@ -177,6 +197,7 @@ document.getElementById('library-folder').textContent='Library folder: '+s.path;
 document.getElementById('library-search').disabled=s.busy;
 document.getElementById('library-refresh').disabled=s.busy;
 document.getElementById('library-save').disabled=s.busy||!s.mapAvailable;
+document.getElementById('mma-send').disabled=s.busy||!s.mapAvailable||!mmaConnected;
 const key=JSON.stringify([s.countries,s.generations]);if(key!==libraryFilterKey){
 fillLibrarySelect('library-country',s.countries,'All countries');fillLibrarySelect('library-generation',s.generations,'All generations');libraryFilterKey=key;}
 if(!s.busy){const output=document.getElementById('library-results');output.replaceChildren();
@@ -188,6 +209,7 @@ const link=document.createElement('a');const url=new URL('https://www.google.com
 url.search=new URLSearchParams({api:'1',map_action:'pano',pano:row.panoId,viewpoint:row.lat+','+row.lng,heading:String(row.heading),pitch:String(row.pitch)}).toString();
 link.href=url.href;link.target='_blank';link.rel='noopener noreferrer';link.textContent='Open Street View';link.style.color='#79decc';
 const example=document.createElement('button');example.textContent='Use as example';example.onclick=()=>{
+referenceExamples=[];document.getElementById('library-reference-file').value='';
 for(const [id,v] of [['pano',row.panoId],['heading',row.heading],['pitch',row.pitch],['zoom',row.zoom]])document.getElementById('library-'+id).value=v;
 document.querySelector('#library-panel details').open=true;document.getElementById('library-prompt').focus();};
 card.append(title,pose,document.createElement('br'),link,document.createElement('br'),example);output.append(card);}}
@@ -200,11 +222,38 @@ if(!r.ok){const error=await r.json();document.getElementById('library-message').
 await libraryUpdate();}catch(e){document.getElementById('library-message').textContent='The library action could not start.';}}
 document.getElementById('library-refresh').onclick=()=>libraryAction('/api/library/refresh',{});
 document.getElementById('library-search').onclick=()=>{const prompt=document.getElementById('library-prompt').value,pano=document.getElementById('library-pano').value.trim();
-const examples=pano?[{panoId:pano,heading:Number(document.getElementById('library-heading').value),pitch:Number(document.getElementById('library-pitch').value),zoom:Number(document.getElementById('library-zoom').value)}]:[];
+const examples=pano?[{panoId:pano,heading:Number(document.getElementById('library-heading').value),pitch:Number(document.getElementById('library-pitch').value),zoom:Number(document.getElementById('library-zoom').value)}]:referenceExamples;
 libraryAction('/api/library/search',{prompt,country:document.getElementById('library-country').value,generation:document.getElementById('library-generation').value,viewDirection:document.getElementById('library-view').value,examples,descriptionWeight:examples.length?(prompt.trim()?50:0):100,resultCount:50});};
 document.getElementById('library-save').onclick=async()=>{try{const r=await fetch('/api/library/map',{headers:{Authorization:'Bearer '+token}});if(!r.ok)throw Error();
 const url=URL.createObjectURL(await r.blob()),link=document.createElement('a');link.href=url;link.download='VISION-search-results.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),60000);
 }catch(e){document.getElementById('library-message').textContent='Map results could not be saved.';}};
+async function mmaAction(action,value){const message=document.getElementById('mma-message');
+if(action==='connect'){mmaConnected=false;document.getElementById('mma-map').replaceChildren();document.getElementById('mma-send').disabled=true;}
+message.textContent=action==='send'?'Sending to your selected map…':'Connecting to your MMA account…';
+try{const r=await fetch('/api/mma/'+action,{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(value)});
+const result=await r.json();if(!r.ok){message.textContent=result.error==='mma_delivery_needs_check'?'Delivery is uncertain. Check the destination map before importing again. Automatic retry is stopped.':'MMA could not finish. Check your key and connection; your local results are kept.';return;}
+if(action==='connect'){mmaConnected=result.connected;const select=document.getElementById('mma-map');select.replaceChildren();
+for(const map of result.maps){const option=document.createElement('option');option.value=map.id;option.textContent=map.name;select.append(option);}
+message.textContent=result.maps.length?'Connected. Choose the destination map.':'Connected, but no maps were found. Create a map in MMA first.';
+}else if(action==='disconnect'){mmaConnected=false;document.getElementById('mma-map').replaceChildren();message.textContent='Disconnected. The API key is no longer held.';
+}else message.textContent=result.alreadySent?'These exact results were already sent. Nothing was added again.':result.added+' locations sent to your selected map.';
+await libraryUpdate();}catch(e){message.textContent='The MMA request could not finish. If sending, check the destination map before trying again.';}}
+document.getElementById('mma-connect').onclick=()=>{const key=document.getElementById('mma-key').value;document.getElementById('mma-key').value='';return mmaAction('connect',{apiKey:key});};
+document.getElementById('mma-disconnect').onclick=()=>mmaAction('disconnect',{});
+document.getElementById('mma-send').onclick=()=>{const select=document.getElementById('mma-map'),mapId=select.value;
+if(!mapId)return;if(confirm('Add the current search results to '+select.options[select.selectedIndex].text+'?'))return mmaAction('send',{mapId});};
+document.getElementById('library-reference-file').onchange=async()=>{referenceExamples=[];
+const note=document.getElementById('library-reference-note'),file=document.getElementById('library-reference-file').files[0];if(!file)return;
+if(file.size>2*1024*1024){note.textContent='Choose a reference JSON map smaller than 2 MB.';return;}
+try{const map=JSON.parse(await file.text()),rows=Array.isArray(map)?map:(map.customCoordinates||map.locations||map.coordinates||[]);
+const usable=rows.filter(r=>r&&typeof r.panoId==='string'&&/^[A-Za-z0-9_-]{4,80}$/.test(r.panoId));
+if(!usable.length)throw Error();const count=Math.min(8,usable.length),seen=new Set();
+for(let i=0;i<count;i++){const row=usable[Math.round(i*(usable.length-1)/Math.max(1,count-1))];
+const pose={panoId:row.panoId,heading:((Number(row.heading||0)%360)+360)%360,pitch:Number(row.pitch||0),zoom:Number(row.zoom||0)};
+if(Object.values(pose).slice(1).some(n=>!Number.isFinite(n))||pose.pitch< -90||pose.pitch>90||pose.zoom<0||pose.zoom>5)throw Error();
+const key=JSON.stringify(pose);if(!seen.has(key)){referenceExamples.push(pose);seen.add(key);}}
+document.getElementById('library-pano').value='';note.textContent=referenceExamples.length+' reference views selected. Choose Search my Scenes to retrieve those views and search.';
+}catch(e){referenceExamples=[];note.textContent='This file has no usable panorama views. Choose an MMA JSON map.';}};
 '''
 
 

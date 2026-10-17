@@ -134,6 +134,22 @@ class LibraryTests(unittest.TestCase):
                 response=client.getresponse();self.assertEqual(response.status,200);self.assertTrue(json.loads(response.read())['localOnly'])
                 client.request('GET','/',headers={});response=client.getresponse();page=response.read().decode()
                 self.assertIn('My Scene library',page);self.assertIn('originalAxis',page)
+                from community.local_scene_mma import MMAConnection
+                calls=[]
+                def transport(path,key,**kwargs):
+                    calls.append(path)
+                    return [{'id':'selected-map','name':'Private map'}] if path=='/api/maps' else {}
+                session.mma=MMAConnection(session.library.root,transport=transport)
+                session.result={'map':{'name':'Saved results','customCoordinates':[{'lat':10,'lng':20,'panoId':'test-pano'}]}}
+                headers['Origin']='https://untrusted.example'
+                client.request('POST','/api/mma/connect',json.dumps({'apiKey':'test-private-key'}),headers)
+                response=client.getresponse();self.assertEqual(response.status,403);response.read();self.assertEqual(calls,[])
+                headers['Origin']=f'http://127.0.0.1:{server.server_port}'
+                for action,body in [('connect',{'apiKey':'test-private-key'}),('send',{'mapId':'selected-map'}),('disconnect',{})]:
+                    client.request('POST','/api/mma/'+action,json.dumps(body),headers)
+                    response=client.getresponse();self.assertEqual(response.status,200);response.read()
+                self.assertEqual(calls,['/api/maps','/api/maps/selected-map/locations'])
+                self.assertFalse(session.mma.status()['connected'])
             finally:
                 client.close();server.shutdown();server.server_close();thread.join(5);session.close()
 

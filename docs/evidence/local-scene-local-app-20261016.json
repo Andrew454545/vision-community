@@ -1,0 +1,82 @@
+{
+  "date": "2026-10-16",
+  "scope": "INVITED_LOCAL_SCENE_APP_OFFLINE_COMPLETION",
+  "sourceFiles": {
+    "community/local_scene_storage.py": "08e287a8e08b968b67adff6fcb16d0c1891d36a909f584e4a0a6928d00096c7e",
+    "community/local_scene_mma.py": "891868cdc7c71893111dbca45aec8ab23fd41a402efac5b62409335100b6c436",
+    "community/local_scene_catalog.py": "a1ba779d1851f71c81b2df5f8f892a5a13dc65acd5b7d037dad26c523689beaf",
+    "community/local_scene_library_ui.py": "49149c5f90224aa6d384b481ca5340be9e3e6bec7cdb064450253f4485241135",
+    "community/local_scene_ui.py": "b203d9f823368920775f04c3189a622951a1774a7fc71528295d4127ffb09163",
+    "community/mac_starter.py": "cb8ef53ce2e3dc08f801d0caa353215afc9d1fc9c131f7e8a84e270e5a44cac1",
+    "packaging/windows/LocalScenes.cs": "0960b8d0f1c7b84940003090e01a5c5940bcf82104a88d9c02fd72f701b3b80f"
+  },
+  "qualification": "Existing fixed112 CPU1/2/4 evidence reused; numerical pipeline unchanged",
+  "focusedChecks": {
+    "firstPass": 4,
+    "loopbackAPIFirstAttempt": "missing recovered page helper; failure retained privately",
+    "loopbackAPIAfterRepair": "PASS",
+    "shippedJavaScript": "PASS in VM DOM harness; not browser certification"
+  },
+  "preservedPredecessorEvidence": {
+    "nativeLibraryUse": {
+      "cloudCalls": 0,
+      "liveImageryRequests": 0,
+      "locations": 112,
+      "nativeTextQueries": 1,
+      "newIndexInference": false,
+      "originalInputsUnchanged": true,
+      "packedVectorBytesIdentical": true,
+      "results": 20,
+      "scope": "REUSED_FROZEN_SYNTHETIC_FIXTURE_NOT_LIVE_LOCATIONS",
+      "status": "PASS",
+      "wallSeconds": 1.019
+    },
+    "ownerConsumerUse": {
+      "cloudCalls": 0,
+      "inputCatalogUnchanged": true,
+      "liveImageryRequests": 0,
+      "modelWeightsVerified": true,
+      "nativeTextQueries": 1,
+      "newIndexInference": false,
+      "ownerNativeSha256": "4e3a42023797d878d6f16abc2dc1b400f9ddf94bd48b8bf9a4040ab8b5c59181",
+      "packedVectorBytesIdentical": true,
+      "preparedLocations": 2,
+      "realOwnerCatalogApplied": false,
+      "scope": "SYNTHETIC_TWO_RECORD_IMPORT_AND_OWNER_INDEX_CONSUMER_ONLY",
+      "status": "PASS",
+      "wallSeconds": 1.424
+    },
+    "selectedStorageCLI": {
+      "actualCLI": true,
+      "authenticatedExitCode": 0,
+      "cloudCalls": 0,
+      "newInferenceRuns": 0,
+      "oldWorkRecoveredWithoutMoving": true,
+      "physicalExternalDiskTested": false,
+      "savedLocationsVisible": 112,
+      "selectedStorageUsed": true,
+      "standaloneLibraryOpened": true,
+      "status": "PASS"
+    }
+  },
+  "limits": {
+    "windowsExecuted": false,
+    "physicalExternalDiskTested": false,
+    "realOnlineMMAUsed": false,
+    "realOwnerCatalogApplied": false,
+    "newRealContributorResultsImported": false,
+    "signed": false,
+    "publicProductionApproved": false,
+    "perRequestNetworkRateCapImplemented": false,
+    "documentsPathRecoveryStalls": "Two preserved predecessor attempts; root cause unproven"
+  },
+  "operations": {
+    "liveGoogleRequests": 0,
+    "newIndexInference": 0,
+    "cloudflareCalls": 0,
+    "actionsDispatched": 0,
+    "oldJobsRestarted": 0,
+    "hostedServicesActivated": false,
+    "ownerGoogleHoldPreserved": true
+  }
+}

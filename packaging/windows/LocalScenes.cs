@@ -89,7 +89,7 @@ static class LocalScenes {
             if(Run(Child(python,snapshot,root,"local_scene_setup.py",setup),root,"scene-setup",1900)!=0) throw new IOException("local_scene_setup_failed");
             // Recheck Python/source before the long-lived user-controlled UI.
             Starter.Python(root,false);Starter.Snapshot(Package.Project,root);
-            var info=Child(python,snapshot,root,"local_scene_supervisor.py","--packet "+Package.Quote(packet)+" --data-dir "+Package.Quote(Path.Combine(root,"results"))+" --runtime-root "+Package.Quote(runtime));
+            var info=Child(python,snapshot,root,"local_scene_supervisor.py","--packet "+Package.Quote(packet)+" --data-dir "+Package.Quote(Path.Combine(root,"results"))+" --runtime-root "+Package.Quote(runtime)+" --app-root "+Package.Quote(root));
             var child=new Process {StartInfo=info};
             // The UI writes durable worker diagnostics. It does not send private
             // paths or native output into this beginner-facing launcher window.
@@ -101,7 +101,7 @@ static class LocalScenes {
         Package.Verify(Package.Project);
         var python=Starter.Python(root,false);var snapshot=Starter.Snapshot(Package.Project,root);
         return Run(Child(python,snapshot,root,"local_scene_ui.py","--packet "+Package.Quote(packet)+" --data-dir "+
-            Package.Quote(Path.Combine(root,"results"))+" --runtime-root "+Package.Quote(Path.Combine(root,"runtime"))+" --reopen-only"),root,"reopen-window",15);
+            Package.Quote(Path.Combine(root,"results"))+" --runtime-root "+Package.Quote(Path.Combine(root,"runtime"))+" --app-root "+Package.Quote(root)+" --reopen-only"),root,"reopen-window",15);
     }
     public static int CheckComputer() {
         var root=Root;
@@ -152,9 +152,9 @@ static class LocalScenes {
 }
 
 sealed class PilotWindow:Form {
-    Label status; Button choose,open,library; string packet; Process child;bool preparing;
+    Label status; Button choose,open,library,storage; string packet; Process child;bool preparing;
     public PilotWindow() {
-        Text="VISION Local Scenes";ClientSize=new Size(610,450);Font=new Font("Segoe UI",11);
+        Text="VISION Local Scenes";ClientSize=new Size(610,510);Font=new Font("Segoe UI",11);
         FormBorderStyle=FormBorderStyle.FixedDialog;MaximizeBox=false;StartPosition=FormStartPosition.CenterScreen;
         var title=new Label {Text="Process and search on your computer.",Font=new Font("Segoe UI",19,FontStyle.Bold),Left=24,Top=22,Width=560,Height=65};
         var intro=new Label {Text="Process your personal queue and search your saved Scenes. Results stay here. No account or cloud search is needed.",Left=24,Top=95,Width=560,Height=70};
@@ -162,13 +162,19 @@ sealed class PilotWindow:Form {
         choose=new Button {Text="Open personal queue",Left=24,Top=260,Width=250,Height=48};
         open=new Button {Text="Check this computer",Left=290,Top=260,Width=285,Height=48,Enabled=false};
         library=new Button {Text="My library",Left=24,Top=320,Width=551,Height=48};
+        storage=new Button {Text="Choose storage folder",Left=24,Top=378,Width=551,Height=42};
         var readiness=Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),"Readiness","Check this computer.json");
         if(File.Exists(readiness)) {packet=readiness;open.Enabled=true;status.Text="Click Check this computer to begin. When the checks finish, save results and send them to the maintainer.";}
-        Controls.AddRange(new Control[]{title,intro,status,choose,open,library,new Label {Text="Use Exit in the local window before closing this launcher.",Left=24,Top=388,Width=560,Height=44}});
+        Controls.AddRange(new Control[]{title,intro,status,choose,open,library,storage,new Label {Text="Use Exit in the local window before closing this launcher.",Left=24,Top=440,Width=560,Height=44}});
         choose.Click+=(s,e)=>{using(var picker=new OpenFileDialog {Title="Choose Check this computer.json or your approved campaign.json",Filter="VISION check or queue (*.json)|*.json"})
             if(picker.ShowDialog(this)==DialogResult.OK){packet=picker.FileName;status.Text="Your file is selected. Open the local pilot to continue.";open.Text="Open local pilot";open.Enabled=true;}};
         open.Click+=(s,e)=>OpenPilot();
         library.Click+=(s,e)=>{packet=Path.Combine(Package.Project,"community","local_scene_library.json");OpenPilot();};
+        storage.Click+=(s,e)=>{using(var picker=new FolderBrowserDialog {Description="Choose a disk or folder for new Scene work. Existing files stay in place.",ShowNewFolderButton=true})
+            if(picker.ShowDialog(this)==DialogResult.OK)try {var root=LocalScenes.Root;Package.Plain(root);Directory.CreateDirectory(root);Package.Plain(picker.SelectedPath);
+                Starter.Json(Path.Combine(root,"local-scene-storage-choice.json"),new {version=1,selected=Path.GetFullPath(picker.SelectedPath)});
+                status.Text="New queues and searchable copies will use VISION Local Scenes Data in that folder. Keep earlier work folders connected; My library can recover them.";
+            }catch(Exception error){Starter.Failure(LocalScenes.Root,error);status.Text="The storage choice could not be saved. Your existing work is kept.";}};
         FormClosing+=(s,e)=>{if(preparing||(child!=null&&!child.HasExited)){e.Cancel=true;MessageBox.Show(this,"Finish setup, or choose Exit in the local pilot window and wait for the current group to finish.","Keep your work safe");}};
     }
     void OpenPilot() {
@@ -181,15 +187,15 @@ sealed class PilotWindow:Form {
             reopen.RunWorkerAsync();return;
         }
         if(MessageBox.Show(this,"Setup downloads private Python and about 1 GB of Scene models once. The first computer check uses fixed local images. Your approved personal queue later retrieves Street View imagery and uses your CPU. Results stay on this computer. Continue?","Local Scene setup",MessageBoxButtons.OKCancel)!=DialogResult.OK)return;
-        preparing=true;library.Enabled=choose.Enabled=open.Enabled=false;status.Text="Preparing the local Scene files. Keep this window open; the first download may take a few minutes.";
+        preparing=true;storage.Enabled=library.Enabled=choose.Enabled=open.Enabled=false;status.Text="Preparing the local Scene files. Keep this window open; the first download may take a few minutes.";
         var setup=new BackgroundWorker();
         setup.DoWork+=(s,e)=>{e.Result=LocalScenes.Start(packet,LocalScenes.Root,true);};
         setup.RunWorkerCompleted+=(s,e)=>{
             preparing=false;setup.Dispose();
-            if(e.Error!=null){Starter.Failure(LocalScenes.Root,e.Error);library.Enabled=choose.Enabled=open.Enabled=true;status.Text="Setup could not finish. Your files and a private report are kept. Ask the maintainer for help.";return;}
+            if(e.Error!=null){Starter.Failure(LocalScenes.Root,e.Error);storage.Enabled=library.Enabled=choose.Enabled=open.Enabled=true;status.Text="Setup could not finish. Your files and a private report are kept. Ask the maintainer for help.";return;}
             child=(Process)e.Result;open.Enabled=true;open.Text="Reopen pilot window";status.Text="The local pilot is open in your browser. Use its Start and Pause buttons.";
             var timer=new System.Windows.Forms.Timer {Interval=500};timer.Tick+=(sender,ev)=>{
-                if(child.HasExited){var code=child.ExitCode;child.Dispose();child=null;timer.Stop();timer.Dispose();library.Enabled=choose.Enabled=open.Enabled=true;open.Text="Open local pilot";
+                if(child.HasExited){var code=child.ExitCode;child.Dispose();child=null;timer.Stop();timer.Dispose();storage.Enabled=library.Enabled=choose.Enabled=open.Enabled=true;open.Text="Open local pilot";
                     status.Text=code==0?"Local pilot closed or its existing window reopened. Your saved work is kept.":"The local pilot stopped. Your files are kept; ask the maintainer to review the saved report.";}};
             timer.Start();};
         setup.RunWorkerAsync();

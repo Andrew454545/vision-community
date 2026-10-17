@@ -19,6 +19,13 @@ doesn't pass is not approved. You do not need to understand the test report.
 
 ## When you receive your queue
 
+Before opening a large new queue, choose **Choose storage folder** in the launcher
+and select a local disk or connected external drive with enough space. New queues
+and searchable copies use **VISION Local Scenes Data** there. Existing queues
+keep their original location and progress. Keep earlier work folders connected;
+**Refresh library** can recover their completed Scenes. A missing selected drive
+stops startup instead of silently placing work on another disk.
+
 1. Extract your whole personal queue folder. Keep it somewhere permanent.
 2. Open the same launcher, choose **Open personal queue** (Windows) or **Open my queue**
    (Mac), and select **campaign.json** in that folder.
@@ -68,6 +75,17 @@ can supply a panorama and camera pose, or choose **Use as example** on a result.
 Reference-example searches retrieve imagery from Google; text searches do not.
 If Google refuses access, use text search or wait for normal access on that
 connection. Uploading an arbitrary photo and direct MMA connections come later.
+
+You can choose a small MMA reference JSON map, up to 2 MB, under **Use a Street
+View example**. The app selects up to eight panorama views from it. Other map
+fields stay out of the search request. No imagery is fetched until you search.
+
+For local MMA, open a map and drop the saved results JSON onto its window.
+To send online, open **Send to an online MMA map**, connect with your own API key,
+choose the destination and confirm **Send these results to this map**. The key
+stays in memory until disconnect or exit; VISION does not save it. If delivery is
+uncertain, check that map before another import. The app holds the export rather
+than automatically retrying it.
 
 This invited preview is unsigned. If your computer refuses it, stop and ask the
 maintainer for trusted installation help. Do not disable security settings.
