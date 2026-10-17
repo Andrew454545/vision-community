@@ -1,23 +1,22 @@
-# How to help
+# Help with VISION Local Scenes
 
-Scenes use the same four-view indexer as the VISION app. Objects use the same hybrid object indexer (RF-DETR, YOLOE, and OWLv2). Those programs cannot run inside the browser, so both run in Terminal.
+For processing on your computer, use [Start here](START-HERE.md). Download the
+invited kit, choose **Check this computer**, and privately send its results ZIP
+to the maintainer. After review, you receive a personal queue. No terminal,
+account, subscription or global Python installation is needed.
 
-1. On a new computer, download this project, open a terminal in that folder, and run `python3 -m community.bootstrap` once. On Windows, use `python` if `python3` is not recognized.
-2. Open the site.
-3. Click **Get a free account**. Write down or screenshot the code. That code is your only login.
-4. Click **Copy scene command**, or switch to Objects and click **Copy object command**. Open Terminal, or PowerShell on Windows, paste, and press Return. Leave that window open.
-5. When the bar reaches 100,000, copy the search command and run it in Terminal.
-6. Connect [map-making.app](https://map-making.app) with an API key to add the results to a map, or copy/download the JSON and drop it onto the local Map Making App.
+Each person has separate assigned locations. Never give your queue to someone
+else or post reports, device identities, account codes or API keys on GitHub.
+Results stay local; share completed exports through your agreed private method.
+The older hosted service stays paused. Do not start its legacy workers.
 
-If the VISION app is already indexing on the same computer, leave speed on Gentle.
+For source contributions, use the current implementation branch
+[codex/windows-production-readiness](https://github.com/Andrew454545/vision-community/tree/codex/windows-production-readiness)
+and read its AGENTS.md and docs/LOCAL_APP_NEXT_PHASE.md. The owner's Google
+requests are paused. Do not spend Actions or Cloudflare budget, restart old jobs
+or work around provider refusals. Existing qualification is reused; make a
+focused check for the behavior you change, rather than repeating broad matrices.
 
-Coming back later: paste your saved code and click Restore.
-
-```sh
-python3 -m pip install -r requirements.txt
-python3 -m community.vision_index --pace slow --recovery-code YOUR_CODE
-python3 -m community.vision_index --search --prompt "red barn in snow" --recovery-code YOUR_CODE
-python3 -m community.send_mma YourSearch.json --new-map
-```
-
-`python3 -m community.bootstrap` downloads `mma-vision`, the `siglip-b16-224-canonical` model folder, `vision-object`, and the `object-hybrid-v1` model folder into the usual VISION folders. Set `VISION_FOUR_VIEW_BINARY`, `VISION_MODEL_DIR`, `VISION_OBJECT_BINARY`, and `VISION_OBJECT_MODEL_DIR` only when those files already live somewhere else. Create the account on the site first so the work counts toward the same search. Object indexing is `python3 -m community.object_index`.
+Windows first-use feedback is particularly useful: report the exact version,
+step and failure text. If unsigned-app security refuses the kit, report it without
+disabling security. Share private logs only with the maintainer.
