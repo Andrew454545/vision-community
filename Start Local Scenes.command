@@ -3,15 +3,20 @@ set -euo pipefail
 unset BASH_ENV ENV PERL5OPT PERL5LIB PYTHONPATH PYTHONHOME DYLD_INSERT_LIBRARIES DYLD_LIBRARY_PATH
 source_root="$(cd -- "$(dirname -- "$0")" && pwd -P)"
 packet="${1:-}"
+storage=''
 if [[ -z "$packet" ]]; then
-    choice=$(/usr/bin/osascript -e 'button returned of (display dialog "Check this computer first. After approval, process your queue or search your saved Scenes." buttons {"My library", "Open my queue", "Check this computer"} default button "Check this computer")') || exit 0
+    choice=$(/usr/bin/osascript -e 'set chosen to choose from list {"Check this computer", "Open my queue", "My library", "Choose storage folder"} with prompt "What would you like to do?" default items {"Check this computer"}' -e 'if chosen is false then error number -128' -e 'item 1 of chosen') || exit 0
     if [[ "$choice" == "Check this computer" && -f "$source_root/Readiness/Check this computer.json" ]]; then
         packet="$source_root/Readiness/Check this computer.json"
     elif [[ "$choice" == "My library" ]]; then
+        packet="$source_root/community/local_scene_library.json"
+    elif [[ "$choice" == "Choose storage folder" ]]; then
+        storage=$(/usr/bin/osascript -e 'POSIX path of (choose folder with prompt "Choose a folder or disk for new Scene work. Existing files stay in place.")') || exit 0
         packet="$source_root/community/local_scene_library.json"
     else
         packet=$(/usr/bin/osascript -e 'POSIX path of (choose file with prompt "Choose campaign.json from your personal queue")') || exit 0
     fi
 fi
-exec /bin/bash --noprofile --norc "$source_root/macos/Start-Vision.command" \
-    --root "${HOME}/Library/Application Support/VISION Local Scenes" --local-scene-packet "$packet"
+arguments=(--root "${HOME}/Library/Application Support/VISION Local Scenes" --local-scene-packet "$packet")
+[[ -z "$storage" ]] || arguments+=(--select-scene-storage "$storage")
+exec /bin/bash --noprofile --norc "$source_root/macos/Start-Vision.command" "${arguments[@]}"

@@ -1,5 +1,10 @@
 # Invited local Scene processing
 
+The16 October local-app preview adds selectable storage, small MMA reference
+maps, optional memory-only MMA export and additive owner-catalog tooling. See
+[the library guide](LOCAL_SCENE_LIBRARY.md). Owner development makes no live
+Google requests while the reported rate limit remains unresolved.
+
 The immediate milestone is 3–4 invited Windows x64 and Apple-silicon Mac users
 processing Scenes locally. [Participant instructions](../LOCAL-SCENES-START-HERE.md)
 are included in each kit. Local Scene library/search and MMA-compatible map export

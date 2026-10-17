@@ -7,12 +7,16 @@ credit economy or service account in this path.
 
 ## Delivery order
 
-**15 October progress:** local library/text search, recorded metadata filters,
-Street View reference-example query support, map export and assignment-checked
-private owner import are implemented. See [library/import details](LOCAL_SCENE_LIBRARY.md).
-Actual native text search passed; live reference retrieval remains unexecuted
-on this denied connection. The next slices are selectable storage, owner-catalog
-registration using actual returned work, direct MMA connections and Objects.
+**16 October progress:** the invited path includes the local library/text search,
+metadata filters, Street View/MMA-JSON references, selectable storage, optional
+memory-only online MMA export, assignment-checked owner import and additive
+owner-catalog preparation/apply. See [library/import details](LOCAL_SCENE_LIBRARY.md).
+The owner's Google requests remain paused. Current CPU speed settings are not a
+per-request network rate limit; conservative request pacing is still needed before
+another live development run. First-user Windows/live feedback, actual returned
+work registration, arbitrary photos and Objects remain. Signed public downloads
+need signing enrollment. No actual contributor output or personal VISION catalog
+has been changed by the development checks.
 
 1. **One local library with search.** Make completed Scene work appear in a Library
    tab automatically. Reuse the current native four-view index, models and ranker.

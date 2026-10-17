@@ -167,6 +167,42 @@ def handler_for(app, token):
                 self.send(403, {'error': 'local_access_denied'})
 
         def do_POST(self):
+            if self.path in ('/api/mma/connect','/api/mma/disconnect','/api/mma/send'):
+                if not self.allowed(action=True) or self.headers.get('Transfer-Encoding') is not None:
+                    self.send(403, {'error':'local_access_denied'})
+                    self.close_connection = True
+                    return
+                try:
+                    length = int(self.headers.get('Content-Length','0'))
+                    if not 0 < length <= 4096:
+                        raise ValueError('invalid_mma_request')
+                    value = json.loads(self.rfile.read(length))
+                    session = getattr(app, 'library_session', None)
+                    if session is None or not isinstance(value, dict):
+                        raise ValueError('invalid_mma_request')
+                    with session.guard:
+                        if session.mma is None:
+                            from community.local_scene_mma import MMAConnection
+                            session.mma = MMAConnection(session.library.root)
+                    if self.path.endswith('/connect') and set(value) == {'apiKey'}:
+                        result = session.mma.connect(value['apiKey'])
+                    elif self.path.endswith('/disconnect') and not value:
+                        session.mma.disconnect()
+                        result = {'connected':False}
+                    elif self.path.endswith('/send') and set(value) == {'mapId'}:
+                        with session.guard:
+                            document = (session.result or {}).get('map')
+                        if not document:
+                            raise ValueError('library_results_missing')
+                        result = session.mma.send(value['mapId'], document)
+                    else:
+                        raise ValueError('invalid_mma_request')
+                    self.send(200, result)
+                except Exception as error:
+                    code = str(error) if str(error) in ('mma_delivery_needs_check','mma_unauthorized','mma_unreachable','select_connected_mma_map') else 'mma_action_failed'
+                    self.send(409, {'error':code})
+                self.close_connection = True
+                return
             if self.path in ('/api/library/refresh','/api/library/search'):
                 if not self.allowed(action=True) or self.headers.get('Transfer-Encoding') is not None:
                     self.send(403,{'error':'local_access_denied'})
@@ -275,6 +311,7 @@ def main():
     parser.add_argument('--packet', required=True, type=Path)
     parser.add_argument('--data-dir', type=Path, default=community_support_root()/'local-scene-pilot')
     parser.add_argument('--runtime-root', type=Path, default=community_support_root()/'desktop/runtime')
+    parser.add_argument('--app-root', type=Path, help='private launcher configuration for selected data storage')
     parser.add_argument('--no-browser', action='store_true')
     parser.add_argument('--check-only', action='store_true', help='validate this packet without setup or processing')
     parser.add_argument('--reopen-only', action='store_true', help='reopen the existing local window without starting a server')
@@ -301,6 +338,14 @@ def main():
         print(json.dumps({'ok':True,'locations':count,'localOnly':True}))
         return
     candidate=json.loads(args.packet.read_text())
+    storage_roots = [args.data_dir]
+    if args.app_root and candidate.get('contract') != 'vision-local-scene-readiness-v1':
+        from community.local_scene_storage import resolve_storage
+        args.data_dir, storage_roots = resolve_storage(args.app_root, args.data_dir)
+    library_data_dir = args.data_dir
+    if args.app_root and candidate.get('contract') == 'vision-local-scene-campaign-v1':
+        from community.local_scene_storage import queue_storage
+        args.data_dir = queue_storage(args.app_root, args.data_dir, storage_roots, candidate.get('sha256'))
     if candidate == {'contract':'vision-local-scene-library-v1'}:
         from community.local_scene_library_ui import LibraryWindow
         app = LibraryWindow(args.data_dir,args.runtime_root)
@@ -318,7 +363,7 @@ def main():
         raise RuntimeError('local_pilot_window_unavailable')
     if not hasattr(app,'setup'):
         from community.local_scene_library_ui import LibrarySession
-        app.library_session = LibrarySession(app,args.data_dir)
+        app.library_session = LibrarySession(app,library_data_dir,source_roots=storage_roots)
     token = secrets.token_hex(32)
     from community.background import single_instance
     window_root=regular(app.root/'window-owner',directory=True,missing=True)
