@@ -18,6 +18,7 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 from community.local_scene_pilot import LocalScenePilot
+from community.mac_starter import regular
 from community.vision_index import community_support_root
 
 PAGE = '''<!doctype html><html lang="en"><meta charset="utf-8">
@@ -129,7 +130,8 @@ def handler_for(app, token):
             self.send_header('Content-Type', mime)
             self.send_header('Content-Length', str(len(body)))
             if download:
-                filename = 'VISION-search-results.json' if download == 'map' else 'VISION-Scene-results.zip'
+                filename = ('VISION-search-results.json' if download == 'map' else
+                    'VISION-Personal-Map.zip' if download == 'personal' else 'VISION-Scene-results.zip')
                 self.send_header('Content-Disposition', 'attachment; filename="'+filename+'"')
             self.send_header('Cache-Control', 'no-store')
             self.send_header('X-Content-Type-Options', 'nosniff')
@@ -152,12 +154,23 @@ def handler_for(app, token):
                 self.send(200, page_with_library(PAGE).replace('NONCE', nonce).encode(), 'text/html; charset=utf-8')
             elif self.path == '/api/status' and self.allowed():
                 self.send(200, {**app.status(),'libraryAvailable':getattr(app,'library_session',None) is not None})
-            elif self.path in ('/api/library','/api/library/map') and self.allowed():
+            elif self.path in ('/api/library','/api/library/map','/api/library/countries','/api/library/personal-queue') and self.allowed():
                 session = getattr(app,'library_session',None)
                 if session is None:
                     self.send(404,{'error':'library_unavailable'})
                 elif self.path == '/api/library':
                     self.send(200,session.status())
+                elif self.path == '/api/library/countries':
+                    self.send(200,session.countries)
+                elif self.path == '/api/library/personal-queue':
+                    try:
+                        with session.guard:
+                            path = regular(Path(session.personal_queue['archivePath']))
+                            if path.stat().st_size > 64*1024**2:
+                                raise ValueError('personal_queue_size_limit')
+                            self.send(200,path.read_bytes(),'application/zip',download='personal')
+                    except (ValueError,TypeError,KeyError,OSError):
+                        self.send(409,{'error':'personal_queue_unavailable'})
                 else:
                     with session.guard:
                         document = (session.result or {}).get('map')
@@ -169,6 +182,29 @@ def handler_for(app, token):
                 self.send(403, {'error': 'local_access_denied'})
 
         def do_POST(self):
+            if self.path == '/api/library/personal-map':
+                if not self.allowed(action=True) or self.headers.get('Transfer-Encoding') is not None:
+                    self.send(403,{'error':'local_access_denied'})
+                    self.close_connection = True
+                    return
+                try:
+                    from community.local_scene_personal import MAX_MAP_BYTES
+                    length = int(self.headers.get('Content-Length','0'))
+                    if not 0 < length <= MAX_MAP_BYTES+4096:
+                        raise ValueError('personal_map_size_limit')
+                    value = json.loads(self.rfile.read(length))
+                    session = getattr(app,'library_session',None)
+                    if session is None or not isinstance(value,dict) or set(value) != {'document','country'}:
+                        raise ValueError('invalid_personal_request')
+                    session.prepare_personal(value['document'],value['country'])
+                    self.send(202,{'ok':True,'communitySubmissionAllowed':False})
+                except Exception as error:
+                    code = str(error) if str(error) in ('personal_map_size_limit','personal_map_country_required',
+                        'personal_map_requires_panorama_ids','invalid_personal_location','library_busy',
+                        'pause_processing_before_search','invalid_personal_country') else 'personal_queue_failed'
+                    self.send(409,{'error':code})
+                self.close_connection = True
+                return
             if self.path == '/api/library/photo':
                 if not self.allowed(action=True) or self.headers.get('Transfer-Encoding') is not None:
                     self.send(403,{'error':'local_access_denied'})
@@ -353,7 +389,7 @@ def main():
         candidate=json.loads(args.packet.read_text())
         if candidate == {'contract':'vision-local-scene-library-v1'}:
             count = 0
-        elif candidate.get('contract') == 'vision-local-scene-campaign-v1':
+        elif candidate.get('contract') in ('vision-local-scene-campaign-v1','vision-personal-scene-campaign-v1'):
             from community.local_scene_campaign import load_manifest
             candidate=load_manifest(args.packet)
             count=candidate['locations']
@@ -370,13 +406,13 @@ def main():
         from community.local_scene_storage import resolve_storage
         args.data_dir, storage_roots = resolve_storage(args.app_root, args.data_dir)
     library_data_dir = args.data_dir
-    if args.app_root and candidate.get('contract') == 'vision-local-scene-campaign-v1':
+    if args.app_root and candidate.get('contract') in ('vision-local-scene-campaign-v1','vision-personal-scene-campaign-v1'):
         from community.local_scene_storage import queue_storage
         args.data_dir = queue_storage(args.app_root, args.data_dir, storage_roots, candidate.get('sha256'))
     if candidate == {'contract':'vision-local-scene-library-v1'}:
         from community.local_scene_library_ui import LibraryWindow
         app = LibraryWindow(args.data_dir,args.runtime_root)
-    elif candidate.get('contract') == 'vision-local-scene-campaign-v1':
+    elif candidate.get('contract') in ('vision-local-scene-campaign-v1','vision-personal-scene-campaign-v1'):
         from community.local_scene_unattended import LocalSceneCampaign
         app=LocalSceneCampaign(args.packet, args.data_dir, args.runtime_root)
     elif candidate.get('contract') == 'vision-local-scene-readiness-v1':

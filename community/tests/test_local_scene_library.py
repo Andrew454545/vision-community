@@ -160,6 +160,28 @@ class LibraryTests(unittest.TestCase):
                 client.request('POST','/api/library/photo',b'p'*RGB_BYTES,headers)
                 response=client.getresponse();self.assertEqual(response.status,403);response.read()
                 self.assertIsNone(session.photo_rgb)
+
+                # Personal import uses the same origin/token boundary; ZIP
+                # downloads select only the prepared server-owned file.
+                uploaded=[]
+                session.prepare_personal=lambda doc,country:uploaded.append((doc,country))
+                body=json.dumps({'document':{'name':'Private map'},'country':'France'})
+                headers['Origin']='https://untrusted.example'
+                client.request('POST','/api/library/personal-map',body,headers)
+                response=client.getresponse();self.assertEqual(response.status,403);response.read()
+                self.assertEqual(uploaded,[])
+                headers['Origin']=f'http://127.0.0.1:{server.server_port}'
+                client.request('POST','/api/library/personal-map',body,headers)
+                response=client.getresponse();self.assertEqual(response.status,202);response.read()
+                self.assertEqual(uploaded,[({'name':'Private map'},'France')])
+                client.request('GET','/api/library/countries',headers=headers)
+                response=client.getresponse();self.assertEqual(response.status,200);self.assertIn('France',json.loads(response.read()))
+                archive=root/'prepared.zip';archive.write_bytes(b'synthetic-private-archive')
+                session.personal_queue={'archivePath':str(archive),'locations':2}
+                client.request('GET','/api/library/personal-queue',headers=headers)
+                response=client.getresponse();self.assertEqual(response.status,200)
+                self.assertIn('VISION-Personal-Map.zip',response.getheader('Content-Disposition'))
+                self.assertEqual(response.read(),archive.read_bytes())
                 headers['Origin']=f'http://127.0.0.1:{server.server_port}'
                 client.request('POST','/api/library/photo',b'p'*RGB_BYTES,headers)
                 response=client.getresponse();self.assertEqual(response.status,200);self.assertFalse(json.loads(response.read())['storedOnDisk'])

@@ -1,5 +1,16 @@
 # Development constraints
 
+## Personal map queues (17 October continuation)
+
+The private personal Scene path is implemented in source. Reuse saved fixed112
+outputs and trusted cached policy; preparation does not rerun inference. Its local
+receipts/queues/collection family grant no Community authority. Keep separate
+personal storage, first-pose duplicate handling and original owner-import checks.
+No global exclusion claim applies to a user's personal map registry. The focused
+actual metadata use compared retained CPU1/2/4 reports and prepared two synthetic
+poses with no native commands or network. Packaging does not establish Windows
+execution, real MMA use, physical-drive behavior, or recovered Google access.
+
 ## Full local application implementation (16 October latest instruction)
 
 The owner explicitly asked to keep working until the full local application exists.
