@@ -150,6 +150,26 @@ class LibraryTests(unittest.TestCase):
                     response=client.getresponse();self.assertEqual(response.status,200);response.read()
                 self.assertEqual(calls,['/api/maps','/api/maps/selected-map/locations'])
                 self.assertFalse(session.mma.status()['connected'])
+                from community.local_scene_photo import RGB_BYTES
+                headers['Origin']='https://untrusted.example'
+                client.request('POST','/api/library/photo',b'p'*RGB_BYTES,headers)
+                response=client.getresponse();self.assertEqual(response.status,403);response.read()
+                self.assertIsNone(session.photo_rgb)
+                headers['Origin']=f'http://127.0.0.1:{server.server_port}'
+                client.request('POST','/api/library/photo',b'p'*RGB_BYTES,headers)
+                response=client.getresponse();self.assertEqual(response.status,200);self.assertFalse(json.loads(response.read())['storedOnDisk'])
+                self.assertEqual(session.photo_rgb,b'p'*RGB_BYTES)
+                forwarded=[]
+                def searcher(query,_runtime,**kwargs):
+                    forwarded.append((query,kwargs['photo_rgb']))
+                    return {'locations':0,'map':None}
+                session.searcher=searcher
+                session.begin({'prompt':'local photo','usePhoto':True});session.thread.join(5)
+                self.assertEqual(forwarded,[({'prompt':'local photo'},b'p'*RGB_BYTES)])
+                client.request('POST','/api/library/photo',b'',headers)
+                response=client.getresponse();self.assertEqual(response.status,200);response.read()
+                self.assertIsNone(session.photo_rgb)
+
             finally:
                 client.close();server.shutdown();server.server_close();thread.join(5);session.close()
 

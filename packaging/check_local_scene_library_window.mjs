@@ -8,7 +8,7 @@ const script=page.match(/<script nonce="[^"]+">([\s\S]*?)<\/script>/)[1];
 const elements=new Map(),created=[],requests=[];
 function node(id='') {return {id,value:'',hidden:true,disabled:false,children:[],textContent:'',style:{},files:[],options:[],selectedIndex:0,
   append(...items){this.children.push(...items);this.options=this.children;if(!this.value&&items[0]?.value)this.value=items[0].value;},replaceChildren(...items){this.children=items;this.options=this.children;},
-  click(){this.clicked=true;},focus(){},remove(){}};}
+  getContext(){return {fillRect(){},drawImage(){},getImageData(){return {data:new Uint8ClampedArray(224*224*4).fill(127)};}};},click(){this.clicked=true;},focus(){},remove(){}};}
 const element=id=>{if(!elements.has(id))elements.set(id,node(id));return elements.get(id);};
 const state={locations:112,countries:['France'],generations:['gen2'],path:'/private/library',
   message:'Saved Scenes',busy:false,mapAvailable:true,
@@ -16,12 +16,13 @@ const state={locations:112,countries:['France'],generations:['gen2'],path:'/priv
     extra:{tags:['France'],visionCameraGeneration:'gen2',visionScore:0.8}}]};
 class LocalURL extends URL {static createObjectURL(){return 'blob:local';}static revokeObjectURL(){}}
 const context=vm.createContext({location:{hash:'#private-token',pathname:'/'},history:{replaceState(){}},
-  confirm(){return true;},URL:LocalURL,URLSearchParams,setTimeout(){},clearTimeout(){},setInterval(){},
+  async createImageBitmap(){return {close(){}};},confirm(){return true;},URL:LocalURL,URLSearchParams,setTimeout(){},clearTimeout(){},setInterval(){},
   document:{getElementById:element,querySelectorAll:()=>[],querySelector:()=>element('details'),body:{appendChild(){}},
     createElement(tag){const n=node(tag);created.push(n);return n;}},
   async fetch(path,options){assert.equal(options.headers.Authorization,'Bearer private-token');requests.push([path,options]);
     if(path==='/api/status')return {ok:true,json:async()=>({phase:'ready',participant:'tester',total:112,completed:112,libraryAvailable:true})};
     if(path==='/api/library')return {ok:true,json:async()=>state};
+    if(path==='/api/library/photo')return {ok:true,json:async()=>({photoAvailable:!!options.body,storedOnDisk:false})};
     if(path==='/api/library/search')return {ok:true};
     if(path==='/api/mma/connect')return {ok:true,json:async()=>({connected:true,maps:[{id:'chosen-map',name:'Chosen private map'}]})};
     if(path==='/api/mma/send')return {ok:true,json:async()=>({added:1})};
@@ -53,5 +54,18 @@ element('mma-key').value='memory-only-private-key';await element('mma-connect').
 assert.equal(element('mma-key').value,'');
 await element('mma-send').onclick();
 assert.deepEqual(JSON.parse(requests.find(([path])=>path==='/api/mma/send')[1].body),{mapId:'chosen-map'});
+element('library-photo-file').files=[{size:1000,type:'image/jpeg',name:'private-name-and-exif.jpg'}];
+element('library-photo-weight').value='50';
+await element('library-photo-file').onchange();
+const upload=requests.find(([path,options])=>path==='/api/library/photo'&&options.body)[1];
+assert.equal(upload.body.byteLength,224*224*3);
+assert.equal(upload.headers['Content-Type'],'application/octet-stream');
+assert.equal(JSON.stringify(upload.headers).includes('private-name'),false);
+await element('library-search').onclick();await new Promise(setImmediate);
+const photoQuery=JSON.parse(requests.filter(([path])=>path==='/api/library/search').at(-1)[1].body);
+assert.equal(photoQuery.usePhoto,true);assert.equal(photoQuery.descriptionWeight,50);assert.deepEqual(photoQuery.examples,[]);
+await element('library-photo-clear').onclick();
+await element('library-search').onclick();await new Promise(setImmediate);
+assert.equal(JSON.parse(requests.filter(([path])=>path==='/api/library/search').at(-1)[1].body).usePhoto,false);
 assert.equal(requests.filter(([path])=>path.startsWith('http')).length,0);
 console.log('Local library shipped script: open, metadata filters, text search, Street View link and private map download passed.');

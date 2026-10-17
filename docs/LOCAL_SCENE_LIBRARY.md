@@ -140,3 +140,27 @@ actual Windows execution and real owner-catalog registration remain unverified.
 The owner asked to slow Google requests; development stays offline. CPU pace
 controls are not a network request cap. No slower per-request implementation or
 recovered Google access is claimed in this release.
+
+## Private photo queries (source update after the a3402cb preview)
+
+Choose a local JPEG, PNG or WebP up to20MB in My library. The browser handles image
+orientation, draws a224-square preview and sends only RGB pixels to the private
+loopback app. The original filename/EXIF and original image file are not sent.
+Choose Photo only, or combine the photo with a description. Clear photo discards
+the selected pixels; closing the app discards the in-memory selection.
+
+The pinned native encoder consumes sealed local RGB with no network fallback.
+Its temporary one-record container exists only to obtain full-precision query
+vectors and a text vector; it is not a location contribution, admission result or
+new library record. The native ranker consumes an isolated query-profile cache.
+Queries contain no remote examples, and a cache miss is refused rather than
+silently returning text-only matches. Original location vectors remain unchanged.
+Ordinary completion cleans temporary pixels/vectors. A process crash can retain
+private scratch files; this is not secure disk erasure or a cloud privacy claim.
+
+One actual offline native encoding/ranking use passed on generated test pixels
+and two synthetic saved records (one result after geographic pruning). It is not
+an arbitrary-photo quality benchmark or a Windows execution claim. The focused
+pixel-boundary, token/Origin, in-memory clear/query forwarding and shipped-script
+checks passed. Existing fixed112 qualification is unchanged and was not rerun.
+This source update is newer than the published a3402cb kits and is not yet in them.

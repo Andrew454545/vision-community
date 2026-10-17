@@ -5,6 +5,15 @@ library, text/image search, useful metadata filters and MMA connections. Users
 search what their own computer has indexed. There is no central paid search,
 credit economy or service account in this path.
 
+## Current full-app implementation
+
+The owner has now asked to keep building the full local application. Photo search
+is implemented in source after the published a3402cb preview: private local pixels,
+photo/text blending and native ranking passed one actual offline synthetic use.
+Next: cautious download pacing, bounded recovery, personal MMA-map processing,
+then local Objects and a complete app shell. Existing operational holds still
+apply. See the library guide for exact photo-query scope and private scratch limits.
+
 ## Delivery order
 
 **16 October progress:** the invited path includes the local library/text search,
