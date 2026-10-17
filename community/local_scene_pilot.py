@@ -183,11 +183,24 @@ class LocalScenePilot:
                 raise RuntimeError('pilot_child_not_stopped')
 
     def _runner(self, argv, env, cwd):
+        from .local_scene_transport import prepare_command, GROUP_PAUSE_SECONDS
+        argv, network = prepare_command(argv)
+        if network is not None:
+            previous = getattr(self,'_last_network_end',None)
+            if previous is not None:
+                delay = max(0,GROUP_PAUSE_SECONDS-(time.monotonic()-previous))
+                if delay:
+                    self.message = 'Waiting briefly before the next imagery group. Your saved work is kept.'
+                    if self.stop.wait(delay):
+                        raise VisionIndexError('local_processing_paused')
+            self.network_execution = network
         if sys.platform == 'darwin':
             argv = ['/usr/bin/nice', '-n', str({'slow':19, 'medium':8, 'max':0}[self.pace]), *argv]
         stem = Path(cwd) / ('native-' + str(time.time_ns()))
         env = {**env, 'TEMP': str(cwd), 'TMP': str(cwd), 'TMPDIR': str(cwd)}
         receipt = {'status': 'STARTED', 'timeoutSeconds': CHILD_SECONDS}
+        if network is not None:
+            receipt['networkExecution'] = network
         atomic_json(stem.with_suffix('.exit.json'), receipt)
         try:
             with stem.with_suffix('.stdout.log').open('xb') as out, stem.with_suffix('.stderr.log').open('xb') as err:
@@ -200,6 +213,8 @@ class LocalScenePilot:
             receipt.update(status='STOPPED', error=type(error).__name__)
             raise
         finally:
+            if network is not None:
+                self._last_network_end = time.monotonic()
             atomic_json(stem.with_suffix('.exit.json'), receipt)
         def tail(path):
             with path.open('rb') as stream:
@@ -219,6 +234,9 @@ class LocalScenePilot:
                 or receipt['attempt'] not in {p.name for p in folder.glob('attempt-*') if p.is_dir()}):
             raise ValueError('saved_work_changed')
         attempt = regular(folder / receipt['attempt'], directory=True)
+        if 'networkExecution' in receipt:
+            from .local_scene_transport import validate_execution
+            validate_execution(receipt['networkExecution'],attempt/'input.json')
         for relative, pin in receipt.get('files', {}).items():
             if relative not in {'locations.tsv', 'input.json', 'index-run.json', 'checkpoint.json',
                                 'index/manifest.json', 'index/shard-000000.i8', 'index/shard-000000.mask'}:
@@ -261,6 +279,7 @@ class LocalScenePilot:
                         immutable(attempt/'locations.tsv', ('\n'.join(row['line'] for row in rows)+'\n').encode())
                         with self.guard:
                             self.message = 'Processing Scenes. Pause keeps completed work.'
+                        self.network_execution = None
                         self.indexer(attempt/'locations.tsv', index_dir=attempt/'index',
                             checkpoint=attempt/'checkpoint.json', output=attempt/'output.json',
                             binary=binary, model_dir=models, pace=self.pace, run_id=self.packet['packetId']+f'-{number}',
@@ -274,6 +293,8 @@ class LocalScenePilot:
                             'runtimeProfile': profile, 'attempt': attempt.name,
                             'files': {name: file_identity(regular(attempt/name)) for name in names},
                             'qualityStatus': 'LOCAL_PROVISIONAL', 'uploaded': False, 'creditsEarned': 0}
+                        if self.network_execution is not None:
+                            receipt['networkExecution'] = self.network_execution
                         atomic_json(folder/'complete.json', receipt)
                         with self.guard:
                             self._refresh_completed()
@@ -293,6 +314,9 @@ class LocalScenePilot:
                         self.phase, self.message = 'paused', 'Paused. Choose Start to continue your saved batch.'
         except BaseException as error:
             code = getattr(error, 'code', None) or (str(error) if isinstance(error, ValueError) else type(error).__name__)
+            if code == 'local_processing_paused' and self.stop.is_set():
+                self.phase, self.message = 'paused', 'Paused. Your saved work is kept.'
+                return
             self.error_code = code
             atomic_json(self.root/('failure-'+str(time.time_ns())+'.json'), {'code': code, 'savedWorkPreserved': True})
             with self.guard:

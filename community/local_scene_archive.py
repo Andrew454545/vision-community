@@ -125,7 +125,7 @@ def export_saved_results(root: Path, destination: Path, *, portable=False) -> di
     receipts = []
     for name, rows in parts:
         receipt = _json(capture(f'{name}/complete.json'))
-        if (set(receipt) != {'packetId', 'rowIds', 'runtimeProfile', 'attempt', 'files',
+        if (set(receipt)-{'networkExecution'} != {'packetId', 'rowIds', 'runtimeProfile', 'attempt', 'files',
                              'qualityStatus', 'uploaded', 'creditsEarned'}
                 or receipt['qualityStatus'] != 'LOCAL_PROVISIONAL' or receipt['uploaded'] is not False
                 or type(receipt['creditsEarned']) is not int or receipt['creditsEarned'] != 0
