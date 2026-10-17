@@ -26,7 +26,8 @@ The optional runtime is pinned by the existing `runtime_manifest.json` and lives
 in its own private folder. It cannot replace the Scene program or dependencies.
 Each action runs in an owned child so closing/cancelling the app can stop it;
 private diagnostics survive ordinary failures. Setup resumes retained partial
-files. It makes no imagery request. A Scene-only user need not set up Objects.
+files. The first description search can take a few minutes; later queries reuse
+this library’s private cache for the exact pinned platform runtime. It makes no imagery request. A Scene-only user need not set up Objects.
 
 ## Preparing a private library ZIP
 

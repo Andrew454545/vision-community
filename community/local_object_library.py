@@ -40,6 +40,22 @@ from community.vision_index import assert_not_live_vision_path, file_identity, i
 CONTRACT = 'vision-local-object-library-v1'
 MAX_ARCHIVE = 40 * 1024**2
 MANIFEST_LIMIT = 1024**2
+# Establish cancellation before importing the application. An unavailable source
+# file must not prevent an already-owned task from observing Stop or Exit.
+TASK_ENTRY = '''import json,os,runpy,sys,threading
+script,request=sys.argv[1:]
+with open(request,'rb') as stream:raw=stream.read(8193)
+if len(raw)>8192:raise ValueError('invalid_object_task')
+marker=json.loads(raw)['stopFile']
+finished=threading.Event()
+def cancel():
+    while not finished.wait(.1):
+        if os.path.exists(marker):os._exit(79)
+threading.Thread(target=cancel,daemon=True).start()
+sys.argv=[script,'--task',request]
+try:runpy.run_path(script,run_name='__main__')
+finally:finished.set()
+'''
 # Preserve the VISION contract and numerical provenance, without workstation paths.
 SCALARS = ('version feature architecture sourceId sourceBytes sourceSha256 modelSha256 runtimeIdentity '
     'totalLocations indexedLocations globalStart globalIdMode minimumGlobalLocation maximumGlobalLocation '
@@ -421,7 +437,7 @@ def task(data_dir,runtime_root,action,*,raw=None,query=None,stop):
         logs=library.root/'diagnostics'/folder.name;logs.mkdir(mode=0o700,parents=True)
         try:
             with (logs/'stdout.log').open('xb') as out,(logs/'stderr.log').open('xb') as err:
-                result=run_owned([sys.executable,'-I','-B',str(Path(__file__).absolute()),'--task',str(folder/'request.json')],
+                result=run_owned([sys.executable,'-I','-B','-c',TASK_ENTRY,str(Path(__file__).absolute()),str(folder/'request.json')],
                     env=inference_environment(folder),cwd=REPO,stdout=out,stderr=err,timeout=3600 if action=='setup' else 600)
             if stop.is_set():raise ValueError('library_search_cancelled')
             response_path=regular(folder/'response.json',missing=True)
