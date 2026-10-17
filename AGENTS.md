@@ -9,11 +9,11 @@ Keep its PRIVATE_IMPORTED_INDEX_ONLY receipts, including frozen diagnostic marke
 separate from every processing/Community/owner-publication authority. Existing
 Object qualification, protected-source and official coverage checks are unchanged.
 A saved-index query does not establish cross-platform inference qualification.
-The initial ZIP supports one complete group up to1,000 locations/32MB features.
+The initial ZIP supports one complete group up to 1,000 locations/32 MB features.
 Do not silently split or rewrite a large owner index to fit. No Object bulk
 processing, imagery request, cloud access or old-job restart follows from this.
 Use focused boundary tests and one saved-input app use, not broad matrices.
-The user reaffirmed on17 October: no Google Street View tests. Keep every
+The user reaffirmed on 17 October: no Google Street View tests. Keep every
 Google request paused; saved indexes and models are the test inputs.
 
 ## Native local window implementation (17 October latest approval)

@@ -63,5 +63,31 @@
     "cloudflareCalls": 0,
     "actionsDispatched": 0,
     "oldJobsRestarted": 0
-  }
+  },
+  "packaging": {
+    "status": "PASS",
+    "sourceRevision": "6eacf523fa317cf6b51962673c605245bb7b137a",
+    "allArchiveMembersAndPinsVerified": true,
+    "coreMathAndRuntimePinsUnchanged": true,
+    "standaloneMacAppSelfCheck": true,
+    "simpleGuideBundled": true,
+    "windowsExecuted": false,
+    "newIndexingCommands": 0,
+    "googleRequests": 0,
+    "cloudflareCalls": 0,
+    "assets": 10
+  },
+  "packagedHiddenWebKit": {
+    "cloudflareCalls": 0,
+    "googleRequests": 0,
+    "nativeFilePanelsExercised": false,
+    "newInference": 0,
+    "scope": "PACKAGED_HIDDEN_WEBKIT_PAGE_AND_AUTH",
+    "sourceRevision": "6eacf523fa317cf6b51962673c605245bb7b137a",
+    "status": "PASS",
+    "visibleWindowCreated": false,
+    "wallSeconds": 0.509,
+    "windowsExecuted": false
+  },
+  "ownedEarlyStartupCancellation": "PASS: actual deliberately slow owned script exited79 in0.186 seconds; no application imports or native inference"
 }

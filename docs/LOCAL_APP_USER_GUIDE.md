@@ -77,7 +77,7 @@ download an MMA-compatible JSON map. Under **Use a Street View example**, you
 can supply a panorama and camera pose, or choose **Use as example** on a result.
 Reference-example searches retrieve imagery from Google; text searches do not.
 If Google refuses access, use text search or wait for normal access on that
-connection. Uploading an arbitrary photo and direct MMA connections come later.
+connection. Use **Use a photo from this computer** for a local photo query. The optional online MMA connection is described below.
 
 You can choose a small MMA reference JSON map, up to 2 MB, under **Use a Street
 View example**. The app selects up to eight panorama views from it. Other map
