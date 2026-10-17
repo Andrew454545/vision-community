@@ -4,11 +4,14 @@ import Darwin
 
 enum LocalError: Error {case invalid}
 func plain(_ path: URL) throws {
-    var current=path.standardizedFileURL
-    while current.path != "/" {
+    // Retain canonical /private paths, including macOS app translocation.
+    // Foundation standardization may replace them with linked /tmp or /var.
+    var current=path.path
+    guard current.hasPrefix("/"),!current.split(separator:"/").contains("..") else {throw LocalError.invalid}
+    while current != "/" {
         var info=stat()
-        guard lstat(current.path,&info)==0,UInt32(info.st_mode)&UInt32(S_IFMT) != UInt32(S_IFLNK) else {throw LocalError.invalid}
-        current.deleteLastPathComponent()
+        guard lstat(current,&info)==0,UInt32(info.st_mode)&UInt32(S_IFMT) != UInt32(S_IFLNK) else {throw LocalError.invalid}
+        current=(current as NSString).deletingLastPathComponent
     }
 }
 func verify(_ root: URL) throws {
@@ -29,7 +32,7 @@ func verify(_ root: URL) throws {
 }
 
 final class Launcher:NSObject,NSApplicationDelegate,NSWindowDelegate {
-    let root=Bundle.main.bundleURL.deletingLastPathComponent()
+    let root=Bundle.main.resourceURL!.appendingPathComponent("project")
     var window:NSWindow!
     var status:NSTextField!
     var controls=[NSButton]()
@@ -96,6 +99,6 @@ final class Launcher:NSObject,NSApplicationDelegate,NSWindowDelegate {
 }
 
 if CommandLine.arguments.count==2 && CommandLine.arguments[1]=="--self-check" {
-    do {try verify(Bundle.main.bundleURL.deletingLastPathComponent());print("LOCAL_PILOT_PACKAGE_VERIFIED");exit(0)} catch {exit(2)}
+    do {try verify(Bundle.main.resourceURL!.appendingPathComponent("project"));print("LOCAL_PILOT_PACKAGE_VERIFIED");exit(0)} catch {exit(2)}
 }
 let launcher=Launcher();NSApplication.shared.delegate=launcher;NSApplication.shared.run()

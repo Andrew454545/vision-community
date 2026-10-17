@@ -2,7 +2,8 @@
 
 The native-window kit adds **VISION Local Scenes.app** on Apple-silicon Macs
 (macOS13+) and a WebView2 window on Windows. The Mac launcher opens without a
-Terminal window. Keep the entire extracted kit together; the app verifies the
+Terminal window. The Mac app contains its sealed setup files and can be moved
+on its own; keep the Windows extracted kit together. The app verifies the
 sealed source inventory before setup. Windows still starts through
 **VISION Local Scenes.exe**. Setup keeps Python/models private to VISION.
 

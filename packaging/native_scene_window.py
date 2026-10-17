@@ -62,6 +62,12 @@ def build_host(project,output,platform,*,sdk=None,refs=None):
 def mac_launcher(kit,output,revision,checksum):
     app=kit/'VISION Local Scenes.app'
     binary=app/'Contents/MacOS/VISION Local Scenes';binary.parent.mkdir(parents=True)
+    # A Finder app must keep working when moved on its own. Carry exactly the
+    # sealed kit files in Resources; keep the outer command kit as a fallback.
+    resources=app/'Contents/Resources/project';resources.mkdir(parents=True)
+    for name in [*json.loads((kit/'release-inventory.json').read_text())['files'],'release-inventory.json']:
+        source=regular(kit/name);target=resources/name;target.parent.mkdir(parents=True,exist_ok=True)
+        shutil.copy2(source,target)
     (app/'Contents/Info.plist').write_bytes(plistlib.dumps({'CFBundleExecutable':'VISION Local Scenes',
         'CFBundleIdentifier':'org.visioncommunity.local-scenes','CFBundleName':'VISION Local Scenes',
         'CFBundleVersion':'1','CFBundleShortVersionString':'0.2.0','CFBundlePackageType':'APPL',
@@ -80,4 +86,4 @@ def mac_launcher(kit,output,revision,checksum):
     if b'LOCAL_PILOT_PACKAGE_VERIFIED' not in result.stdout:
         raise ValueError('mac_scene_launcher_self_check_failed')
     (output/'mac-launcher-self-check.log').write_bytes(result.stdout+result.stderr)
-    return {'nativeMacLauncher':True,'nativeMacLauncherSelfCheck':True,'nativeMacLauncherGuiExecuted':False}
+    return {'nativeMacLauncher':True,'nativeMacLauncherSelfCheck':True,'nativeMacLauncherGuiExecuted':False,'nativeMacAppSelfContained':True}
