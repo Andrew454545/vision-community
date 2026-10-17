@@ -7,7 +7,7 @@ administrator password is needed.
 
 ## Start here
 
-1. [Download the Local Scenes preview](https://github.com/Andrew454545/vision-community/releases/tag/local-scenes-local-app-preview-20261016).
+1. [Download the Local Scenes preview](https://github.com/Andrew454545/vision-community/releases/tag/local-scenes-personal-app-preview-20261017).
    Choose the ZIP for Windows x64 or Apple-silicon Mac and extract all its files.
 2. Windows: open **VISION Local Scenes.exe**. Mac: open **Start Local Scenes.command**.
 3. Choose **Check this computer**, accept setup downloads, then choose **Start / Resume**.
@@ -17,8 +17,8 @@ administrator password is needed.
    trial comes first; after it succeeds, the maintainer can issue up to five
    million separate locations for this computer.
 
-[Full simple instructions](https://github.com/Andrew454545/vision-community/releases/download/local-scenes-local-app-preview-20261016/START-HERE.md)
-· [Prompt for a friend's Windows Codex](https://github.com/Andrew454545/vision-community/releases/download/local-scenes-local-app-preview-20261016/PC-CODEX-PROMPT.md)
+[Full simple instructions](https://github.com/Andrew454545/vision-community/releases/download/local-scenes-personal-app-preview-20261017/START-HERE.md)
+· [Prompt for a friend's Windows Codex](https://github.com/Andrew454545/vision-community/releases/download/local-scenes-personal-app-preview-20261017/PC-CODEX-PROMPT.md)
 
 Work saves locally and resumes after interruptions. You can opt into automatic
 resume when you sign in. Choose **Pause** to keep it paused. Each person's queue
@@ -32,13 +32,24 @@ internet and storage are used; five million locations need about 15.4 GB for
 vectors alone, plus setup, metadata and backups. Searching prepares another
 copy of those vectors, so allow additional space.
 
+## Use your own MMA maps
+
+After **Check this computer**, choose **My library → Add my own MMA map**.
+Choose your exported JSON, then **Prepare my private queue** and **Save my personal
+queue**. Extract that ZIP and open **campaign.json** with the launcher. The app
+skips panoramas already reserved by your other personal maps. Your map results
+stay local. This personal workflow is separate from maintainer-approved Community
+assignments.
+
 ## Search your Scenes
 
 Choose **My library** in the launcher or processing window. Pause processing,
 describe what you want, optionally choose country/generation/view filters and
 choose **Search my Scenes**. Use **Save results as a map** for an MMA-compatible
 JSON map. Text searches run locally without live imagery requests. Street View
-examples retrieve reference imagery from Google.
+examples retrieve reference imagery from Google. Choose **Use a photo from this
+computer** to search with your own photo instead, without a Google request. You
+can blend the photo with a description and search your own MMA maps separately.
 
 Choose **Choose storage folder** in the launcher for a local or external disk.
 Existing queues keep their original location and progress. Small MMA JSON maps
@@ -46,7 +57,7 @@ can supply reference views; online MMA export is optional and uses a key held
 only in memory. Owner import and catalog preparation tools are available.
 
 First-user Windows/live feedback, actual contributor ingestion and Objects are
-next in [the next-phase outline](https://github.com/Andrew454545/vision-community/releases/download/local-scenes-local-app-preview-20261016/NEXT-PHASE.md).
+next in [the next-phase outline](https://github.com/Andrew454545/vision-community/releases/download/local-scenes-personal-app-preview-20261017/NEXT-PHASE.md).
 
 **The older hosted contribution service, uploads, credits and online search
 remain closed.** Keep old VISION folders, saved work and private account codes.

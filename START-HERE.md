@@ -1,6 +1,6 @@
 # Start here: VISION Local Scenes
 
-[Download the invited local preview](https://github.com/Andrew454545/vision-community/releases/tag/local-scenes-local-app-preview-20261016). Choose Windows x64 or Apple-silicon Mac.
+[Download the invited local preview](https://github.com/Andrew454545/vision-community/releases/tag/local-scenes-personal-app-preview-20261017). Choose Windows x64 or Apple-silicon Mac.
 
 
 Your computer does the processing. Your results stay on your computer.
@@ -20,7 +20,20 @@ No account, subscription or Python installation is needed.
 The same 112 locations are checked at each offered speed. A faster profile that
 doesn't pass is not approved. You do not need to understand the test report.
 
-## When you receive your queue
+## Process your own MMA map
+
+After the computer check, choose **My library → Add my own MMA map**.
+
+1. Choose an MMA JSON export with panorama IDs, up to 100,000 locations or 20 MB.
+2. Choose **Prepare my private queue**, then **Save my personal queue**.
+3. Extract the ZIP and open **campaign.json** using the launcher as described below.
+
+If some locations have no saved country, select their country before preparing.
+Only choose a fallback country if it applies to all locations missing one. Your
+map and results stay local. Importing overlapping personal maps skips panoramas
+already reserved. Community queues still require maintainer review and assignment.
+
+## When you receive or prepare your queue
 
 Before opening a large new queue, choose **Choose storage folder** in the launcher
 and select a local disk or connected external drive with enough space. New queues
@@ -105,3 +118,12 @@ Hosted processing and online search are paused. Keep your VISION folder and
 private account code; old saved work and credits are preserved. You do not need
 to reinstall the old version. Leave its automatic jobs paused. The separate local
 preview uses no hosted account, credits or automatic upload.
+
+## Search with a photo
+
+In **My library**, open **Use a photo from this computer**, choose a JPEG, PNG or
+WebP, optionally type a description, then choose **Search my Scenes**. The photo
+stays local. Choose **My MMA maps** to search only your personal map results.
+
+Downloads now run serially, with 30-second pauses between saved groups. This
+reduces request pressure; it does not guarantee that Google will allow access.
