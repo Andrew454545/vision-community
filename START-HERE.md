@@ -1,107 +1,52 @@
-# Start here: VISION Local Scenes
+# Start using VISION
 
-[Download the invited local preview](https://github.com/Andrew454545/vision-community/releases/tag/local-scenes-local-app-preview-20261016). Choose Windows x64 or Apple-silicon Mac.
+**[Windows download](https://github.com/Andrew454545/vision-community/releases/download/local-vision-app-preview-20261017/VISION-Local-Scenes-windows-x86_64-MAINTAINER.zip)** · **[Apple-silicon Mac download](https://github.com/Andrew454545/vision-community/releases/download/local-vision-app-preview-20261017/VISION-Local-Scenes-darwin-arm64-MAINTAINER.zip)**
 
+## 1. Open the app
 
-Your computer does the processing. Your results stay on your computer.
-No account, subscription or Python installation is needed.
+Extract the ZIP. On Windows, open **VISION Local Scenes.exe** and keep its folder together.
+On Mac, open **VISION Local Scenes.app**; it requires macOS 13 or later.
+If your computer blocks this unsigned preview, ask the person who invited you for help.
 
-## First time: check this computer
+## 2. Check your computer
 
-1. Extract the whole **VISION Local Scenes** kit. Keep its files together.
-2. Windows: open **VISION Local Scenes.exe**. Apple-silicon Mac: open
-   **Start Local Scenes.command**.
-3. Click **Check this computer**. It is already selected on Windows.
-4. Accept setup downloads, then choose **Start / Resume** in the local window.
-   Setup downloads private Python and about 1 GB of model files once.
-5. When the checks finish, choose **Save results**. Send that ZIP to the maintainer.
-   They will send your personal queue after reviewing it.
+Choose **Check this computer**, accept setup downloads, then **Start / Resume**.
+Setup handles Python and about 1 GB of model files automatically.
+The check uses 112 saved locations and does not request Street View imagery.
 
-The same 112 locations are checked at each offered speed. A faster profile that
-doesn't pass is not approved. You do not need to understand the test report.
+When it finishes, choose **Save results** and send that ZIP privately to the person
+who invited you. They review it and send your assigned queue. Keep the report off public GitHub issues.
 
-## When you receive your queue
+## 3. Open your queue
 
-Before opening a large new queue, choose **Choose storage folder** in the launcher
-and select a local disk or connected external drive with enough space. New queues
-and searchable copies use **VISION Local Scenes Data** there. Existing queues
-keep their original location and progress. Keep earlier work folders connected;
-**Refresh library** can recover their completed Scenes. A missing selected drive
-stops startup instead of silently placing work on another disk.
+Extract the queue ZIP somewhere permanent. Open VISION, choose **Open personal queue**
+on Windows or **Open my queue** on Mac, then select **campaign.json**.
+Choose day and night speeds, **Save settings**, then **Start / Resume**.
+Your first queue is small; a larger queue follows after its results are checked.
 
-1. Extract your whole personal queue folder. Keep it somewhere permanent.
-2. Open the same launcher, choose **Open personal queue** (Windows) or **Open my queue**
-   (Mac), and select **campaign.json** in that folder.
-3. Choose your day and night speeds. Choose **Save settings**, then **Start / Resume**.
+Progress saves automatically. **Pause** keeps work paused. For automatic resume
+after signing in, enable **Resume automatically when I sign in** and choose
+**Save automatic start**. Keep the computer plugged in and your work folders in place.
+Use **Choose storage folder** before opening a large new queue to select another disk.
 
-The default is Medium during the day and Maximum checked speed at night.
-You can change the times or choose Pause for either period. Only speeds checked
-and approved for this computer are used.
+To send completed work, pause and choose **Save results**. Send the resulting ZIP
+or whole exports folder privately using the method agreed with your inviter.
+Nothing uploads automatically.
 
-To resume after signing back in, tick **Resume automatically when I sign in to
-this computer** and choose **Save automatic start**. Keep the kit and queue folders
-in place. Work resumes from saved progress after a program interruption. A power
-failure may repeat the last unfinished group. Explicit **Pause** stays paused.
+## Search or use your own map
 
-Keep the computer plugged in. Processing pauses on battery by default. Closing the
-browser tab leaves processing running; **Pause** or **Exit** stops after saving the
-current group. This can take several minutes. Reopen the launcher to return.
+Choose **My library**. Pause processing, enter a description or choose a photo,
+then **Search my Scenes**. **Save results as a map** exports an MMA-compatible JSON.
+Text and uploaded-photo searches need no Google imagery requests.
 
-The window shows your saved-work folder. Keep it and your assigned queue. Never
-give your queue to someone else: each contributor has separate locations.
-A five-million-location index needs about 15.4 GB for vectors alone; allow extra
-space for setup, metadata and backups. Processing stops safely when disk space is low.
+For your own MMA map: **Add my own MMA map → choose its JSON → Prepare my private queue → Open my queue here**.
+Panorama IDs are required. **My saved queues** returns to earlier maps.
+Saved Object indexes can also be searched under **Search saved Objects** after optional setup.
+New Object processing is still being qualified.
 
-## Sending completed results
+Live processing requires Google to allow imagery on your connection. If access is
+refused, the app stops and keeps your queue. Do not repeatedly retry around a refusal.
+The app is free; your electricity, internet and storage are used. Five million
+locations need about 31 GB for vectors and searchable copies, plus setup, metadata and backups.
 
-Pause, then choose **Save results**. For a large queue, the window shows an
-**exports** folder containing all completed results and their checksums. Send
-that whole folder to the maintainer using your agreed private transfer method.
-For the compatibility check or a small legacy packet, a ZIP goes to your browser downloads.
-Nothing is uploaded automatically. Keep the original saved-work folder to resume.
-
-## Search your saved Scenes
-
-Open the launcher and choose **My library**. You can also switch to **My library**
-in the processing window. Finished groups are added automatically; **Refresh library**
-recovers completed work if an earlier version or interruption missed it.
-
-Pause processing before searching. Describe what you want, optionally choose a
-country, generation or camera direction, then choose **Search my Scenes**.
-Text searches run on this computer using your saved indexes. The first search
-prepares searchable segments and needs additional disk space, roughly another
-15.4 GB for five million locations. Later searches reuse unchanged segments.
-
-Choose **Open Street View** to inspect a result, or **Save results as a map** to
-download an MMA-compatible JSON map. Under **Use a Street View example**, you
-can supply a panorama and camera pose, or choose **Use as example** on a result.
-Reference-example searches retrieve imagery from Google; text searches do not.
-If Google refuses access, use text search or wait for normal access on that
-connection. Uploading an arbitrary photo and direct MMA connections come later.
-
-You can choose a small MMA reference JSON map, up to 2 MB, under **Use a Street
-View example**. The app selects up to eight panorama views from it. Other map
-fields stay out of the search request. No imagery is fetched until you search.
-
-For local MMA, open a map and drop the saved results JSON onto its window.
-To send online, open **Send to an online MMA map**, connect with your own API key,
-choose the destination and confirm **Send these results to this map**. The key
-stays in memory until disconnect or exit; VISION does not save it. If delivery is
-uncertain, check that map before another import. The app holds the export rather
-than automatically retrying it.
-
-This invited preview is unsigned. If your computer refuses it, stop and ask the
-maintainer for trusted installation help. Do not disable security settings.
-The app is free; your electricity, internet data and storage are still used.
-Objects and automatic sharing are planned for later.
-
-If Google refuses imagery access, the app stops and keeps your queue. Resume
-only after imagery access works normally on that connection. The computer check
-uses fixed local images, so passing it does not guarantee Google will supply live imagery.
-
-## Have the older hosted version?
-
-Hosted processing and online search are paused. Keep your VISION folder and
-private account code; old saved work and credits are preserved. You do not need
-to reinstall the old version. Leave its automatic jobs paused. The separate local
-preview uses no hosted account, credits or automatic upload.
+[More help](https://github.com/Andrew454545/vision-community/blob/codex/windows-production-readiness/docs/LOCAL_APP_USER_GUIDE.md) · [Using a Windows Codex](https://github.com/Andrew454545/vision-community/releases/download/local-vision-app-preview-20261017/PC-CODEX-PROMPT.md)

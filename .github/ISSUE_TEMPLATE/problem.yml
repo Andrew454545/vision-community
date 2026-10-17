@@ -1,0 +1,26 @@
+name: Report an app problem
+description: Tell us which step did not work.
+title: "App problem: "
+body:
+  - type: dropdown
+    id: computer
+    attributes:
+      label: Which computer are you using?
+      options:
+        - Windows PC
+        - Apple-silicon Mac
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Which download did you use?
+      description: The release name or date, if you know it.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: Which step or button failed, and what message appeared? Send logs and private reports to your inviter, not here.
+    validations:
+      required: true
