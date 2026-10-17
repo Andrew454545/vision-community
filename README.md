@@ -1,57 +1,30 @@
 # VISION Community
 
-Process Street View locations on your own computer and keep the results locally.
-The **invited Local Scenes preview** is available for Windows PCs and
-Apple-silicon Macs. No account, subscription, global Python installation or
-administrator password is needed.
+Process Street View locations on your computer, then search your saved Scenes.
+Your results stay local. No account or Python installation is needed.
+
+**[Download for Windows](https://github.com/Andrew454545/vision-community/releases/download/local-vision-app-preview-20261017/VISION-Local-Scenes-windows-x86_64-MAINTAINER.zip)** · **[Download for Mac](https://github.com/Andrew454545/vision-community/releases/download/local-vision-app-preview-20261017/VISION-Local-Scenes-darwin-arm64-MAINTAINER.zip)**
+
+Windows x64 · Apple-silicon Mac with macOS 13 or later · Invited preview
 
 ## Start here
 
-1. [Download the Local Scenes preview](https://github.com/Andrew454545/vision-community/releases/tag/local-scenes-local-app-preview-20261016).
-   Choose the ZIP for Windows x64 or Apple-silicon Mac and extract all its files.
-2. Windows: open **VISION Local Scenes.exe**. Mac: open **Start Local Scenes.command**.
-3. Choose **Check this computer**, accept setup downloads, then choose **Start / Resume**.
-4. When the checks finish, choose **Save results**. Send that ZIP privately to the
-   maintainer, who reviews it and sends your personal queue.
-5. Open your personal queue and choose your day and night speeds. A tiny live
-   trial comes first; after it succeeds, the maintainer can issue up to five
-   million separate locations for this computer.
+1. Extract the ZIP and open **VISION Local Scenes**.
+2. Choose **Check this computer**, accept setup, then **Start / Resume**.
+3. Choose **Save results** and send the ZIP privately to the person who invited you.
+   After review, they will give you a queue to open and process.
 
-[Full simple instructions](https://github.com/Andrew454545/vision-community/releases/download/local-scenes-local-app-preview-20261016/START-HERE.md)
-· [Prompt for a friend's Windows Codex](https://github.com/Andrew454545/vision-community/releases/download/local-scenes-local-app-preview-20261016/PC-CODEX-PROMPT.md)
+Choose your day and night speeds. Progress saves automatically. Open **My library**
+to search completed work or add your own MMA map.
 
-Work saves locally and resumes after interruptions. You can opt into automatic
-resume when you sign in. Choose **Pause** to keep it paused. Each person's queue
-is separate; do not share it or post private check reports on GitHub.
+[Step-by-step guide](START-HERE.md) · [Windows Codex prompt](https://github.com/Andrew454545/vision-community/releases/download/local-vision-app-preview-20261017/PC-CODEX-PROMPT.md) · [Release notes](https://github.com/Andrew454545/vision-community/releases/tag/local-vision-app-preview-20261017)
 
-This is an unsigned invited preview. Its first Windows run supplies actual
-Windows feedback. Google must permit live imagery access on your connection;
-the app stops if access is refused. See the release notes for checksums and
-current limits. Do not disable computer security to run it. Your own electricity,
-internet and storage are used; five million locations need about 15.4 GB for
-vectors alone, plus setup, metadata and backups. Searching prepares another
-copy of those vectors, so allow additional space.
+Downloads are unsigned. If your computer blocks the app, ask the person who invited you for help.
+Nothing uploads automatically. The older hosted service remains paused.
 
-## Search your Scenes
+<details>
+<summary>For developers</summary>
 
-Choose **My library** in the launcher or processing window. Pause processing,
-describe what you want, optionally choose country/generation/view filters and
-choose **Search my Scenes**. Use **Save results as a map** for an MMA-compatible
-JSON map. Text searches run locally without live imagery requests. Street View
-examples retrieve reference imagery from Google.
+[Contributing](CONTRIBUTING.md) · [Developer guide](https://github.com/Andrew454545/vision-community/blob/codex/windows-production-readiness/docs/DEVELOPER_GUIDE.md)
 
-Choose **Choose storage folder** in the launcher for a local or external disk.
-Existing queues keep their original location and progress. Small MMA JSON maps
-can supply reference views; online MMA export is optional and uses a key held
-only in memory. Owner import and catalog preparation tools are available.
-
-First-user Windows/live feedback, actual contributor ingestion and Objects are
-next in [the next-phase outline](https://github.com/Andrew454545/vision-community/releases/download/local-scenes-local-app-preview-20261016/NEXT-PHASE.md).
-
-**The older hosted contribution service, uploads, credits and online search
-remain closed.** Keep old VISION folders, saved work and private account codes.
-Leave older automatic-processing jobs paused. The local preview does not upload
-results or earn credits.
-
-[Developer guide](https://github.com/Andrew454545/vision-community/blob/codex/windows-production-readiness/docs/DEVELOPER_GUIDE.md)
-· [Contributing](CONTRIBUTING.md)
+</details>
