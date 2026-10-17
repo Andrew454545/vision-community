@@ -89,7 +89,14 @@ static class LocalScenes {
             if(Run(Child(python,snapshot,root,"local_scene_setup.py",setup),root,"scene-setup",1900)!=0) throw new IOException("local_scene_setup_failed");
             // Recheck Python/source before the long-lived user-controlled UI.
             Starter.Python(root,false);Starter.Snapshot(Package.Project,root);
-            var info=Child(python,snapshot,root,"local_scene_supervisor.py","--packet "+Package.Quote(packet)+" --data-dir "+Package.Quote(Path.Combine(root,"results"))+" --runtime-root "+Package.Quote(runtime)+" --app-root "+Package.Quote(root));
+            var nativeArguments="";
+            var nativeManifest=Path.Combine(Package.Project,"native-window","manifest.json");
+            if(File.Exists(nativeManifest)) {
+                if(Run(Child(python,snapshot,root,"local_scene_window.py","--provision-from "+Package.Quote(Package.Project)+" --root "+Package.Quote(root)),root,"native-window-setup",60)!=0)
+                    throw new IOException("native_window_setup_failed");
+                nativeArguments=" --native-window-dir "+Package.Quote(Path.Combine(root,"native-windows",Starter.Hash(nativeManifest)));
+            }
+            var info=Child(python,snapshot,root,"local_scene_supervisor.py","--packet "+Package.Quote(packet)+" --data-dir "+Package.Quote(Path.Combine(root,"results"))+" --runtime-root "+Package.Quote(runtime)+" --app-root "+Package.Quote(root)+nativeArguments);
             var child=new Process {StartInfo=info};
             // The UI writes durable worker diagnostics. It does not send private
             // paths or native output into this beginner-facing launcher window.
@@ -193,7 +200,7 @@ sealed class PilotWindow:Form {
         setup.RunWorkerCompleted+=(s,e)=>{
             preparing=false;setup.Dispose();
             if(e.Error!=null){Starter.Failure(LocalScenes.Root,e.Error);storage.Enabled=library.Enabled=choose.Enabled=open.Enabled=true;status.Text="Setup could not finish. Your files and a private report are kept. Ask the maintainer for help.";return;}
-            child=(Process)e.Result;open.Enabled=true;open.Text="Reopen pilot window";status.Text="The local pilot is open in your browser. Use its Start and Pause buttons.";
+            child=(Process)e.Result;open.Enabled=true;open.Text="Reopen VISION";status.Text="VISION is opening. Use Start and Pause in its window. If WebView2 is unavailable, the browser interface opens instead.";
             var timer=new System.Windows.Forms.Timer {Interval=500};timer.Tick+=(sender,ev)=>{
                 if(child.HasExited){var code=child.ExitCode;child.Dispose();child=null;timer.Stop();timer.Dispose();storage.Enabled=library.Enabled=choose.Enabled=open.Enabled=true;open.Text="Open local pilot";
                     status.Text=code==0?"Local pilot closed or its existing window reopened. Your saved work is kept.":"The local pilot stopped. Your files are kept; ask the maintainer to review the saved report.";}};

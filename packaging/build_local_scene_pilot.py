@@ -56,7 +56,7 @@ def windows_launcher(output,kit,project,revision,checksum, *, windows_reference_
             'nativeLauncherSelfCheck':True,'powershellRequired':False}
 
 
-def build(output, native_dir, revision, platform='windows-x86_64', *, windows_reference_dir=None, readiness_dir=None):
+def build(output, native_dir, revision, platform='windows-x86_64', *, windows_reference_dir=None, readiness_dir=None,native_windows=False,webview2_sdk=None):
     if platform not in ('windows-x86_64','darwin-arm64'):raise ValueError('unsupported_platform')
     dirty=source_state(revision)
     output=regular(output,directory=True,missing=True)
@@ -97,8 +97,12 @@ def build(output, native_dir, revision, platform='windows-x86_64', *, windows_re
             source=regular(readiness_dir/name)
             target=kit/'Readiness'/name;target.parent.mkdir(parents=True,exist_ok=True)
             target.write_bytes(source.read_bytes())
+    from native_scene_window import build_host,mac_launcher
+    native_host=build_host(project,output,platform,sdk=webview2_sdk,refs=windows_reference_dir) if native_windows else {}
     checksum=inventory(project,revision)
     launcher=windows_launcher(output,kit,project,revision,checksum,windows_reference_dir=windows_reference_dir) if platform=='windows-x86_64' else {}
+    if native_windows and platform=='darwin-arm64':
+        launcher=mac_launcher(kit,output,revision,checksum)
     zipped=output/f'VISION-Local-Scenes-{platform}-MAINTAINER.zip'
     # The shared native-app archive stores resources as regular data. This kit
     # exposes .command starters directly, so retain their executable Unix mode.
@@ -109,7 +113,7 @@ def build(output, native_dir, revision, platform='windows-x86_64', *, windows_re
                 name=path.relative_to(kit).as_posix()
                 entry=zipfile.ZipInfo(name,date_time=(2026,1,1,0,0,0))
                 entry.compress_type=zipfile.ZIP_DEFLATED
-                executable=name.endswith('.command') or name=='pilot-runtime/bin/mma-vision'
+                executable=name.endswith('.command') or bool(path.stat().st_mode&0o111)
                 entry.create_system=3
                 entry.external_attr=(0o100755 if executable else 0o100644)<<16
                 package.writestr(entry,path.read_bytes())
@@ -117,7 +121,7 @@ def build(output, native_dir, revision, platform='windows-x86_64', *, windows_re
     report={'sourceRevision':revision,'sourceWorktreeDirty':dirty,'platform':platform,
         'inventorySha256':checksum,'sha256':sha,'artifact':zipped.name,
         'modelFilesBundled':False,'packetsBundled':False,'publicDistributionReady':False,
-        'signed':False,'cloudCalls':0,'actionsRuns':0,**launcher}
+        'signed':False,'cloudCalls':0,'actionsRuns':0,**launcher,**native_host}
     (output/'pilot-kit-receipt.json').write_text(json.dumps(report,indent=2)+'\n')
     return report
 
@@ -128,5 +132,8 @@ if __name__=='__main__':
     parser.add_argument('--revision',required=True);parser.add_argument('--platform',default='windows-x86_64')
     parser.add_argument('--windows-reference-dir',type=Path)
     parser.add_argument('--readiness-dir',type=Path)
+    parser.add_argument('--native-windows',action='store_true')
+    parser.add_argument('--webview2-sdk',type=Path)
     args=parser.parse_args();print(json.dumps(build(args.output,args.native_dir,args.revision,args.platform,
-        windows_reference_dir=args.windows_reference_dir,readiness_dir=args.readiness_dir)))
+        windows_reference_dir=args.windows_reference_dir,readiness_dir=args.readiness_dir,
+        native_windows=args.native_windows,webview2_sdk=args.webview2_sdk)))

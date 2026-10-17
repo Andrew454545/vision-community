@@ -15,8 +15,10 @@ in source. Personal MMA-map import/private queues are now implemented too,
 including saved-reference admission, cross-map reservation recovery, separate
 personal result storage and combined local search. The My library window now opens
 prepared/saved personal queues directly, with explicit Start, exclusive ownership
-and queue-specific settings/login registration. Next: local Objects and further
-desktop-shell integration. Existing operational holds still
+and queue-specific settings/login registration. Native WebKit/WebView2 hosts and a
+Mac app launcher are now implemented in source; their packaged/self-check evidence
+and interactive-use limits belong in the release receipt. Next: local Objects
+and first native-window use. Existing operational holds still
 apply. See the library guide for exact photo-query scope and private scratch limits.
 
 ## Delivery order
