@@ -56,5 +56,16 @@
     "newIndexInference": 0,
     "actionsDispatched": 0,
     "oldJobsRestarted": 0
+  },
+  "selfContainedMacDelivery": {
+    "sourceRevision": "55ff79e732d8d90364a7a55d6136912f5e0167bd",
+    "packages": "PASS: both clean builds; every ZIP member, inventory, embedded Mac inventory and file mode verified",
+    "macAppRelocation": "PASS: only .app copied to a separate folder; sealed self-check, no GUI/setup",
+    "hiddenRendererEvidenceReused": "Exact full Mac host bytes match previously rendered cb5f62e build",
+    "windowsExecuted": false,
+    "newIndexInference": 0,
+    "googleRequests": 0,
+    "cloudflareCalls": 0,
+    "actionsDispatched": 0
   }
 }
