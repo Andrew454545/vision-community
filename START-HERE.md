@@ -1,6 +1,6 @@
 # Start here: VISION Local Scenes
 
-[Download the invited local preview](https://github.com/Andrew454545/vision-community/releases/tag/local-scenes-personal-app-preview-20261017). Choose Windows x64 or Apple-silicon Mac.
+[Download the invited local preview](https://github.com/Andrew454545/vision-community/releases/tag/local-scenes-unified-app-preview-20261017). Choose Windows x64 or Apple-silicon Mac.
 
 
 Your computer does the processing. Your results stay on your computer.
@@ -25,8 +25,14 @@ doesn't pass is not approved. You do not need to understand the test report.
 After the computer check, choose **My library → Add my own MMA map**.
 
 1. Choose an MMA JSON export with panorama IDs, up to 100,000 locations or 20 MB.
-2. Choose **Prepare my private queue**, then **Save my personal queue**.
-3. Extract the ZIP and open **campaign.json** using the launcher as described below.
+2. Choose **Prepare my private queue**, then **Open my queue here**.
+3. Set your day/night speeds, then choose **Start**.
+
+The same app window handles your queue and library. Use **My saved queues** to
+return to another personal map. Opening a queue never starts processing by itself,
+and the app prevents two windows from opening the same queue. **Save a queue
+backup** is optional: extract it and open **campaign.json** through the launcher
+if needed. The received-queue steps below are for assigned or backup ZIPs.
 
 If some locations have no saved country, select their country before preparing.
 Only choose a fallback country if it applies to all locations missing one. Your
