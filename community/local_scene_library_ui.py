@@ -63,15 +63,22 @@ class LibrarySession:
                 'code':'library_refresh_needed','originalWorkPreserved':True})
 
     def _recover(self):
+        from .local_scene_recover import recover
+        recover(self.data_dir,self.source_roots,self.library,stop=self.stop)
+
+    def _recover_inline(self, *, heartbeat=lambda:None):
+        heartbeat()
         with self.library.guard, self.library._db() as db:
             known = {Path(row[0]).parents[1] for row in db.execute('SELECT path FROM sources')}
         for data_dir in self.source_roots:
             data_dir = regular(data_dir, directory=True, missing=True)
             if data_dir.exists():
-                self._recover_root(data_dir, known)
+                heartbeat()
+                self._recover_root(data_dir, known, heartbeat=heartbeat)
 
-    def _recover_root(self, data_dir, known):
+    def _recover_root(self, data_dir, known, *, heartbeat=lambda:None):
         for root in sorted(data_dir.iterdir()):
+            heartbeat()
             if self.stop.is_set():
                 return
             if not re.fullmatch('[a-f0-9]{64}', root.name):
@@ -86,6 +93,7 @@ class LibrarySession:
                 with sqlite3.connect(progress.as_uri()+'?mode=ro',uri=True) as db:
                     completed = db.execute('SELECT ordinal,profile FROM work WHERE status="complete" ORDER BY ordinal').fetchall()
                 for ordinal, profile in completed:
+                    heartbeat()
                     if self.stop.is_set():
                         return
                     if not re.fullmatch('[a-f0-9]{64}',str(profile)) or not 0<=ordinal<len(manifest['packets']):
@@ -127,7 +135,10 @@ class LibrarySession:
 
     def _run(self, query, photo=None):
         try:
-            self._recover()
+            # Existing libraries search immediately; explicit Refresh recovers
+            # old work. Do not rescan tens of thousands of packets per query.
+            if query is None or self.library.status()['locations'] == 0:
+                self._recover()
             if query is not None and not self.stop.is_set():
                 kwargs = {'stop':self.stop}
                 if photo is not None:
@@ -150,6 +161,8 @@ class LibrarySession:
                     'library_storage_required':'Free some storage space before preparing the searchable library.',
                     'photo_encoding_failed':'The local photo could not be encoded. Your saved library is unchanged.',
                     'photo_profile_not_used':'The runtime could not use this local photo. Your saved indexes are unchanged.',
+                    'library_recovery_stalled':'A saved file is taking too long to read. Your work is kept. Connect the disk and make cloud-stored files available locally, then Refresh.',
+                    'library_recovery_failed':'Saved-work recovery stopped. Your original files are kept; check the local report before refreshing.',
                     'library_search_cancelled':'Search stopped. Saved Scenes are kept.'}).get(code,
                     'The library action stopped safely. Your original indexes are kept. Refresh or ask the maintainer for help.')
             atomic_json(self.library.root/'failure.json',{'code':code,'errorClass':type(error).__name__,

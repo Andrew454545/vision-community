@@ -143,13 +143,14 @@ class LocalSceneCampaign:
 
     def status(self):
         with self.guard, self._db() as db:
+            current = self.current.status() if self.current else {}
             completed = db.execute('SELECT completed FROM totals WHERE id=1').fetchone()[0]
             held = db.execute('SELECT count(*) FROM work WHERE status="held"').fetchone()[0]
             startup = regular(self.root / 'startup.json', missing=True)
             startup_enabled = False
             if startup.exists() and startup.stat().st_size <= 16 * 1024:
                 startup_enabled = json.loads(startup.read_text()).get('enabled') is True
-            return {'phase': self.phase, 'message': self.message, 'completed': completed,
+            return {'phase': self.phase, 'message': current.get('message',self.message), 'completed': completed,
                     'total': self.manifest['locations'], 'packetId': self.packet['packetId'],
                     'participant': self.manifest['participant'], 'outputDirectory': str(self.root),
                     'exportAvailable': completed > 0 and not (self.thread and self.thread.is_alive()),
@@ -238,8 +239,17 @@ class LocalSceneCampaign:
                     work_root = self.root / 'work' / profile['sha256']
                     def verified(root):
                         return self.runtime_verifier(root, inference_threads=threads)
+                    # Retain the exact saved layout of older work. New queues
+                    # use16-location saved groups so download pauses are useful.
+                    group_size = 16
+                    layout = regular(work_root/self.manifest['packets'][i]['packetId']/'work-layout.json',missing=True)
+                    if layout.exists():
+                        saved_layout = json.loads(layout.read_text())
+                        if set(saved_layout) != {'groupSize'} or type(saved_layout['groupSize']) is not int or saved_layout['groupSize'] not in (16,128):
+                            raise ValueError('saved_work_changed')
+                        group_size = saved_layout['groupSize']
                     pilot = self.pilot_factory(path, work_root, self.runtime_root,
-                        runtime_verifier=verified, inference_threads=threads, pace=pace, group_size=128)
+                        runtime_verifier=verified, inference_threads=threads, pace=pace, group_size=group_size)
                     with self.guard:
                         if self.stop.is_set():
                             break
@@ -280,6 +290,14 @@ class LocalSceneCampaign:
                                 (failures, time.time() + min(3600, 60 * 2**min(failures-1,6)),
                                  'held' if failures >= 5 else 'pending', 'local_processing_failed', i))
                     self.current = None
+                    if getattr(pilot,'network_execution',None) is not None and not self.stop.is_set():
+                        with self._db() as db:
+                            unfinished = db.execute('SELECT 1 FROM work WHERE status!="complete" LIMIT 1').fetchone()
+                        if not unfinished:
+                            continue
+                        from .local_scene_transport import GROUP_PAUSE_SECONDS
+                        self.message = 'Waiting briefly before the next imagery group. Your saved work is kept.'
+                        self.stop.wait(GROUP_PAUSE_SECONDS)
         except Exception as error:
             self.phase, self.message = 'failed', 'Processing stopped safely. Check the local diagnostic and resume after repair.'
             atomic_json(self.root / 'failure.json', {'errorClass': type(error).__name__, 'savedWorkPreserved': True})

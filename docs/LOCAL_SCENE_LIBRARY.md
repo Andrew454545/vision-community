@@ -164,3 +164,27 @@ an arbitrary-photo quality benchmark or a Windows execution claim. The focused
 pixel-boundary, token/Origin, in-memory clear/query forwarding and shipped-script
 checks passed. Existing fixed112 qualification is unchanged and was not rerun.
 This source update is newer than the published a3402cb kits and is not yet in them.
+
+## Cautious download pacing and bounded recovery (source update)
+
+New live groups use one concurrent download and a30-second interruptible pause
+before the next native processing group. CPU priority/thread choices still use
+qualified profiles. New campaigns use16-location saved groups; existing128-group
+layouts are preserved for safe resume. This is a serial-download policy with
+saved-group pauses, not a strict requests-per-second guarantee. The original
+planned input remains intact; receipts/exported results additionally bind the
+actual native input, changing only download concurrency. All batch/session/graph
+settings remain unchanged. No Google request was used to verify this change.
+
+Recovery now runs in an owned metadata-only process. A20-second lack of progress
+stops that child, preserves earlier committed metadata and reports a readable
+error rather than keeping the UI's recovery thread stuck. Cancel is observed
+separately so a stalled source read does not block the watchdog. Existing libraries
+search directly; they no longer scan every old packet before every query. Refresh
+explicitly recovers missed work, and normal processing still adds completed groups.
+Two original Documents-path stalls remain preserved with unknown root cause;
+physical-drive/cloud-filesystem behavior is not independently certified.
+
+Focused checks cover the actual network-input delta, cancellable waiting, portable
+export/owner import, old128/new16 layouts, watchdog cancellation/timeout and an
+actual owned metadata recovery. No broad suite, model matrix or live trial ran.

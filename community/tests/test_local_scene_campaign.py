@@ -219,10 +219,14 @@ class UnattendedTests(unittest.TestCase):
                 super().__init__(*args,indexer=indexer,**kwargs)
         with tempfile.TemporaryDirectory() as folder:
             app=self.make(Path(folder),count=129,pilot_factory=Pilot,clock=lambda:datetime(2026,10,15,12))
+            legacy=app.root/'work'/profile(1)['sha256']/app.manifest['packets'][0]['packetId']
+            legacy.mkdir(parents=True)
+            (legacy/'work-layout.json').write_bytes(canonical({'groupSize':128})+b'\n')
             with patch('community.background.keep_awake',return_value=nullcontext()):
                 app.start();app.thread.join(5)
             self.assertEqual(app.phase,'complete',app.status())
             result=app.export_results()
+            self.assertEqual(len(json.loads((legacy/'part-0000/complete.json').read_text())['rowIds']),128)
             self.assertEqual(result['locations'],129)
             self.assertEqual(result['archives'],2)
             self.assertEqual(result['kind'],'local_directory')

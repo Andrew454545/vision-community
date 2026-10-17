@@ -21,14 +21,17 @@ See docs/LOCAL_SCENE_LIBRARY.md. The core indexing pipeline/model qualification
 is unchanged: reuse its evidence and use focused checks for changed boundaries.
 Actual Windows installation, real online MMA, physical external storage and real
 contributor ingestion still need ordinary first-use feedback; do not claim those
-have been tested. Two Documents-path storage recovery stalls remain unexplained.
+have been tested. Two Documents-path storage recovery stalls remain unexplained. Source now
+isolates metadata recovery in an owned child with a20-second no-progress
+watchdog; it contains a stall rather than claiming to fix the OS/filesystem cause.
 
 The owner reported possible Google rate limiting and asked to slow requests.
 Keep this Mac's development offline: no live imagery probes, reference fetches,
 processing restart or automatic retries to discover whether access recovered.
-CPU pace is not a per-request network rate limit. Lower fetch concurrency and
-explicit request spacing remain work before a future live development run;
-do not claim those are already implemented. Text-only local search is offline.
+CPU pace is not a per-request network rate limit. Source now adds serial
+downloads and30-second pauses between saved groups, separately recorded in
+exports; this is not a strict per-second cap or proof of recovered Google access.
+No live test of this pacing is authorized by ordinary continuation. Text-only local search is offline.
 Ordinary continuation does not lift this hold or the cloud/Actions limits below.
 Do not bypass provider refusals. Objects and automatic sharing remain deferred.
 

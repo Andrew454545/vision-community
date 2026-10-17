@@ -10,8 +10,9 @@ credit economy or service account in this path.
 The owner has now asked to keep building the full local application. Photo search
 is implemented in source after the published a3402cb preview: private local pixels,
 photo/text blending and native ranking passed one actual offline synthetic use.
-Next: cautious download pacing, bounded recovery, personal MMA-map processing,
-then local Objects and a complete app shell. Existing operational holds still
+Serial downloads/group pauses and owned bounded recovery are also implemented
+in source. Next: personal MMA-map processing, then local Objects and a complete
+app shell. Existing operational holds still
 apply. See the library guide for exact photo-query scope and private scratch limits.
 
 ## Delivery order

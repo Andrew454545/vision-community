@@ -1,0 +1,44 @@
+{
+  "date": "2026-10-16",
+  "scope": "CAUTIOUS_TRANSPORT_AND_BOUNDED_METADATA_RECOVERY",
+  "sourceFiles": {
+    "community/local_scene_transport.py": "8e3f186523056d591844fb63f13a71015542920697ed6fad813cc8b7195682e1",
+    "community/local_scene_pilot.py": "0290d6b736525fd76ced31d19664a7caa84affd6ea503f422fc2764fadf99b0d",
+    "community/local_scene_unattended.py": "70a69738d42867ebb1794ba753e810b598e5dfebfaeaba217cfcaed47abb77c3",
+    "community/local_scene_archive.py": "b509414ad3129ad38a5089507013f5379896036e9f576b9187925d838872a518",
+    "community/local_scene_recover.py": "e56c5dbf10dc27da7755b1264de8dd9b60a7ab21e51273eded295c938e93cc45",
+    "community/local_scene_library_ui.py": "195b15cd008d9527286002debd709dd0199766ceb52515f851951dcdb6c324c4"
+  },
+  "transport": {
+    "maximumConcurrentDownloadsPerNativeRun": 1,
+    "minimumPauseSecondsBetweenSavedGroups": 30,
+    "newGroupLocations": 16,
+    "legacy128LayoutRetained": true,
+    "strictRequestsPerSecondLimit": false,
+    "numericalInputChanges": [],
+    "actualInputRetainedInReceipts": true
+  },
+  "recovery": {
+    "ownedChild": true,
+    "noProgressTimeoutSeconds": 20,
+    "committedMetadataPreserved": true,
+    "searchSkipsRepeatedRecoveryWhenLibraryExists": true,
+    "documentsStallRootCause": "Still unproven"
+  },
+  "checks": {
+    "transportPauseAndInputBinding": "PASS without network",
+    "portableExportAndOwnerImport": "PASS synthetic",
+    "legacy128AndNew16CampaignExport": "PASS synthetic after correcting fixture newline",
+    "watchdogAndOwnedRecovery": "PASS",
+    "shippedScript": "PASS in VM DOM harness"
+  },
+  "operations": {
+    "googleRequests": 0,
+    "cloudflareCalls": 0,
+    "actionsDispatched": 0,
+    "newModelMatrix": false,
+    "windowsExecuted": false,
+    "physicalExternalDiskTested": false,
+    "includedInPublishedA3402cbKits": false
+  }
+}

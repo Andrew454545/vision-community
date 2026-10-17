@@ -94,6 +94,11 @@ class LibraryTests(unittest.TestCase):
                 runtime_verifier=lambda _: (Path('unused-native'),Path('unused-models'),PROFILE),group_size=128)
             with patch('community.background.keep_awake',return_value=nullcontext()):app.start();app.thread.join(10)
             self.assertEqual(app.phase,'complete')
+            from community.local_scene_transport import execution
+            receipt_path=app.root/'part-0000/complete.json'
+            receipt=json.loads(receipt_path.read_text())
+            _,receipt['networkExecution']=execution(app.root/'part-0000/attempt-0001/input.json')
+            receipt_path.write_bytes(canonical(receipt)+b'\n')
             backup=export_saved_results(app.root,root/'results.zip',portable=True)
             before=hashlib.sha256(registry.read_bytes()).hexdigest()
             owner=SceneLibrary(root/'owner-library');authority=ImportAuthority(registry,'assigned')

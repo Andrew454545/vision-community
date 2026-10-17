@@ -49,6 +49,7 @@ until a later contribution step. No account is needed.</p>
 <button id="startup-save">Save automatic start</button></div>
 <p id="power-note">Start uses your CPU and internet connection to retrieve imagery. Keep the computer
 plugged in. Pause saves the current group, then stops; it can take several minutes.</p>
+<p id="download-note">Downloads run one at a time, with a 30-second pause between saved groups. Speed settings control CPU use.</p>
 <p>Closing this browser tab keeps processing running. Use Pause or Exit to stop.</p>
 <p>Saved work folder:</p><p id="folder"></p>
 <button id="save" disabled>Save results</button><p id="backup-message" role="status"></p>
@@ -70,6 +71,7 @@ document.getElementById('start').disabled=saving||['processing','pausing','compl
 document.getElementById('pause').disabled=!['processing','waiting_for_power','waiting_for_schedule','waiting_to_retry'].includes(s.phase);
 document.getElementById('save').disabled=saving||!s.exportAvailable;
 if(s.readiness){document.getElementById('intro').textContent='First, check this computer using the same 112 fixed test locations at each offered speed. Save the results and send them to the maintainer for your personal queue.';
+document.getElementById('download-note').hidden=true;
 document.getElementById('power-note').textContent='This check uses fixed generated images on your computer. It does not fetch live imagery, upload results or approve bulk work. Keep the computer plugged in.';}
 if(s.campaign){document.getElementById('schedule').hidden=false;if(!settingsLoaded){
 for(const k of ['dayStart','nightStart','dayPace','nightPace'])document.getElementById(k).value=s.settings[k];
