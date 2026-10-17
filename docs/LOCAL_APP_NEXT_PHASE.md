@@ -17,8 +17,11 @@ personal result storage and combined local search. The My library window now ope
 prepared/saved personal queues directly, with explicit Start, exclusive ownership
 and queue-specific settings/login registration. Native WebKit/WebView2 hosts and a
 Mac app launcher are now implemented in source; their packaged/self-check evidence
-and interactive-use limits belong in the release receipt. Next: local Objects
-and first native-window use. Existing operational holds still
+and interactive-use limits belong in the release receipt. Private saved Object import/search is now implemented too, with a separately pinned
+runtime, native verification, original global IDs, metadata and map export. See
+[the Object library](LOCAL_OBJECT_LIBRARY.md). New Object processing still needs
+the fixed100–112 compatibility sample; the inspected saved fixtures contain16
+distinct locations. Next: qualify Object processing and obtain first Windows/live feedback. Existing operational holds still
 apply. See the library guide for exact photo-query scope and private scratch limits.
 
 ## Delivery order
@@ -30,7 +33,7 @@ owner-catalog preparation/apply. See [library/import details](LOCAL_SCENE_LIBRAR
 The owner's Google requests remain paused. Current CPU speed settings are not a
 per-request network rate limit; serial downloads and30-second group pauses are now
 implemented without a live provider test. First-user Windows/live feedback, actual returned
-work registration, local Objects and further desktop-shell integration remain. Signed public downloads
+work registration, qualified Object processing and interactive desktop feedback remain. Signed public downloads
 need signing enrollment. No actual contributor output or personal VISION catalog
 has been changed by the development checks.
 

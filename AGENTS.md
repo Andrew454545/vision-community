@@ -1,5 +1,19 @@
 # Development constraints
 
+## Private saved Object library (17 October continuation)
+
+Saved Object import/search is part of the approved full local app work. It uses
+its own private runtime/library and owned task, with optional setup consent,
+unchanged packed records, native full verification and original global-ID mapping.
+Keep its PRIVATE_IMPORTED_INDEX_ONLY receipts, including frozen diagnostic markers,
+separate from every processing/Community/owner-publication authority. Existing
+Object qualification, protected-source and official coverage checks are unchanged.
+A saved-index query does not establish cross-platform inference qualification.
+The initial ZIP supports one complete group up to1,000 locations/32MB features.
+Do not silently split or rewrite a large owner index to fit. No Object bulk
+processing, imagery request, cloud access or old-job restart follows from this.
+Use focused boundary tests and one saved-input app use, not broad matrices.
+
 ## Native local window implementation (17 October latest approval)
 
 The owner approved the remaining desktop/Object plan. Native Mac WebKit and Windows

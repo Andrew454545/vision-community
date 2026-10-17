@@ -193,6 +193,9 @@ def handler_for(app, token):
                 self.send(403, {'error': 'local_access_denied'})
 
         def do_POST(self):
+            from community.local_object_ui import handle_post
+            if handle_post(self,getattr(app,'library_session',None)):
+                return
             if self.path == '/api/library/personal-map':
                 if not self.allowed(action=True) or self.headers.get('Transfer-Encoding') is not None:
                     self.send(403,{'error':'local_access_denied'})
@@ -277,7 +280,7 @@ def handler_for(app, token):
                     self.send(409, {'error':code})
                 self.close_connection = True
                 return
-            if self.path in ('/api/library/refresh','/api/library/search','/api/library/open-personal-queue'):
+            if self.path in ('/api/library/refresh','/api/library/search','/api/library/open-personal-queue','/api/library/cancel'):
                 if not self.allowed(action=True) or self.headers.get('Transfer-Encoding') is not None:
                     self.send(403,{'error':'local_access_denied'})
                     self.close_connection = True
@@ -290,7 +293,11 @@ def handler_for(app, token):
                     session = getattr(app,'library_session',None)
                     if session is None or not isinstance(value,dict) or (self.path.endswith('/refresh') and value):
                         raise ValueError('invalid_library_request')
-                    if self.path.endswith('/open-personal-queue'):
+                    if self.path.endswith('/cancel'):
+                        if value:
+                            raise ValueError('invalid_library_request')
+                        session.stop.set()
+                    elif self.path.endswith('/open-personal-queue'):
                         if set(value) not in (set(),{'queueId'}):
                             raise ValueError('invalid_library_request')
                         session.open_personal(value.get('queueId'))
