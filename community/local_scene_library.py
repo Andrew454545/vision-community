@@ -225,7 +225,7 @@ class SceneLibrary:
                 paths.append(folder)
         return paths, total
 
-    def search(self, value, runtime_root, *, runtime_verifier=None, native_runner=None, stop=None):
+    def search(self, value, runtime_root, *, runtime_verifier=None, native_runner=None, stop=None, photo_rgb=None):
         if not isinstance(value, dict) or set(value)-{'prompt','country','generation','viewDirection','resultCount','examples','descriptionWeight'}:
             raise ValueError('invalid_library_query')
         prompt = value.get('prompt', '')
@@ -240,13 +240,18 @@ class SceneLibrary:
                     or any(type(sample[k]) not in (int,float) or not math.isfinite(sample[k]) for k in ('heading','pitch','zoom'))
                     or not 0<=sample['heading']<360 or not -90<=sample['pitch']<=90 or not 0<=sample['zoom']<=5):
                 raise ValueError('invalid_library_examples')
-        if not prompt.strip() and not examples:
+        if photo_rgb is not None:
+            from .local_scene_photo import RGB_BYTES
+            if not isinstance(photo_rgb,bytes) or len(photo_rgb)!=RGB_BYTES or examples:
+                raise ValueError('invalid_library_photo')
+        visual = bool(examples) or photo_rgb is not None
+        if not prompt.strip() and not visual:
             raise ValueError('invalid_library_query')
         count = value.get('resultCount',50)
         if type(count) is not int or not 1<=count<=200:
             raise ValueError('invalid_library_result_count')
-        weight = value.get('descriptionWeight', 0 if examples else 100)
-        if weight not in (0,25,50,75,100) or (examples and weight==100) or (not examples and weight!=100):
+        weight = value.get('descriptionWeight', 0 if visual else 100)
+        if weight not in (0,25,50,75,100) or (visual and weight==100) or (not visual and weight!=100):
             raise ValueError('invalid_library_weight')
         from .features import VIEW_DIRECTION_OFFSETS
         direction = value.get('viewDirection','bestOfFour')
@@ -257,17 +262,27 @@ class SceneLibrary:
         if country not in ['', *info['countries']] or generation not in ['', *info['generations']]:
             raise ValueError('invalid_library_filter')
         with self.writing():
-            binary, models, _ = (runtime_verifier or CheckedRuntime())(runtime_root)
+            binary, models, runtime_profile = (runtime_verifier or CheckedRuntime())(runtime_root)
             paths, total = self._segments(models,stop=stop)
             if not paths:
                 raise ValueError('library_empty')
             coordinates = []
             with tempfile.TemporaryDirectory(prefix='search-', dir=self.root) as temporary:
                 job = Path(temporary)
-                request = search_input(prompt, result_count=count, max_per_country=count,
+                request = search_input(prompt or ('local photo' if photo_rgb is not None else ''), result_count=count, max_per_country=count,
                     country_mode='include' if country else 'all', countries=[country] if country else [],
                     camera_generations=[generation] if generation else [], view_direction=direction,
                     output_name='My VISION results', examples=examples, description_weight=weight)
+                if photo_rgb is not None:
+                    from .local_scene_photo import prepare_profile
+                    from .vision_index import SCENE_QUERY_MODES
+                    request['queries'][0]['mode'] = SCENE_QUERY_MODES[weight][0]
+                    request['queries'][0]['minSimilarity'] = -1.0
+                    try:
+                        prepare_profile(photo_rgb,job,binary,models,runtime_profile,request,weight=weight)
+                    except Exception:
+                        self._native_failure(job/'photo-encoder')
+                        raise
                 request['resultPruneMeters'] = 0  # Apply the same distance rule globally across segments.
                 request['topK'] = min(10000, max(200, count*8))
                 atomic_json(job/'input.json', request)
@@ -293,6 +308,8 @@ class SceneLibrary:
                             if re.search(r'HTTP (403|429)', errors):
                                 raise ValueError('imagery_access_denied')
                             raise ValueError('library_native_search_failed')
+                        if photo_rgb is not None and '[vision] loaded 1 cached query profiles' not in (job/'stderr.log').read_text(errors='replace'):
+                            raise ValueError('photo_profile_not_used')
                     else:
                         native_runner(command,job)
                     if regular(output).stat().st_size>16*1024**2:
@@ -315,7 +332,7 @@ class SceneLibrary:
                 document = finish_scene_coordinates(ordered,result_count=count,max_per_country=count,
                     output_name='My VISION results',prompt=prompt,processed_locations=total)
                 return {'ok': True,'locations':total,'indexes':len(paths),'map':document,
-                    'localOnly':True,'uploads':0,'liveExampleImagery':bool(examples)}
+                    'localOnly':True,'uploads':0,'liveExampleImagery':bool(examples),'localPhotoQuery':photo_rgb is not None}
 
     def _native_failure(self, job):
         destination = regular(self.root/'diagnostics'/str(time.time_ns()),directory=True,missing=True)

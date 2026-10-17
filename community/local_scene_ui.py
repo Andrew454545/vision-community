@@ -167,6 +167,31 @@ def handler_for(app, token):
                 self.send(403, {'error': 'local_access_denied'})
 
         def do_POST(self):
+            if self.path == '/api/library/photo':
+                if not self.allowed(action=True) or self.headers.get('Transfer-Encoding') is not None:
+                    self.send(403,{'error':'local_access_denied'})
+                    self.close_connection = True
+                    return
+                try:
+                    from community.local_scene_photo import RGB_BYTES
+                    length = int(self.headers.get('Content-Length','0'))
+                    if length not in (0,RGB_BYTES):
+                        raise ValueError('invalid_photo_pixels')
+                    session = getattr(app,'library_session',None)
+                    if session is None:
+                        raise ValueError('library_unavailable')
+                    body = self.rfile.read(length)
+                    if len(body) != length:
+                        raise ValueError('invalid_photo_pixels')
+                    with session.guard:
+                        if session.thread and session.thread.is_alive():
+                            raise ValueError('library_busy')
+                        session.photo_rgb = body or None
+                    self.send(200,{'photoAvailable':bool(body),'storedOnDisk':False})
+                except Exception:
+                    self.send(409,{'error':'photo_upload_failed'})
+                self.close_connection = True
+                return
             if self.path in ('/api/mma/connect','/api/mma/disconnect','/api/mma/send'):
                 if not self.allowed(action=True) or self.headers.get('Transfer-Encoding') is not None:
                     self.send(403, {'error':'local_access_denied'})

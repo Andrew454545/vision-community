@@ -1,5 +1,17 @@
 # Development constraints
 
+## Full local application implementation (16 October latest instruction)
+
+The owner explicitly asked to keep working until the full local application exists.
+Implement useful local features, including private photo queries and subsequent
+local Objects/MMA workflows, rather than stopping at a processing preview. This
+supersedes the older engineering deferral of those features, not their numerical
+admission requirements. Development remains offline while the Google hold applies.
+Query-only use of the pinned encoder with sealed local pixels does not approve
+contributions or alter any saved location embeddings. Keep photo pixels and vectors
+private and temporary. No hosted service, paid resource, signing enrollment, old
+job restart or public-production certification is inferred. Use focused checks.
+
 ## Local application delivery and Google hold (16 October continuation)
 
 The invited local path includes My library, native text/reference-pose Scene
