@@ -30,6 +30,8 @@ class LibrarySession:
         self.stop = threading.Event()
         self.phase, self.message = 'ready', 'Your completed Scenes appear here. Refresh to recover saved work.'
         self.result = None
+        from .local_object_library import ObjectLibrary
+        self.object_library = ObjectLibrary(self.data_dir/'object-library')
         self.mma = None
         self.photo_rgb = None
         self.personal_queue = None
@@ -133,6 +135,7 @@ class LibrarySession:
                 'busy':bool(self.thread and self.thread.is_alive()),
                 'results':(self.result.get('map') or {}).get('customCoordinates',[]) if self.result else [],
                 'mapAvailable':bool(self.result and self.result.get('map')),
+                'objects':self.object_library.status(),
                 'personalQueueAvailable':bool(self.personal_queue),
                 'canOpenPersonalQueue':callable(getattr(self.app,'open_personal_queue',None)),
                 'personalQueueOpened':self.personal_queue_opened,
@@ -295,7 +298,7 @@ class LibrarySession:
 
 
 HTML = r'''<section id="library-panel" hidden>
-<h1>My Scene library</h1><p>Search the Scenes you have saved on this computer.</p>
+<h1>My VISION library</h1><p>Search the Scenes you have saved on this computer.</p>
 <div class="card"><label>My saved queues <select id="personal-saved-queue"><option value="">Prepare an MMA map first</option></select></label>
 <button id="personal-saved-open" disabled>Open this queue</button>
 <p>Opening a queue keeps it paused. Choose Process Scenes to set its speeds and Start.</p></div>
@@ -312,6 +315,7 @@ HTML = r'''<section id="library-panel" hidden>
 </details>
 <div class="card"><p id="library-count">Loading your library…</p>
 <button id="library-refresh">Refresh library</button>
+<button id="library-cancel" disabled>Stop library action</button>
 <p id="library-message" role="status"></p>
 <label for="library-prompt">What are you looking for?</label><br>
 <input id="library-prompt" placeholder="For example: a narrow road through pine trees" maxlength="2000" style="width:95%;font:inherit;padding:10px"><br>
@@ -361,6 +365,8 @@ document.getElementById('library-message').textContent=s.message;
 document.getElementById('library-folder').textContent='Library folder: '+s.path;
 document.getElementById('library-search').disabled=s.busy;
 document.getElementById('library-refresh').disabled=s.busy;
+document.getElementById('library-cancel').disabled=!s.busy;
+updateObjects(s.objects);
 document.getElementById('personal-map-prepare').disabled=s.busy;
 document.getElementById('personal-map-save').disabled=s.busy||!s.personalQueueAvailable;
 canOpenLocalQueue=s.canOpenPersonalQueue&&!s.busy;
@@ -383,7 +389,7 @@ fillLibrarySelect('library-country',s.countries,'All countries');fillLibrarySele
 if(!s.busy){const output=document.getElementById('library-results');output.replaceChildren();
 for(const row of s.results){const card=document.createElement('div');card.className='card';
 const meta=row.extra||{},tags=meta.tags||[];const title=document.createElement('p');
-title.textContent=(tags.join(' · ')||'Country unknown')+' · '+(meta.visionCameraGeneration||'Generation unknown')+' · heading '+Math.round(row.heading)+'°';
+title.textContent=(meta.visionObjectClass?meta.visionObjectClass+' · ':'')+(tags.join(' · ')||'Country unknown')+' · '+(meta.visionCameraGeneration||'Generation unknown')+' · heading '+Math.round(row.heading)+'°';
 const pose=document.createElement('small');pose.textContent=row.lat.toFixed(5)+', '+row.lng.toFixed(5)+' · '+row.panoId;
 const link=document.createElement('a');const url=new URL('https://www.google.com/maps/@');
 url.search=new URLSearchParams({api:'1',map_action:'pano',pano:row.panoId,viewpoint:row.lat+','+row.lng,heading:String(row.heading),pitch:String(row.pitch)}).toString();
@@ -401,6 +407,7 @@ async function libraryAction(path,body){try{const r=await fetch(path,{method:'PO
 if(!r.ok){personalOpening=false;const error=await r.json();document.getElementById('library-message').textContent=error.error==='pause_processing_before_search'?'Choose Process Scenes, pause processing, then try again.':'The library action could not start. Your saved work is kept.';return;}
 await libraryUpdate();}catch(e){personalOpening=false;document.getElementById('library-message').textContent='The library action could not start.';}}
 document.getElementById('library-refresh').onclick=()=>libraryAction('/api/library/refresh',{});
+document.getElementById('library-cancel').onclick=()=>libraryAction('/api/library/cancel',{});
 document.getElementById('library-search').onclick=()=>{const prompt=document.getElementById('library-prompt').value,pano=document.getElementById('library-pano').value.trim();
 const examples=photoSelected?[]:pano?[{panoId:pano,heading:Number(document.getElementById('library-heading').value),pitch:Number(document.getElementById('library-pitch').value),zoom:Number(document.getElementById('library-zoom').value)}]:referenceExamples;
 libraryAction('/api/library/search',{prompt,libraryScope:document.getElementById('library-scope').value||'all',country:document.getElementById('library-country').value,generation:document.getElementById('library-generation').value,viewDirection:document.getElementById('library-view').value,examples,usePhoto:photoSelected,descriptionWeight:photoSelected?(prompt.trim()?Number(document.getElementById('library-photo-weight').value):0):examples.length?(prompt.trim()?50:0):100,resultCount:50});};
@@ -473,12 +480,13 @@ canvas.hidden=false;note.textContent='Photo ready. Choose Search my Scenes. No G
 
 
 def page_with_library(page):
+    from .local_object_ui import HTML as OBJECT_HTML,SCRIPT as OBJECT_SCRIPT
     page = page.replace('<h1>Process Scenes on your computer</h1>',
         '<nav><button id="process-nav">Process Scenes</button><button id="library-nav" hidden>My library</button></nav>'
         '<section id="process-panel"><h1>Process Scenes on your computer</h1>')
     page = page.replace('Uploads, search and credit earning are not enabled.',
         'Your saved Scenes can be searched in My library. Uploads and credit earning are not enabled.')
-    page = page.replace('</main><script', '</section>'+HTML+'</main><script')
+    page = page.replace('</main><script', '</section>'+HTML.replace('<div id="library-results">',OBJECT_HTML+'<div id="library-results">')+'</main><script')
     page = page.replace("if(s.readiness){", "document.getElementById('library-nav').hidden=!s.libraryAvailable;if(s.readiness){")
     page = page.replace("if(s.readiness){", "if(s.activePacketId&&s.activePacketId!==libraryQueueId){settingsLoaded=false;libraryQueueId=s.activePacketId;}if(s.localApp){document.getElementById('process-nav').hidden=!!s.libraryOnly;if(s.queueName)document.getElementById('batch').textContent=s.queueName+' · '+s.total+' locations';}if(s.libraryOnly){document.getElementById('process-panel').hidden=true;document.getElementById('library-panel').hidden=false;if(!libraryOpened){libraryOpened=true;libraryUpdate();}}if(s.readiness){")
-    return page.replace('</script></html>',SCRIPT+'</script></html>')
+    return page.replace('</script></html>',SCRIPT+OBJECT_SCRIPT+'</script></html>')

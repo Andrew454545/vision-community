@@ -101,7 +101,14 @@ you choose Start. **Save a queue backup** is optional; extract it and open
 **campaign.json** with the launcher if needed.
 Your own map results stay local and can be searched under **My MMA maps**.
 
-Objects and automatic sharing are planned for later.
+To search an Object index you already have, open **My library → Search saved
+Objects**. Choose **Set up Object search**, accept its optional private download
+(about 900 MB), then import an Object library ZIP from the maintainer. Search by
+object or description, country, generation and confidence. These results use the
+same Save results as a map button. A normal MMA map is not an Object index.
+**Stop library action** cancels an outstanding library action.
+
+New Object processing and automatic sharing are planned for later.
 
 The Mac app requires macOS13 or later. Windows uses WebView2 when available;
 otherwise the existing browser interface opens. Neither path installs WebView2

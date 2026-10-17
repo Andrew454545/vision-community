@@ -1,0 +1,54 @@
+{
+  "date": "2026-10-17",
+  "scope": "PRIVATE_SAVED_OBJECT_LIBRARY",
+  "focusedBoundaryTest": "PASS (one focused flow; rerun after nonzero global-ID fix)",
+  "actualSavedIndexUse": {
+    "status": "PASS",
+    "scope": "PRIVATE_SAVED_OBJECT_INDEX_IMPORT_AND_COMMON_SEARCH",
+    "locations": 16,
+    "query": "car",
+    "results": 15,
+    "ownerPublishedRuntimePinMatched": true,
+    "nativeVerifyCommands": 1,
+    "nativeCommonSearchCommands": 2,
+    "indexingCommands": 0,
+    "originalInputBytesUnchanged": true,
+    "packedRecordBytesUnchanged": true,
+    "mapEqualsDirectGoldQuery": true,
+    "diagnosticProvenanceRetained": true,
+    "compatibilityQualification": false,
+    "windowsExecuted": false,
+    "googleRequests": 0,
+    "cloudflareCalls": 0,
+    "wallSeconds": 0.307
+  },
+  "actualAppFlow": {
+    "setup": "PASS with existing fully pinned private runtime",
+    "import": "PASS16 locations",
+    "semanticSearch": "INCOMPLETE: original harness stopped at45s; subsequent attempt blocked reading existing delivery.py before app startup",
+    "cancellation": "Pending fresh checkout check"
+  },
+  "preservedFailures": [
+    "First local sample read stalled in an existing192-byte class file; owned reader stopped",
+    "Bounded repeat timed out in retained sample reads; downloaded the already-published archive and matched its exact SHA256",
+    "First app query timed out in the harness; second stopped in an existing source-file read"
+  ],
+  "limits": {
+    "bundleLocations": 1000,
+    "featureBytes": 32000000,
+    "archiveBytes": 41943040,
+    "newObjectProcessingEnabled": false,
+    "deviceQualified": false,
+    "windowsExecuted": false,
+    "nativeFilePanelsExercised": false,
+    "signed": false,
+    "publicProductionApproved": false
+  },
+  "operations": {
+    "indexingCommands": 0,
+    "googleRequests": 0,
+    "cloudflareCalls": 0,
+    "actionsDispatched": 0,
+    "oldJobsRestarted": 0
+  }
+}
