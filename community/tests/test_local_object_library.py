@@ -138,4 +138,26 @@ class LocalObjectLibraryTest(unittest.TestCase):
                 client.close();server.shutdown();server.server_close();worker.join(5);session.close()
 
 
+    def test_cancel_before_application_imports_finish(self):
+        import os,sys,time
+        from community.process_owner import run_owned
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp);marker=root/'stop';started=root/'started'
+            script=root/'slow-start.py'
+            script.write_text("from pathlib import Path\nimport time\nPath("+repr(str(started))+").write_text('started')\ntime.sleep(60)\n")
+            request=root/'request.json';request.write_text(json.dumps({'stopFile':str(marker)}))
+            def cancel():
+                deadline=time.monotonic()+3
+                while not started.exists() and time.monotonic()<deadline:time.sleep(.01)
+                marker.write_text('stop')
+            worker=threading.Thread(target=cancel);worker.start()
+            before=time.monotonic()
+            with (root/'stdout.log').open('wb') as out,(root/'stderr.log').open('wb') as err:
+                completed=run_owned([sys.executable,'-I','-B','-c',objects.TASK_ENTRY,str(script),str(request)],
+                    env=dict(os.environ),cwd=root,stdout=out,stderr=err,timeout=5)
+            worker.join(5)
+            self.assertTrue(started.exists())
+            self.assertEqual(completed.returncode,79)
+            self.assertLess(time.monotonic()-before,4)
+
 if __name__=='__main__':unittest.main()
