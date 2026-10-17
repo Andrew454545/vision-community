@@ -5,6 +5,11 @@ invited kit, choose **Check this computer**, and privately send its results ZIP
 to the maintainer. After review, you receive a personal queue. No terminal,
 account, subscription or global Python installation is needed.
 
+For your own MMA maps, complete the computer check and choose **My library →
+Add my own MMA map**. Prepare/save the private queue, extract it and open
+**campaign.json** in the launcher. This local personal path grants no Community
+assignment, upload approval or credit.
+
 Each person has separate assigned locations. Never give your queue to someone
 else or post reports, device identities, account codes or API keys on GitHub.
 Results stay local; share completed exports through your agreed private method.
