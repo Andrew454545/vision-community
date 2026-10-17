@@ -1,5 +1,19 @@
 # Development constraints
 
+## Native local window implementation (17 October latest approval)
+
+The owner approved the remaining desktop/Object plan. Native Mac WebKit and Windows
+WebView2 views reuse the existing authenticated backend. Keep exact-loopback
+navigation, native file panels, nonpersistent/InPrivate browser sessions, optional
+browser fallback, sealed/private host provisioning and owned shutdown. The new
+Mac launcher handles setup without Terminal. Native builds remain unsigned; do
+not infer real GUI/Windows/file-panel execution from compilation/self-checks.
+The Microsoft SDK is fixed by packaging/webview2-sdk-lock.json, verified against
+NuGet catalog SHA512, and redistributed with its license. Build locally without
+Actions, global installs or automatic WebView2 installation. This approval allows
+offline desktop/Object engineering and the planned fixed saved-input work; it
+does not lift Google, cloud, old-job or publication/compatibility gates.
+
 ## Unified local controls (17 October latest continuation)
 
 My library can open prepared or saved personal queues in its existing window.

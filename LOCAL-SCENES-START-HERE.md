@@ -7,7 +7,7 @@ No account, subscription or Python installation is needed.
 
 1. Extract the whole **VISION Local Scenes** kit. Keep its files together.
 2. Windows: open **VISION Local Scenes.exe**. Apple-silicon Mac: open
-   **Start Local Scenes.command**.
+   **VISION Local Scenes.app**. Keep the whole extracted folder together.
 3. Click **Check this computer**. It is already selected on Windows.
 4. Accept setup downloads, then choose **Start / Resume** in the local window.
    Setup downloads private Python and about 1 GB of model files once.
@@ -41,7 +41,8 @@ in place. Work resumes from saved progress after a program interruption. A power
 failure may repeat the last unfinished group. Explicit **Pause** stays paused.
 
 Keep the computer plugged in. Processing pauses on battery by default. Closing the
-browser tab leaves processing running; **Pause** or **Exit** stops after saving the
+browser tab leaves processing running; a native window asks to pause and close.
+**Pause** or **Exit** stops after saving the
 current group. This can take several minutes. Reopen the launcher to return.
 
 The window shows your saved-work folder. Keep it and your assigned queue. Never
@@ -54,7 +55,8 @@ space for setup, metadata and backups. Processing stops safely when disk space i
 Pause, then choose **Save results**. For a large queue, the window shows an
 **exports** folder containing all completed results and their checksums. Send
 that whole folder to the maintainer using your agreed private transfer method.
-For the compatibility check or a small legacy packet, a ZIP goes to your browser downloads.
+For the compatibility check or a small legacy packet, choose where to save its ZIP
+in the native file panel (or browser downloads when using the fallback interface).
 Nothing is uploaded automatically. Keep the original saved-work folder to resume.
 
 ## Search your saved Scenes
@@ -99,6 +101,10 @@ you choose Start. **Save a queue backup** is optional; extract it and open
 Your own map results stay local and can be searched under **My MMA maps**.
 
 Objects and automatic sharing are planned for later.
+
+The Mac app requires macOS13 or later. Windows uses WebView2 when available;
+otherwise the existing browser interface opens. Neither path installs WebView2
+automatically. The older **Start Local Scenes.command** remains a Mac fallback.
 
 If Google refuses imagery access, the app stops and keeps your queue. Resume
 only after imagery access works normally on that connection. The computer check

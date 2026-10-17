@@ -153,7 +153,12 @@ def handler_for(app, token):
                 from community.local_scene_library_ui import page_with_library
                 self.send(200, page_with_library(PAGE).replace('NONCE', nonce).encode(), 'text/html; charset=utf-8')
             elif self.path == '/api/status' and self.allowed():
-                self.send(200, {**app.status(),'libraryAvailable':getattr(app,'library_session',None) is not None})
+                view=getattr(app,'native_window',None)
+                self.send(200, {**app.status(),'libraryAvailable':getattr(app,'library_session',None) is not None,
+                    'nativeWindow':bool(view and view.active)})
+            elif self.path == '/api/window' and self.allowed():
+                view=getattr(app,'native_window',None)
+                self.send(200,view.state() if view else {'active':False,'showCounter':0})
             elif self.path in ('/api/library','/api/library/map','/api/library/countries','/api/library/personal-queue','/api/library/queues') and self.allowed():
                 session = getattr(app,'library_session',None)
                 if session is None:
@@ -326,10 +331,14 @@ def handler_for(app, token):
                 self.send(403, {'error':'local_access_denied'})
                 self.close_connection = True
                 return
-            if self.path not in ('/api/start', '/api/pause', '/api/exit', '/api/export'):
+            if self.path not in ('/api/start', '/api/pause', '/api/exit', '/api/export','/api/window/show'):
                 self.send(404, {'error':'unknown_action'})
                 return
             try:
+                if self.path == '/api/window/show':
+                    view=getattr(app,'native_window',None)
+                    self.send(200 if view and view.show() else 409,{'ok':bool(view and view.active)})
+                    return
                 if self.path == '/api/export':
                     from community.mac_starter import regular
                     archive = app.export_results()
@@ -376,7 +385,13 @@ def reopen_existing(app, *, open_browser=True):
             status=json.loads(body)
             if app.packet['packetId'] not in (status.get('packetId'),status.get('activePacketId')):return False
         if open_browser:
-            webbrowser.open(saved['url'])
+            if status.get('nativeWindow'):
+                request=urllib.request.Request(f'http://127.0.0.1:{match[1]}/api/window/show',data=b'',
+                    headers={'Authorization':'Bearer '+match[2],'Origin':f'http://127.0.0.1:{match[1]}'})
+                with opener.open(request,timeout=2) as response:
+                    if response.status!=200:return False
+            else:
+                webbrowser.open(saved['url'])
         return True
     except (OSError,ValueError,KeyError,TypeError):
         return False
@@ -389,6 +404,7 @@ def main():
     parser.add_argument('--runtime-root', type=Path, default=community_support_root()/'desktop/runtime')
     parser.add_argument('--app-root', type=Path, help='private launcher configuration for selected data storage')
     parser.add_argument('--no-browser', action='store_true')
+    parser.add_argument('--native-window-dir',type=Path)
     parser.add_argument('--check-only', action='store_true', help='validate this packet without setup or processing')
     parser.add_argument('--reopen-only', action='store_true', help='reopen the existing local window without starting a server')
     parser.add_argument('--resume', action='store_true', help='resume a previously enabled local campaign')
@@ -453,8 +469,10 @@ def main():
     atomic_json(app.root/'window.json',{'url':url,'packetId':app.packet['packetId']})
     if hasattr(app,'window_url'):
         app.window_url = url
+    from community.local_scene_window import NativeWindow
+    app.native_window=NativeWindow(args.native_window_dir,app,server,url)
     if not args.no_browser:
-        webbrowser.open(url)
+        app.native_window.start()
     if args.resume and hasattr(app, 'resume_automatically'):
         app.resume_automatically()
     print('VISION local pilot is open. Use its Start and Pause buttons.', flush=True)
@@ -464,6 +482,7 @@ def main():
         pass
     finally:
         server.server_close()
+        app.native_window.close()
         session = getattr(app,'library_session',None)
         if session:
             session.close()
