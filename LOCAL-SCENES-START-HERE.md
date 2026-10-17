@@ -91,8 +91,11 @@ This invited preview is unsigned. If your computer refuses it, stop and ask the
 maintainer for trusted installation help. Do not disable security settings.
 The app is free; your electricity, internet data and storage are still used.
 To process your own MMA map, open **My library → Add my own MMA map**. Choose
-your exported JSON, prepare and save the private queue, extract the ZIP, then
-open **campaign.json** with the launcher. Finish **Check this computer** first.
+your exported JSON, choose **Prepare my private queue**, then **Open my queue
+here**. Choose your day/night speeds and Start. Finish **Check this computer** first.
+Use **My saved queues** to return to earlier queues. Opening stays paused until
+you choose Start. **Save a queue backup** is optional; extract it and open
+**campaign.json** with the launcher if needed.
 Your own map results stay local and can be searched under **My MMA maps**.
 
 Objects and automatic sharing are planned for later.

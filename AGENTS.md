@@ -1,5 +1,18 @@
 # Development constraints
 
+## Unified local controls (17 October latest continuation)
+
+My library can open prepared or saved personal queues in its existing window.
+Opening is paused and takes an exclusive queue-window lock. Preserve stable library
+window identity, active-queue aliases, queue-bound startup/export/settings and the
+separate worker lock. Do not enable processing or install login registration when
+opening. The actual pinned-runtime open check reused saved reports and ran no
+inference or network. The new controls do not establish real Windows execution.
+Object evidence still has only three distinct saved cross-platform cases, marked
+COMPLETE_UNQUALIFIED. Do not relabel it as a 100–112-location qualification or
+claim correspondence with the installed owner Object gold executable. Existing
+Object numerical/import rules stay intact while local integration continues.
+
 ## Personal map queues (17 October continuation)
 
 The private personal Scene path is implemented in source. Reuse saved fixed112

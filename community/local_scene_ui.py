@@ -154,7 +154,7 @@ def handler_for(app, token):
                 self.send(200, page_with_library(PAGE).replace('NONCE', nonce).encode(), 'text/html; charset=utf-8')
             elif self.path == '/api/status' and self.allowed():
                 self.send(200, {**app.status(),'libraryAvailable':getattr(app,'library_session',None) is not None})
-            elif self.path in ('/api/library','/api/library/map','/api/library/countries','/api/library/personal-queue') and self.allowed():
+            elif self.path in ('/api/library','/api/library/map','/api/library/countries','/api/library/personal-queue','/api/library/queues') and self.allowed():
                 session = getattr(app,'library_session',None)
                 if session is None:
                     self.send(404,{'error':'library_unavailable'})
@@ -162,6 +162,12 @@ def handler_for(app, token):
                     self.send(200,session.status())
                 elif self.path == '/api/library/countries':
                     self.send(200,session.countries)
+                elif self.path == '/api/library/queues':
+                    from community.local_scene_personal import saved_queues
+                    try:
+                        self.send(200,saved_queues(session.data_dir))
+                    except (ValueError,OSError):
+                        self.send(409,{'error':'personal_queue_unavailable'})
                 elif self.path == '/api/library/personal-queue':
                     try:
                         with session.guard:
@@ -266,7 +272,7 @@ def handler_for(app, token):
                     self.send(409, {'error':code})
                 self.close_connection = True
                 return
-            if self.path in ('/api/library/refresh','/api/library/search'):
+            if self.path in ('/api/library/refresh','/api/library/search','/api/library/open-personal-queue'):
                 if not self.allowed(action=True) or self.headers.get('Transfer-Encoding') is not None:
                     self.send(403,{'error':'local_access_denied'})
                     self.close_connection = True
@@ -279,7 +285,12 @@ def handler_for(app, token):
                     session = getattr(app,'library_session',None)
                     if session is None or not isinstance(value,dict) or (self.path.endswith('/refresh') and value):
                         raise ValueError('invalid_library_request')
-                    session.begin(value if self.path.endswith('/search') else None)
+                    if self.path.endswith('/open-personal-queue'):
+                        if set(value) not in (set(),{'queueId'}):
+                            raise ValueError('invalid_library_request')
+                        session.open_personal(value.get('queueId'))
+                    else:
+                        session.begin(value if self.path.endswith('/search') else None)
                     self.send(202,{'ok':True})
                 except Exception as error:
                     code = str(error) if str(error) in ('pause_processing_before_search','library_busy') else 'library_action_failed'
@@ -304,7 +315,7 @@ def handler_for(app, token):
                         if set(value) != {'enabled'} or type(value['enabled']) is not bool:
                             raise ValueError('invalid_startup_setting')
                         from community.local_scene_startup import configure_startup
-                        configure_startup(app, value['enabled'])
+                        configure_startup(getattr(app,'startup_app',app), value['enabled'])
                     self.send(200, {'ok':True})
                 except Exception:
                     self.send(409, {'error':'local_settings_failed'})
@@ -361,7 +372,9 @@ def reopen_existing(app, *, open_browser=True):
         opener=urllib.request.build_opener(urllib.request.ProxyHandler({}),NoRedirect())
         with opener.open(request,timeout=2) as response:
             body=response.read(4097)
-            if len(body)>4096 or json.loads(body).get('packetId')!=app.packet['packetId']:return False
+            if len(body)>4096:return False
+            status=json.loads(body)
+            if app.packet['packetId'] not in (status.get('packetId'),status.get('activePacketId')):return False
         if open_browser:
             webbrowser.open(saved['url'])
         return True
@@ -438,6 +451,8 @@ def main():
     url = f'http://127.0.0.1:{server.server_port}/#{token}'
     from community.local_scene_pilot import atomic_json
     atomic_json(app.root/'window.json',{'url':url,'packetId':app.packet['packetId']})
+    if hasattr(app,'window_url'):
+        app.window_url = url
     if not args.no_browser:
         webbrowser.open(url)
     if args.resume and hasattr(app, 'resume_automatically'):

@@ -12,29 +12,7 @@ from .local_scene_pilot import atomic_json
 from .mac_starter import regular
 
 
-class LibraryWindow:
-    def __init__(self,data_dir,runtime_root):
-        from .local_scene_packets import digest
-        self.root = regular(Path(data_dir)/'library',directory=True,missing=True)
-        self.root.mkdir(parents=True,exist_ok=True,mode=0o700)
-        self.runtime_root = Path(runtime_root)
-        self.thread = None
-        self.packet = {'packetId':digest(['local-library',str(self.root)])}
-
-    def status(self):
-        return {'phase':'ready','participant':'My library','completed':0,'total':0,
-            'packetId':self.packet['packetId'],'outputDirectory':str(self.root),
-            'message':'Open your personal queue from the launcher to process more Scenes.',
-            'exportAvailable':False,'libraryOnly':True,'localOnly':True}
-
-    def start(self):
-        raise ValueError('open_personal_queue_to_process')
-
-    def pause(self):
-        pass
-
-    def close(self):
-        pass
+from .local_scene_app import LocalSceneApp as LibraryWindow
 
 
 class LibrarySession:
@@ -55,8 +33,21 @@ class LibrarySession:
         self.mma = None
         self.photo_rgb = None
         self.personal_queue = None
+        self.personal_queue_opened = False
         self._personal_metadata = set()
         self.countries = regular(Path(__file__).with_name('country-names.txt')).read_text().splitlines()
+        saved = regular(self.personal_library.root/'last-queue.json',missing=True)
+        if callable(getattr(app,'open_personal_queue',None)) and saved.exists() and saved.stat().st_size<=1024:
+            value = json.loads(saved.read_text())
+            if isinstance(value,dict) and re.fullmatch('[a-f0-9]{64}',str(value.get('queueId'))):
+                folder = regular(self.data_dir/'personal-queues'/value['queueId'],directory=True,missing=True)
+                manifest = regular(folder/'campaign.json',missing=True)
+                if manifest.exists():
+                    from .local_scene_campaign import load_manifest,PERSONAL_CONTRACT
+                    queue = load_manifest(manifest)
+                    if queue['contract'] == PERSONAL_CONTRACT:
+                        self.personal_queue = {'path':str(manifest),'archivePath':str(folder/'personal-queue.zip'),
+                            'locations':queue['locations']}
         # The callback adds only metadata/references. Vector compaction waits
         # until a search, so every128-location batch does not rewrite a segment.
         app.on_completed_pilot = self.add_completed
@@ -143,6 +134,9 @@ class LibrarySession:
                 'results':(self.result.get('map') or {}).get('customCoordinates',[]) if self.result else [],
                 'mapAvailable':bool(self.result and self.result.get('map')),
                 'personalQueueAvailable':bool(self.personal_queue),
+                'canOpenPersonalQueue':callable(getattr(self.app,'open_personal_queue',None)),
+                'personalQueueOpened':self.personal_queue_opened,
+                'personalQueueId':Path(self.personal_queue['archivePath']).parent.name if self.personal_queue else None,
                 'personalQueueLocations':(self.personal_queue or {}).get('locations',0)}
 
     def prepare_personal(self,document,country=''):
@@ -155,6 +149,7 @@ class LibrarySession:
             cleaned,duplicates = sanitized_map(document,country)
             self.stop.clear()
             self.personal_queue = None
+            self.personal_queue_opened = False
             self.phase,self.message = 'preparing','Checking saved compatibility results and preparing your private queue…'
             self.thread = threading.Thread(target=self._prepare_personal,args=(cleaned,duplicates),
                 name='personal-map-prepare',daemon=False)
@@ -169,10 +164,13 @@ class LibrarySession:
                     'installationId':installation_identity(self.data_dir)})
             with self.guard:
                 self.personal_queue = result if result.get('archivePath') else None
+                if self.personal_queue:
+                    atomic_json(self.personal_library.root/'last-queue.json',
+                        {'queueId':Path(result['archivePath']).parent.name})
                 self.phase = 'ready'
                 if result['locations']:
                     self.message = (f'{result["locations"]:,} Scenes ready; {result["duplicatesSkipped"]+duplicates:,} duplicates skipped. '
-                        'Save your personal queue, extract the ZIP, then open campaign.json from the launcher.')
+                        'Choose Open my queue here. The ZIP is an optional backup.')
                 elif self.personal_queue:
                     self.message = 'These Scenes already have a private queue. Save it to resume the existing work.'
                 else:
@@ -189,6 +187,45 @@ class LibrarySession:
                     'The private queue could not be prepared. Your saved indexes are kept. Import the same map to resume.')
             atomic_json(self.library.root/'personal-failure.json',{'errorClass':type(error).__name__,
                 'code':code if re.fullmatch('[a-z_]{1,70}',code) else 'personal_queue_failed','originalWorkPreserved':True})
+
+    def open_personal(self,queue_id=None):
+        with self.guard:
+            if self.thread and self.thread.is_alive():
+                raise ValueError('library_busy')
+            if queue_id is not None:
+                from .local_scene_personal import saved_queues
+                if not isinstance(queue_id,str) or queue_id not in {q['queueId'] for q in saved_queues(self.data_dir)}:
+                    raise ValueError('personal_queue_unavailable')
+                folder = regular(self.data_dir/'personal-queues'/queue_id,directory=True)
+                from .local_scene_campaign import load_manifest,PERSONAL_CONTRACT
+                manifest = load_manifest(folder/'campaign.json')
+                if manifest['contract'] != PERSONAL_CONTRACT:
+                    raise ValueError('personal_queue_required')
+                self.personal_queue = {'path':str(folder/'campaign.json'),'archivePath':str(folder/'personal-queue.zip'),
+                    'locations':manifest['locations']}
+                atomic_json(self.personal_library.root/'last-queue.json',{'queueId':queue_id})
+            if not self.personal_queue or not callable(getattr(self.app,'open_personal_queue',None)):
+                raise ValueError('personal_queue_unavailable')
+            if self.app.thread and self.app.thread.is_alive():
+                raise ValueError('pause_processing_before_search')
+            path = Path(self.personal_queue['archivePath']).parent/'campaign.json'
+            self.stop.clear()
+            self.personal_queue_opened = False
+            self.phase,self.message = 'opening','Opening your saved queue. It will stay paused until you choose Start.'
+            self.thread = threading.Thread(target=self._open_personal,args=(path,),name='personal-queue-open',daemon=False)
+            self.thread.start()
+
+    def _open_personal(self,path):
+        try:
+            self.app.open_personal_queue(path,data_dir=self.data_dir)
+            with self.guard:
+                self.personal_queue_opened = True
+                self.phase,self.message = 'ready','Queue open. Choose Process Scenes, set your speeds and choose Start.'
+        except Exception as error:
+            with self.guard:
+                self.phase = 'error'
+                self.message = ('This queue is already open. Return to its existing window.' if str(error)=='queue_open_elsewhere'
+                    else 'The queue could not open. Saved work is kept. Finish the computer check or reopen the queue from the launcher.')
 
     def begin(self, query=None):
         with self.guard:
@@ -259,15 +296,19 @@ class LibrarySession:
 
 HTML = r'''<section id="library-panel" hidden>
 <h1>My Scene library</h1><p>Search the Scenes you have saved on this computer.</p>
+<div class="card"><label>My saved queues <select id="personal-saved-queue"><option value="">Prepare an MMA map first</option></select></label>
+<button id="personal-saved-open" disabled>Open this queue</button>
+<p>Opening a queue keeps it paused. Choose Process Scenes to set its speeds and Start.</p></div>
 <details class="card"><summary>Add my own MMA map</summary>
 <p>1. Export your map as JSON from MMA, then choose it here. Up to 100,000 locations or 20 MB; panorama IDs are required.</p>
 <input id="personal-map-file" type="file" accept=".json,application/json">
 <p><label>Country for locations without a country <select id="personal-map-country"><option value="">Use each location’s saved country</option></select></label></p>
 <p>Only choose a country if it applies to every location missing one. Unknown camera generations stay unknown.</p>
 <button id="personal-map-prepare">2. Prepare my private queue</button>
-<button id="personal-map-save" disabled>3. Save my personal queue</button>
+<button id="personal-map-open" disabled>3. Open my queue here</button>
+<button id="personal-map-save" disabled>Save a queue backup</button>
 <p id="personal-map-note" role="status">Finish Check this computer from the launcher first. Your map and results stay local.</p>
-<p>Extract the saved ZIP, open the VISION launcher, choose your queue and select campaign.json. Set your day and night speeds, then Start. Reopen the same queue to continue after an interruption.</p>
+<p>Open your queue here, set your day and night speeds, then choose Start. After an interruption, return to My library and open your saved queue again. You can also save a ZIP backup to open through the launcher.</p>
 </details>
 <div class="card"><p id="library-count">Loading your library…</p>
 <button id="library-refresh">Refresh library</button>
@@ -310,7 +351,7 @@ HTML = r'''<section id="library-panel" hidden>
 </section>'''
 
 SCRIPT = r'''
-let libraryTimer=null,libraryFilterKey='',libraryOpened=false,mmaConnected=false,referenceExamples=[],photoSelected=false,personalCountriesLoaded=false;
+let libraryTimer=null,libraryFilterKey='',libraryOpened=false,mmaConnected=false,referenceExamples=[],photoSelected=false,personalCountriesLoaded=false,personalOpening=false,libraryQueueId='',savedQueuesKey='unloaded',canOpenLocalQueue=false;
 function fillLibrarySelect(id,values,title){const el=document.getElementById(id),prior=el.value;
 el.replaceChildren();const all=document.createElement('option');all.value='';all.textContent=title;el.append(all);
 for(const v of values){const option=document.createElement('option');option.value=v;option.textContent=v;el.append(option);}el.value=values.includes(prior)?prior:'';}
@@ -322,6 +363,17 @@ document.getElementById('library-search').disabled=s.busy;
 document.getElementById('library-refresh').disabled=s.busy;
 document.getElementById('personal-map-prepare').disabled=s.busy;
 document.getElementById('personal-map-save').disabled=s.busy||!s.personalQueueAvailable;
+canOpenLocalQueue=s.canOpenPersonalQueue&&!s.busy;
+document.getElementById('personal-map-open').disabled=s.busy||!s.personalQueueAvailable||!s.canOpenPersonalQueue;
+document.getElementById('personal-saved-open').disabled=s.busy||!s.canOpenPersonalQueue||!document.getElementById('personal-saved-queue').value;
+if(!s.busy&&savedQueuesKey!==s.personalQueueId){savedQueuesKey=s.personalQueueId;
+try{const queues=await request('/api/library/queues'),select=document.getElementById('personal-saved-queue');select.replaceChildren();
+for(const queue of queues){const option=document.createElement('option');option.value=queue.queueId;option.textContent=queue.name+' · '+queue.locations.toLocaleString()+' Scenes';select.append(option);}
+if(s.personalQueueId)select.value=s.personalQueueId;
+document.getElementById('personal-saved-open').disabled=!s.canOpenPersonalQueue||!select.value;
+}catch(e){savedQueuesKey='retry';}}
+if(s.personalQueueAvailable&&!s.canOpenPersonalQueue)document.getElementById('personal-map-note').textContent='To open it here, return to the launcher and choose My library. You can also save a queue backup.';
+if(personalOpening&&!s.busy){personalOpening=false;if(s.personalQueueOpened){settingsLoaded=false;document.getElementById('process-nav').hidden=false;document.getElementById('process-nav').click();update();}}
 if(!personalCountriesLoaded){personalCountriesLoaded=true;try{const countries=await request('/api/library/countries');
 fillLibrarySelect('personal-map-country',countries,'Use each location’s saved country');}catch(e){personalCountriesLoaded=false;}}
 document.getElementById('library-save').disabled=s.busy||!s.mapAvailable;
@@ -346,8 +398,8 @@ if(libraryTimer)clearTimeout(libraryTimer);libraryTimer=s.busy?setTimeout(librar
 document.getElementById('process-nav').onclick=()=>{document.getElementById('process-panel').hidden=false;document.getElementById('library-panel').hidden=true;};
 document.getElementById('library-nav').onclick=()=>{document.getElementById('process-panel').hidden=true;document.getElementById('library-panel').hidden=false;libraryUpdate();};
 async function libraryAction(path,body){try{const r=await fetch(path,{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(body)});
-if(!r.ok){const error=await r.json();document.getElementById('library-message').textContent=error.error==='pause_processing_before_search'?'Choose Process Scenes, pause processing, then search again.':'The library action could not start. Your saved work is kept.';return;}
-await libraryUpdate();}catch(e){document.getElementById('library-message').textContent='The library action could not start.';}}
+if(!r.ok){personalOpening=false;const error=await r.json();document.getElementById('library-message').textContent=error.error==='pause_processing_before_search'?'Choose Process Scenes, pause processing, then try again.':'The library action could not start. Your saved work is kept.';return;}
+await libraryUpdate();}catch(e){personalOpening=false;document.getElementById('library-message').textContent='The library action could not start.';}}
 document.getElementById('library-refresh').onclick=()=>libraryAction('/api/library/refresh',{});
 document.getElementById('library-search').onclick=()=>{const prompt=document.getElementById('library-prompt').value,pano=document.getElementById('library-pano').value.trim();
 const examples=photoSelected?[]:pano?[{panoId:pano,heading:Number(document.getElementById('library-heading').value),pitch:Number(document.getElementById('library-pitch').value),zoom:Number(document.getElementById('library-zoom').value)}]:referenceExamples;
@@ -365,6 +417,10 @@ document.getElementById('personal-map-save').onclick=async()=>{try{const r=await
 const url=URL.createObjectURL(await r.blob()),link=document.createElement('a');link.href=url;link.download='VISION-Personal-Map.zip';link.click();setTimeout(()=>URL.revokeObjectURL(url),60000);
 document.getElementById('personal-map-note').textContent='Extract the ZIP, then open campaign.json using the VISION launcher. Keep that queue to resume your work.';
 }catch(e){document.getElementById('personal-map-note').textContent='The queue could not be saved. Import the same map again to recover it.';}};
+document.getElementById('personal-map-open').onclick=async()=>{personalOpening=true;await libraryAction('/api/library/open-personal-queue',{});};
+document.getElementById('personal-saved-queue').onchange=()=>{document.getElementById('personal-saved-open').disabled=!canOpenLocalQueue||!document.getElementById('personal-saved-queue').value;};
+document.getElementById('personal-saved-open').onclick=async()=>{const queueId=document.getElementById('personal-saved-queue').value;
+if(queueId){personalOpening=true;await libraryAction('/api/library/open-personal-queue',{queueId});}};
 document.getElementById('library-save').onclick=async()=>{try{const r=await fetch('/api/library/map',{headers:{Authorization:'Bearer '+token}});if(!r.ok)throw Error();
 const url=URL.createObjectURL(await r.blob()),link=document.createElement('a');link.href=url;link.download='VISION-search-results.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),60000);
 }catch(e){document.getElementById('library-message').textContent='Map results could not be saved.';}};
@@ -424,5 +480,5 @@ def page_with_library(page):
         'Your saved Scenes can be searched in My library. Uploads and credit earning are not enabled.')
     page = page.replace('</main><script', '</section>'+HTML+'</main><script')
     page = page.replace("if(s.readiness){", "document.getElementById('library-nav').hidden=!s.libraryAvailable;if(s.readiness){")
-    page = page.replace("if(s.readiness){", "if(s.libraryOnly){document.getElementById('process-panel').hidden=true;document.getElementById('library-panel').hidden=false;document.getElementById('process-nav').hidden=true;if(!libraryOpened){libraryOpened=true;libraryUpdate();}}if(s.readiness){")
+    page = page.replace("if(s.readiness){", "if(s.activePacketId&&s.activePacketId!==libraryQueueId){settingsLoaded=false;libraryQueueId=s.activePacketId;}if(s.localApp){document.getElementById('process-nav').hidden=!!s.libraryOnly;if(s.queueName)document.getElementById('batch').textContent=s.queueName+' · '+s.total+' locations';}if(s.libraryOnly){document.getElementById('process-panel').hidden=true;document.getElementById('library-panel').hidden=false;if(!libraryOpened){libraryOpened=true;libraryUpdate();}}if(s.readiness){")
     return page.replace('</script></html>',SCRIPT+'</script></html>')

@@ -298,3 +298,20 @@ def queue_zip(folder):
         raise ValueError('personal_queue_size_limit')
     pending.replace(target)
     return target
+
+
+def saved_queues(data_dir):
+    """Small metadata menu, without reading every packet or location."""
+    path = regular(Path(data_dir)/'personal-queue-registry.sqlite',missing=True)
+    if not path.exists():
+        return []
+    with sqlite3.connect(path.as_uri()+'?mode=ro',uri=True,timeout=5) as db:
+        rows = db.execute('SELECT id,summary FROM queues WHERE manifest!="null" ORDER BY rowid DESC LIMIT 200').fetchall()
+    output = []
+    for identity,raw in rows:
+        value = json.loads(raw)
+        if (not re.fullmatch('[a-f0-9]{64}',identity) or not isinstance(value.get('name'),str)
+                or len(value['name'])>300 or type(value.get('locations')) is not int or value['locations']<1):
+            raise ValueError('personal_queue_registry_changed')
+        output.append({'queueId':identity,'name':value['name'],'locations':value['locations']})
+    return output
