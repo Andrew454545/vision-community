@@ -41,7 +41,8 @@ def model_identity(models):
 
 
 class SceneLibrary:
-    def __init__(self, root):
+    def __init__(self, root, *, personal=False):
+        self.personal = personal
         self.root = regular(root, directory=True, missing=True)
         assert_not_live_vision_path(self.root)
         self.root.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -110,6 +111,10 @@ class SceneLibrary:
                     fields = row['line'].split('\t')
                     prior = db.execute('SELECT line,record_sha FROM locations WHERE pano=?', (fields[7],)).fetchone()
                     if prior:
+                        if self.personal:
+                            # A private library keeps the first indexed camera
+                            # pose for a panorama shared by multiple user maps.
+                            continue
                         if prior != (row['line'], pin):
                             raise ValueError('library_panorama_conflict')
                         continue

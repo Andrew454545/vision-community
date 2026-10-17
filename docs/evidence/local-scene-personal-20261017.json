@@ -1,0 +1,38 @@
+{
+  "cloudCalls": 0,
+  "communityApprovalGranted": false,
+  "googleRequests": 0,
+  "locationsPrepared": 2,
+  "nativeInferenceCommands": 0,
+  "newQualificationRuns": 0,
+  "ownedPreparationChild": true,
+  "personalQueueZip": true,
+  "savedCheckProfiles": [
+    1,
+    2,
+    4
+  ],
+  "scope": "SAVED_CANARY_EVIDENCE_AND_TWO_SYNTHETIC_PERSONAL_POSES",
+  "status": "PASS",
+  "wallSeconds": 6.512,
+  "windowsExecuted": false,
+  "date": "2026-10-17",
+  "focusedChecks": {
+    "privateReceiptsQueueRecoveryAndCombinedLibrary": "PASS (3 tests)",
+    "loopbackHTTPAndOwnedRecovery": "PASS (2 tests)",
+    "shippedJavaScriptSyntax": "PASS"
+  },
+  "limits": {
+    "realWindowsExecuted": false,
+    "livePersonalProcessing": false,
+    "realOnlineMMAUsed": false,
+    "includedInPublishedA3402cbKits": false
+  },
+  "sourceFiles": {
+    "community/local_scene_personal.py": "eea9180f50446b5c6166911b94775f761dddad8de4660ac982eb44f2edc4d11e",
+    "community/local_scene_collection.py": "fa9a8a15fc55b4fc8d7c21551452a2728cbf857d2b2644f5fb3e01e8e41b2db2",
+    "community/local_scene_library_ui.py": "8a2d982b2d40b70297f5ccc9dc5607a2c5526a144111e8f70d9b1f55803526c7",
+    "community/local_scene_readiness.py": "23333553ad09faae38b3a7997632989860991c2efc45a3b991c90ac1bdbb1466",
+    "community/local_scene_recover.py": "09598ed1fbd651f639c64d58120dcb89111be9a2c4949c4756c2e5c50e8ae09f"
+  }
+}

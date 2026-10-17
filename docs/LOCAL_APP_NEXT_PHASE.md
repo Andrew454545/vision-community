@@ -11,7 +11,9 @@ The owner has now asked to keep building the full local application. Photo searc
 is implemented in source after the published a3402cb preview: private local pixels,
 photo/text blending and native ranking passed one actual offline synthetic use.
 Serial downloads/group pauses and owned bounded recovery are also implemented
-in source. Next: personal MMA-map processing, then local Objects and a complete
+in source. Personal MMA-map import/private queues are now implemented too,
+including saved-reference admission, cross-map reservation recovery, separate
+personal result storage and combined local search. Next: local Objects and a complete
 app shell. Existing operational holds still
 apply. See the library guide for exact photo-query scope and private scratch limits.
 
@@ -22,9 +24,9 @@ metadata filters, Street View/MMA-JSON references, selectable storage, optional
 memory-only online MMA export, assignment-checked owner import and additive
 owner-catalog preparation/apply. See [library/import details](LOCAL_SCENE_LIBRARY.md).
 The owner's Google requests remain paused. Current CPU speed settings are not a
-per-request network rate limit; conservative request pacing is still needed before
-another live development run. First-user Windows/live feedback, actual returned
-work registration, arbitrary photos and Objects remain. Signed public downloads
+per-request network rate limit; serial downloads and30-second group pauses are now
+implemented without a live provider test. First-user Windows/live feedback, actual returned
+work registration, local Objects and a complete app shell remain. Signed public downloads
 need signing enrollment. No actual contributor output or personal VISION catalog
 has been changed by the development checks.
 

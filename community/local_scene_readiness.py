@@ -55,6 +55,16 @@ class LocalSceneReadiness:
         self.runtime_root = Path(runtime_root)
         self.root = regular(Path(data_dir) / 'checks' / self.installation_id, directory=True, missing=True)
         self.root.mkdir(parents=True, exist_ok=True)
+        # Keep the exact fixed reference alongside reports for later personal
+        # map checks. This copies trusted local kit files; it runs no inference.
+        for item in self.setup['policies']:
+            source = self.path.parent/item['path']
+            policy = fixed_policy(source,item['sha256'])
+            inputs = policy.pinned_inputs()
+            cached = self.root/'policy-cache'/item['sha256']
+            for field in ('fixture','reference'):
+                immutable(cached/policy.document['dataset'][field]['path'],inputs[field+'Bytes'])
+            immutable(cached/'policy.json',source.read_bytes())
         self.packet = {'packetId': self.installation_id}
         self.guard = threading.RLock()
         self.thread = None

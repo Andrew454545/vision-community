@@ -12,6 +12,7 @@ from .local_scene_packets import (canonical, connection, digest, export_packet,
 from .mac_starter import regular
 
 CONTRACT = 'vision-local-scene-campaign-v1'
+PERSONAL_CONTRACT = 'vision-personal-scene-campaign-v1'
 MAX_LOCATIONS = 5_000_000
 PACKET_LOCATIONS = 128
 MAX_MANIFEST = 16 * 1024 * 1024
@@ -66,13 +67,14 @@ def import_exclusions(registry, ids_path, authority):
 
 
 def validate_manifest(value):
-    if (not isinstance(value, dict) or value.get('contract') != CONTRACT
+    authority = 'personalSourceSha256' if isinstance(value,dict) and value.get('contract') == PERSONAL_CONTRACT else 'exclusionAuthoritySha256'
+    if (not isinstance(value, dict) or value.get('contract') not in (CONTRACT,PERSONAL_CONTRACT)
             or set(value) != {'contract', 'campaignId', 'participant', 'locations', 'packets',
-                              'exclusionAuthoritySha256', 'approvals', 'sha256'}
+                              authority, 'approvals', 'sha256'}
             or not re.fullmatch('[A-Za-z0-9_-]{1,80}', str(value.get('campaignId', '')))
             or not re.fullmatch('[A-Za-z0-9_-]{1,48}', str(value.get('participant', '')))
             or type(value.get('locations')) is not int or not 1 <= value['locations'] <= MAX_LOCATIONS
-            or not re.fullmatch('[a-f0-9]{64}', str(value.get('exclusionAuthoritySha256', '')))
+            or not re.fullmatch('[a-f0-9]{64}', str(value.get(authority, '')))
             or not isinstance(value.get('approvals'), list) or not 1 <= len(value['approvals']) <= 3
             or not isinstance(value.get('packets'), list)
             or len(value['packets']) != (value['locations'] + PACKET_LOCATIONS - 1) // PACKET_LOCATIONS

@@ -21,8 +21,40 @@ Reference searches accept up to8 saved Street View poses through the API; the
 window accepts one pose or up to eight views from a small MMA JSON map. They use the existing native contrastive/title
 query modes, retrieving the example imagery normally. Text-only queries do not
 fetch imagery. Provider refusals are reported; no route rotation or automatic
-denial workaround exists. Arbitrary photo uploads, automatic preview downloads,
-and Objects are still separate follow-up work.
+denial workaround exists. Local photo queries are described below. Automatic preview
+downloads and Objects are still separate follow-up work.
+
+## Process a personal MMA map
+
+Open **My library → Add my own MMA map**. Choose an MMA JSON export (up to
+100,000 locations or 20 MB) with saved panorama IDs. Countries come from saved
+country fields/tags, or an explicitly selected fallback country. The app does
+not guess missing countries or resolve missing panoramas online. Camera generations
+without a recognized saved value remain unknown. Only supported poses, map name
+and tags are retained; arbitrary export fields are discarded.
+
+Choose **Prepare my private queue**, then **Save my personal queue**. Extract
+the ZIP and open its **campaign.json** using the VISION launcher. Existing
+day/night settings, pause/resume, provider-refusal stop and saved-index recovery
+apply. New imports omit panoramas already reserved by another personal map or
+indexed in the personal library. Reimporting the same map reexports the same queue;
+interrupted file delivery keeps committed reservations and exact packet bodies.
+Maps with no new work can still attach their names/tags to saved results.
+
+Preparation recomputes the saved fixed112 report comparison against the cached
+trusted reference and exact current runtime, accepting each offered CPU profile
+only when all448 views meet cosine≥0.9999 and relativeL2≤0.02. Open **Check this
+computer** from the current kit once to cache its reference. Existing saved checks
+can be resumed; preparation itself starts no inference or imagery retrieval.
+The owned metadata worker stops after120 seconds without progress and retains
+committed work. This contains a stalled read; it does not establish its cause.
+
+Personal results have a separate local library and can be searched alone or
+together with Community assignments. Combined results deduplicate panoramas and
+preserve tags. This private workflow grants no Community approval, assignment,
+credit or upload authority. Its private queue registry is not a global Community
+exclusion list. Owner imports retain their original assignment checks. Personal
+collection exports use a distinct contract rejected by the Community owner importer.
 
 The library and API bind only to authenticated127.0.0.1. Writes require the exact
 local Origin. Results use text DOM nodes and ordinary user-clicked Street View

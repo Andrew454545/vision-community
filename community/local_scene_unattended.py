@@ -46,6 +46,8 @@ class LocalSceneCampaign:
                  clock=datetime.now, battery=on_battery, disk=shutil.disk_usage):
         self.path = regular(manifest_path)
         self.manifest = load_manifest(self.path)
+        from .local_scene_campaign import PERSONAL_CONTRACT
+        self.personal_only = self.manifest['contract'] == PERSONAL_CONTRACT
         data_dir = regular(data_dir, directory=True, missing=True)
         assert_not_live_vision_path(data_dir)
         self.root = regular(Path(data_dir) / self.manifest['sha256'], directory=True, missing=True)
@@ -69,6 +71,11 @@ class LocalSceneCampaign:
                     raise ValueError('campaign_import_storage_required')
                 immutable(target, source.read_bytes())
             immutable(staged, expected)
+        if self.personal_only:
+            metadata = regular(self.path.parent/'personal-map.json')
+            if metadata.stat().st_size>64*1024**2:
+                raise ValueError('personal_map_size_limit')
+            immutable(self.root/'personal-map.json',metadata.read_bytes())
         self.path = self.root / 'campaign.json'
         identity = regular(Path(data_dir) / 'installation-id.json', missing=True)
         if installation_id is not None:
@@ -135,7 +142,11 @@ class LocalSceneCampaign:
         for approval in self.manifest['approvals']:
             threads = approval['inferenceThreads']
             binary, models, profile = self.runtime_verifier(self.runtime_root, inference_threads=threads)
-            validate_approval(approval, self.installation_id, profile)
+            if self.personal_only:
+                from .local_scene_personal import validate_personal_approval
+                validate_personal_approval(approval,self.installation_id,profile)
+            else:
+                validate_approval(approval, self.installation_id, profile)
             profiles[threads] = (binary, models, profile)
         if 1 not in profiles:
             raise ValueError('baseline_scene_approval_required')
@@ -155,7 +166,7 @@ class LocalSceneCampaign:
                     'participant': self.manifest['participant'], 'outputDirectory': str(self.root),
                     'exportAvailable': completed > 0 and not (self.thread and self.thread.is_alive()),
                     'localOnly': True, 'uploaded': False, 'creditsEarned': 0,
-                    'campaign': True, 'settings': dict(self.settings), 'heldPackets': held, 'startupEnabled': startup_enabled,
+                    'campaign': True, 'personalOnly':self.personal_only, 'settings': dict(self.settings), 'heldPackets': held, 'startupEnabled': startup_enabled,
                     'qualifiedThreads': sorted(a['inferenceThreads'] for a in self.manifest['approvals'])}
 
     def start(self):
@@ -335,7 +346,7 @@ class LocalSceneCampaign:
                         'sha256': result['sha256'], 'bytes': result['bytes']})
                     count += result['locations']
                     size += result['bytes']
-                collection = {'contract': 'vision-local-scene-collection-v1', 'campaignSha256': self.manifest['sha256'],
+                collection = {'contract': 'vision-personal-scene-collection-v1' if self.personal_only else 'vision-local-scene-collection-v1', 'campaignSha256': self.manifest['sha256'],
                     'locations': count, 'total': self.manifest['locations'], 'complete': count == self.manifest['locations'],
                     'archives': exports, 'uploaded': False, 'qualityStatus': 'LOCAL_PROVISIONAL'}
                 checksum = digest(collection)
