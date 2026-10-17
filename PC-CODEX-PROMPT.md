@@ -7,7 +7,7 @@ Do not install Python globally, request administrator access, change execution
 policy, disable security, use GitHub Actions or start bulk processing.
 
 Use the unsigned invited preview at:
-https://github.com/Andrew454545/vision-community/releases/tag/local-scenes-unified-app-preview-20261017
+https://github.com/Andrew454545/vision-community/releases/tag/local-scenes-native-desktop-preview-20261017
 
 1. Read the release notes and checksums-and-limits.json. Download the Windows kit
    and verify its SHA-256 against that inventory before extracting all files into

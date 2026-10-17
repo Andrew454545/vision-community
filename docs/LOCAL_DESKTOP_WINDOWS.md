@@ -32,6 +32,13 @@ remain separate from local compilation. Native file-panel and interactive UI
 behavior must be reported as unverified until actually used; a non-GUI self-check
 or hidden rendering check is not evidence of those interactions.
 
+The clean Mac build passed an actual hidden WebKit rendering/authentication
+check of the shipped page. Both complete ZIPs and inventories passed. The first
+hidden check stopped before loading: Foundation rewrote a canonical/private/tmp
+connection path to linked/tmp. The corrected reader checks the original POSIX
+path, retains no-link checks and reads a bounded regular file. The original
+failure remains preserved. See [the evidence](evidence/local-native-desktop-20261017.json).
+
 ## Build locally
 
 Use the existing local-pilot builder with **--native-windows**. For Windows,
