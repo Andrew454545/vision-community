@@ -9,6 +9,7 @@ using System.Linq;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
 using System.Windows.Forms;
 
 static class Package {
@@ -52,6 +53,84 @@ static class Package {
     }
 }
 
+// Keep startup failures as well as worker output. Read fixed-size byte blocks:
+// line-based Process events can accumulate an unbounded line before callback.
+sealed class PilotChild:IDisposable {
+    public const int StreamLimit=65536;
+    sealed class Capture {
+        public readonly FileStream File;
+        public long Seen,Stored;
+        public bool ReadFailed,WriteFailed;
+        public Capture(string path) { Package.Plain(path);File=new FileStream(path,FileMode.CreateNew,FileAccess.Write,FileShare.Read); }
+        public void Drain(Stream input) {
+            try {
+                var buffer=new byte[8192];int count;
+                while((count=input.Read(buffer,0,buffer.Length))!=0) {
+                    Seen+=count;
+                    var keep=(int)Math.Min(count,StreamLimit-Stored);
+                    // A full or failed log must never stop draining the pipe.
+                    if(keep>0&&!WriteFailed)try {File.Write(buffer,0,keep);Stored+=keep;}catch {WriteFailed=true;}
+                }
+            } catch {ReadFailed=true;}
+            finally {Close();}
+        }
+        public void Close() {
+            try {File.Flush(true);}catch {WriteFailed=true;}
+            try {File.Dispose();}catch {WriteFailed=true;}
+        }
+        public object Receipt() {return new {bytesRead=Seen,bytesSaved=Stored,truncated=Seen>Stored,readFailed=ReadFailed,writeFailed=WriteFailed};}
+    }
+    readonly Process process;
+    readonly Capture output,error;
+    readonly string receipt;
+    readonly string startedUtc=DateTime.UtcNow.ToString("o");
+    volatile bool complete;
+    int? exitCode;
+    public bool Complete {get {return complete;}}
+    public int? ExitCode {get {if(!complete)throw new InvalidOperationException("pilot_still_running");return exitCode;}}
+    public bool ReceiptSaved {get;private set;}
+    PilotChild(ProcessStartInfo info,string root) {
+        var folder=Path.Combine(root,"logs");Package.Plain(folder);Directory.CreateDirectory(folder);
+        var stem=Path.Combine(folder,"pilot-window-"+Guid.NewGuid().ToString("N"));receipt=stem+".json";
+        output=new Capture(stem+".stdout.log");
+        try {error=new Capture(stem+".stderr.log");}catch {output.Close();throw;}
+        process=new Process {StartInfo=info};
+    }
+    void Save(bool started,int? code,string status) {
+        try {
+            Starter.Json(receipt,new {contract="vision-local-scene-launch-v1",status=status,started=started,
+                startedUtc=startedUtc,finishedUtc=DateTime.UtcNow.ToString("o"),exitCode=code,
+                stdout=output.Receipt(),stderr=error.Receipt()});ReceiptSaved=true;
+        } catch {ReceiptSaved=false;}
+    }
+    public static PilotChild Start(ProcessStartInfo info,string root) {
+        var child=new PilotChild(info,root);
+        try {child.process.Start();}
+        catch {
+            child.output.Close();child.error.Close();child.Save(false,null,"LAUNCH_FAILED");child.process.Dispose();
+            // Only a fixed code reaches the beginner launcher; private output
+            // and exception text never enter messages or public reports.
+            throw new IOException("local_pilot_launch_failed");
+        }
+        var stdout=new Thread(()=>child.output.Drain(child.process.StandardOutput.BaseStream)) {IsBackground=true};
+        var stderr=new Thread(()=>child.error.Drain(child.process.StandardError.BaseStream)) {IsBackground=true};
+        stdout.Start();stderr.Start();
+        new Thread(()=>{
+            child.process.WaitForExit();
+            child.exitCode=child.process.ExitCode;
+            stdout.Join();stderr.Join();
+            child.Save(true,child.exitCode,"EXITED");
+            // Publish completion after both pipes and the receipt are finished.
+            child.complete=true;
+        }) {IsBackground=true}.Start();
+        return child;
+    }
+    public void Dispose() {
+        if(!complete)throw new InvalidOperationException("pilot_still_running");
+        process.Dispose();
+    }
+}
+
 static class LocalScenes {
     public static string Root { get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"vision-community","local-scene-pilot-app"); } }
     public static ProcessStartInfo Child(string python,string snapshot,string root,string module,string arguments) {
@@ -73,7 +152,7 @@ static class LocalScenes {
             process.WaitForExit();return process.ExitCode;
         }
     }
-    public static Process Start(string packet,string root,bool downloads) {
+    public static PilotChild Start(string packet,string root,bool downloads) {
         Starter.Architecture();Package.Verify(Package.Project);Package.Plain(root);Directory.CreateDirectory(root);
         Package.Plain(packet);
         if(Starter.Size(packet)>16*1024*1024)throw new IOException("packet_limit");
@@ -97,11 +176,7 @@ static class LocalScenes {
                 nativeArguments=" --native-window-dir "+Package.Quote(Path.Combine(root,"native-windows",Starter.Hash(nativeManifest)));
             }
             var info=Child(python,snapshot,root,"local_scene_supervisor.py","--packet "+Package.Quote(packet)+" --data-dir "+Package.Quote(Path.Combine(root,"results"))+" --runtime-root "+Package.Quote(runtime)+" --app-root "+Package.Quote(root)+nativeArguments);
-            var child=new Process {StartInfo=info};
-            // The UI writes durable worker diagnostics. It does not send private
-            // paths or native output into this beginner-facing launcher window.
-            child.OutputDataReceived+=(s,e)=>{};child.ErrorDataReceived+=(s,e)=>{};
-            child.Start();child.BeginOutputReadLine();child.BeginErrorReadLine();return child;
+            return PilotChild.Start(info,root);
         }
     }
     public static int Reopen(string packet,string root) {
@@ -159,7 +234,7 @@ static class LocalScenes {
 }
 
 sealed class PilotWindow:Form {
-    Label status; Button choose,open,library,storage; string packet; Process child;bool preparing;
+    Label status; Button choose,open,library,storage; string packet; PilotChild child;bool preparing;
     public PilotWindow() {
         Text="VISION Local Scenes";ClientSize=new Size(610,510);Font=new Font("Segoe UI",11);
         FormBorderStyle=FormBorderStyle.FixedDialog;MaximizeBox=false;StartPosition=FormStartPosition.CenterScreen;
@@ -182,10 +257,19 @@ sealed class PilotWindow:Form {
                 Starter.Json(Path.Combine(root,"local-scene-storage-choice.json"),new {version=1,selected=Path.GetFullPath(picker.SelectedPath)});
                 status.Text="New queues and searchable copies will use VISION Local Scenes Data in that folder. Keep earlier work folders connected; My library can recover them.";
             }catch(Exception error){Starter.Failure(LocalScenes.Root,error);status.Text="The storage choice could not be saved. Your existing work is kept.";}};
-        FormClosing+=(s,e)=>{if(preparing||(child!=null&&!child.HasExited)){e.Cancel=true;MessageBox.Show(this,"Finish setup, or choose Exit in the local pilot window and wait for the current group to finish.","Keep your work safe");}};
+        FormClosing+=(s,e)=>{if(preparing||child!=null){e.Cancel=true;MessageBox.Show(this,"Finish setup, or choose Exit in the local pilot window and wait for the current group to finish.","Keep your work safe");}};
+    }
+    internal static string ExitMessage(int? code,bool saved) {
+        if(code==0)return "Local pilot closed or its existing window reopened. Your saved work is kept.";
+        return saved?"The local pilot stopped. Your files and a private launch report are kept; ask the maintainer for help.":
+            "The local pilot stopped and its launch report could not be saved. Keep your files and ask the maintainer for help.";
     }
     void OpenPilot() {
-        if(child!=null&&!child.HasExited) {
+        if(preparing)return;
+        if(child!=null) {
+            // The completion timer owns disposal/reaping. A click between child
+            // completion and that timer must not replace the child it will reap.
+            if(child.Complete) {status.Text="Finishing the local report. Please wait a moment.";return;}
             preparing=true;open.Enabled=false;
             var reopen=new BackgroundWorker();
             reopen.DoWork+=(s,e)=>{e.Result=LocalScenes.Reopen(packet,LocalScenes.Root);};
@@ -199,11 +283,13 @@ sealed class PilotWindow:Form {
         setup.DoWork+=(s,e)=>{e.Result=LocalScenes.Start(packet,LocalScenes.Root,true);};
         setup.RunWorkerCompleted+=(s,e)=>{
             preparing=false;setup.Dispose();
-            if(e.Error!=null){Starter.Failure(LocalScenes.Root,e.Error);storage.Enabled=library.Enabled=choose.Enabled=open.Enabled=true;status.Text="Setup could not finish. Your files and a private report are kept. Ask the maintainer for help.";return;}
-            child=(Process)e.Result;open.Enabled=true;open.Text="Reopen VISION";status.Text="VISION is opening. Use Start and Pause in its window. If WebView2 is unavailable, the browser interface opens instead.";
+            if(e.Error!=null){Starter.Failure(LocalScenes.Root,e.Error);storage.Enabled=library.Enabled=choose.Enabled=open.Enabled=true;status.Text="Setup could not finish. Your existing files are kept. Ask the maintainer for help.";return;}
+            child=(PilotChild)e.Result;open.Enabled=true;open.Text="Reopen VISION";status.Text="VISION is opening. Use Start and Pause in its window. If WebView2 is unavailable, the browser interface opens instead.";
+            var watched=child;
             var timer=new System.Windows.Forms.Timer {Interval=500};timer.Tick+=(sender,ev)=>{
-                if(child.HasExited){var code=child.ExitCode;child.Dispose();child=null;timer.Stop();timer.Dispose();storage.Enabled=library.Enabled=choose.Enabled=open.Enabled=true;open.Text="Open local pilot";
-                    status.Text=code==0?"Local pilot closed or its existing window reopened. Your saved work is kept.":"The local pilot stopped. Your files are kept; ask the maintainer to review the saved report.";}};
+                if(watched.Complete){var message=ExitMessage(watched.ExitCode,watched.ReceiptSaved);watched.Dispose();
+                    timer.Stop();timer.Dispose();
+                    if(Object.ReferenceEquals(child,watched)){child=null;storage.Enabled=library.Enabled=choose.Enabled=open.Enabled=true;open.Text="Open local pilot";status.Text=message;}}};
             timer.Start();};
         setup.RunWorkerAsync();
     }
