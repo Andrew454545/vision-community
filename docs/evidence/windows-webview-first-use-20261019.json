@@ -61,7 +61,7 @@
   ],
   "sourceHashes": {
     "packaging/windows/SceneWindow.cs": "5dbc7d3a51c5e27d7b957e422f945d80a39cbf394c0f6e74afc648c4a43f77b2",
-    "packaging/check_local_scene_webview.py": "87277b5d4c3d25d4c64df11ee045e1b477bd692154d855e258b7723e3c2f2d8f",
+    "packaging/check_local_scene_webview.py": "e6a519ea1b902aa94910404f0cbb6a506b2ca65dca3ab4c8296d503933d82190",
     "community/local_scene_window.py": "dfbe5927751bd036ff5600a4155f6b91d9c566f691144551411d5249751e28e6",
     "community/tests/test_local_scene_window.py": "3b429249352782f40f1c1fd360aa5089176487f40ebd53a07e030e3dc76d759d"
   },
@@ -85,5 +85,6 @@
     "signed": false,
     "publicProductionReady": false
   },
-  "reuse": "Do not repeat the rendering or targeted tests without changed relevant source/runtime/input or an unresolved failure."
+  "reuse": "Do not repeat the rendering or targeted tests without changed relevant source/runtime/input or an unresolved failure.",
+  "verificationNote": "Only trailing whitespace in the test driver was normalized after execution; its compiled C# harness and production source are unchanged."
 }
