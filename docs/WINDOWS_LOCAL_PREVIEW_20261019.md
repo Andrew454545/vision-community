@@ -41,3 +41,10 @@ exact pins and limits. Reuse these checks. Remaining first-use evidence concerns
 interactive Windows setup/window/file panels, the specifically authorized fixed
 input qualification, and ultimately a separately permitted tiny live queue and
 private return. The Google hold remains; no live probe is authorized by this work.
+
+A clean local Windows kit was then built from `77fbedee28ae100b84e6949a7ed76d0b0ad3ec2f`
+using the already verified release native files, SDK and readiness inputs. Its
+compiled launcher self-check passed and all 125 ZIP members matched the staged
+kit. SHA-256: `914f551c42a860158759b04273d36005d15cbe9429c65d3be2f2001cc6fd5da4`
+(23,743,246 bytes). This unsigned local kit is not a replacement published release
+and includes no new inference or participant-acceptance claim.
