@@ -1,0 +1,147 @@
+name: native launcher packages
+on:
+  pull_request:
+  push:
+    branches: [main, codex/windows-production-readiness]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  mac-package:
+    runs-on: macos-26
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build and verify the native app without processing or signing
+        shell: bash
+        run: |
+          python -B packaging/build_mac.py --output "$RUNNER_TEMP/mac-native-package" --revision "$GITHUB_SHA"
+          python -B packaging/check_mac.py --app "$RUNNER_TEMP/mac-native-package/VISION Community.app"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: MAINTAINER-UNSIGNED-Mac-launcher
+          path: |
+            ${{ runner.temp }}/mac-native-package/MAINTAINER-UNSIGNED-VISION-Mac.zip
+            ${{ runner.temp }}/mac-native-package/package-receipt.json
+          retention-days: 7
+  windows-package:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build and open the empty native guided page under Restricted
+        shell: pwsh
+        run: |
+          $previousPreference = $env:PSExecutionPolicyPreference
+          try {
+            # Stricter inherited process-only policy; user/machine settings stay intact.
+            $env:PSExecutionPolicyPreference = 'Restricted'
+            python -B packaging/build_windows.py --output "$env:RUNNER_TEMP/windows-native-package" --revision "$env:GITHUB_SHA"
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+            $env:VISION_DISPOSABLE_BACKGROUND = '1'
+            $backgroundFixture = Join-Path $env:TEMP ('vision-native-background-' + [Guid]::NewGuid().ToString('N'))
+            $background = Start-Process -FilePath "$env:RUNNER_TEMP/windows-native-package/MAINTAINER-UNSIGNED-VISION-Setup.exe" `
+              -ArgumentList '--background-check', ('"' + $backgroundFixture + '"') -Wait -PassThru
+            if ($background.ExitCode) {
+              Copy-Item -LiteralPath (Join-Path $backgroundFixture 'failure.json') -Destination "$env:RUNNER_TEMP/windows-native-package/native-background-check.json"
+              throw 'native_background_check_failed'
+            }
+            Copy-Item -LiteralPath (Join-Path $backgroundFixture 'result.json') -Destination "$env:RUNNER_TEMP/windows-native-package/native-background-check.json"
+            python -B packaging/check_windows_starter.py `
+              --executable "$env:RUNNER_TEMP/windows-native-package/MAINTAINER-UNSIGNED-VISION-Setup.exe" `
+              --report "$env:RUNNER_TEMP/windows-native-package/native-guided-check.json"
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          } finally { $env:PSExecutionPolicyPreference = $previousPreference }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: MAINTAINER-UNSIGNED-Windows-setup
+          path: |
+            ${{ runner.temp }}/windows-native-package/MAINTAINER-UNSIGNED-VISION-Setup.exe
+            ${{ runner.temp }}/windows-native-package/package-receipt.json
+            ${{ runner.temp }}/windows-native-package/package-self-check.json
+            ${{ runner.temp }}/windows-native-package/detached-helper-check.json
+            ${{ runner.temp }}/windows-native-package/bootstrap-guards-check.json
+            ${{ runner.temp }}/windows-native-package/native-guided-check.json
+            ${{ runner.temp }}/windows-native-package/native-background-check.json
+          retention-days: 7
+  windows-lifecycle:
+    # Actual per-user install, interrupted setup, repeat, repair, update and
+    # removal on a disposable runner account, using two built revisions and
+    # synthetic private files. No account, service, model, imagery or signing.
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build the checked revision and a synthetic update revision
+        shell: pwsh
+        run: |
+          python -B packaging/build_windows.py --output "$env:RUNNER_TEMP/setup-a" --revision "$env:GITHUB_SHA"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          # A local empty commit gives the update a different revision; nothing is pushed.
+          git -c user.name=lifecycle -c user.email=lifecycle@invalid commit --allow-empty -q -m 'Synthetic update revision for lifecycle CI'
+          $update = (git rev-parse HEAD).Trim()
+          python -B packaging/build_windows.py --output "$env:RUNNER_TEMP/setup-b" --revision $update
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          "VISION_REVISION_B=$update" >> $env:GITHUB_ENV
+      - name: Install, interrupt, repeat, repair, update and remove through the real windows
+        shell: powershell
+        env:
+          VISION_DISPOSABLE_LIFECYCLE: '1'
+        run: |
+          & packaging/windows/Check-Lifecycle.ps1 `
+            -SetupA "$env:RUNNER_TEMP/setup-a/MAINTAINER-UNSIGNED-VISION-Setup.exe" -RevisionA $env:GITHUB_SHA `
+            -SetupB "$env:RUNNER_TEMP/setup-b/MAINTAINER-UNSIGNED-VISION-Setup.exe" -RevisionB $env:VISION_REVISION_B `
+            -Report "$env:RUNNER_TEMP/windows-lifecycle-report.json"
+          exit $LASTEXITCODE
+      - name: Verify the native detached helper under Restricted
+        # Windows 10/11 clients default to Restricted; hosted runners do not.
+        # Inherit the stricter policy in this process/children only. Never change
+        # machine/user policy, even temporarily, in a diagnostic fixture.
+        if: always()
+        shell: powershell
+        run: |
+          $before = (Get-ExecutionPolicy -List | ForEach-Object { "$($_.Scope)=$($_.ExecutionPolicy)" }) -join ';'
+          $previousPreference = $env:PSExecutionPolicyPreference
+          $previousModules = $env:PSModulePath
+          try {
+            $env:PSExecutionPolicyPreference = 'Restricted'
+            $env:PSModulePath = "$env:WINDIR\System32\WindowsPowerShell\v1.0\Modules"
+            $effective = & "$env:WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -Command 'Get-ExecutionPolicy'
+            $fixture = Join-Path $env:TEMP ('vision-policy-' + [Guid]::NewGuid().ToString('N'))
+            $p = Start-Process -FilePath "$env:RUNNER_TEMP/setup-a/MAINTAINER-UNSIGNED-VISION-Setup.exe" -ArgumentList '--detached-check', $fixture -PassThru -Wait
+            $result = Join-Path $fixture 'result.json'; $deadline = (Get-Date).AddSeconds(30)
+            while (-not (Test-Path $result) -and (Get-Date) -lt $deadline) { Start-Sleep -Milliseconds 250 }
+            $ran = Test-Path $result
+          } finally { $env:PSExecutionPolicyPreference = $previousPreference; $env:PSModulePath = $previousModules }
+          $report = [ordered]@{ policiesBefore = $before; effectiveChildPolicy = "$effective".Trim(); launcherExit = $p.ExitCode
+            nativeDetachedHelperSucceeded = $ran; legacyControlsAndRemovalStillRequireScripts = $false
+            note = 'Startup, automatic controls, verified scheduling and removal use native code. Endurance and signing remain separate.' }
+          $report | ConvertTo-Json | Set-Content "$env:RUNNER_TEMP/windows-default-policy-probe.json"
+          Get-Content "$env:RUNNER_TEMP/windows-default-policy-probe.json"
+          if (-not $ran -or "$effective".Trim() -ne 'Restricted' -or $p.ExitCode) { throw 'native_restricted_helper_failed' }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-lifecycle-evidence
+          path: |
+            ${{ runner.temp }}/windows-lifecycle-report.json
+            ${{ runner.temp }}/windows-default-policy-probe.json
+          retention-days: 14
+          if-no-files-found: warn

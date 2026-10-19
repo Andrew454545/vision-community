@@ -1,0 +1,235 @@
+{
+  "version": 1,
+  "date": "2026-10-10",
+  "scope": "private-object-audit-job-component",
+  "parentCommit": "b335b13521ab6c525badb5824ebfab72b3063869",
+  "platform": "Windows",
+  "python": "3.12.14",
+  "node": "24.19.0",
+  "sourceBytes": "actual Windows working files",
+  "sourceFiles": {
+    "community/object_audit_jobs.py": {
+      "bytes": 25702,
+      "sha256": "38c076dd8aa78f918cd615357fcded0a6f9096439b68b0b66aba2ac68557e081"
+    },
+    "community/tests/test_object_audit_jobs.py": {
+      "bytes": 22470,
+      "sha256": "31321e328fce2a413936d707b26292cb9d9dbe0de88d9881bc81250d80475c7d"
+    },
+    "community/native_object_verifier.py": {
+      "bytes": 25568,
+      "sha256": "6e2125ba51132c665543662c9011f13eefa028ef3b57002cafe9c7fd11bab62a"
+    },
+    "community/process_owner.py": {
+      "bytes": 7906,
+      "sha256": "e43d63741c8ec9ccdf716cf653c2785c60f393604d0914c42d18fcf924cdcc80"
+    },
+    "deploy/cloudflare/native-object-verifier-bridge/worker.js": {
+      "bytes": 7872,
+      "sha256": "470b7f0096e60a3d117040508630d0c8e0a37d7a168720017b6ce0b465e4107d"
+    },
+    "deploy/cloudflare/native-object-verifier-bridge/worker.test.mjs": {
+      "bytes": 8228,
+      "sha256": "7be1e49378550efdf4c3aecfb530f82162843f81330579735bd561915bfd860c"
+    },
+    "deploy/cloudflare/tools/object-audit-jobs.fixture.mjs": {
+      "bytes": 2644,
+      "sha256": "f26b5b841120e006d93a2aac81778b8022e916637423f30be20070691732febc"
+    },
+    "deploy/cloudflare/tools/check-local-object-audit-jobs.mjs": {
+      "bytes": 1899,
+      "sha256": "cdbfea846099fa0a47ea7914cdb398fe6c0829a03e156c3d266d413810995067"
+    },
+    "deploy/cloudflare/src/objectAdmission.js": {
+      "bytes": 842,
+      "sha256": "55917e88a5f107a51d49ff096c2cc2bf6a7343090edefcd86b3d3fa71869130e"
+    }
+  },
+  "checks": {
+    "objectAuditJobs": {
+      "tag": "python-jobs-complete",
+      "exitCode": 0,
+      "wallSeconds": 81.68699999997625,
+      "liveDataChanged": false,
+      "productionQualified": false,
+      "receipt": {
+        "bytes": 156,
+        "sha256": "c59e9adff12342a5f33d8638019f3d7308723876f1710ed24380da97d4560fa4"
+      },
+      "stdout": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "bytes": 4210,
+        "sha256": "558948487787b4cee7d06df65f151980c0b22af3b178311f339f20d97ebdbda0"
+      },
+      "tests": 21,
+      "passed": 21,
+      "skipped": 0,
+      "failed": 0
+    },
+    "unchangedNativeAuditor": {
+      "tag": "python-final",
+      "exitCode": 0,
+      "wallSeconds": 116.875,
+      "liveDataChanged": false,
+      "productionQualified": false,
+      "receipt": {
+        "bytes": 138,
+        "sha256": "3099269c0ee1700c02c466703510e6879c4aed547b2ffb046611f25a8ac0c2f1"
+      },
+      "stdout": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "bytes": 8235,
+        "sha256": "b636d4b17cda0e3a3e4bcdf8a54e3f1fa937244315b1abe5fa72f8395ac67466"
+      },
+      "selectedTests": 24,
+      "passed": 24,
+      "skipped": 0,
+      "failed": 0,
+      "note": "24 native auditor tests within the 41-test passing run; its 17 earlier job cases are not counted twice."
+    },
+    "nodeBridgeAndAdmission": {
+      "tag": "node-recovery",
+      "exitCode": 0,
+      "wallSeconds": 1.1560000000172295,
+      "liveDataChanged": false,
+      "productionQualified": false,
+      "receipt": {
+        "bytes": 150,
+        "sha256": "643a8132f08a9672083ad69752be236a1dc570b43287e0eb6945dc9f4a7b148a"
+      },
+      "stdout": {
+        "bytes": 1209,
+        "sha256": "7e4a15d2884353da2b12eb0a1e6ceb1b00d66751fd4e0b5388fc9baf5e9b818e"
+      },
+      "stderr": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "tests": 12,
+      "passed": 12,
+      "skipped": 0,
+      "failed": 0
+    },
+    "actualLocalWorkerd": {
+      "tag": "workerd-authorized",
+      "exitCode": 0,
+      "wallSeconds": 0.6400000000139698,
+      "liveDataChanged": false,
+      "productionQualified": false,
+      "receipt": {
+        "bytes": 155,
+        "sha256": "e0a84146ccb84323e9b2439d7184f64d94e7ff54649d34d0a3257b312d1eea20"
+      },
+      "stdout": {
+        "bytes": 160,
+        "sha256": "906dd91b4448d37c88750913758045cc2d1fcb1bb42d17af1d784ac5fcec06cb"
+      },
+      "stderr": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "status": "ACTUAL_WORKERD_OBJECT_JOB_TRANSPORT_PASSED",
+      "cases": 9,
+      "syntheticProvider": true,
+      "objectAdmissionReady": false,
+      "nativeInferences": 0,
+      "creditsCreated": 0
+    }
+  },
+  "distinctChecksPassed": 66,
+  "preservedDevelopmentFailures": [
+    {
+      "tag": "python-initial",
+      "summary": "One test assertion and restricted local socket failure; originals preserved.",
+      "receipt": {
+        "bytes": 150,
+        "sha256": "6f3b3973ad075861e4afeea73068e249b4cf709613b0b72fd4e75d51c131206b"
+      },
+      "stdout": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "bytes": 11266,
+        "sha256": "d1af3a1938521893407af0bbe8f87086ce5ea641134d0660388b4eefc34d8a77"
+      }
+    },
+    {
+      "tag": "python-process-recovery",
+      "summary": "The fresh-process fixture retried before the required post-restart backoff; fixture corrected without reducing the service limit.",
+      "receipt": {
+        "bytes": 160,
+        "sha256": "8fc9ddb57ef57f63e86288180d6e7326fe5def5befae75a8da4fb7427b20bb41"
+      },
+      "stdout": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "bytes": 9246,
+        "sha256": "563140bacbd5f22160351ff4165f4223ba7832d9f4ce7c92f867bbc3b05f6376"
+      }
+    },
+    {
+      "tag": "workerd-transport",
+      "summary": "Restricted workerd could not resolve its own private temporary files; separately authorized unchanged runtime passed.",
+      "receipt": {
+        "bytes": 154,
+        "sha256": "9f424eb72624abcf56f33feb09c266531ffaded5fda71bc2a79bc6e1d84feb85"
+      },
+      "stdout": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "bytes": 3115,
+        "sha256": "1eb50846f7ed81eeb67ca482840243ff7ca969d6a9c477e90f5dc70288e1f2e8"
+      }
+    }
+  ],
+  "recoveryEvidence": {
+    "realLoopbackHTTP": true,
+    "realSQLiteAndFilesystem": true,
+    "abruptSeparateProcessExit": true,
+    "freshProcessExplicitRetry": true,
+    "originalIncompleteReportUnchanged": true,
+    "completedReceiptRecoveryWithoutRecompute": true,
+    "concurrentDuplicatesAndConflicts": true,
+    "cancellationWinsOverLateApproval": true,
+    "cancellationDoesNotReleaseNativeSlotEarly": true,
+    "transientSettlementRecovery": true,
+    "shutdownRefusesNewWrites": true
+  },
+  "limits": {
+    "maxLocationsPerNativeAudit": 4,
+    "maxNativeAuditSeconds": 900,
+    "maxAttempts": 3,
+    "maxRetainedJobs": 64,
+    "maxActiveQueue": 8,
+    "maxHTTPRequestBytes": 4194304,
+    "minimumFreeBytes": 1073741824,
+    "maxInputBytes": 536870912
+  },
+  "acceptance": {
+    "syntheticInferenceRunner": true,
+    "realNativeInferenceInNewTests": false,
+    "actualMacExecution": false,
+    "physicalSleepRebootOrPowerFailureTest": false,
+    "cloudDeployed": false,
+    "objectAdmissionOpened": false,
+    "accountQualificationCreated": false,
+    "acceptedContributions": 0,
+    "creditsCreated": 0,
+    "sevenDayAcceptedWorkStarted": false,
+    "productionQualified": false,
+    "githubActionsStarted": false,
+    "unrelatedR2BucketAccessed": false
+  },
+  "next": "Connect trusted hosted qualification/quarantine, privacy cancellation and cleanup, audited publication and once-only credit. Use authentic current authority; retain launch gates."
+}

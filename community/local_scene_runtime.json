@@ -1,0 +1,96 @@
+{
+  "version": 1,
+  "files": [
+    {
+      "asset": "mma-vision",
+      "path": "bin/mma-vision",
+      "bytes": 35526000,
+      "sha256": "b48e9e020e5e052c9c8c5fe91d0643551be255eeeaa36cba74f975dd801394a9",
+      "executable": true,
+      "platforms": [
+        "darwin-arm64"
+      ]
+    },
+    {
+      "asset": "siglip-text_model.onnx",
+      "path": "models/siglip-b16-224-canonical/text_model.onnx",
+      "bytes": 441332132,
+      "sha256": "3aa7fdbd20eaa8740cce17bf82913de641fcb632a768fed59f661cdcd0c32553"
+    },
+    {
+      "asset": "siglip-tokenizer.json",
+      "path": "models/siglip-b16-224-canonical/tokenizer.json",
+      "bytes": 2398744,
+      "sha256": "4a17c975210be5ab4c36b47d8dae4eefb866dbfb1e676e394aad85dc30a3ae08"
+    },
+    {
+      "asset": "siglip-vision_model.onnx",
+      "path": "models/siglip-b16-224-canonical/vision_model.onnx",
+      "bytes": 99499129,
+      "sha256": "ef14a954f3d57e1806666432bd9785004c1dc27100aa260eee0cb0f10a5de058"
+    },
+    {
+      "asset": "siglip-vision_model_fp32.onnx",
+      "path": "models/siglip-b16-224-canonical/vision_model_fp32.onnx",
+      "bytes": 371819850,
+      "sha256": "f89d41bac7f4d4b87e010a467d93f98689d708916ed22f5a07f96fdfa26f475f"
+    },
+    {
+      "asset": "mma-vision-windows-x86_64.exe",
+      "path": "bin/mma-vision.exe",
+      "bytes": 30888448,
+      "sha256": "6ce8f5c9dbfeb8404da13daa71afecfd07a56f118fc61819d07c1d2330f191ba",
+      "platforms": [
+        "windows-x86_64"
+      ],
+      "executable": true
+    },
+    {
+      "asset": "windows-directml.dll",
+      "path": "bin/DirectML.dll",
+      "bytes": 18527776,
+      "sha256": "9c9e6d822561c6c41b90e6994b3e8857cf1d66dbfb1e0c4c799c7c89b4e92da1",
+      "platforms": [
+        "windows-x86_64"
+      ]
+    },
+    {
+      "asset": "windows-msvcp140.dll",
+      "path": "bin/MSVCP140.dll",
+      "bytes": 643512,
+      "sha256": "7c26614e1d733892c2deac7e245ce115504b1d80592dd0a01b08e3e5a55f89ca",
+      "platforms": [
+        "windows-x86_64"
+      ]
+    },
+    {
+      "asset": "windows-msvcp140_1.dll",
+      "path": "bin/MSVCP140_1.dll",
+      "bytes": 35768,
+      "sha256": "206c931bf90fdad8816de3b5e2ef80b2bcaa9406c89ecc05fe6fddffe251e982",
+      "platforms": [
+        "windows-x86_64"
+      ]
+    },
+    {
+      "asset": "windows-vcruntime140.dll",
+      "path": "bin/VCRUNTIME140.dll",
+      "bytes": 178616,
+      "sha256": "d1f4225df2cd877dbf130d5668a021dce3f94118455ff5ec952061c30afc9ce7",
+      "platforms": [
+        "windows-x86_64"
+      ]
+    },
+    {
+      "asset": "windows-vcruntime140_1.dll",
+      "path": "bin/VCRUNTIME140_1.dll",
+      "bytes": 50112,
+      "sha256": "a7146c08f89fe5b04541ab507cdb59ff7b44534d4ba3c668a426c6450a03434e",
+      "platforms": [
+        "windows-x86_64"
+      ]
+    }
+  ],
+  "purpose": "local-provisional-scenes-only",
+  "downloadsEnabled": false
+}

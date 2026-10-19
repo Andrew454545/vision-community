@@ -1,0 +1,113 @@
+{
+  "version": 1,
+  "scope": "offline-credit-recovery-pinned-input-fix",
+  "recordedAt": "2026-10-09T23:45:28.055525+00:00",
+  "baseCommit": "be686ca6a9b19eb2c33bc8d636c6e3a3b6b990ff",
+  "platform": {
+    "system": "Windows",
+    "release": "11",
+    "machine": "AMD64",
+    "node": "v24.19.0"
+  },
+  "originalCheckerSha256": "2ba7c0c22dbeb094177bb1dbd4a09787edad95c14a9358b5d153cab655b9d918",
+  "files": {
+    "deploy/cloudflare/tools/credit-recovery.mjs": {
+      "bytes": 17257,
+      "sha256": "70a4d305d61639cd796b7213a40e331a5b593d52327595b8b9fb1a703b0a56fc"
+    },
+    "deploy/cloudflare/src/creditRecovery.test.mjs": {
+      "bytes": 19085,
+      "sha256": "8bafe72cde61c6fb85c5bdee262b3faf8e1f6316fcdd3002b6aac8f5867a98cc"
+    }
+  },
+  "finalRegression": {
+    "tests": 57,
+    "pass": 56,
+    "fail": 0,
+    "skipped": 1,
+    "cancelled": 0,
+    "durationMs": 11045.2787
+  },
+  "focusedCreditCases": 30,
+  "skippedCase": "file symlink privilege unavailable",
+  "reproductionBeforeFix": {
+    "testCount": 1,
+    "passed": 0,
+    "failed": 1,
+    "failure": "Missing expected exception: unpinned transient WAL rows obtained a completion report"
+  },
+  "intermediateClosedWalFailure": {
+    "tests": 56,
+    "passed": 54,
+    "failed": 1,
+    "skipped": 1,
+    "error": "snapshot_has_sidecars"
+  },
+  "retainedLogs": {
+    "focused.stderr.private.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "focused.stdout.private.log": {
+      "bytes": 2202,
+      "sha256": "7ef0fb2cabffd11e59c67b1edbfd0d909de49f7bed0ca9502d716283215916bf"
+    },
+    "regression-final.stderr.private.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "regression-final.stdout.private.log": {
+      "bytes": 5911,
+      "sha256": "fcd3bf24fe6255f21145d8166aa9bc87a20f9f271dcb084f9dae4e0b7c1fbbd4"
+    },
+    "regression-immutable.stderr.private.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "regression-immutable.stdout.private.log": {
+      "bytes": 5286,
+      "sha256": "0773b1b2f3b22c0ce3acd4b98fa72c02c0399ff7f5d41a62cb78de92ee49d9cb"
+    },
+    "regression.stderr.private.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "regression.stdout.private.log": {
+      "bytes": 5096,
+      "sha256": "19822555fe330db5c69312f3c94b0a3f763717e7610ae062c940bc780ea4ab3a"
+    },
+    "reproduction.stderr.private.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "reproduction.stdout.private.log": {
+      "bytes": 935,
+      "sha256": "7cf4ffad07efbfc488fa6fc9b7d4e0b6e0d9d057927a970699506b72ddb098aa"
+    }
+  },
+  "checks": {
+    "transientOriginalWalRejected": true,
+    "changedCopyRejected": true,
+    "originalsUnchanged": true,
+    "privateCopyPinsVerified": true,
+    "closedWalModeSupported": true,
+    "escapedCopyPathsVerified": true,
+    "authorityParsedBytesPinned": true,
+    "accountingReconciliationAndPaidReplayPreserved": true,
+    "privateFailureReportsPreserved": true
+  },
+  "limitations": [
+    "Synthetic fixtures only",
+    "Changed component not rerun on Mac",
+    "File-symlink guard remains unexecuted on this Windows host",
+    "Three sensitive database copies are retained in the operator output",
+    "No full-data or provider recovery test performed"
+  ],
+  "providerCalls": 0,
+  "productionDatabaseCopied": false,
+  "nativeInference": false,
+  "acceptedWorkSoakStarted": false,
+  "publicAdmissionOpened": false,
+  "githubActionsRun": false,
+  "productionQualified": false
+}

@@ -1,0 +1,70 @@
+{
+  "version": 1,
+  "date": "2026-10-14",
+  "status": "CORRECTED_GATEWAY_READBACK_REFUSED_EXACT_CLOSURE_VERIFIED",
+  "directHumanAnswer": "Approve one corrected readback-only attempt",
+  "gatewaySource": "737d5858921cb41d9504445ffffb1b727b1094b4",
+  "clientSource": "b6444c56220ef519241d03725fd0bfeb2a896a61",
+  "hostedAttempt": {
+    "requestCount": 1,
+    "httpStatus": 403,
+    "usageMetadataPresent": false,
+    "databaseRowsRead": null,
+    "refusalOriginKnown": false,
+    "reasonRecorded": "recovery_usage_unknown",
+    "currentServerReconciled": false,
+    "secondRequestSent": false,
+    "retried": false,
+    "indexStatements": 0,
+    "supervisorLaunched": true,
+    "gatewayCandidateR2AndNativeBindingsAbsent": true,
+    "noWriteOperationsRequested": true,
+    "exactClosedRestorationIndependentlyVerified": true,
+    "originalTrialAndEarlierFailureUnchanged": true,
+    "scopeConsumed": true
+  },
+  "newOperatorPath": {
+    "status": "OFFLINE_PREPARED_REQUIRES_NEW_DIRECT_D1_SCOPE",
+    "reusesExistingReceiptAndSchemaValidator": true,
+    "workerDeployment": false,
+    "maximumSelectRequests": 2,
+    "maxRequestBytes": 8192,
+    "deadlineToStartRequestsSeconds": 120,
+    "alreadyInflightCallMayFinishAfterDeadline": true,
+    "observedReadStop": 200,
+    "databaseWrites": 0,
+    "r2Access": false,
+    "newCredit": 0,
+    "gatewayAuthenticationVerified": false,
+    "checks": {
+      "node": 3,
+      "actualLocalWorkerdD1": 8,
+      "skips": 0,
+      "syntheticHistoricalLocations": 1024,
+      "firstPairRowsRead": 30,
+      "writes": 0,
+      "providerAttemptFieldSynthetic": true,
+      "authorityAndOutputsSynthetic": true,
+      "cloudAccess": false
+    },
+    "preservedLocalFailures": [
+      "unit check exposed unauthorized error masking before query capture; corrected to preserve the original error",
+      "fixture attempted forbidden revision 0; changed only the fixture to allowed unsupported revision 2"
+    ]
+  },
+  "actionsRuns": 0,
+  "indexingRestarted": false,
+  "productionQualified": false,
+  "privateEvidenceSha256": {
+    "readback-only.receipt.private.json": "d6980674d35b57e056691ec33fc124c501ee6f85ff48af579ec3ee79c8bb09df",
+    "readback-only.receipt.private.supervisor.private.json": "56af4553e02dcb015b0271b2f3041805a5961d08fc29eaaeea435ee293b0f84d",
+    "readback-only-operator.receipt.private.json": "6eb22273a663b034dbe12881fe6f0185b5859f384d331f85794aac04a9c9ca0c",
+    "readback-only-baseline.normalized.private.json": "c74fd6e3af78c5cbbe4a7462ce045b4a1d40fcea0b26dbf7a68671b16d965101",
+    "readback-only-closure.normalized.private.json": "c74fd6e3af78c5cbbe4a7462ce045b4a1d40fcea0b26dbf7a68671b16d965101",
+    "operator-node.stdout.private.log": "07e8193f1c8dd6124b69b1bc3db7326f142ebec1345f92467fd3d99f10837a02",
+    "operator-node-fixed.stdout.private.log": "41f4a23b31aec5f9efcee40afd8c4efab2e7bcf6e61b5bbfe1369ce0de1914e2",
+    "operator-workerd.stderr.private.log": "7a282ddaeaa05fcff2e039c2f21f6ba83e1be896845accbd477c2de35b1b49dc",
+    "operator-workerd-fixed.stdout.private.log": "b308e1aa873cab1bf9bbe2b17dcf6773baf0e7e790b018d77b96cadecf69bd97",
+    "direct-operator-plan.private.json": "4d56057bcaeb769b8541a0caed8baf621708784621ad2352ae95830c94b3dd4c"
+  }
+}

@@ -1,0 +1,128 @@
+{
+  "version": 1,
+  "status": "STAGING_SCENE_AUTOMATIC_REFRESH_SCHEDULED_BASELINE_VERIFIED",
+  "productionApproved": false,
+  "environment": "staging",
+  "upgradeCompletedUtc": "2026-10-10T08:11:20Z",
+  "runtimeSha256": "bbc60e94e6590c657f256d89f6d63db47f7f3d53d1ba37ffeafba07b6211d64e",
+  "snapshotSha256": "05433e4fcb31097c9e9dcdc1f260b35e9f68c0b98a509effcca5cdc871c43589",
+  "locations": 10,
+  "deployment": {
+    "nativeVersion": "df0b222c-80d3-45d1-93f7-c9046c80d693",
+    "mainVersion": "3d1320bb-08e3-4509-9f9a-cdb00bf82373",
+    "dynamicSnapshotEnabled": true,
+    "otherBindingsUnchanged": true,
+    "nativeImageChanged": false,
+    "pilotClientChanged": false,
+    "pilotStartPinsUnchanged": true
+  },
+  "scheduled": {
+    "usesCodex": false,
+    "intervalSeconds": 3600,
+    "notAfterUtc": "2026-10-17T06:27:14Z",
+    "ownerSidVerified": true,
+    "windowless": true,
+    "nonoverlapping": true,
+    "sharesPilotShutdownLock": true,
+    "firstRunStatus": "CURRENT_NO_CHANGE",
+    "firstRunLocations": 10,
+    "firstRunActivation": false,
+    "firstFreshAppendActivationObserved": false,
+    "nativeStartsReserved": 4,
+    "dailyNativeOperations": 48,
+    "dailyNativeStarts": 12,
+    "storageGiB": 1,
+    "minimumFreeGiB": 5,
+    "maximumAttempts": 200,
+    "sourceFilesPinned": 92
+  },
+  "realSearch": {
+    "results": 10,
+    "costUnits": 2,
+    "beforeUnits": 8,
+    "afterUnits": 6,
+    "syntheticCreditsAdded": 0,
+    "oldPaidReplyUnchanged": true,
+    "replayIdentical": true,
+    "freshProcessRecovery": true,
+    "activationReplayFree": true
+  },
+  "primaryActiveAccountReconciliation": {
+    "active_accounts": 1,
+    "banked_units": 6,
+    "earned_units": 18,
+    "earned_claims": 3,
+    "search_units": -12,
+    "paid_searches": 3,
+    "paid_replies": 3,
+    "balanced": true,
+    "writes": 0
+  },
+  "checks": {
+    "node": {
+      "passed": 110,
+      "skipped": 0,
+      "failed": 0
+    },
+    "python": {
+      "passed": 44,
+      "skipped": 0,
+      "failed": 0
+    },
+    "actualWorkerdPrivateRoutes": 45,
+    "actualWorkerdD1R2Collector": 6,
+    "actualWorkerdDynamicPaidRecovery": 17,
+    "totalPassed": 222
+  },
+  "preservedFailures": [
+    "Restricted local workerd database access failed; shorter private TEMP and authorized hidden-console checks passed.",
+    "First remote activation returned 503 immediately after deployment; no native operations or starts were spent. A later guarded attempt passed.",
+    "First finite refresh task failed before remote work because its frozen import omitted calibration. Exact failed task disabled; corrected separately pinned task passed.",
+    "Task retirement refused shortened owner text; canonical SID verified before disabling only the failed refresh task."
+  ],
+  "limits": [
+    "First future real append activation remains to be observed in a scheduled receipt.",
+    "Refresh defers when native allowance must be reserved for contribution work.",
+    "Account deletion retention is tested with synthetic deletion authority; no real contributor account was deleted.",
+    "Removal or changed publication history fails closed and needs separately authorized migration.",
+    "Mac, authentic Objects/Both, physical interruptions, full seven-day workload, signing, provider recovery and rollout remain open."
+  ],
+  "privateEvidence": {
+    "directory": "work/scene-refresh-20261010",
+    "upgradeSha256": "7082c655340eb2dd7a59e1fd911148975287289adc46b368c5aa0262ed490e15",
+    "failedUpgradeSha256": "9e97f7c0323863b385fd5ed950e4aa239fcab372736f1434ed64a6940598ea85",
+    "financialReconciliationSha256": "417fd67bc8440d44dce16660fcdeb76d4e6e2b52b9047cd1822e5dc8ea2ee616",
+    "scheduledStateSha256": "f660cb63b2dd5a0e7fd6c71bde162acabd098249e9ccc36f07e77f1ff73e1fdf",
+    "contractSha256": "7e75b0844c7206ed2ce6a7634455d6cf4ac28268b51281ba51f0d924b9f94290",
+    "taskReadbackSha256": "3ae0f672d3cafec664fe1266120ab7a46c0a9c782b158ef9e32540ef8cd4b524",
+    "guardCorrectionSha256": "d2f0cc4085a23a1aa3c994457a03ef49d5355ab658b00fcbb802e47d04d4b0ba",
+    "firstScheduledReceiptSha256": "02bb2cccfa7517749196b0e46d14c780a7b32e883b56d084e13cc260dc513ddc",
+    "checks": {
+      "node-complete-first": {
+        "receiptSha256": "9364ad844e0515c00b7d98808b6a7f464dad27487fda87b51d45528ab57dd48c",
+        "stdoutSha256": "0670adefa9d1d3c9c3af81cc66065469a8a15232df12fb68d05c5671f3cea35f",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "python-recovery-final": {
+        "receiptSha256": "9b5445fd5256c9cc23e671661aeb5319186ab747d1915e3b64b4c32eadc51fbb",
+        "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderrSha256": "aab56ee3f582b2de16286fccf30dd99340908b6d069f75ca4fa6c81ba0d4a77e"
+      },
+      "workerd-valid-refresh": {
+        "receiptSha256": "3f41cbb79ae83b8538022bd1ae687dd97fdcba333f1dae1f3ef950ac74006aa8",
+        "stdoutSha256": "d1fe47f35c1b995c165b4de604d0d12ba604212b2806a8326a1b5b68f3f4d868",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "collector-short-temp": {
+        "receiptSha256": "813a513e5a7ae358e2d9eeea0cee973473bf2b81f95734d287d43c9fb6c9e012",
+        "stdoutSha256": "33bf6175c723185e6c5fd31f9ab71a10a59cb244a92d128eff7dad97e73927a8",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "dynamic-first": {
+        "receiptSha256": "24ddd497fa313b4372985ecad8f94ad6007c56e4eb12556a8363fbc1203bc165",
+        "stdoutSha256": "f9baded8c93f237039a9faf37cd7c39f48e22016b7e5b61c6ed7d183f11fa6fe",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    }
+  }
+}

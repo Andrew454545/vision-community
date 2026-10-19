@@ -1,0 +1,154 @@
+{
+  "version": 1,
+  "scope": "mac-control-status-time-bounded-reads-and-clear-pacing",
+  "recordedAt": "2026-10-10T01:51:21.978162+00:00",
+  "baseCommit": "6d5149d6763877b17b15c74b0e1705416ab127c4",
+  "platform": {
+    "system": "Windows",
+    "release": "11",
+    "machine": "AMD64",
+    "python": "3.12.14"
+  },
+  "sourceFiles": {
+    "community/mac_background.py": {
+      "bytes": 16689,
+      "sha256": "c61244696d29a542f8dbffcc8805e7df487f75a597cb41e2b1e88e803ceb3569"
+    },
+    "community/background_web/index.html": {
+      "bytes": 3338,
+      "sha256": "7a606c9b75d6f20c56d8f9fa7e53cf6a1d944e797caffb508ff67c0d6ab9b211"
+    },
+    "community/tests/test_mac_background.py": {
+      "bytes": 17073,
+      "sha256": "f821f3664c33a798c9e297e6b2820c0094c17a45e3e9ce732095a4b9a314be2c"
+    }
+  },
+  "originalReproduction": {
+    "tests": 2,
+    "passed": 0,
+    "errors": 0,
+    "failures": 2,
+    "skips": [],
+    "seconds": 2.032,
+    "productionQualified": false
+  },
+  "intermediateSelection": {
+    "tests": 51,
+    "passed": 46,
+    "errors": 1,
+    "failures": 0,
+    "skips": [
+      {
+        "id": "community.tests.test_mac_background.MacStorageLinksTests.test_only_pinned_direct_regular_siblings_count_once_without_reading_private_contents",
+        "reason": "Symlink creation not permitted"
+      },
+      {
+        "id": "community.tests.test_mac_starter.MacStarterTests.test_linked_source_or_private_folder_is_rejected",
+        "reason": "Symlink creation not permitted"
+      },
+      {
+        "id": "community.tests.test_mac_starter.PrivatePythonGuards.test_pinned_internal_links_verify_but_retargeting_stops",
+        "reason": "Symlink creation not permitted"
+      },
+      {
+        "id": "community.tests.test_mac_starter.PrivatePythonGuards.test_unexpected_or_escaping_symlinks_do_not_read_external_files",
+        "reason": "Symlink creation not permitted"
+      }
+    ],
+    "seconds": 55.75,
+    "productionQualified": false
+  },
+  "intermediateError": "Selected nonexistent community.tests.test_mac_worker; retained ModuleNotFoundError, then corrected selection to test_mac_launch_agent.",
+  "finalRegression": {
+    "tests": 54,
+    "passed": 50,
+    "errors": 0,
+    "failures": 0,
+    "skips": [
+      {
+        "id": "community.tests.test_mac_background.MacStorageLinksTests.test_only_pinned_direct_regular_siblings_count_once_without_reading_private_contents",
+        "reason": "Symlink creation not permitted"
+      },
+      {
+        "id": "community.tests.test_mac_starter.MacStarterTests.test_linked_source_or_private_folder_is_rejected",
+        "reason": "Symlink creation not permitted"
+      },
+      {
+        "id": "community.tests.test_mac_starter.PrivatePythonGuards.test_pinned_internal_links_verify_but_retargeting_stops",
+        "reason": "Symlink creation not permitted"
+      },
+      {
+        "id": "community.tests.test_mac_starter.PrivatePythonGuards.test_unexpected_or_escaping_symlinks_do_not_read_external_files",
+        "reason": "Symlink creation not permitted"
+      }
+    ],
+    "seconds": 64.593,
+    "productionQualified": false
+  },
+  "retainedPrivateEvidence": {
+    "affected-regression.private.json": {
+      "bytes": 935,
+      "sha256": "1641fe25da2b157e7ca7bd753c103aacb92b289ea56a957dfb8043dd0fb73d86"
+    },
+    "affected-regression.stderr.private.log": {
+      "bytes": 10462,
+      "sha256": "aabf7fff0d10833f3f669d986dff7519fe2fd2b693f2435d1469b4d98386eba9"
+    },
+    "affected-regression.stdout.private.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "before-fix.private.json": {
+      "bytes": 140,
+      "sha256": "da4b78217b456a492febd0fbb0b912c53935a1f5984e8bfcfdd92e447faf4d6e"
+    },
+    "before-fix.stderr.private.log": {
+      "bytes": 2221,
+      "sha256": "979fd8295540627478fcfffb59fe365cf0b602a87cdae8295cc95aa707e4592c"
+    },
+    "before-fix.stdout.private.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "final-regression.private.json": {
+      "bytes": 936,
+      "sha256": "9e8ca17c454c5806687e759e48a4b0119241c8440a885a390e73081ff98c0f56"
+    },
+    "final-regression.stderr.private.log": {
+      "bytes": 10665,
+      "sha256": "6c087c5c599f70c4021015d2471d87b6edddafcc62c7667e6554475ef9c60a4d"
+    },
+    "final-regression.stdout.private.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "run-checks.py": {
+      "bytes": 1847,
+      "sha256": "f459318bcbc02e5e3d697474bf96df449241494a3537dbca0d0b27dd83a02797"
+    }
+  },
+  "checks": [
+    "valid saved UTC time is displayed using the computer local clock",
+    "saved report time does not establish current worker liveness",
+    "invalid or missing time is unavailable, without reflecting unknown saved text",
+    "actual JSON read is bounded even when prior file size is stale",
+    "oversized input remains unchanged after refusal",
+    "source snapshots, owned registration, removal, loopback controls and hidden Windows form fixtures pass within their recorded skips"
+  ],
+  "scopeLimits": {
+    "actualMacExecution": false,
+    "cleanDeviceAcceptance": false,
+    "signedDownloadAcceptance": false,
+    "liveAccountsCreated": 0,
+    "actualContributions": 0,
+    "actualCredits": 0,
+    "modelInference": false,
+    "installedContributorUpdated": false,
+    "runningDiagnosticSnapshotChanged": false,
+    "githubActionsStarted": 0,
+    "cloudflareChanges": 0,
+    "privateProductionDataCopied": false
+  },
+  "productionQualified": false,
+  "acceptedWorkSoak": false
+}

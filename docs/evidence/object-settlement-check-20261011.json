@@ -1,0 +1,205 @@
+{
+  "version": 1,
+  "completedAt": "2026-10-11T23:33:23.977243+00:00",
+  "sourceBase": "7b846a1de2a8997fada85ebb19fd4901b3570be8",
+  "scope": "LOCAL_PRIVATE_OBJECT_CANDIDATE_INTEGRITY_NOT_PUBLICATION_AUTHORITY",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "runtime": "Node.js 24.19.0; existing private runtime",
+  "sources": {
+    "deploy/cloudflare/src/objectSettlementCheck.js": {
+      "bytes": 8952,
+      "sha256": "0e37b95d040ca9b45312edec89b107b19045a8926c7de38fb413757791a3e779"
+    },
+    "deploy/cloudflare/src/objectSettlementCheck.test.mjs": {
+      "bytes": 14797,
+      "sha256": "0c06c611c5298b8969c60d2c9ea7784c164b90731298e0e72843145b5b2a1e12"
+    },
+    "deploy/cloudflare/tools/object-settlement.fixture.mjs": {
+      "bytes": 4921,
+      "sha256": "9a2d4a521e3a6085cd3c05cdeed67f2233e57fa56241842f83db1b84d9fadfa8"
+    },
+    "deploy/cloudflare/tools/check-local-object-settlement.mjs": {
+      "bytes": 4235,
+      "sha256": "f7cc4d31794d5de9b3daca97ae2299c5e2d0d959a2c2519283ae97423a51e7e4"
+    }
+  },
+  "verification": {
+    "javascript": {
+      "total": 175,
+      "passed": 175,
+      "failed": 0,
+      "skipped": 0,
+      "newGroupedTests": 12
+    },
+    "actualLocalWorkerd": {
+      "cases": 13,
+      "freshProcesses": 3,
+      "passed": true,
+      "realLocalD1AndR2": true
+    },
+    "nativeInference": "synthetic",
+    "coverage": "synthetic",
+    "windowsHiddenOwnedProcesses": true,
+    "finalRuns": [
+      "regression-v4",
+      "worker-v2"
+    ]
+  },
+  "privateReceipts": {
+    "focused-v1": {
+      "group": "focused",
+      "exitCode": 1,
+      "wallSeconds": 1.0309999999590218,
+      "owned": true,
+      "windowless": true,
+      "syntheticInference": true,
+      "liveCalls": 0,
+      "receipt": {
+        "bytes": 149,
+        "sha256": "1f2835ccf495be8a57afb3e545affa35b1a9481993b6bfd50ba534d510231a79"
+      },
+      "stdout": {
+        "bytes": 1632,
+        "sha256": "3bb672778be2750e6f631f02e6b5bdbc1b33df9961888165a47013805a8bdbed"
+      },
+      "stderr": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    "regression-v2": {
+      "group": "regression",
+      "exitCode": 0,
+      "wallSeconds": 2.047000000020489,
+      "owned": true,
+      "windowless": true,
+      "syntheticInference": true,
+      "liveCalls": 0,
+      "receipt": {
+        "bytes": 151,
+        "sha256": "e378b8e5bceeb0ff6f02cd9dc0127c89710cdd2d4e1029c31d693b5d49857dc2"
+      },
+      "stdout": {
+        "bytes": 13387,
+        "sha256": "72de5f86fd11b3eaea3abd5ba94efbb8c28fe21c4b48684c0b8d058b36d03370"
+      },
+      "stderr": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    "regression-v3": {
+      "group": "regression",
+      "exitCode": 0,
+      "wallSeconds": 2.125,
+      "owned": true,
+      "windowless": true,
+      "syntheticInference": true,
+      "liveCalls": 0,
+      "receipt": {
+        "bytes": 139,
+        "sha256": "a6fe3d420f2d2c334134af7deea9e4223388b95ece1f476aee4085120fbb1c8a"
+      },
+      "stdout": {
+        "bytes": 13752,
+        "sha256": "17bf4aadf4819069c72e5644321e76a3eb5e2699292d942555d7ebc26868cb4a"
+      },
+      "stderr": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    "worker-v1": {
+      "group": "worker",
+      "exitCode": 0,
+      "wallSeconds": 4.375,
+      "owned": true,
+      "windowless": true,
+      "syntheticInference": true,
+      "liveCalls": 0,
+      "receipt": {
+        "bytes": 135,
+        "sha256": "4fb6402c19c1f28d9a90f15fdbcf5294b156316f1100d0c011afd5ec7e4ee630"
+      },
+      "stdout": {
+        "bytes": 201,
+        "sha256": "99ccb246e206cc854d346fd4c90322a5c913eb50d90913d3923f1fa7fe9ee5ff"
+      },
+      "stderr": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    "regression-v4": {
+      "group": "regression",
+      "exitCode": 0,
+      "wallSeconds": 2.4530000000377186,
+      "owned": true,
+      "windowless": true,
+      "syntheticInference": true,
+      "liveCalls": 0,
+      "receipt": {
+        "bytes": 152,
+        "sha256": "f8ff297707c8498bf1371acd8b0c15e9ac22191365e46ff84bf9b500d360081b"
+      },
+      "stdout": {
+        "bytes": 13869,
+        "sha256": "71e84bec00a607deb9bf89184fd31bd8a0127531f342e44ead11a67a9f87e87f"
+      },
+      "stderr": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    "worker-v2": {
+      "group": "worker",
+      "exitCode": 0,
+      "wallSeconds": 3.625,
+      "owned": true,
+      "windowless": true,
+      "syntheticInference": true,
+      "liveCalls": 0,
+      "receipt": {
+        "bytes": 135,
+        "sha256": "79f385fe1d69b6a9dcf19121b38a7c71b8119a549ce001329ae3ff023e341639"
+      },
+      "stdout": {
+        "bytes": 201,
+        "sha256": "99ccb246e206cc854d346fd4c90322a5c913eb50d90913d3923f1fa7fe9ee5ff"
+      },
+      "stderr": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    }
+  },
+  "originalFailure": {
+    "label": "focused-v1",
+    "passed": 6,
+    "failed": 1,
+    "cause": "Damage fixture collided with the locations unique identity before its assertion; corrected to change one row.",
+    "preserved": true,
+    "regressionV2NotCountedAgain": true
+  },
+  "serverAuthorization": false,
+  "productionQualified": false,
+  "publicObjectAdmissionReady": false,
+  "acceptedContributions": 0,
+  "searchCreditsCreated": 0,
+  "liveProviderCalls": 0,
+  "githubActionsStarted": 0,
+  "pilotOrRefresherInspected": false,
+  "pilotOrRefresherChanged": false,
+  "protectedBucketAccessed": false,
+  "remaining": [
+    "Authentic protected/runtime/quality import and device qualification",
+    "Atomic guarded Object publication and once-only credit integration",
+    "Genuine Object/Mac search and accepted-work acceptance",
+    "Signing/clean-device acceptance and remaining production operations gates"
+  ],
+  "earlierPassingSelectionsNotCountedAgain": [
+    "regression-v2",
+    "regression-v3",
+    "worker-v1"
+  ]
+}

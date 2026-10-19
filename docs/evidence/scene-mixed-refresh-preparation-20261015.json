@@ -1,0 +1,116 @@
+{
+  "version": 1,
+  "date": "2026-10-15",
+  "status": "REAL_SAVED_AUDITED_REFRESH_EVIDENCE_RECONCILED_MIXED_AUTHORITY_PREPARED",
+  "cloudCalls": 0,
+  "nativeInference": false,
+  "historicalEvidence": {
+    "savedSuccessfulActivations": 4,
+    "locationsAfterActivations": [
+      20,
+      22,
+      24,
+      26
+    ],
+    "initialLocations": 10,
+    "lastCachedLocations": 26,
+    "stableOriginalMemberIdsIndexesAndValuesPreserved": true,
+    "savedExactPolicyRuntimeSnapshotBundleHeadRepliesMatched": true,
+    "currentHostedHeadVerified": false,
+    "cachedSnapshotSha256": "67d64409079e3e587bf07f790691ac9a2ee2b38fba0d65e0e7f8865d4855f675",
+    "source": "preserved operator receipts/control replies from the stopped pilot; no fresh provider call",
+    "activations": [
+      {
+        "activationReplySha256": "2e63f89c4e06a7b9c5b9a84554cb64818364e327a85ff288cda994ce7ea2f917",
+        "headReplySha256": "ffcddbf2eb968574e109697855e5c8cf9ce529e1f5b9b397cdd08b56ba721fd5",
+        "locations": 20,
+        "receiptSha256": "382e5aef3e5e26e1089e9174de81271da94c347c6ead0587396950be941883a3",
+        "run": "1791720976-0010",
+        "snapshotSha256": "1aa76f944f82c8b26d854ac59aecc2362f43cf95bf645ce1aba8a8838b664f31",
+        "fromLocations": 10,
+        "stableMembersPreserved": 10,
+        "bundleSha256": "7d958d9dd9c2e180b0e3453522a435411ce336d03b06cad3d23afddaf4ae9cf8",
+        "exactPolicyRuntimeSnapshotBundleHeadMatched": true,
+        "runStartedAtUtc": "2026-10-11T12:16:16+00:00",
+        "exactHeadReplySha256": "ffcddbf2eb968574e109697855e5c8cf9ce529e1f5b9b397cdd08b56ba721fd5"
+      },
+      {
+        "activationReplySha256": "88bfef4e9db4255096902edd081dcaf7772b518e6b413ea8102f064e1b0c0311",
+        "headReplySha256": "4a16d959d226593f82de02fb6d028b094433a25e2b69839f3a5877b41c1d4525",
+        "locations": 22,
+        "receiptSha256": "b67bc5307aa3cb9652bc97c18483190bd7578898283ebf01b8ee17829235ec52",
+        "run": "1791728176-0011",
+        "snapshotSha256": "1a9deba0de0405ed486cd2f4d3fec8c476a235fd23d642c65cebebb7446944cb",
+        "fromLocations": 20,
+        "stableMembersPreserved": 20,
+        "bundleSha256": "690f85337843320eb9744d038782b0511f5f6d31d90f1e7392dd65f2ca672e53",
+        "exactPolicyRuntimeSnapshotBundleHeadMatched": true,
+        "runStartedAtUtc": "2026-10-11T14:16:16+00:00",
+        "exactHeadReplySha256": "4a16d959d226593f82de02fb6d028b094433a25e2b69839f3a5877b41c1d4525"
+      },
+      {
+        "activationReplySha256": "c21757d8567fd09efcf438283b20e6eee08fc08a7c7e8d8854eda33c66b4af1a",
+        "headReplySha256": "71aac7cea219da82b245bb840abd2eeb3cd833b1e1cb7f9e144368048ee60e1e",
+        "locations": 24,
+        "receiptSha256": "9762df5714b49c8bd3b86eee5569106d0af85fe2c65950683aebda183ffa106d",
+        "run": "1791756976-0012",
+        "snapshotSha256": "99ebcc09d8128aecc51cf3aa615fe9868b9e9d41f6359f2c28d19819decdb414",
+        "fromLocations": 22,
+        "stableMembersPreserved": 22,
+        "bundleSha256": "05171075b226488f84891cd5f76e0d29ed7325cdc3c5d89ddb169633ae5f0d05",
+        "exactPolicyRuntimeSnapshotBundleHeadMatched": true,
+        "runStartedAtUtc": "2026-10-11T22:16:16+00:00",
+        "exactHeadReplySha256": "71aac7cea219da82b245bb840abd2eeb3cd833b1e1cb7f9e144368048ee60e1e"
+      },
+      {
+        "activationReplySha256": "bc363d4ef942e4f6a7f64277c30c43775a26dc94eb9437ddde70a1c76e38dd54",
+        "headReplySha256": "7158392669334f873f128a6f94a64b47225b1dcc6845b20da41dec3c3e7bdf65",
+        "locations": 26,
+        "receiptSha256": "1986dc58d9fc11b11005b79e72dc9d75d0a77b1a47578568140f00fce7ae9c64",
+        "run": "1791778577-0015",
+        "snapshotSha256": "67d64409079e3e587bf07f790691ac9a2ee2b38fba0d65e0e7f8865d4855f675",
+        "fromLocations": 24,
+        "stableMembersPreserved": 24,
+        "bundleSha256": "2ec07caa9df948b93842540db914012c17276b9820c31dbb6c1b6ab84bef7bee",
+        "exactPolicyRuntimeSnapshotBundleHeadMatched": true,
+        "runStartedAtUtc": "2026-10-12T04:16:17+00:00",
+        "exactHeadReplySha256": "7158392669334f873f128a6f94a64b47225b1dcc6845b20da41dec3c3e7bdf65"
+      }
+    ]
+  },
+  "mixedPreparation": {
+    "activationApproved": false,
+    "productionApproved": false,
+    "scope": "qualified-and-audited-community-scene-publications",
+    "exactAuditedAndQualifiedPoliciesPinned": true,
+    "admissionModesAndLedgerReasonsKeptDistinct": true,
+    "historicalAuditedReferencesValidatedAgainstSavedControlsAndArtifactBytes": 26,
+    "newQualifiedRecordBytesMatchReconciledPublicationDigests": 2,
+    "newQualifiedRowsFabricated": false,
+    "newQualifiedSnapshotSealed": false,
+    "prospectiveLocationsOnlyIfFreshCaptureMatches": 28,
+    "maximumProposedLocations": 64,
+    "freshInventoryControlAndDynamicHeadRequired": true,
+    "r2DeliveryAuthorityUnresolved": true,
+    "nativeAllowancesRemainZero": true,
+    "originalPilotRefresherUntouched": true,
+    "executableActivationConfigCreated": false
+  },
+  "privateEvidenceSha256": {
+    "mixed-authority.private.json": "83aa7fde0a7732b2c559e822fe39db9b95265e24d81389b3ca5ae050334d861b",
+    "operator-decision.private.json": "5cf37ff78bce73c22d5bb3c080a43bde662ac9910d76257a1689792dd3de02e4",
+    "activation-proposal.private.json": "119119b175dfbc9bfadcf9e4281e595ee68d72597e3c958d064e9fdb1025b757",
+    "saved-audited-history-verified.private.json": "ff6f9b24698510a23c5e950d5fe143dcde75f0a9ca358fc842f498129608293c"
+  },
+  "preservedPreparationFailures": [
+    "private comparison expected locationId/id in approval references; corrected to actual approvedSha256 contract and ordered authoritative IDs",
+    "private preparation root path retained parent traversal; normalize filename before taking its parents"
+  ],
+  "limits": [
+    "Historical audited refresh evidence is not a new qualified-device append or current hosted head read",
+    "Mixed authority is local operator preparation, not platform qualification or deployment approval",
+    "Original failures and intentionally interrupted pilot remain unchanged; no continuous week",
+    "No pool upload/activation, paid search, provider recovery or production acceptance"
+  ],
+  "productionQualified": false
+}

@@ -1,0 +1,167 @@
+{
+  "version": 1,
+  "date": "2026-10-10",
+  "scope": "private-object-audit-privacy-component",
+  "parentCommit": "2af0ad0451fe2160174f648540e537ca439e9bed",
+  "platform": "Windows",
+  "python": "3.12.14",
+  "node": "24.19.0",
+  "sourceBytes": "actual Windows working files",
+  "sourceFiles": {
+    "community/object_audit_jobs.py": {
+      "bytes": 29312,
+      "sha256": "0405d3b8825c14e3cc23c8372b18f7f08c50b8b849a5b2c507687a19a5bf5ca6"
+    },
+    "community/tests/test_object_audit_jobs.py": {
+      "bytes": 31911,
+      "sha256": "3acf6232fab5010a2b85363b035115b5b4bf7d64d55b48527a3e0b7199d4e1ec"
+    },
+    "deploy/cloudflare/native-object-verifier-bridge/worker.js": {
+      "bytes": 8224,
+      "sha256": "3793b7227af94900f61088e7c69d9648f2e07f1613c3229dc11cd7bc4fff7417"
+    },
+    "deploy/cloudflare/native-object-verifier-bridge/worker.test.mjs": {
+      "bytes": 9480,
+      "sha256": "bbb23dde724174c44be6263cf68abc9958c8028b1dd17504d24a701ec52d8bcf"
+    },
+    "deploy/cloudflare/tools/object-audit-jobs.fixture.mjs": {
+      "bytes": 2883,
+      "sha256": "91e5cfa8907a1d1cfb88bb2ddcccbc87d8dce2679c49e4f8e926d868b49a1441"
+    },
+    "deploy/cloudflare/tools/check-local-object-audit-jobs.mjs": {
+      "bytes": 1985,
+      "sha256": "d707df8bd356f7192a89968cc39cf1ca619ce711b81517b8b9445486fffffe90"
+    }
+  },
+  "checks": {
+    "objectAuditJobs": {
+      "tag": "python-jobs-privacy-final",
+      "exitCode": 0,
+      "wallSeconds": 94.75,
+      "liveDataChanged": false,
+      "productionQualified": false,
+      "receipt": {
+        "bytes": 149,
+        "sha256": "86dd1e75009fae47f70d25a068e67120c127ed3cf5e22c7bf56d4f17a053f037"
+      },
+      "stdout": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "bytes": 6133,
+        "sha256": "640c8c8f6ae5dbb56d5098d4e99e6099c53427c4c0a1161c64c85ad9483e0fcc"
+      },
+      "tests": 30,
+      "passed": 30,
+      "skipped": 0,
+      "failed": 0
+    },
+    "nodeBridgeAndAdmission": {
+      "tag": "node-privacy",
+      "exitCode": 0,
+      "wallSeconds": 0.9689999999827705,
+      "liveDataChanged": false,
+      "productionQualified": false,
+      "receipt": {
+        "bytes": 149,
+        "sha256": "a85cf06c4a341d18b6bac670a53da99714a69af5f39172a4f800643da5d10405"
+      },
+      "stdout": {
+        "bytes": 1303,
+        "sha256": "6b63668d755131672a0fa84e2163c604abdc1e4c1e2e7c1a167a60c957973133"
+      },
+      "stderr": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "tests": 13,
+      "passed": 13,
+      "skipped": 0,
+      "failed": 0
+    },
+    "actualLocalWorkerd": {
+      "tag": "workerd-privacy-authorized",
+      "exitCode": 0,
+      "wallSeconds": 0.75,
+      "liveDataChanged": false,
+      "productionQualified": false,
+      "receipt": {
+        "bytes": 149,
+        "sha256": "acd1703fae3fdcfba97f25a78e49d267bd08080bcb66e00f08fe6b4bcaeb8ac9"
+      },
+      "stdout": {
+        "bytes": 161,
+        "sha256": "a6bb78906c11a78d716af0d45b9aeef0f6caca29c30cc881ce18051c614c2457"
+      },
+      "stderr": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "status": "ACTUAL_WORKERD_OBJECT_JOB_TRANSPORT_PASSED",
+      "cases": 12,
+      "syntheticProvider": true,
+      "objectAdmissionReady": false,
+      "nativeInferences": 0,
+      "creditsCreated": 0
+    }
+  },
+  "distinctChecksPassed": 55,
+  "privacyEvidence": {
+    "queuedErasureAcrossRestart": true,
+    "lateApprovalCannotUndoRevocation": true,
+    "activeWriterPreventsEarlyCleanup": true,
+    "partialFolderCleanupResumes": true,
+    "deletedFoldersBeforeCompletionCommitRecover": true,
+    "replaysCannotResurrectPayloadOrApproval": true,
+    "realWindowsDirectoryJunctionRefused": true,
+    "escapingPathsRefused": true,
+    "inventoryBoundEnforced": true,
+    "existingPrivateSpoolSchemaUpgradePreservesJobs": true,
+    "realLoopbackAuthenticatedErasure": true,
+    "ordinaryCancellationPreservesOriginalReports": true
+  },
+  "preservedDevelopmentFailures": [
+    {
+      "tag": "python-jobs-privacy",
+      "tests": 30,
+      "passed": 29,
+      "failed": 1,
+      "summary": "An existing cancellation fixture gave two jobs identical creation seconds and assumed the first random ID would win. Distinct controlled timestamps now ensure it cancels the intended active job. Native limits and service guards are unchanged.",
+      "receipt": {
+        "bytes": 155,
+        "sha256": "0ed39677ad840c31d530933ee22c0fb242c7394054d70a5ee5d8e673af529c5a"
+      },
+      "stdout": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "bytes": 7010,
+        "sha256": "671f007eec06dcf4dbfae2a03f804c93c6a3d367cacc43738092bb95ebb5adf8"
+      }
+    }
+  ],
+  "retention": {
+    "deleted": "Only explicitly selected private job candidate/source copies and native attempt folders, after the active writer exits.",
+    "retained": "Opaque IDs, hashes, attempt states and erasure timestamps prevent resurrection. Outside operator authority is untouched.",
+    "maximumInventoryEntriesPerFolder": 20000,
+    "automaticJobSlotRecycling": false
+  },
+  "acceptance": {
+    "syntheticInferenceRunner": true,
+    "actualMacExecution": false,
+    "physicalSleepRebootOrPowerFailureTest": false,
+    "cloudDeployed": false,
+    "liveAccountDeletionIntegrated": false,
+    "realCustomerFilesDeleted": false,
+    "objectAdmissionOpened": false,
+    "accountQualificationCreated": false,
+    "acceptedContributions": 0,
+    "creditsCreated": 0,
+    "sevenDayAcceptedWorkStarted": false,
+    "githubActionsStarted": false,
+    "unrelatedR2BucketAccessed": false
+  },
+  "next": "Connect hosted job ownership and account-deletion authority, qualification/quarantine, publication and once-only credit. The private erase acknowledgement does not complete hosted account deletion or start endurance."
+}

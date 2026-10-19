@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "dateUtc": "2026-10-10",
+  "status": "REAL_NATIVE_AUDIT_PUBLICATION_SEAL_VERIFIED",
+  "locations": 8,
+  "sameRecordsAndMembersAsRealPaidTrial": true,
+  "snapshotSha256": "b0b7b8a298209fc16d61a4373dc92e5e5bbc5e29ae4b556a57641c189e3bbf59",
+  "networkUsedBySealer": false,
+  "activated": false,
+  "productionApproved": false,
+  "windowsChecks": 152,
+  "skips": 0,
+  "failuresInFinalChecks": 0,
+  "restrictedFailurePreserved": true,
+  "privateEvidenceSha256": {
+    "audit-control-source.private.json": "f9aafc3a8188e2c7c2ecda88c3be78fa871e817b81a13d13a694538693aff310",
+    "publication-authority.private.json": "3e0d3a92ca1bcb25a6465d76fdafaf5ab53b2e27d02c9cfd9bffcccfa54be177",
+    "automatic-seal-readback.private.json": "3dcdb3d59ca9362486b90f992cd3747d66f20d0a8b4797ec859c1e5d75c15b6e",
+    "background-and-snapshot-first.stderr.private.log": "a4d6410791d7b5f43351ff66f78a93ad58c8ab420361494d7939bdfee6ecca5c",
+    "background-and-snapshot-authorized.stderr.private.log": "b2ae5d66fb8f4d1f855637caf26716b9495182c47a6e295914618c4508f8adfe"
+  }
+}

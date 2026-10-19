@@ -1,0 +1,93 @@
+{
+  "date": "2026-10-17",
+  "scope": "PRIVATE_SAVED_OBJECT_LIBRARY",
+  "focusedBoundaryTest": "PASS (one focused flow; rerun after nonzero global-ID fix)",
+  "actualSavedIndexUse": {
+    "status": "PASS",
+    "scope": "PRIVATE_SAVED_OBJECT_INDEX_IMPORT_AND_COMMON_SEARCH",
+    "locations": 16,
+    "query": "car",
+    "results": 15,
+    "ownerPublishedRuntimePinMatched": true,
+    "nativeVerifyCommands": 1,
+    "nativeCommonSearchCommands": 2,
+    "indexingCommands": 0,
+    "originalInputBytesUnchanged": true,
+    "packedRecordBytesUnchanged": true,
+    "mapEqualsDirectGoldQuery": true,
+    "diagnosticProvenanceRetained": true,
+    "compatibilityQualification": false,
+    "windowsExecuted": false,
+    "googleRequests": 0,
+    "cloudflareCalls": 0,
+    "wallSeconds": 0.307
+  },
+  "actualAppFlow": {
+    "cloudflareCalls": 0,
+    "googleRequests": 0,
+    "httpSemanticSearchMapExport": true,
+    "httpSetupImportReusedFromPreservedFirstAttempt": true,
+    "immediateCancellationChildReaped": true,
+    "locations": 16,
+    "models": "All published hashes matched in private APFS clones; no setup downloads needed",
+    "nativeIndexingCommands": 0,
+    "newDeviceQualification": false,
+    "scope": "ACTUAL_LOCAL_APP_OBJECT_FLOW",
+    "semanticMapEqualsDirectGoldQuery": true,
+    "semanticResults": 10,
+    "status": "PASS",
+    "visibleUIUsed": false,
+    "wallSeconds": 66.11,
+    "windowsExecuted": false
+  },
+  "preservedFailures": [
+    "First local sample read stalled in an existing192-byte class file; owned reader stopped",
+    "Bounded repeat timed out in retained sample reads; downloaded the already-published archive and matched its exact SHA256",
+    "First app query timed out in the harness; second stopped in an existing source-file read",
+    "Subsequent saved-input app attempt completed semantic search/map comparison/cancellation; original timeout/source-read failures retained"
+  ],
+  "limits": {
+    "bundleLocations": 1000,
+    "featureBytes": 32000000,
+    "archiveBytes": 41943040,
+    "newObjectProcessingEnabled": false,
+    "deviceQualified": false,
+    "windowsExecuted": false,
+    "nativeFilePanelsExercised": false,
+    "signed": false,
+    "publicProductionApproved": false
+  },
+  "operations": {
+    "indexingCommands": 0,
+    "googleRequests": 0,
+    "cloudflareCalls": 0,
+    "actionsDispatched": 0,
+    "oldJobsRestarted": 0
+  },
+  "packaging": {
+    "status": "PASS",
+    "sourceRevision": "6eacf523fa317cf6b51962673c605245bb7b137a",
+    "allArchiveMembersAndPinsVerified": true,
+    "coreMathAndRuntimePinsUnchanged": true,
+    "standaloneMacAppSelfCheck": true,
+    "simpleGuideBundled": true,
+    "windowsExecuted": false,
+    "newIndexingCommands": 0,
+    "googleRequests": 0,
+    "cloudflareCalls": 0,
+    "assets": 10
+  },
+  "packagedHiddenWebKit": {
+    "cloudflareCalls": 0,
+    "googleRequests": 0,
+    "nativeFilePanelsExercised": false,
+    "newInference": 0,
+    "scope": "PACKAGED_HIDDEN_WEBKIT_PAGE_AND_AUTH",
+    "sourceRevision": "6eacf523fa317cf6b51962673c605245bb7b137a",
+    "status": "PASS",
+    "visibleWindowCreated": false,
+    "wallSeconds": 0.509,
+    "windowsExecuted": false
+  },
+  "ownedEarlyStartupCancellation": "PASS: actual deliberately slow owned script exited79 in0.186 seconds; no application imports or native inference"
+}

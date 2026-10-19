@@ -1,0 +1,427 @@
+{
+  "version": 1,
+  "completedAt": "2026-10-12T02:48:35.190826+00:00",
+  "sourceBase": "46b2de15bfaf057cc8f7d40cf9ce888dcba6b6f0",
+  "scope": "LOCAL_OBJECT_PUBLIC_METADATA_PROJECTION_AND_QUALITY_CONTRACT_NOT_NATIVE_ADMISSION",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "runtime": "Node.js 24.19.0; Python 3.12.14; existing private runtimes",
+  "sources": {
+    "community/tests/test_object_public_manifest.py": {
+      "bytes": 5509,
+      "sha256": "f7e882444a293eef6ab1c25b6dec8c432b95abf641605cfe22c8d92fc0474835"
+    },
+    "deploy/cloudflare/src/objectPublicManifest.js": {
+      "bytes": 6003,
+      "sha256": "94c9466592b5fc5b2c76db5d9e44120aca024fd0e73235ea119cdf36bc9edba3"
+    },
+    "deploy/cloudflare/src/objectPublicManifest.test.mjs": {
+      "bytes": 5304,
+      "sha256": "5bd0f8674f7ecb7ad9e495718b6f30c222ad3ce396957dd3db246e092e2d23d4"
+    },
+    "deploy/cloudflare/src/objectSettlementCheck.js": {
+      "bytes": 9094,
+      "sha256": "a3535f197d577c228a3d852e2ac95cbfbf411aba14f994084658c1eff3f7235f"
+    },
+    "deploy/cloudflare/src/objectSettlementCheck.test.mjs": {
+      "bytes": 15853,
+      "sha256": "186a99533f54c23aeb29c10860b7c9c6d8db27d5c95b93197e327ed8a305b6bd"
+    },
+    "deploy/cloudflare/src/objectStorageRouter.test.mjs": {
+      "bytes": 7462,
+      "sha256": "ffa270055117c7a8481c6afddd6e77c1cc2eb472f5db08ec2141674187d996c5"
+    },
+    "deploy/cloudflare/src/worker.js": {
+      "bytes": 61469,
+      "sha256": "65e9adf9b17f7eb378b12a6ae51a2daa775cea58d19d664d54842d5ac31eae4f"
+    },
+    "deploy/cloudflare/tools/check-local-object-settlement.mjs": {
+      "bytes": 4429,
+      "sha256": "1a3350ae5b5b4dbd60f434378da0f0e984092253d94ff619ee53343901d8a967"
+    },
+    "deploy/cloudflare/tools/object-settlement.fixture.mjs": {
+      "bytes": 5703,
+      "sha256": "d6102503aafba024dbf5f19130b560e6bf21e8bc1722c52b4a10d30a0f4b0ca5"
+    },
+    "deploy/cloudflare/tools/check-local-object-publication.mjs": {
+      "bytes": 8077,
+      "sha256": "532a0b878d1e9ae5a37bfa217172ad91454b0df21e497f71c546db59f537f5df"
+    },
+    "community/object_snapshot.py": {
+      "bytes": 33841,
+      "sha256": "a61a47a39fd44e5fb8ff0095b189f16e607088ed58f9e0d9268d86ede5ab335d"
+    },
+    "community/tests/fixtures/object-feature-content-v1.json": {
+      "bytes": 87675,
+      "sha256": "7ea553cee86b43254c07cb2cddc262e1a9c800025fdc655e2ca4dec77cbc2589"
+    }
+  },
+  "verification": {
+    "javascript": {
+      "passed": 203,
+      "failed": 0,
+      "skipped": 0,
+      "newGroupedTests": 7
+    },
+    "python": {
+      "distinctPassingTests": 114,
+      "regressionPassedBeforeHarnessRepair": 113,
+      "repairedParityTestPassed": 1,
+      "parityCases": 32,
+      "unresolvedFailures": 0,
+      "skipped": 0
+    },
+    "actualLocalWorkerd": {
+      "candidateIntegrityCases": 13,
+      "publicationPrivacyCases": 11,
+      "totalCases": 24,
+      "freshProcesses": 5,
+      "realLocalD1AndR2": true,
+      "syntheticInference": true,
+      "syntheticCoverage": true,
+      "syntheticPublicationCreditedUnits": 20,
+      "realEarnedCredits": 0
+    },
+    "finalRuns": [
+      "regression-v1",
+      "worker-v1",
+      "parity-v2",
+      "publication-v4-workerd"
+    ],
+    "focusedSubsetNotAddedToTotal": true,
+    "hiddenOwnedWindowsProcesses": true
+  },
+  "privateReceipts": {
+    "focused-v1": {
+      "group": "focused",
+      "exitCode": 0,
+      "wallSeconds": 1.6570000000065193,
+      "owned": true,
+      "windowless": true,
+      "syntheticInference": true,
+      "liveCalls": 0,
+      "realAcceptedContributions": 0,
+      "realEarnedCredits": 0,
+      "receipt": {
+        "bytes": 205,
+        "sha256": "1e3eb61e9be63edb05bad3a58451d53a497b47da9a98296b7efc238bde7a3f76"
+      },
+      "stdout": {
+        "bytes": 2392,
+        "sha256": "2344f540b77b3b10b1e89d6ea601ab9604765cd6b790e226831b41aacdea8637"
+      },
+      "stderr": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    "parity-v2": {
+      "group": "parity",
+      "exitCode": 0,
+      "wallSeconds": 0.7660000000032596,
+      "owned": true,
+      "windowless": true,
+      "syntheticInference": true,
+      "liveCalls": 0,
+      "realAcceptedContributions": 0,
+      "realEarnedCredits": 0,
+      "receipt": {
+        "bytes": 204,
+        "sha256": "84e4b73746169425b3a66c36b7e300e74b0fa7b99d8c438d75d0ab00395e72fd"
+      },
+      "stdout": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "bytes": 324,
+        "sha256": "32b29525cfbfc2599fc555d8914d8cb12e9ac0d209ba1354a41744010eb62dfb"
+      }
+    },
+    "publication-v1-build": {
+      "group": "build",
+      "exitCode": 0,
+      "wallSeconds": 1.0150000000139698,
+      "owned": true,
+      "windowless": true,
+      "liveCalls": 0,
+      "realAcceptedContributions": 0,
+      "realEarnedCredits": 0,
+      "receipt": {
+        "bytes": 175,
+        "sha256": "5ecd2dbc83cdb145e0ea96e18199b4094747ca01875a809b0f2f1e3f9a6582c7"
+      },
+      "stdout": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    "publication-v1-workerd": {
+      "group": "workerd",
+      "exitCode": 1,
+      "wallSeconds": 0.8439999999827705,
+      "owned": true,
+      "windowless": true,
+      "liveCalls": 0,
+      "realAcceptedContributions": 0,
+      "realEarnedCredits": 0,
+      "receipt": {
+        "bytes": 177,
+        "sha256": "1203c6d195c6deda851e0f27b1f1a2f1b884da57df2621f830bfc5639e968cc6"
+      },
+      "stdout": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "bytes": 3515,
+        "sha256": "98dd20a98cb7e94ccb132baca84c77cabb4f4a2bf1ac3dd2608b6743d481b3bd"
+      }
+    },
+    "publication-v2-build": {
+      "group": "build",
+      "exitCode": 0,
+      "wallSeconds": 0.4220000000204891,
+      "owned": true,
+      "windowless": true,
+      "liveCalls": 0,
+      "realAcceptedContributions": 0,
+      "realEarnedCredits": 0,
+      "receipt": {
+        "bytes": 175,
+        "sha256": "af7cc2effd0644fa69e1370d6ae4b02b736ddefc2e1715f91d1f970108cd21c3"
+      },
+      "stdout": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    "publication-v2-workerd": {
+      "group": "workerd",
+      "exitCode": 1,
+      "wallSeconds": 0.8589999999967404,
+      "owned": true,
+      "windowless": true,
+      "liveCalls": 0,
+      "realAcceptedContributions": 0,
+      "realEarnedCredits": 0,
+      "receipt": {
+        "bytes": 177,
+        "sha256": "4da90f0b6e93a49e7b7b9b4f21b313acd445160eacda5d12da84442443e99214"
+      },
+      "stdout": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "bytes": 3515,
+        "sha256": "0a49581b9ed72b138fb34ff7f1865e3236e078e7633cf1039277dc6ec5c0d6b1"
+      }
+    },
+    "publication-v3-build": {
+      "group": "build",
+      "exitCode": 0,
+      "wallSeconds": 0.40700000000651926,
+      "owned": true,
+      "windowless": true,
+      "liveCalls": 0,
+      "realAcceptedContributions": 0,
+      "realEarnedCredits": 0,
+      "receipt": {
+        "bytes": 176,
+        "sha256": "3b50d92837fd7bbe7cf4916e19f646ccc1c4ca0b3378c9014d6430ab49daeb01"
+      },
+      "stdout": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    "publication-v3-workerd": {
+      "group": "workerd",
+      "exitCode": 1,
+      "wallSeconds": 4.1560000000172295,
+      "owned": true,
+      "windowless": true,
+      "liveCalls": 0,
+      "realAcceptedContributions": 0,
+      "realEarnedCredits": 0,
+      "receipt": {
+        "bytes": 177,
+        "sha256": "119651bd5600c2a5fabe0a5602b582efad6afd333f9d93b1a01116967e92053b"
+      },
+      "stdout": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "bytes": 1365,
+        "sha256": "b33ff67a03f5adfb3a5660bd40eb5d08d08ed1f981998772db58bd062b551b26"
+      }
+    },
+    "publication-v4-build": {
+      "group": "build",
+      "exitCode": 0,
+      "wallSeconds": 0.4380000000237487,
+      "owned": true,
+      "windowless": true,
+      "liveCalls": 0,
+      "realAcceptedContributions": 0,
+      "realEarnedCredits": 0,
+      "receipt": {
+        "bytes": 175,
+        "sha256": "de2deeb273b4274a943811687985dfdb28f8a27af730e8fba9a77dbe25ed325c"
+      },
+      "stdout": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    "publication-v4-workerd": {
+      "group": "workerd",
+      "exitCode": 0,
+      "wallSeconds": 5.73399999999674,
+      "owned": true,
+      "windowless": true,
+      "liveCalls": 0,
+      "realAcceptedContributions": 0,
+      "realEarnedCredits": 0,
+      "receipt": {
+        "bytes": 175,
+        "sha256": "a97155884a1f9bbfc1b82d457a9d27fe6ff29e1ec7f360a9ce484e8a4ae007dd"
+      },
+      "stdout": {
+        "bytes": 239,
+        "sha256": "92b4c051d35bf4902e50c7cbd199e8faaaef37a60f445c3e41275ea4c58036e6"
+      },
+      "stderr": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    "python-v1": {
+      "group": "python",
+      "exitCode": 1,
+      "wallSeconds": 80.85899999999674,
+      "owned": true,
+      "windowless": true,
+      "syntheticInference": true,
+      "liveCalls": 0,
+      "realAcceptedContributions": 0,
+      "realEarnedCredits": 0,
+      "receipt": {
+        "bytes": 203,
+        "sha256": "1be0efbf21b33385c516eee3074a4227750158ae0efadd7112f4b53a93c3a524"
+      },
+      "stdout": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "bytes": 20121,
+        "sha256": "421e40c3047192dafae540ada5c5855fb49d77b8d40e445733bc4bfc338d1796"
+      }
+    },
+    "regression-v1": {
+      "group": "regression",
+      "exitCode": 0,
+      "wallSeconds": 2.9060000000172295,
+      "owned": true,
+      "windowless": true,
+      "syntheticInference": true,
+      "liveCalls": 0,
+      "realAcceptedContributions": 0,
+      "realEarnedCredits": 0,
+      "receipt": {
+        "bytes": 208,
+        "sha256": "27a4b56508559a00f614e1194ccd900f3ab120a06625ce6241c534cd6bd10261"
+      },
+      "stdout": {
+        "bytes": 16755,
+        "sha256": "0472c59237a24af715bf23f6b90067f1c4f74c69e45e80d186fa4f2f1713f9d1"
+      },
+      "stderr": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    "worker-v1": {
+      "group": "worker",
+      "exitCode": 0,
+      "wallSeconds": 4.48499999998603,
+      "owned": true,
+      "windowless": true,
+      "syntheticInference": true,
+      "liveCalls": 0,
+      "realAcceptedContributions": 0,
+      "realEarnedCredits": 0,
+      "receipt": {
+        "bytes": 202,
+        "sha256": "b690a970e2c7dcfa0c02344c7aedb2ae5c6c0c2007019307bf5493625755cf97"
+      },
+      "stdout": {
+        "bytes": 201,
+        "sha256": "99ccb246e206cc854d346fd4c90322a5c913eb50d90913d3923f1fa7fe9ee5ff"
+      },
+      "stderr": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    }
+  },
+  "finalBundledWorker": {
+    "bytes": 237185,
+    "sha256": "e79834e4cc8b8d16f60931789e6d4d318f8a4fe5d4975b356ad5a3a8a82eb60e"
+  },
+  "preservedFailures": [
+    {
+      "run": "python-v1",
+      "result": "113 passing checks; new parity test errored before Node invocation because run_owned reserves stdin for ownership. Repaired test supplies an input file argument; parity-v2 passes."
+    },
+    {
+      "runs": [
+        "publication-v1-workerd",
+        "publication-v2-workerd"
+      ],
+      "result": "Local automatic-module configurations failed at runtime startup. Explicit ESModule and modulesRoot fix the fixture; no publication assertions ran in these attempts."
+    },
+    {
+      "run": "publication-v3-workerd",
+      "result": "Seed publication/storage assertions passed, then fixture requested readiness from /api/status rather than /api/capabilities. Corrected endpoint; final fresh seed/recover processes pass."
+    }
+  ],
+  "limitations": [
+    "No authentic Object model inference, device qualification, protected source approval or provider deployment.",
+    "Projection and checksum syntax do not establish independent protected/runtime/quality authority.",
+    "Feature and source TSV bytes remain unchanged in the private owned R2 bundle; later searchable-snapshot normalization remains required.",
+    "The original private quarantine payload is preserved; only publicManifest is suitable as publication metadata.",
+    "Authentic qualification and atomic publication/once-only credit integration remain open.",
+    "Mac, signed clean-device acceptance, full accepted-work soaks, recovery/capacity gates and controlled rollout remain open."
+  ],
+  "serverAuthorization": false,
+  "productionQualified": false,
+  "publicAdmission": false,
+  "liveCalls": 0,
+  "realAcceptedContributions": 0,
+  "realEarnedCredits": 0,
+  "actionsRuns": 0,
+  "deployments": 0,
+  "privateUploads": 0,
+  "imageryDownloads": 0,
+  "scenePilotPolledOrChanged": false,
+  "protectedBucketAccessed": false
+}

@@ -1,0 +1,88 @@
+{
+  "version": 1,
+  "date": "2026-10-14",
+  "status": "REAL_EXISTING_SCENE_RECEIPT_OPERATOR_RECONCILED",
+  "directHumanAnswer": "Approve the two direct database checks",
+  "reviewedOperatorSource": "6ce48f28bbf1973502acfeead8cb4c215cf86945",
+  "currentBranchBeforeEvidence": "43181d226a23f4fd77f705dee8b2f53628bd6430",
+  "execution": {
+    "selectRequests": 2,
+    "requestBytesEach": 2026,
+    "firstValidatedBeforeSecond": true,
+    "requestStartDeadlineSeconds": 120,
+    "secondRequestStartedWithinDeadline": true,
+    "millisecondsBetweenRequestStarts": 31258,
+    "usagePerRequest": [
+      {
+        "read": 16,
+        "written": 0,
+        "providerAttempts": 1
+      },
+      {
+        "read": 16,
+        "written": 0,
+        "providerAttempts": 1
+      }
+    ],
+    "totalUsage": {
+      "read": 32,
+      "written": 0
+    },
+    "retries": 0,
+    "scopeConsumed": true
+  },
+  "reconciliation": {
+    "acceptedScenes": 2,
+    "originalAwardUnits": 2,
+    "originalLedgerEntries": 1,
+    "newAwardUnits": 0,
+    "twoRepliesIdentical": true,
+    "currentBalanceStable": true,
+    "balanceValueKeptPrivate": true,
+    "currentSchemaValidated": true,
+    "accountActiveAndRecoveryHashMatched": true,
+    "leaseAndContributedPublicationDigestsMatched": true,
+    "storedZeroCreditReplayContractMatched": true,
+    "qualificationRenewed": false,
+    "gatewayAuthenticationVerified": false,
+    "r2ArtifactBytesDownloaded": false
+  },
+  "unchanged": {
+    "originalFailedTrialStatus": "INCOMPLETE",
+    "originalTrialFailurePreserved": true,
+    "earlierLauncherAnd403FailuresPreserved": true,
+    "historical403CauseKnown": false,
+    "workerDeployment": false,
+    "workerConfigurationMutation": false,
+    "newClosureReadbackPerformed": false,
+    "previousVerifiedClosedPostureUntouched": true,
+    "indexMaintenance": false,
+    "nativeInference": false,
+    "newAssignment": false,
+    "uploads": 0,
+    "r2Calls": 0,
+    "searches": 0,
+    "credentialRotation": false,
+    "tasksRestarted": false,
+    "actionsRuns": 0
+  },
+  "limits": [
+    "Single accepted batch/account reconciliation, not a fresh complete database/deletion/financial cutoff",
+    "No public gateway authentication or original 403 cause verified",
+    "No R2 artifact download, search refresh, paid search, provider/secret recovery or endurance acceptance",
+    "Original trial and failed recovery attempts remain incomplete, not rewritten as passed",
+    "No production readiness claim"
+  ],
+  "privateEvidenceSha256": {
+    "human-direct-api-approval.private.json": "80295a3859fd44c3ddc7ec14ddc49f840e3902225f7c89b6872ed8ecc0284b60",
+    "direct-api-operator-plan.private.json": "4e44f56c0de37906e57aa197f85942185cfa3badb7d567e4341dcb8428919ac1",
+    "direct-api-response-1.envelope.private.json": "7272217fd43fd1fb9381e7b90f23b8f4a3b59e8a38940356f31f11e4cac0d762",
+    "direct-api-response-2.envelope.private.json": "2e9539b78094e0bbe68d2d2116d62fe8ed2e6c64e6ad50cdcdec673d03cf85f1",
+    "direct-api-validated-1.private.json": "81bf9a9a0fff5e854e7017ed9701f1b5f54c32122e1ca6ea93928fe0911d4f7d",
+    "direct-api-validated-pair.private.json": "6368ae2d3f6fda291eeeeae02ba7e35848cf0813dcd81868df05e9531b2857f5",
+    "direct-api-timing.private.json": "e91019211760cc3ef97fb03a966798848125ed0d8cd1599aad702b5d81296472",
+    "direct-api-validation-1.stdout.private.log": "3e3c2c5c09864b3f52248c62876e493b0362740da925cdfbe2ee037db1a251f6",
+    "direct-api-validation-pair.stdout.private.log": "cb905abe9f102014ce77287125574a138c277499fdab4b9d829ecccc0ee824d9"
+  },
+  "productionQualified": false
+}

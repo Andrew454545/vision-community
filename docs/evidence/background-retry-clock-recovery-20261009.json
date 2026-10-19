@@ -1,0 +1,176 @@
+{
+  "version": 1,
+  "scope": "bounded-persisted-background-retry-and-clock-correction",
+  "recordedAt": "2026-10-10T00:12:59.032716+00:00",
+  "baseCommit": "41a3776969a00524dd1468caf8ad98131ac62066",
+  "platform": {
+    "system": "Windows",
+    "release": "11",
+    "machine": "AMD64",
+    "python": "3.12.14",
+    "actualMacExecution": false
+  },
+  "files": {
+    "community/background.py": {
+      "bytes": 30229,
+      "sha256": "caad2ba946ae0554e3cbde9cf8541906152d96b7ab6fa5218858e4b21d4e4dfa"
+    },
+    "community/tests/test_background.py": {
+      "bytes": 24359,
+      "sha256": "0e392cac616376f06ebdb73220eb74045838f4670a945b6d30ac0a27abf40c3c"
+    },
+    "community/tests/test_background_http_recovery.py": {
+      "bytes": 16555,
+      "sha256": "a091102946a680deff16dbfc005d082bd3335426aa282bd237ba20ae8e52c36b"
+    }
+  },
+  "initialRestrictedReproduction": {
+    "tests": 6,
+    "passed": 1,
+    "errors": 0,
+    "failures": 5,
+    "skips": [],
+    "seconds": 4.547,
+    "productionQualified": false
+  },
+  "intermediateRestrictedFocusedCheck": {
+    "tests": 6,
+    "passed": 5,
+    "errors": 0,
+    "failures": 1,
+    "skips": [],
+    "seconds": 7.109,
+    "productionQualified": false
+  },
+  "intermediateRestrictedLoopbackDetail": {
+    "tests": 1,
+    "passed": 0,
+    "errors": 0,
+    "failures": 1,
+    "skips": [],
+    "seconds": 6.844,
+    "productionQualified": false
+  },
+  "finalFocusedLoopbackCheck": {
+    "tests": 6,
+    "passed": 6,
+    "errors": 0,
+    "failures": 0,
+    "skips": [],
+    "seconds": 5.094,
+    "productionQualified": false
+  },
+  "affectedRegression": {
+    "tests": 116,
+    "passed": 115,
+    "errors": 0,
+    "failures": 0,
+    "skips": [
+      {
+        "id": "community.tests.test_mac_background.MacStorageLinksTests.test_only_pinned_direct_regular_siblings_count_once_without_reading_private_contents",
+        "reason": "Symlink creation not permitted"
+      }
+    ],
+    "seconds": 77.937,
+    "productionQualified": false
+  },
+  "retainedEvidence": {
+    "affected-regression.private.json": {
+      "bytes": 371,
+      "sha256": "93cf5959fa45312b8c22a18ec6450ff629940f35dda33f9936b7a32d6ac78460"
+    },
+    "affected-regression.stderr.private.log": {
+      "bytes": 22863,
+      "sha256": "bbb1ae440b894048f1a18614bb44c489b3714debda1ba255a40ee02b6bf85e1d"
+    },
+    "affected-regression.stdout.private.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "after-fix-focused.private.json": {
+      "bytes": 140,
+      "sha256": "df6653e077ba649ef171d5ef88acb60e895f2cb988f556883ff52e5b3b446bb5"
+    },
+    "after-fix-focused.stderr.private.log": {
+      "bytes": 2325,
+      "sha256": "b83467c8b6f4e2a9cb713222bce860349c00af1a4a7f518f5196f9c5e74a54fb"
+    },
+    "after-fix-focused.stdout.private.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "after-fix-http-detail.private.json": {
+      "bytes": 140,
+      "sha256": "7ea3748750415985883f2575da3aa329d3dd16a022f6fbf72f3819b01352dc0c"
+    },
+    "after-fix-http-detail.stderr.private.log": {
+      "bytes": 1545,
+      "sha256": "7120ca3c4fdc538316efb00493a101d513a11745e93bd04671645bd299b798a3"
+    },
+    "after-fix-http-detail.stdout.private.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "after-fix-loopback.private.json": {
+      "bytes": 140,
+      "sha256": "6069226da1494dbf1ed815b5036514af59968cf00e42f590de345f3ec8d74c0b"
+    },
+    "after-fix-loopback.stderr.private.log": {
+      "bytes": 1255,
+      "sha256": "a4d562d61f9f49930871470034cc066cfeba84cdc247422387151a6a19aa1076"
+    },
+    "after-fix-loopback.stdout.private.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "before-fix.private.json": {
+      "bytes": 140,
+      "sha256": "b5902989ec218cee4fd2b1b7527a3b00228171a9995ff50d84838f8eb9321bce"
+    },
+    "before-fix.stderr.private.log": {
+      "bytes": 4837,
+      "sha256": "babf268fe74ec773d7125aaef18fd0d1814fbbdda6d53226ab0448eb0aded0bf"
+    },
+    "before-fix.stdout.private.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "run-checks.py": {
+      "bytes": 1847,
+      "sha256": "f459318bcbc02e5e3d697474bf96df449241494a3537dbca0d0b27dd83a02797"
+    }
+  },
+  "newChecks": [
+    "backward-clock service retry persists a bounded deadline across fresh workers",
+    "backward-clock native retry preserves progressive delay and attempt count",
+    "ordinary remaining cooldown is not rewritten or extended",
+    "forward-clock expired retry can proceed normally",
+    "pause and needs-attention markers take precedence over clock repair",
+    "oversized retry record is retained and stops before service or indexing work",
+    "boolean retry version is refused without overwriting the original",
+    "real loopback HTTP/SQLite saved delivery recovers once after rebased cooldown across fresh processes"
+  ],
+  "execution": {
+    "hiddenTestProcess": true,
+    "workspaceScratch": true,
+    "externalServiceCalls": 0,
+    "actualSystemClockChanged": false,
+    "actualOperatingSystemRestart": false,
+    "modelInference": false,
+    "realAccountsCreated": 0,
+    "realContributions": 0,
+    "realCreditAwards": 0,
+    "githubActionsStarted": 0,
+    "installedContributorUpdated": false,
+    "runningDiagnosticSnapshotChanged": false
+  },
+  "productionQualified": false,
+  "acceptedWorkSoak": false,
+  "limits": [
+    "The initial HTTP fixture and two intermediate checks ran under restricted loopback access; the preserved network_error failures are not product recovery evidence.",
+    "The allowed finite loopback run passes all six focused cases and the affected 116-case regression has one explicit Windows symlink-privilege skip.",
+    "Mac control fixtures executed on Windows do not replace actual Mac execution.",
+    "The unchanged endurance diagnostic remains pinned to ad666f17378285a8155f27806a551227349fe80c and does not test this later patch.",
+    "Neither accepted-work clock has started; no production release gate is closed."
+  ]
+}

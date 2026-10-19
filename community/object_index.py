@@ -31,22 +31,30 @@ from pathlib import Path
 from .contribute import (
     DEFAULT_URL,
     RETRYABLE_CODES,
+    RETRY_STATUSES,
     CommunityClient,
     ContributeError,
     default_session_path,
     load_session,
     save_session,
 )
-from .pano import CLI_LEASE_CAP
+from .delivery import DurableCommunityClient
 from .vision_index import (
+    MAX_INDEX_FAILURES,
+    MAX_NO_PROGRESS,
+    MAX_QUEUE_FAILURES,
+    RETRYABLE_NATIVE_CODES,
     VisionIndexError,
     assert_not_live_vision_path,
     community_support_root,
+    default_runner as logged_native_runner,
     keep_lease_alive,
+    inference_environment,
     location_tsv_line,
     program_name,
     run_binary,
     vision_support_root,
+    write_json,
 )
 
 
@@ -75,6 +83,11 @@ OBJECT_CAPABILITIES = [
 ]
 DUTY_CYCLE_PERCENT = 25
 CHECKPOINT_EVERY = 10
+# Keep unattended native jobs small on both platforms. A single measured
+# Object location can take minutes; the old 8/32/64-location defaults tied up
+# a whole lease for hours and delayed pause/schedule changes. Pace is separate
+# from batch size. Experienced operators can still choose an explicit count.
+DEFAULT_NATIVE_BATCH_LOCATIONS = 1
 RECORD_BYTES = 32
 GLOBAL_ID_BYTES = 12
 SEMANTIC_RECORD_BYTES = 144
@@ -113,6 +126,12 @@ def installed_object_binary() -> Path:
 def object_uses_cpu(platform_name: str | None = None) -> bool:
     """Mac builds include CoreML. Windows and Linux builds run the same models on CPU."""
     return (sys.platform if platform_name is None else platform_name) != "darwin"
+
+
+def require_object_cpu_execution(stderr: str) -> None:
+    """Reject a CPU runtime that silently ignores the shared inference budget."""
+    if "[vision-object] ONNX Runtime global threads: 1, spinning disabled" not in stderr.splitlines():
+        raise VisionIndexError("vision_object_runtime_update_required")
 
 
 def file_sha256(path: Path) -> str:
@@ -277,11 +296,11 @@ def index_segment_arguments(
         "--total-locations", str(int(total)),
         "--global-start", str(int(global_start)),
         "--duty-cycle-percent", str(DUTY_CYCLE_PERCENT),
-        "--checkpoint-every", str(CHECKPOINT_EVERY),
+        "--checkpoint-every", "1" if object_uses_cpu() else str(CHECKPOINT_EVERY),
         "--model-cache", str(model_cache),
     ]
     if object_uses_cpu():
-        arguments.append("--cpu")
+        arguments.extend(["--cpu", "--stop-after", "1"])
     return arguments
 
 
@@ -366,11 +385,15 @@ def _file_entry(
     payload: bytes,
     require_record_bytes: bool = True,
 ) -> None:
-    if entry.get("file") != file_name or entry.get("records") != records:
+    if (not isinstance(entry, dict) or type(entry.get("records")) is not int
+            or type(entry.get("bytes")) is not int
+            or entry.get("file") != file_name or entry.get("records") != records):
         raise VisionIndexError("verification_failed")
     # Class and hot-concept lanes store the size in bytes only. VISION's
     # manifest does not repeat recordBytes on those entries.
     stated = entry.get("recordBytes")
+    if isinstance(stated, bool):
+        raise VisionIndexError("verification_failed")
     if require_record_bytes:
         if stated != record_bytes:
             raise VisionIndexError("verification_failed")
@@ -394,7 +417,14 @@ def validate_object_index(
     global_start: int = GLOBAL_START,
 ) -> list[dict]:
     """Check a finished object index against the VISION v4 hybrid contract."""
-    if not isinstance(manifest, dict) or not isinstance(files, dict):
+    from .object_features import MAX_BYTES, MAX_LOCATIONS, MAX_SOURCE_BYTES
+    if isinstance(manifest, dict) and "frozenViewsManifestSha256" in manifest:
+        raise VisionIndexError("verification_failed")
+    if (not isinstance(manifest, dict) or not isinstance(files, dict)
+            or not isinstance(items, list) or not 0 < len(items) <= MAX_LOCATIONS
+            or not isinstance(source_tsv, bytes) or not 0 < len(source_tsv) <= MAX_SOURCE_BYTES
+            or len(files) > 87 or not all(isinstance(raw, bytes) for raw in files.values())
+            or sum(map(len, files.values())) > MAX_BYTES):
         raise VisionIndexError("verification_failed")
     ordered = sorted(items, key=_item_id)
     total = len(ordered)
@@ -418,7 +448,12 @@ def validate_object_index(
         "offsets": 1,
         "globalIds": 1,
     }
-    if any(contracts.get(key) != value for key, value in expected_contracts.items()):
+    if any(type(contracts.get(key)) is not int or contracts.get(key) != value
+           for key, value in expected_contracts.items()):
+        raise VisionIndexError("verification_failed")
+    if any(isinstance(manifest.get(key), bool) for key in ("version", "totalLocations", "indexedLocations",
+            "globalStart", "minimumGlobalLocation", "maximumGlobalLocation", "imageSize", "tileGrid", "viewCount",
+            "faceSize", "bandsPerFace", "bandWidth", "bandHeight", "recordBytes", "sourceBytes")):
         raise VisionIndexError("verification_failed")
     if (
         manifest.get("version") != 4
@@ -463,7 +498,10 @@ def validate_object_index(
     countries = manifest.get("countries")
     if not isinstance(countries, list) or not countries or len(set(countries)) != len(countries):
         raise VisionIndexError("verification_failed")
-    lines = [line for line in source_tsv.decode("utf-8").splitlines() if line.strip()]
+    try:
+        lines = [line for line in source_tsv.decode("utf-8").splitlines() if line.strip()]
+    except UnicodeDecodeError:
+        raise VisionIndexError("verification_failed") from None
     if len(lines) != total:
         raise VisionIndexError("verification_failed")
     tsv_countries = []
@@ -516,7 +554,8 @@ def validate_object_index(
     for entry, (class_id, name) in zip(classes, OBJECT_CLASSES):
         file_name = class_file_name(class_id, name)
         payload = files.get(file_name)
-        if payload is None or entry.get("id") != class_id or entry.get("name") != name:
+        if (not isinstance(entry, dict) or isinstance(entry.get("id"), bool)
+                or payload is None or entry.get("id") != class_id or entry.get("name") != name):
             raise VisionIndexError("verification_failed")
         if not _near(entry.get("storageFloor"), storage_floor(class_id)):
             raise VisionIndexError("verification_failed")
@@ -537,7 +576,8 @@ def validate_object_index(
     for concept_id, (entry, name, floor) in enumerate(zip(hot, HOT_CONCEPTS, HOT_FLOORS)):
         file_name = hot_file_name(concept_id, name)
         payload = files.get(file_name)
-        if payload is None or entry.get("id") != concept_id or entry.get("name") != name:
+        if (not isinstance(entry, dict) or isinstance(entry.get("id"), bool)
+                or payload is None or entry.get("id") != concept_id or entry.get("name") != name):
             raise VisionIndexError("verification_failed")
         if not _near(entry.get("storageFloor"), floor):
             raise VisionIndexError("verification_failed")
@@ -579,12 +619,33 @@ def validate_object_index(
         if payload is None or records != total or record_bytes != 8:
             raise VisionIndexError("verification_failed")
         _file_entry(quality, file_name=quality["file"], records=total, record_bytes=8, payload=payload)
+    from .object_features import validate_feature_contents
+    try:
+        validate_feature_contents(manifest, files, source_tsv)
+    except (ValueError, KeyError, TypeError, OverflowError):
+        raise VisionIndexError("verification_failed") from None
     return outputs
 
 
 def encode_object_submission(manifest: dict, files: dict[str, bytes], source_tsv: bytes) -> dict:
+    # Absolute native paths belong to the contributor's private checkpoint, not
+    # the shared bundle. Source bytes and digests remain the transport identity.
+    # Copy the metadata so local native verification/resume keeps its real paths.
+    source_path = manifest.get("sourceTsv")
+    if not isinstance(source_path, str) or not source_path:
+        raise VisionIndexError("verification_failed")
+    assert_not_live_vision_path(Path(source_path))
+    shared_manifest = {**manifest, "sourceTsv": "locations.tsv"}
+    quality = manifest.get("viewQuality")
+    if isinstance(quality, dict):
+        shared_quality = dict(quality)
+        for key, label in (("tunnelEvidenceManifest", "tunnel-evidence.json"),
+                           ("protectedAuthorityManifest", "protected-authority.json")):
+            if shared_quality.get(key) is not None:
+                shared_quality[key] = label
+        shared_manifest["viewQuality"] = shared_quality
     return {
-        "manifest": manifest,
+        "manifest": shared_manifest,
         "sourceTsv": base64.b64encode(source_tsv).decode("ascii"),
         "files": {name: base64.b64encode(payload).decode("ascii") for name, payload in files.items()},
     }
@@ -626,16 +687,26 @@ def _read_json(path: Path) -> dict | None:
 
 def object_index_is_complete(index_dir: Path, total: int) -> bool:
     manifest = _read_json(Path(index_dir) / "manifest.json")
-    if manifest and manifest.get("completed") is True and manifest.get("indexedLocations") == total:
+    if (manifest and manifest.get("completed") is True
+            and type(manifest.get("indexedLocations")) is int and manifest["indexedLocations"] == total):
         return True
     checkpoint = _read_json(Path(index_dir) / "checkpoint.json")
     if not checkpoint or checkpoint.get("feature") != OBJECT_FEATURE:
         return False
-    try:
-        cursor = int(checkpoint.get("nextLocationIndex") or 0)
-    except (TypeError, ValueError):
-        return False
-    return checkpoint.get("completed") is True and cursor >= total
+    cursor = checkpoint.get("nextLocationIndex")
+    return type(cursor) is int and checkpoint.get("completed") is True and cursor == total
+
+
+def object_checkpoint_cursor(index_dir: Path, total: int) -> int:
+    path = Path(index_dir) / "checkpoint.json"
+    if not path.exists():
+        return 0
+    checkpoint = _read_json(path)
+    if (not checkpoint or checkpoint.get("feature") != OBJECT_FEATURE
+            or type(checkpoint.get("nextLocationIndex")) is not int
+            or not 0 <= checkpoint["nextLocationIndex"] <= total):
+        raise VisionIndexError("invalid_object_checkpoint")
+    return checkpoint["nextLocationIndex"]
 
 
 def _require_binary(program: Path, model_dir: Path) -> None:
@@ -662,6 +733,8 @@ def index_object_tsv(
 ) -> None:
     if pace not in PACE_NICE:
         raise VisionIndexError("invalid_pace")
+    if type(total) is not int or total < 1:
+        raise VisionIndexError("invalid_count")
     source_tsv = Path(source_tsv)
     output_dir = Path(output_dir)
     cache = Path(model_cache) if model_cache is not None else output_dir.parent / "coreml-cache"
@@ -675,82 +748,90 @@ def index_object_tsv(
     output_dir.mkdir(parents=True, exist_ok=True)
     cache.mkdir(parents=True, exist_ok=True)
     active = runner or _default_runner
-    env = os.environ.copy()
+    uses_cpu = object_uses_cpu()
+    # Object parallel profiles require their own measured approval. Until then,
+    # all CPU model sessions share one bounded pool regardless of inherited env.
+    env = inference_environment(output_dir.parent, 1) if uses_cpu else os.environ.copy()
     env["TMPDIR"] = str(output_dir.parent)
     nice_level = PACE_NICE[pace]
-    restarts = 0
-    while not object_index_is_complete(output_dir, total):
-        before = _read_json(output_dir / "checkpoint.json")
-        try:
-            run_binary(
+    failures = stalled = attempts = 0
+    phase = "indexing"
+    # A clean process may checkpoint one location at a time. Count failed/stalled
+    # attempts separately and cap total launches, even if a checkpoint oscillates.
+    max_attempts = total + MAX_NO_PROGRESS + MAX_INDEX_FAILURES
+    try:
+        while not object_index_is_complete(output_dir, total):
+            if attempts >= max_attempts:
+                raise VisionIndexError("vision_retry_limit")
+            before = object_checkpoint_cursor(output_dir, total)
+            attempts += 1
+            try:
+                _stdout, execution_stderr = run_binary(
+                    program,
+                    index_segment_arguments(
+                        model_dir=model, source_tsv=source_tsv, output_dir=output_dir,
+                        source_id=source_id, total=total, global_start=global_start, model_cache=cache,
+                    ),
+                    env=env, cwd=output_dir.parent, runner=active, nice_level=nice_level,
+                    use_nice=use_nice and runner is None,
+                )
+                if uses_cpu:
+                    require_object_cpu_execution(execution_stderr)
+            except VisionIndexError as error:
+                failures += 1
+                if object_checkpoint_cursor(output_dir, total) < before:
+                    raise VisionIndexError("object_checkpoint_regressed") from error
+                if error.code != "vision_binary_failed" or failures >= MAX_INDEX_FAILURES:
+                    raise
+                print("The object indexer stopped; retrying from its saved checkpoint.", file=sys.stderr, flush=True)
+                if runner is None:
+                    time.sleep(min(30, failures * 5))
+                continue
+            if object_index_is_complete(output_dir, total):
+                break
+            after = object_checkpoint_cursor(output_dir, total)
+            if after < before:
+                raise VisionIndexError("object_checkpoint_regressed")
+            stalled = 0 if after > before else stalled + 1
+            if stalled >= MAX_NO_PROGRESS:
+                raise VisionIndexError("vision_no_progress")
+            print("Object indexing paused; resuming from the last saved place.", file=sys.stderr, flush=True)
+            if runner is None and after == before:
+                time.sleep(min(30, stalled * 5))
+        phase = "verification"
+        for full in (False, True):
+            stdout, _stderr = run_binary(
                 program,
-                index_segment_arguments(
-                    model_dir=model,
-                    source_tsv=source_tsv,
-                    output_dir=output_dir,
-                    source_id=source_id,
-                    total=total,
-                    global_start=global_start,
-                    model_cache=cache,
-                ),
-                env=env,
-                cwd=output_dir.parent,
-                runner=active,
-                nice_level=nice_level,
-                use_nice=use_nice and runner is None,
+                verify_arguments(source_tsv=source_tsv, output_dir=output_dir,
+                                 source_id=source_id, total=total, global_start=global_start, full=full),
+                env=env, cwd=output_dir.parent, runner=active, nice_level=nice_level, use_nice=False,
             )
-        except VisionIndexError:
-            restarts += 1
-            if runner is not None and restarts >= 5:
-                raise
-            print("still indexing; the VISION object indexer paused and will resume", file=sys.stderr, flush=True)
-            if runner is None:
-                time.sleep(min(900, restarts * 5))
-            continue
-        if object_index_is_complete(output_dir, total):
-            break
-        after = _read_json(output_dir / "checkpoint.json")
-        moved = (after or {}).get("nextLocationIndex") != (before or {}).get("nextLocationIndex")
-        restarts = 0 if moved else restarts + 1
-        if runner is not None and restarts >= 5:
-            raise VisionIndexError("vision_binary_failed")
-        print("still indexing; resuming from the last saved place", file=sys.stderr, flush=True)
-        if runner is None and not moved:
-            time.sleep(min(900, max(1, restarts) * 5))
-    for full in (False, True):
-        stdout, _stderr = run_binary(
-            program,
-            verify_arguments(
-                source_tsv=source_tsv,
-                output_dir=output_dir,
-                source_id=source_id,
-                total=total,
-                global_start=global_start,
-                full=full,
-            ),
-            env=env,
-            cwd=output_dir.parent,
-            runner=active,
-            nice_level=nice_level,
-            use_nice=False,
-        )
-        start = stdout.find("{")
-        end = stdout.rfind("}")
-        try:
-            report = json.loads(stdout[start : end + 1]) if start >= 0 else {}
-        except json.JSONDecodeError as error:
-            raise VisionIndexError("vision_binary_failed") from error
-        if report.get("valid") is not True or report.get("indexVersion") != 4:
-            raise VisionIndexError("verification_failed")
-        if full and report.get("full") is not True:
-            raise VisionIndexError("verification_failed")
+            if uses_cpu:
+                require_object_cpu_execution(_stderr)
+            start, end = stdout.find("{"), stdout.rfind("}")
+            try:
+                report = json.loads(stdout[start:end + 1]) if start >= 0 else {}
+            except json.JSONDecodeError as error:
+                raise VisionIndexError("vision_binary_failed") from error
+            if not isinstance(report, dict) or report.get("valid") is not True or report.get("indexVersion") != 4:
+                raise VisionIndexError("verification_failed")
+            if full and report.get("full") is not True:
+                raise VisionIndexError("verification_failed")
+    except (Exception, KeyboardInterrupt) as error:
+        # Windows wall-clock timestamps can repeat within one clock tick.
+        write_json(output_dir.parent / f"object-failure-{time.time_ns()}-{secrets.token_hex(6)}.json", {
+            "ok": False, "code": error.code if isinstance(error, VisionIndexError) else
+            "interrupted" if isinstance(error, KeyboardInterrupt) else "object_indexing_failed",
+            "phase": phase, "attempts": attempts, "failedAttempts": failures,
+            "noProgressAttempts": stalled, "totalLocations": total, "evidencePreserved": True,
+        })
+        raise
 
 
 def _default_runner(argv: list[str], env: dict, cwd: Path):
-    import subprocess
-
-    completed = subprocess.run(argv, env=env, cwd=str(cwd), capture_output=True, text=True, check=False)
-    return completed.returncode, completed.stdout, completed.stderr
+    # Same bounded process lifecycle, durable logs and Windows window/priority
+    # handling as Scenes. A timeout stops this run without discarding its files.
+    return logged_native_runner(argv, env, cwd)
 
 
 def load_indexed_files(index_dir: Path) -> tuple[dict, dict[str, bytes]]:
@@ -791,8 +872,8 @@ def index_from_queue(
         raise VisionIndexError("invalid_batch")
     work_dir = Path(work_dir)
     assert_not_live_vision_path(work_dir)
-    size = count if count is not None else CLI_LEASE_CAP["object"][pace]
-    session = client or CommunityClient(url)
+    size = count if count is not None else DEFAULT_NATIVE_BATCH_LOCATIONS
+    session = client or DurableCommunityClient(url)
     stored = load_session(session_path, url) if session_path is not None else None
     if not recovery_code:
         recovery_code = os.environ.get("VISION_COMMUNITY_RECOVERY") or None
@@ -813,6 +894,9 @@ def index_from_queue(
         elif recovered:
             account_id = recovered.get("accountId")
         save_session(session_path, url=url, account_id=account_id, recovery_code=recovery_code)
+    if isinstance(session, DurableCommunityClient) and session.outbox is None:
+        account = created or recovered or session.me()
+        session.enable_outbox(work_dir, account.get("accountId"))
     accepted = 0
     units = 0
     processed = 0
@@ -820,6 +904,12 @@ def index_from_queue(
     batch_failures = 0
     while batches is None or processed < batches:
         try:
+            # Deliver exact completed files before claiming more work. A lost
+            # response must never release or recompute an already saved batch.
+            if hasattr(session, "resume_submissions"):
+                recovered_delivery = session.resume_submissions()
+                accepted += int(recovered_delivery.get("accepted", 0))
+                units += int(recovered_delivery.get("unitsEarned", 0))
             lease = session.lease("object", size, pace, part=part)
         except ContributeError as error:
             if error.code == "no_available_work":
@@ -862,27 +952,38 @@ def index_from_queue(
             )
             try:
                 session.renew(lease_id)
-            except ContributeError:
-                pass
+            except ContributeError as error:
+                if error.code in {"expired_lease", "lease_lost", "unknown_lease"}:
+                    raise VisionIndexError(error.code, error.status) from error
+                transient = error.code == "network_error" or (
+                    error.status in RETRY_STATUSES
+                    and error.code in {"http_error", "renew_failed", "internal_error", "rate_limited"}
+                )
+                if not transient:
+                    raise
             result = session.submit_object(lease_id, outputs, encode_object_submission(manifest, files, source_tsv))
-        except VisionIndexError:
+        except (VisionIndexError, KeyboardInterrupt) as error:
             stop.set()
-            try:
-                session.release(lease_id)
-            except ContributeError:
-                pass
+            retain_lease = isinstance(error, KeyboardInterrupt) or error.code in RETRYABLE_NATIVE_CODES
+            if not retain_lease:
+                try:
+                    if not getattr(session, "submission_is_saved", lambda _lease: False)(lease_id):
+                        session.release(lease_id)
+                except ContributeError:
+                    pass
             raise
         except Exception as error:
             stop.set()
             code = error.code if isinstance(error, ContributeError) else ""
             skip = batches is None and batch_failures >= 2 and code in {"", "verification_failed"}
             try:
-                session.release(lease_id, skip=skip)
+                if not getattr(session, "submission_is_saved", lambda _lease: False)(lease_id):
+                    session.release(lease_id, skip=skip)
             except ContributeError:
                 pass
-            if batches is not None:
-                raise
             batch_failures += 1
+            if batches is not None or batch_failures >= MAX_QUEUE_FAILURES or code not in RETRYABLE_CODES:
+                raise
             stalls += 1
             print("still indexing; the last batch will be tried again", file=sys.stderr, flush=True)
             time.sleep(min(60, stalls * 2))
@@ -1085,7 +1186,7 @@ def object_search_input(
         "resultPruneMeters": 100,
         "runtimeManifest": str(Path(model_dir) / "hybrid-object-runtime.json"),
         "modelCache": str(model_cache),
-        "cpu": False,
+        "cpu": object_uses_cpu(),
     }
 
 
@@ -1569,7 +1670,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--url", default=DEFAULT_URL)
     parser.add_argument("--pace", choices=tuple(PACE_NICE), default="slow")
-    parser.add_argument("--count", type=int)
+    parser.add_argument("--count", type=int, help="Locations per batch (default: 1; completed batches repeat automatically).")
     parser.add_argument("--batches", type=int)
     parser.add_argument("--part", type=int)
     parser.add_argument("--recovery-code", dest="recovery_code")

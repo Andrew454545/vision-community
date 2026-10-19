@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "scope": "offline-scene-first-desktop-and-automatic-controls",
+  "platform": "Windows",
+  "baseCommit": "6c673e88e30aef89e90b936d0d4d5ab6f5e15925",
+  "nodeChecksPassed": 8,
+  "pythonChecksPassed": 18,
+  "skipped": 0,
+  "desktopAndMacBackgroundJavascriptExecutedInLocalVm": true,
+  "actualHiddenWindowsFormsConstructed": true,
+  "schedulerUsesDisposableMocks": true,
+  "savedObjectAndBothChoicesPreserved": true,
+  "newObjectSetupAndOldObjectResumeBlockedInFirstReleaseControls": true,
+  "sceneDayMediumAndNightMaximumDefaultsPreserved": true,
+  "nodeStdoutSha256": "f4b43da8ddcc8f691aa77fdf88c2a3ba9b6f2cc8c733cdf068a2264d2ac140fd",
+  "pythonStderrSha256": "7f76ffb73d7da05471e0684fbb7c103cf03c2c715820a895d9924c388417c490",
+  "preservedWindowsPowerShellPolicyFailureLogSha256": [
+    "8d48f32593b44f340011d7071eec225ffb7e2fc1089088b6d5dda0dcd6ac9126",
+    "3d8985a4a4542cff284122609586fed68d8f52c2ddd640bdee67ec6aff0e0674"
+  ],
+  "finalPowerShell": "existing private PowerShell 7, RemoteSigned unchanged, VISION_TEST_POWERSHELL test option",
+  "windowsPowerShell51OrSignedInstallerAccepted": false,
+  "globalInstallationOrSecuritySettingChange": false,
+  "macOsExecutionOfTheseChangedUiFiles": false,
+  "cloudReadCompleted": false,
+  "actionsDispatched": false,
+  "deployed": false,
+  "indexingOrPausedTasksStarted": false,
+  "productionQualified": false
+}

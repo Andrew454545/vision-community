@@ -1,0 +1,206 @@
+{
+  "version": 1,
+  "date": "2026-10-11",
+  "scope": "private-older-d1-object-cancellation-recovery",
+  "sourceBaseCommit": "3899bc4a3a414d3ebc67f842bb99c83108adb354",
+  "platform": "Windows x64",
+  "javascript": {
+    "tests": 234,
+    "passed": 231,
+    "failed": 0,
+    "skipped": 3,
+    "newRecoveryCases": 20,
+    "skipReason": "Existing Windows file-symlink privilege unavailable"
+  },
+  "python": {
+    "tests": 5,
+    "passed": 5,
+    "failed": 0,
+    "skipped": 0
+  },
+  "actualLocalCloudflare": {
+    "status": "ACTUAL_WORKERD_OLD_D1_CANCELLATION_RESTORE_PASSED",
+    "cases": 24,
+    "separateProcesses": 3,
+    "repairedCopies": 2,
+    "backupBeforeLease": true,
+    "oldApprovalRevoked": true,
+    "failedBatchRolledBack": true,
+    "lateSqlWritesBlocked": true,
+    "lateR2Writes": 0,
+    "retainedBundlePreserved": true,
+    "originalBackupsPreserved": true,
+    "syntheticInference": true,
+    "nativeInferences": 0,
+    "earnedCredits": 0,
+    "liveCalls": 0,
+    "nativeCleanupAttested": false,
+    "productionQualified": false
+  },
+  "actualNodePythonRestore": {
+    "accountActive": true,
+    "approvedBackupRevokedBeforeServing": true,
+    "assignmentRevocations": 1,
+    "bankedUnits": 10,
+    "completedErasures": 1,
+    "earnedCredits": 0,
+    "extraNativeAttempts": 0,
+    "liveCalls": 0,
+    "nativeInferences": 0,
+    "oldHostedBackupSha256": "09a9b57ba5a283600a71df7439bbafa2227409568505ecc09e729b7b02c4212a",
+    "oldHostedCopyRepairedBeforeNativeExport": true,
+    "originalBackupPreserved": true,
+    "originalBackupReportSha256": "7f6eacd1646131e25e627f779feb4a6c41b6a7449e9a426124768d0978e5f623",
+    "sameAuthorityAsIndependentCurrent": true,
+    "savedAttempts": 1,
+    "status": "NODE_PYTHON_CURRENT_CANCELLATION_RESTORE_PASSED",
+    "syntheticInference": true
+  },
+  "preservedFailures": {
+    "firstFocusedFixtureFailures": 3,
+    "preservationGuardRefusedNumberedColumns": true,
+    "originalOfflineDiagnosticSha256": "ef082f14d1cda17056cc15bb52601cfc9cff3f24822155f861e60f94649f916d",
+    "failureLogsRetained": true
+  },
+  "runs": [
+    {
+      "label": "javascript-focused-v1",
+      "exitCode": 1,
+      "wallSeconds": 0.9849999999860302,
+      "receiptSha256": "07a44532b292d2749af5d780135398421a898b64df56a1ddf90708b53012da08",
+      "stdoutSha256": "fc47aca69c21cd13e89375fb0eb5a36b06e1dc18dc15ce31dc4e03248f0799a1",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "javascript-regression-v2",
+      "exitCode": 0,
+      "wallSeconds": 28.96899999998277,
+      "receiptSha256": "58cd3dc3ee05f8bde499defd481bd72ff1da69aab07a2048cb81f8e8ec0b9b81",
+      "stdoutSha256": "1ddb99dfb89a8ed48cd7771d30bc5bd0dee6fab6cd13531cddfbd8d5ab440eb3",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "python-interop-v2",
+      "exitCode": 0,
+      "wallSeconds": 13.60999999998603,
+      "receiptSha256": "d10f46e1f0b64a10288e6425aeeccfd9db5c45e0e6bb7b2164401d032ce82859",
+      "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSha256": "74ebc18d3914869b2c2c25c2982bd6217e13bd0e39748ae0c734dc3c98861dcd"
+    },
+    {
+      "label": "worker-v1",
+      "exitCode": 0,
+      "wallSeconds": 5.23399999999674,
+      "receiptSha256": "2f8a904a52746481a1678825e273d19029489aa2e88e0a8c64feaf46d59652c2",
+      "stdoutSha256": "1b07f18fc709d260fdfdc8aad418562badef9004bfc4f61baf008de32d1f1296",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "javascript-regression-v3",
+      "exitCode": 1,
+      "wallSeconds": 27.84299999999348,
+      "receiptSha256": "105c27cd02d07f4b27e77fe9aadefba4c321fb4531dfc8903a45e0002f19394f",
+      "stdoutSha256": "058a92fcbf7b0e7a4e68f46666065bae811464f37c97b2b7df1f1645288b4c3a",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "worker-v2",
+      "exitCode": 1,
+      "wallSeconds": 0.7189999999827705,
+      "receiptSha256": "51834ced21525a1ee168f439226458ca9fa2cdd458cf8b24b0b208e7513fe9ea",
+      "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSha256": "f57849f4a62a2f3dba9c8094bf5c47bf61d49546c5f280235ce63999ed0b9f14"
+    },
+    {
+      "label": "javascript-regression-v4",
+      "exitCode": 0,
+      "wallSeconds": 28.60899999999674,
+      "receiptSha256": "22d14cfba24727fbc68e0692da1244db06572ca7749df1101b26a091e788ad72",
+      "stdoutSha256": "cc04e43df135e1d16283fc469032ad2d3f0061abfd08c933f2a1c7f8fab07f06",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "worker-v3",
+      "exitCode": 0,
+      "wallSeconds": 5.420999999972992,
+      "receiptSha256": "c84a858bda9ce1c8fc4e9f3501b1827feef66e2a8d11b453d4d1bcd16e16afed",
+      "stdoutSha256": "1b07f18fc709d260fdfdc8aad418562badef9004bfc4f61baf008de32d1f1296",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "python-interop-v3",
+      "exitCode": 0,
+      "wallSeconds": 13.329000000027008,
+      "receiptSha256": "2a2daf0bd819e64c4abfab0d2ea5e7c339c9a940d9f3d63f61b396b190083df9",
+      "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSha256": "c21b990083066b4bf6f8887b123701def20e879cab6e9e7ceb44816509ed9b1d"
+    },
+    {
+      "label": "javascript-final-v5-regression",
+      "exitCode": 0,
+      "wallSeconds": 28.71899999998277,
+      "receiptSha256": "37846660d40177d47f8fa8650153a5db9c51401587805cec319ab2ebc3d51174",
+      "stdoutSha256": "a85afedb96e11831ac17c74c2bcb68fac162fb3fdf22310ed569f61e982f09a2",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "worker-final-v4",
+      "exitCode": 0,
+      "wallSeconds": 6.0939999999827705,
+      "receiptSha256": "a6a1a8e515ae48c8be1d0ec442e4004e27c34cbfd02d5395d83e2bb20519b6b3",
+      "stdoutSha256": "1b07f18fc709d260fdfdc8aad418562badef9004bfc4f61baf008de32d1f1296",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "python-final-v4",
+      "exitCode": 0,
+      "wallSeconds": 14.047000000020489,
+      "receiptSha256": "94f52a91ef24feffbbe0bebb9c7ca25b53837dae7e34ba6c02483ed99569c2d3",
+      "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSha256": "d4bb9e92acf6d8021b71cb7f02e022681b131dd04d47d97e185b74f954bafe36"
+    },
+    {
+      "label": "scene-writer-final-v1",
+      "exitCode": 0,
+      "wallSeconds": 0.5780000000377186,
+      "receiptSha256": "99dff39b6043169e4b466a74425810502186b40c3e58015120fc159cf83bba6e",
+      "stdoutSha256": "725d8b836d7bbcaf690d4b189affafcbdbe6ff45f8c8a65c1bc1f45b6971a1a5",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "sourcePins": {
+    "community/tests/test_object_cancellation_recovery.py": "0a4255cd89b9a8fc9945a0f99960b0b4d49a779f165aae6c32800509300a386c",
+    "deploy/cloudflare/src/artifactWrites.js": "982cd568ac2f54270775a6fe4abc80f4dfe030ea517a8cca230a6da86a299848",
+    "deploy/cloudflare/src/objectAuditCancellation.js": "50105b63a100eb98f6375d4a4ef1da0368630accc2135a9736098794335ca48f",
+    "deploy/cloudflare/src/objectCancellationRestore.js": "abd32ebe526fd2b85646e4cbefb65fa1a06b7ccdf8bd46594b225e2be459c58c",
+    "deploy/cloudflare/src/objectCancellationRestore.fixture.mjs": "7b88eea752e4a85a48f4a6531244ef00653cdf18770285823a99ec80776c53bd",
+    "deploy/cloudflare/src/objectCancellationRestore.test.mjs": "ae0207d78818a0fb9c9ab539f3496b014e90c65a128f82307be86ace51a76c73",
+    "deploy/cloudflare/tools/object-cancellation-authority.mjs": "628c9522f2f8a6537ef414e118109796ca592ed8996c0a9851ca05afbfe31dfd",
+    "deploy/cloudflare/tools/object-cancellation-restore.mjs": "7a84e5a9ee5a6d0b4f8f8f95672b87e28a1c2888bf854ed06784ca652ef9cd4d",
+    "deploy/cloudflare/tools/object-erasure-recovery.mjs": "c048e8586572f47861380813963113bf43ea9a6495c4bf5beaa9b924be92fa4a",
+    "deploy/cloudflare/tools/privacy-storage-restore.mjs": "3d6d234d65b826c2920c6b04410d27cb16fc3c86153f4f4c70ba7d2d69a17e76",
+    "deploy/cloudflare/tools/native-cancellation-recovery.fixture.mjs": "0989655bb99279070b651e083d5c6e6696883201eff5bf925b3091249b59b3c0",
+    "deploy/cloudflare/tools/object-cancel-restore.fixture.mjs": "fddce9323eea67a98f78e4ccc27a330ef365777fd163c6bff9f3926823546f29",
+    "deploy/cloudflare/tools/check-local-object-cancel-restore.mjs": "8bca1defbfba2af689c48b7a38985d233abad4924a8417e4f0595e34f28bd027"
+  },
+  "liveDeployment": false,
+  "liveSchemaMutation": false,
+  "liveCalls": 0,
+  "githubActionsRuns": 0,
+  "privateUploads": 0,
+  "frozenPilotChanged": false,
+  "nativeInference": false,
+  "genuineEarnedCredits": 0,
+  "macAcceptance": false,
+  "providerDisasterRecoveryComplete": false,
+  "authenticObjectAdmission": false,
+  "productionReady": false,
+  "sceneWriterRegression": {
+    "tests": 24,
+    "passed": 24,
+    "failed": 0,
+    "skipped": 0,
+    "sourcePin": "679ab8127c7caf80ca2cd1c2fa4527c0ccd6e3a12a6479b59b41d0660f4815f6",
+    "overlapsMainSelection": false
+  }
+}

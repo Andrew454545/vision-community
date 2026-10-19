@@ -1,0 +1,91 @@
+{
+  "version": 1,
+  "date": "2026-10-14",
+  "status": "INDEX_MAINTENANCE_COMPLETE_RECEIPT_LAUNCH_FAILED_CLOSED",
+  "directHumanScopeApproved": true,
+  "approvedGatewaySource": "737d5858921cb41d9504445ffffb1b727b1094b4",
+  "maintenance": {
+    "indexesApplied": 3,
+    "definitionReadbackMatched": true,
+    "statementUsage": [
+      {
+        "read": 208,
+        "written": 86
+      },
+      {
+        "read": 122,
+        "written": 1
+      },
+      {
+        "read": 15,
+        "written": 1
+      }
+    ],
+    "definitionReadbackUsage": {
+      "read": 64,
+      "written": 0
+    },
+    "totalObservedUsage": {
+      "read": 409,
+      "written": 88
+    },
+    "originalFinancialPublicationRowsChanged": false,
+    "providerInvoiceMeasured": false
+  },
+  "recovery": {
+    "status": "INCOMPLETE",
+    "gatewayDeployed": true,
+    "receiptRequests": 0,
+    "currentServerReconciled": false,
+    "credentialRotated": false,
+    "originalTrialFailurePreserved": true,
+    "reason": "local supervisor omitted run_owned required keyword-only env argument before child launch",
+    "operatorChildExitCode": 1,
+    "noRetryPerformed": true
+  },
+  "closure": {
+    "restoreDeploymentFinished": true,
+    "independentReadback": true,
+    "exactPriorVarsBindingsSnapshot": true,
+    "workersDevEnabled": false,
+    "previewsEnabled": false,
+    "cronCount": 0,
+    "indexesRetained": true
+  },
+  "sourceFix": {
+    "change": "pass a copy of the existing process environment to the owned recovery child",
+    "checks": {
+      "python": 11,
+      "skips": 0,
+      "actualWindowlessOwnedChildOfflinePreparation": true,
+      "regressionBeforeFixFailed": true
+    },
+    "hostedRetryExecuted": false,
+    "modelInference": false
+  },
+  "constraints": {
+    "newAssignments": 0,
+    "uploads": 0,
+    "r2Reads": 0,
+    "r2Writes": 0,
+    "searches": 0,
+    "indexingRestarted": false,
+    "tasksRestarted": false,
+    "actionsRuns": 0,
+    "newQualification": false,
+    "productionQualified": false
+  },
+  "privateEvidenceSha256": {
+    "approved-maintenance.private.json": "de7ae4ca86d929dad8aa6272f2324933c5729c826d97b223fd918bba89393c82",
+    "approved-index-definitions.private.json": "00e077c85400e13f15771895322b7f202b87081fef11086d0799a623eb7af92b",
+    "approved-baseline.normalized.private.json": "c74fd6e3af78c5cbbe4a7462ce045b4a1d40fcea0b26dbf7a68671b16d965101",
+    "approved-closure.normalized.private.json": "c74fd6e3af78c5cbbe4a7462ce045b4a1d40fcea0b26dbf7a68671b16d965101",
+    "approved-operator.receipt.private.json": "8b9f1557a9d66393213859ded86f730b423789841d0a4f0e195c6dcfaadfce5b",
+    "approved-readback.receipt.private.supervisor.private.json": "32ffc8a40e86265c3bcc323f40d6c0920f47984b2c6c5c04e03775bbb2f45dab",
+    "approved-existing-receipt-readback.stdout.private.log": "81822d7e4e6272c1d72fa55a9b6a92f496f09b3a6d39171a681caa6fc75b6a14",
+    "launcher-regression-before.stderr.private.log": "c6797009d2fc19c45fe592a6a5c570fd6069730635b70a98b5afc6bb0ef7f7eb",
+    "launcher-regression-after.stderr.private.log": "0aae8c27db57cf0d0331cb2f3dbf3712d9bb3b8520933e030d7940dece467339",
+    "approved-source.manifest.private.json": "c02a48b6e078368bc44e3de238764e5bdada055099cddebe8c371b2fca6c0f6a"
+  },
+  "next": "separately approved readback-only activation with corrected launcher; no repeated index maintenance"
+}

@@ -1,0 +1,138 @@
+{
+  "bulkLocationsAssigned": 0,
+  "cpu4Retry": "unchanged runtime and fixed inputs, isolated temporary workspace; passed",
+  "exportSha256": "58a636d411de18a8152c85638fc396abd9fc977a0948cf6c3b578d3ed3c0fa6c",
+  "initialCpu4Error": "scene input changed while hashing",
+  "initialCpu4FailurePreserved": true,
+  "initialFailureRootCauseProven": false,
+  "liveImagery": false,
+  "productionApproved": false,
+  "results": [
+    {
+      "maximumRelativeL2": 0.0036860489038724282,
+      "minimumCosine": 0.9999932065909654,
+      "outputSha256": "fc6184af51db601dc324c69bc751bf51cad236c19fe5042d15b47dc03fb15dbe",
+      "qualified": true,
+      "status": "COMPLETE",
+      "threads": 1,
+      "wallSeconds": 30.20370070799254
+    },
+    {
+      "maximumRelativeL2": 0.0036860489038724282,
+      "minimumCosine": 0.9999932065909654,
+      "outputSha256": "fc6184af51db601dc324c69bc751bf51cad236c19fe5042d15b47dc03fb15dbe",
+      "qualified": true,
+      "status": "COMPLETE",
+      "threads": 2,
+      "wallSeconds": 22.140003542008344
+    },
+    {
+      "maximumRelativeL2": 0.0036860489038724282,
+      "minimumCosine": 0.9999932065909654,
+      "outputSha256": "fc6184af51db601dc324c69bc751bf51cad236c19fe5042d15b47dc03fb15dbe",
+      "qualified": true,
+      "status": "COMPLETE",
+      "threads": 4,
+      "wallSeconds": 29.065993916010484
+    }
+  ],
+  "safetyChecksWeakened": false,
+  "scope": "ACTUAL_MAC_FIXED112_CHECKS_AND_OWNER_RECOMPUTATION",
+  "localChecks": {
+    "pythonPassed": 108,
+    "pythonFailed": 0,
+    "browserFlowsPassed": 2,
+    "actualOwnedWatchdogChildExitCode": 0,
+    "fiveMillionManifestDescriptors": 39063,
+    "fiveMillionFullAllocationOrEnduranceExecuted": false,
+    "actualCliWindowStartAndAuthenticatedExitPassed": true,
+    "originalDownloadedQueueCanBeMovedAfterImport": true,
+    "macDisposableLoginEntry": {
+      "scope": "NEW_DISPOSABLE_LOGIN_ENTRY_READINESS_ONLY",
+      "oldTasksTouched": false,
+      "inferenceRun": false,
+      "browserOpened": false,
+      "registrationSucceeded": true,
+      "actualWindowReadyWithoutProcessing": true,
+      "registrationRemoved": true,
+      "ownedWindowStopped": true
+    }
+  },
+  "exclusions": {
+    "productionRowsRead": 111445,
+    "stagingRowsRead": 118,
+    "rowsWritten": 0,
+    "requests": 2,
+    "retries": 0,
+    "r2Requests": 0,
+    "productionPreparedStopExceeded": true,
+    "stagingHadSeparateApproval": true,
+    "excludedPanoramaCount": 110943,
+    "approvedUnusedSourceShards": 617,
+    "quarantinedAdvancedSourceShards": 1,
+    "cachedSourceLocationsImported": 500000,
+    "participantLocationsAssigned": 0,
+    "cloudAllocatorRemainsPaused": true
+  },
+  "runtime": {
+    "macBinarySha256": "b48e9e020e5e052c9c8c5fe91d0643551be255eeeaa36cba74f975dd801394a9",
+    "windowsBinarySha256": "6ce8f5c9dbfeb8404da13daa71afecfd07a56f118fc61819d07c1d2330f191ba",
+    "modelsUnchanged": true,
+    "windowsExecutionOfNewPathVerified": false,
+    "personalIndexesModified": false,
+    "ownerReservedQueueModifiedOrStarted": false,
+    "actionsRuns": 0,
+    "persistentParticipantLoginEntryInstalled": false,
+    "actualLogoutAndLoginSessionTested": false
+  },
+  "installedVisionConsumerCheck": {
+    "scope": "INSTALLED_LOCAL_VISION_READ_ONLY_INDEX_AND_SEARCH_COMPATIBILITY",
+    "referenceProducerBinarySha256": "e0c4dc80c848af33c76bcf0e82517839d131ad62a2013a247bd70e370984dfed",
+    "localVisionBinarySha256": "4e3a42023797d878d6f16abc2dc1b400f9ddf94bd48b8bf9a4040ab8b5c59181",
+    "candidateBinarySha256": "b48e9e020e5e052c9c8c5fe91d0643551be255eeeaa36cba74f975dd801394a9",
+    "referenceSha256": "dbb7fa8e92247baa12e6cfce96c771eabd4c38be891246f5a425720fc6b1e5b0",
+    "candidateOutputSha256": "fc6184af51db601dc324c69bc751bf51cad236c19fe5042d15b47dc03fb15dbe",
+    "queries": [
+      {
+        "query": "a road",
+        "locations": 112,
+        "maximumWinningScoreDifference": 0.0001200699999999999,
+        "inversionsBeyond00005": 0,
+        "selectedViewDifferences": 0
+      },
+      {
+        "query": "a shop",
+        "locations": 112,
+        "maximumWinningScoreDifference": 0.0,
+        "inversionsBeyond00005": 0,
+        "selectedViewDifferences": 0
+      },
+      {
+        "query": "a landscape",
+        "locations": 112,
+        "maximumWinningScoreDifference": 0.0,
+        "inversionsBeyond00005": 0,
+        "selectedViewDifferences": 0
+      }
+    ],
+    "personalIndexesModified": false,
+    "referenceRegeneratedByInstalledBinary": false,
+    "liveImageryRetrieved": false,
+    "cloudComputeRun": false,
+    "actionsRun": false
+  },
+  "limits": [
+    "Unsigned invited preview, not public production approval.",
+    "Fresh Windows launch/start/pause/resume and clean-device setup still required.",
+    "Maximum chooses the largest approved inference-thread count; throughput is not guaranteed.",
+    "Complete source history authority applies only to the selected never-advanced replacement shards while online allocation stays paused.",
+    "Additional eligible source shards must be imported before a real five-million-location allocation.",
+    "Automatic upload, MMA/local search and Objects remain deferred."
+  ],
+  "preservedLocalFailures": [
+    "Early test invocations used a symlinked macOS temporary root or lacked sandbox loopback permission; no path guard was weakened.",
+    "A fixture indentation mistake and startup interpreter symlink handling were corrected before passing regressions.",
+    "Disposable login probes exposed a missing window lock directory; the corrected real CLI and login bootstrap/removal now pass.",
+    "The first native CPU4 fixed-input attempt stopped with scene input changed while hashing; an unchanged-runtime isolated-temp attempt passed. Root cause remains unproven."
+  ]
+}

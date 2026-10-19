@@ -1,0 +1,111 @@
+{
+  "version": 1,
+  "scope": "offline-owner-outbound-object-coordinator-v1",
+  "recordedAtUTC": "2026-10-13T04:36:34.925222+00:00",
+  "sourceParent": "a43bd144f0e093d927e2eac47cc0b8589a6cc0b3",
+  "branch": "codex/windows-production-readiness",
+  "platform": {
+    "os": "Windows 11",
+    "machine": "AMD64",
+    "node": "24.19.0"
+  },
+  "implementation": [
+    "Optional distinct owner-secret authenticated claim/candidate/complete/fail routes; disabled by default.",
+    "Independent policy/runtime/quality/protection/resource capabilities precede bounded claims from existing eight active slots.",
+    "Native receipts and fresh full protection evidence flow through the existing exact snapshot/publication/once-only credit writer.",
+    "Committed acceptance replay survives missing current policy or expired proof and never earns the award again.",
+    "Uncommitted stale evidence explicitly requires real protection refresh; interrupted publication keeps native identity for a new claim.",
+    "Busy backpressure preserves attempts; eight transport faults require attention. Native failures never retry themselves.",
+    "No hosted fallback or cached-approval publication from contributor status/scheduled retirement in owner mode."
+  ],
+  "verification": {
+    "nodePassed": 64,
+    "failed": 0,
+    "skipped": 0,
+    "cases": {
+      "ownerObjectAudit": 18,
+      "objectSettlement": 18,
+      "objectAuditDispatch": 28
+    },
+    "counting": "Final 64 distinct cases only; earlier passing component runs are not added again.",
+    "coverage": [
+      "Actual Worker handlers, existing SQLite triggers/batches, retained accepted work and unique ledger references.",
+      "Concurrent claims/completions, lost committed reply, interrupted storage publication and same-job fresh-evidence recovery.",
+      "Authentication before body/database access, independent binding, payload digest/limits and candidate storage deadline.",
+      "Cancellation/deletion/replaced claims, current official Gen4 and final publication guards; malformed/expired/wrong-source evidence earns nothing.",
+      "Existing saved-audit dispatch, settlement, financial rollback, privacy and retirement regressions."
+    ],
+    "logs": {
+      "initial.stderr.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "initial.stdout.log": {
+        "bytes": 6367,
+        "sha256": "172078b99fca4188eb688aee35ed732d189b05fbf530a3c23fa1d654a6777fb5"
+      },
+      "verified.stderr.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "verified.stdout.log": {
+        "bytes": 6700,
+        "sha256": "5c2a08ac585965326bf9dcb81c61b480aff9c172957fce0063a0336608e25d70"
+      }
+    },
+    "unresolvedFailures": 0,
+    "earlierRun": "Initial component run also passed; added refresh/interruption/replay cases passed in the final applicable run."
+  },
+  "sourceFiles": {
+    "ownerObjectAudit.js": {
+      "bytes": 14442,
+      "sha256": "fd4b94efb16b2b25b49a1cc748cee84d4a79f2948fad2bcbd7d939df3594e192"
+    },
+    "ownerObjectAudit.fixture.mjs": {
+      "bytes": 5370,
+      "sha256": "c9087a974114b924d78251e63a45142d1273d5c2d63a996cd494012a344c61ec"
+    },
+    "ownerObjectAudit.test.mjs": {
+      "bytes": 12268,
+      "sha256": "40d038f59b7092a9887ac37bd20821721126063823bc9198b56cf8d52a8dc286"
+    },
+    "objectAuditDispatch.js": {
+      "bytes": 26923,
+      "sha256": "61591c573188aeb7ec7416deb144a06c9cb62365d5bc0ffa08550b3ac9f4c768"
+    },
+    "objectAuditFlow.js": {
+      "bytes": 1173,
+      "sha256": "32db1313ae16c6de334cb66ffabde90c899d8d5ddbf3ebbbe276eb0712ac03e6"
+    },
+    "objectSettlement.js": {
+      "bytes": 17061,
+      "sha256": "2a9849d89b3e8c40038ebc76511c2b918de6779bd8209a932ceaa25c063f3da8"
+    },
+    "worker.js": {
+      "bytes": 66521,
+      "sha256": "e4caaaf2de0ac9519b79d579e084d84b90218f689c3a65421477d5ae54428e28"
+    }
+  },
+  "boundaries": {
+    "offlineOnly": true,
+    "liveReady": false,
+    "deployed": false,
+    "operationalHoldPreserved": true,
+    "nativeReceiptsStorageAndCoverage": "fictional fixture inputs; no authentic inference or earned production credit",
+    "pythonOwnerComponent": "Tested separately in owner-object-local-20261012; not an end-to-end Python-to-cloud execution here.",
+    "cloudProviderModelImageryRequests": 0,
+    "realSecretReads": 0,
+    "schemaOrDataMigration": false,
+    "deploymentConfigurations": "unchanged; neither optional mode nor its secret is configured",
+    "tasksAndPauseMarkers": "untouched",
+    "macExecution": false,
+    "freeCapacityMeasured": false,
+    "enduranceAcceptance": false
+  },
+  "remaining": [
+    "Owner HTTPS client and secure dedicated credentials, durable reply replay/proof refresh and supervision/startup.",
+    "Outbound current deletion/cancellation/retirement authority and acknowledgement integration.",
+    "Bounded batch/catalog metadata, measured CPU/storage/capacity and approved account/resource/data migration/recovery.",
+    "Authentic Windows/Mac parity/admission, signing/clean testers, accepted-work endurance and controlled rollout after activation authority."
+  ]
+}

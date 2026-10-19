@@ -1,0 +1,19 @@
+{
+  "checkedAtUtc": "2026-10-09T01:20:00Z",
+  "repository": "Andrew454545/vision-community",
+  "environment": "signing",
+  "requiredReviewers": [
+    "Andrew454545"
+  ],
+  "preventSelfReview": false,
+  "administratorBypassDisabled": false,
+  "allowedBranches": [
+    "codex/windows-production-readiness"
+  ],
+  "secretsConfigured": 0,
+  "variablesConfigured": 0,
+  "workflowDispatched": false,
+  "actionsSpendingOnHold": true,
+  "signingAccountsReady": false,
+  "productionQualified": false
+}
