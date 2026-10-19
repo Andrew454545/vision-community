@@ -36,13 +36,15 @@ def build_host(project,output,platform,*,sdk=None,refs=None):
         sources[str(source.relative_to(REPO))]=hashlib.sha256(source.read_bytes()).hexdigest()
         assemblies=['mscorlib.dll','System.dll','System.Core.dll','System.Windows.Forms.dll',
             'System.Drawing.dll','System.Web.Extensions.dll','System.Net.Http.dll']
-        compiler=[os.environ.get('VISION_LOCAL_DOTNET','dotnet'),str(regular(Path(os.environ['VISION_LOCAL_CSC'])))]
         if os.name=='nt':
             compiler=[str(Path(os.environ['WINDIR'])/'Microsoft.NET/Framework64/v4.0.30319/csc.exe')]
+        else:
+            compiler=[os.environ.get('VISION_LOCAL_DOTNET','dotnet'),str(regular(Path(os.environ['VISION_LOCAL_CSC'])))]
         command=[*compiler,'/nologo','/noconfig','/nostdlib+','/target:winexe','/platform:x64','/optimize+',
             '/out:'+str(executable),*('/reference:'+str(regular(refs/name)) for name in assemblies),
             *('/reference:'+str(folder/name) for name in ('Microsoft.Web.WebView2.Core.dll','Microsoft.Web.WebView2.WinForms.dll')),str(source)]
-    result=subprocess.run(command,capture_output=True,timeout=120)
+    result=subprocess.run(command,capture_output=True,timeout=120,
+        creationflags=subprocess.CREATE_NO_WINDOW if os.name=='nt' else 0)
     (output/'window-build.stdout.log').write_bytes(result.stdout)
     (output/'window-build.stderr.log').write_bytes(result.stderr)
     if result.returncode:

@@ -59,3 +59,11 @@ The Windows distribution follows [Microsoft's WebView2 distribution guidance](ht
 Mac HTTP permission is limited to local networking using
 [Apple's local-networking setting](https://developer.apple.com/documentation/bundleresources/information-property-list/nsapptransportsecurity/nsallowslocalnetworking);
 no global transport-security exception is enabled.
+
+## Subsequent Windows evidence
+
+The [19 October Windows checks](WINDOWS_LOCAL_PREVIEW_20261019.md) executed the
+published launcher and desktop-host offline self-checks on Windows and verified
+the complete sealed inventory. They also verify the Windows compiler-selection
+fix and bounded launcher failure reports. They do not establish interactive
+WebView initialization, file panels, clean-device setup or live processing.
