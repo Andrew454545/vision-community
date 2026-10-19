@@ -1,0 +1,89 @@
+{
+  "date": "2026-10-19",
+  "sourceBase": "265b7f5b9d8857c63f14beef3a09ee758a6ad7d8",
+  "scope": "Installed Windows WebView2 hidden page render/authentication and private host startup recovery",
+  "actualWindowsRendering": {
+    "exitCode": 0,
+    "sourceSha256": "5dbc7d3a51c5e27d7b957e422f945d80a39cbf394c0f6e74afc648c4a43f77b2",
+    "windowsWebViewInitialized": true,
+    "shippedPageRendered": true,
+    "actualLocalBackend": true,
+    "emptyLibrary": true,
+    "hiddenOwnedChild": true,
+    "interactiveUserAcceptance": false,
+    "nativeFilePanels": false,
+    "modelsDownloaded": false,
+    "inference": false,
+    "liveImagery": false,
+    "cloudAccess": false,
+    "runtimeInstallation": false,
+    "mutatingRequests": 0,
+    "runtimeVersion": "155.0.4283.62",
+    "pageChecks": {
+      "localOnly": true,
+      "unauthDenied": true,
+      "personalMap": true,
+      "photoSupport": true,
+      "tokenRemoved": true,
+      "pageLayout": true
+    },
+    "productionSceneWindowSourceWithTestEntry": true,
+    "publishedExecutableExecutedInThisCheck": false,
+    "productionPageAndReadOnlyLocalBackend": true,
+    "loopbackRequests": 9,
+    "outsideNavigationCancelledBeforeRequest": true,
+    "unexpectedWebResourceRequestRecorded": false,
+    "screenshotReviewed": true,
+    "inPrivateProfile": true,
+    "childOnlyBackgroundNetworkingAndComponentUpdateDisabled": true,
+    "interactiveInstallation": false,
+    "participantAcceptance": false
+  },
+  "hostBoundaryChecks": {
+    "status": "PASS",
+    "exitCode": 0,
+    "targetedTests": 2,
+    "syntheticHostFiles": true,
+    "nativeHostExecution": false,
+    "browserOpeningMocked": true,
+    "reportWriteFailureMocked": true,
+    "networkCalls": 0,
+    "inference": false,
+    "beforeFailurePreserved": true
+  },
+  "sourceChanges": [
+    "Require exact sealed host directory membership before reuse or execution; reject extra config files or directories while preserving originals.",
+    "Retain browser fallback even if private failure report cannot be written; shutdown suppresses fallback and no saved-report claim is introduced."
+  ],
+  "preservedFailures": [
+    "Original extra-config and extra-directory acceptance failures",
+    "Original report-write refusal that prevented browser fallback"
+  ],
+  "sourceHashes": {
+    "packaging/windows/SceneWindow.cs": "5dbc7d3a51c5e27d7b957e422f945d80a39cbf394c0f6e74afc648c4a43f77b2",
+    "packaging/check_local_scene_webview.py": "87277b5d4c3d25d4c64df11ee045e1b477bd692154d855e258b7723e3c2f2d8f",
+    "community/local_scene_window.py": "dfbe5927751bd036ff5600a4155f6b91d9c566f691144551411d5249751e28e6",
+    "community/tests/test_local_scene_window.py": "3b429249352782f40f1c1fd360aa5089176487f40ebd53a07e030e3dc76d759d"
+  },
+  "privateReceiptHashes": {
+    "render": "10063bd10b11e61126cf5dbdb5b2b7aa9fb81831334cc41ca6980e18fd0cf10d",
+    "host-boundary": "e1e7cee1abed37675b57371f29cd4129774e776f353652870ad8cb355d805a35",
+    "original-host-failures": "d15f45cb472aead1c0c2c1d37d4f367ac78c5015fe697eeed997c0abad6809e2",
+    "render-screenshot": "34eb82a074f7b4ba44109e2d1850cf4b095be99878daf4ad8c356de3273e6aa8"
+  },
+  "limits": {
+    "modelsDownloaded": false,
+    "newNumericalQualification": false,
+    "nativeInference": false,
+    "imageryRequested": false,
+    "cloudflareAccess": false,
+    "actionsDispatched": false,
+    "loginTasksRegistered": false,
+    "oldJobsRestarted": false,
+    "privateDataTransferred": false,
+    "publishedAssetsUpdated": false,
+    "signed": false,
+    "publicProductionReady": false
+  },
+  "reuse": "Do not repeat the rendering or targeted tests without changed relevant source/runtime/input or an unresolved failure."
+}

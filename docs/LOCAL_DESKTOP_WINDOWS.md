@@ -67,3 +67,9 @@ published launcher and desktop-host offline self-checks on Windows and verified
 the complete sealed inventory. They also verify the Windows compiler-selection
 fix and bounded launcher failure reports. They do not establish interactive
 WebView initialization, file panels, clean-device setup or live processing.
+
+The [later 19 October WebView check](WINDOWS_WEBVIEW_FIRST_USE_20261019.md)
+initialized the existing Windows WebView2 runtime and rendered/authenticated the
+shipped page in a hidden owned test. It also verifies exact private-host folder
+membership and browser fallback when a failure report cannot be written. Native
+file panels, interactive setup and participant processing remain unverified.

@@ -17,6 +17,63 @@ from community.local_scene_ui import handler_for,reopen_existing
 
 
 class NativeWindowTests(unittest.TestCase):
+    def windows_fixture(self,root):
+        source=root/'source';native=source/'native-window';native.mkdir(parents=True)
+        names={'VISION Desktop Window.exe','Microsoft.Web.WebView2.Core.dll',
+               'Microsoft.Web.WebView2.WinForms.dll','WebView2Loader.dll','LICENSE.txt'}
+        for name in names:
+            (native/name).write_bytes(('synthetic unexecuted '+name).encode())
+        manifest={'version':1,'platform':'windows-x86_64','executable':'VISION Desktop Window.exe',
+                  'files':{name:pin(native/name) for name in names}}
+        atomic_json(native/'manifest.json',manifest)
+        atomic_json(source/'release-inventory.json',{'files':{'native-window/manifest.json':pin(native/'manifest.json')}})
+        private=root/'private';private.mkdir();installed=provision(source,private)
+        app=SimpleNamespace(root=private,pause=Mock())
+        server=SimpleNamespace(shutdown=Mock())
+        url='http://127.0.0.1:12345/#'+('a'*64)
+        return source,installed,app,server,url
+
+    def test_extra_host_config_or_directory_refused_before_execution(self):
+        with tempfile.TemporaryDirectory() as folder:
+            source,installed,app,server,url=self.windows_fixture(Path(folder))
+            for name,directory in [('VISION Desktop Window.exe.config',False),('unexpected',True)]:
+                with self.subTest(name=name):
+                    extra=installed/name
+                    if directory:
+                        extra.mkdir()
+                    else:
+                        extra.write_bytes(b'<configuration />')
+                    with self.assertRaisesRegex(ValueError,'native_window_inventory_changed'):
+                        provision(source,app.root)
+                    view=NativeWindow(installed,app,server,url);view.active=True
+                    with patch('community.local_scene_window.run_owned') as run, \
+                         patch('community.local_scene_window.webbrowser.open') as browser:
+                        view._run();run.assert_not_called();browser.assert_called_once_with(url)
+                    self.assertEqual(json.loads((app.root/'native-window-failure.json').read_text())['code'],
+                                     'native_window_inventory_changed')
+                    self.assertFalse(view.active)
+                    self.assertTrue(extra.exists())
+                    if directory:
+                        extra.rmdir()
+                    else:
+                        self.assertEqual(extra.read_bytes(),b'<configuration />');extra.unlink()
+            app.pause.assert_not_called();server.shutdown.assert_not_called()
+
+    def test_failure_report_write_refusal_does_not_prevent_browser_fallback(self):
+        with tempfile.TemporaryDirectory() as folder:
+            _,installed,app,server,url=self.windows_fixture(Path(folder))
+            (installed/'VISION Desktop Window.exe').write_bytes(b'changed')
+            view=NativeWindow(installed,app,server,url);view.active=True
+            with patch('community.local_scene_window.atomic_json',side_effect=OSError('synthetic write refusal')) as report, \
+                 patch('community.local_scene_window.run_owned') as run, \
+                 patch('community.local_scene_window.webbrowser.open') as browser:
+                view._run();run.assert_not_called();browser.assert_called_once_with(url)
+                self.assertEqual(report.call_args.args[1]['code'],'native_window_file_changed')
+                self.assertFalse((app.root/'native-window-failure.json').exists())
+                self.assertFalse(view.active)
+                browser.reset_mock();view.closing.set();view._run();browser.assert_not_called()
+            app.pause.assert_not_called();server.shutdown.assert_not_called()
+
     def test_verified_provision_authentication_reopen_and_nonexecuting_fallback(self):
         with tempfile.TemporaryDirectory() as folder:
             root=Path(folder);source=root/'source';native=source/'native-window';native.mkdir(parents=True)

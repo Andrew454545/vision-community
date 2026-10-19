@@ -43,6 +43,10 @@ def host_inventory(folder,expected=None):
             or set(value['files']) != NAMES[value['platform']]
             or value['executable'] != ('VISION Desktop Window' + ('.exe' if value['platform']=='windows-x86_64' else ''))):
         raise ValueError('native_window_inventory_changed')
+    # Extra config files or assemblies can affect native startup before Main.
+    # This sealed folder has no mutable files; browser data lives elsewhere.
+    if {entry.name for entry in folder.iterdir()} != {*value['files'],'manifest.json'}:
+        raise ValueError('native_window_inventory_changed')
     for name,identity in value['files'].items():
         if pin(folder/name) != identity:
             raise ValueError('native_window_file_changed')
@@ -131,9 +135,14 @@ class NativeWindow:
                 connection.unlink(missing_ok=True)
         except Exception as error:
             self.active = False
-            atomic_json(self.app.root/'native-window-failure.json',{
-                'code':str(error) if re.fullmatch('[a-z_]{1,70}',str(error)) else 'native_window_failed',
-                'errorClass':type(error).__name__,'savedWorkPreserved':True})
+            try:
+                atomic_json(self.app.root/'native-window-failure.json',{
+                    'code':str(error) if re.fullmatch('[a-z_]{1,70}',str(error)) else 'native_window_failed',
+                    'errorClass':type(error).__name__,'savedWorkPreserved':True})
+            except Exception:
+                # A full or unwritable disk must not suppress the working
+                # browser fallback. Do not claim that a report was saved.
+                pass
             # An invalid host never executes. The authenticated browser remains
             # a complete working interface, so do not abandon saved work.
             if not self.closing.is_set():
