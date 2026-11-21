@@ -1,0 +1,139 @@
+# Remaining launch work
+
+## Immediate priority: invited local-only Scene processing (15 October 2026)
+
+The latest human instruction prioritizes a small Windows/Apple-silicon Mac group
+processing Scenes and saving indexes locally. Follow [the local pilot plan](LOCAL_SCENE_PILOT.md).
+Uploads, credits, shared search, week-long endurance and broader production audits
+are deferred beyond this immediate milestone; they must not block local pilot
+engineering. Objects/Both remain deferred. The user authorizes implementing this
+local path; source packet integrity and honest runtime provenance still apply.
+No old cloud trial, task restart, private transfer, public signed release or paid
+service activation is inferred. Preserve all existing paused tasks, closed cloud
+configuration, data, credits and historical evidence. The service gates below are
+retained for the later online release, not the current local-pilot work queue.
+
+**Current priority: [Scenes first](SCENES_FIRST_RELEASE.md).** Finish the restricted
+Scene activation, real qualified Windows/Mac contribution/search, trusted beginner
+downloads, cost/recovery and Scene endurance work. Objects/Both are deferred and do
+not block this first release. Preserve Object source/evidence and closed capability;
+the Object engineering descriptions below are later-release work, not today's queue.
+
+**14 October update:** Andrew [approved the one finite restricted staging scope](https://github.com/Andrew454545/VISION/pull/17#issuecomment-6161800642)
+and delegated routine release decisions within the spending/access limits.
+[Current preflight/bounds](SCENE_RESTRICTED_ACTIVATION_20261014.md) record matched
+saved laptop assets, Scene-first local controls and actual exact-commit Mac
+package/assertion evidence. Automatic approval review still requires the laptop
+user's direct cloud-read approval; the user subsequently supplied that exact
+approval. [The separately approved finite trial](FINITE_SCENE_TRIAL.md) subsequently
+accepted two real Scenes/two units, then stopped on observed reads before
+replay/reconciliation. Closed configuration restoration is verified. Diagnose
+read scans locally and recover that acceptance before another bounded activation;
+the one-trial consent is consumed. The broad hold remains outside that finite scope.
+The [metadata/search plan](SCENE_FILTER_METADATA.md) keeps country/generation/saved
+pan tagged before indexing, with pinned reference heuristics and preserved evidence.
+The [coordinator read fixes](SCENE_COORDINATOR_READ_COST.md) now pass local scaled
+assignment/upload/credit replay and upgrade checks. They remain undeployed, and the
+additive lookup indexes have since been applied under direct-human-approved staging
+maintenance (409 observed reads / 88 writes including definition readback).
+[Existing receipt recovery](SCENE_ACCEPTANCE_RECOVERY.md) is now prepared from the
+real sealed outbox and unchanged native files. Its separate read-only gateway checks
+the original unique award and current balance without inference, uploads or credential
+rotation. The approved gateway deployment succeeded, but its local supervisor failed
+before sending any receipt requests. Exact closed staging was restored and independently
+verified. The missing child environment is fixed and 11 targeted Python checks pass,
+including an actual offline owned child. A separately approved corrected attempt
+then received one HTTP 403 without usage metadata; it stopped before the second
+request and independently verified exact closed restoration again. Both no-retry
+scopes ended. The separately approved [direct D1 readback](SCENE_RECEIPT_OPERATOR.md)
+then confirmed the two accepted Scenes, original unique two-unit award and stable
+current balance twice, with 32 actual reads / zero writes and no retries. This
+existing-batch reconciliation is complete; its scope is consumed. The original
+trial remains incomplete, the 403 remains unexplained, and no public authentication,
+full financial cutoff, R2/provider recovery or release acceptance is claimed.
+Next prepare actual contributed-pool refresh and earned-credit Scene search under
+one separately bounded scope, using local overflow where its real pins qualify.
+The [inactive mixed-authority packet](SCENE_POST_RECEIPT_NEXT.md) preserves 26 cached
+audited members and verifies the two new local record digests. Four historical
+audited append activations now have reconciled saved evidence; do not repeat them
+as if they never happened. A new qualified-device append/live head remains open.
+
+**Latest decision:** implement the [approved hybrid mode](HYBRID_LAUNCH_DECISION_20261013.md):
+sample qualification, explicitly marked lighter routine upload checks, online
+search, $10/month processing plus R2, and local overflow. Its first monthly host
+guard and [qualified Scene uploads](QUALIFIED_SCENE_UPLOADS.md) are implemented
+offline; Object admission, shared routing/budget and activation remain work.
+The [Object integrity component](QUALIFIED_OBJECT_UPLOADS.md) is ready for reuse
+without native inference; it does not complete those remaining admission gates.
+The [trusted Object score sample comparator](OBJECT_SCORE_QUALIFICATION.md) now
+checks raw fixed-input values under pinned policy. The [combined sample check](OBJECT_INDEX_QUALIFICATION.md)
+now connects full index/quality parity in source. The [account registry and saved
+adapter](OBJECT_ACCOUNT_QUALIFICATION.md) add optional reusable records and
+revocation. [Private owned-sample lookup and local delivery](OBJECT_QUALIFICATION_HOST.md)
+are now implemented and checked offline. Actual approved transport/host setup,
+authentic platform results and automatic fresh source-pool preparation remain open.
+The [qualified eligibility inspector](QUALIFIED_OBJECT_ELIGIBILITY.md) now
+connects active profile qualification, current Scene/Gen4 state and original-source
+protection in source. The inspector itself grants no publication or credit.
+[Staging and atomic settlement/recovery](QUALIFIED_OBJECT_PUBLICATION.md) now use a
+distinct qualified namespace, binding prepared leases with once-only credit and
+recoverable acceptance. [Prepared-pool allocation/delivery](QUALIFIED_OBJECT_ASSIGNMENTS.md)
+now connects exclusive requests, source delivery and original-qualification fences
+to that path in source. Fresh source-side pool preparation, public/client routing
+and actual private setup remain next; default Object capability stays closed.
+The [shared search allocation/router](HYBRID_SEARCH_QUEUE.md) is implemented and
+checked locally. The [finite native Scene runner](NATIVE_QUEUED_SEARCH.md) now has
+durable shutdown/result recovery in source. Its approved trigger/bindings, actual
+provider/cost evidence, Object cloud executor and allocation for other paid work
+remain unfinished; no operational activation is claimed.
+This supersedes Free-only owner-local/full-recomputation recommendations below.
+
+The [13 October low-cost plan](LOW_COST_LAUNCH_PLAN_20261013.md) records the
+confirmed demand of one or two searches/day across the application, the R2
+target and additional $10/month ceiling. Follow its focused implementation order;
+the operational hold and five launch gates remain unchanged.
+
+**First resolve the [owner cost hold](COST_STOP_20261012.md).** The pilot,
+refresher and background indexing task are disabled. Cloud execution,
+deployments, provider checks and Actions remain forbidden. The requested
+[cost recommendation](COST_OPTIONS_20261012.md) now has the laptop user's approval
+for **local implementation only**. [Queued search delivery](QUEUED_SEARCH_DELIVERY.md)
+is implemented in source, with optional [sealed Scene search membership](SCENE_MEMBERSHIP.md).
+Continue offline owner verification/import and bounded admission/catalog metadata;
+account/resource migration and activation remain undecided.
+The [direct owner-local Object auditor](OWNER_OBJECT_VERIFICATION.md) is built;
+the optional [Object coordinator](OWNER_OBJECT_DELIVERY.md) connects authenticated
+claims to guarded publication in source. The owner client now delivers saved
+results and refreshes protection proofs with restart recovery. Dedicated Object
+credential provisioning and its configured runner are implemented offline.
+Optional [owner-outbound published-job cleanup](OWNER_OBJECT_RETIREMENT.md) is now
+connected. Approved actual setup/startup and outbound cancellation/deletion still
+need integration.
+The work below is not permission to restart cloud execution or indexing.
+
+Use the [five acceptance gates](PRODUCTION_ACCEPTANCE.md) as the release boundary.
+The engineering checkpoint before this session is `1a1f845`: hosted Object slots
+are separate from retained history, and acceptance/credit survive upgrade and SQL
+recovery. Current temporary-queue handling is documented in [queue waits](OBJECT_QUEUE_WAIT.md).
+Public Object admission remains closed.
+
+| Work | Who handles it | Next action and completion evidence |
+|---|---|---|
+| Portable live protection | Codex | Andrew's [source handoff is complete](PROTECTED_CAPTURE_CONSUMPTION.md). Finish portable/live authority without copying or fabricating MMA database files. Its expired origin capture alone cannot authorize hosted imports. |
+| Repeatable real Object contributions | Codex | Bounded [registry rollover](OBJECT_REGISTRY_ROLLOVER.md) and [published native-job cleanup](OBJECT_NATIVE_RETENTION.md) are implemented. Finish trusted assignment automation and verified deployment; qualify measured Mac/Windows policies on identical inputs; publish the first real batch and exercise once-only earned-credit search. No human object labelling is required. |
+| Repeatable Scenes and search | Codex/platform operator | Finish the new qualified-device append/earned search, exact Mac/parallel profiles and equivalent real earned-credit search. Reuse four historical audited refresh activations, fixed-input matrices and current existing-batch reconciliation; do not repeat them. |
+| Full accepted-work endurance | Codex/platform operators | Preserve the intentionally stopped Windows Scene-only pilot; it cannot pass an uninterrupted week. After an explicit architecture/budget/restart decision, reconcile its saved work and start each full OS soak only when authentic lanes/search qualify. |
+| Recovery and capacity | Codex | Complete isolated provider/R2/native-bundle/secret recovery using independent current deletion/financial authority; obtain a fresh consistent cutoff; measure resource costs and spending limits. Preserve accepted work, paid replies and deletion fences. |
+| Trusted beginner downloads | User supplies legal publisher/testers; Codex implements | Finish privacy-preserving organization enrollment and supported clean Windows/Mac tests. User offered both testers; actual signing identities, jurisdiction and signed acceptance are outstanding. Andrew has already reported these resources unavailable; do not repeatedly ask him. |
+| Controlled rollout | Codex | Freeze only after all five gates pass, apply rehearsed changes with admission closed, verify current bindings/policies/financial state, finish beginner smoke checks, then open a bounded rollout with a safe rollback. |
+
+Andrew has completed the requested real source export. No additional source-side
+task is currently outstanding. Engineering choices, tolerance design,
+integration and routine tests stay here. Requests for new source-side executions
+must identify a concrete missing artifact and exact command; no broad design
+review, repeated matrix, build or Actions spending is requested.
+
+The [earlier dependency reports](LAUNCH_BLOCKERS_HISTORY_20261012.md) are preserved
+for evidence. Their historical status does not override this list. Full launch
+has no defensible completion date until signing/test devices and authentic
+admission are available; each full accepted-work soak itself takes seven days.

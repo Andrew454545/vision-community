@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import subprocess
 from pathlib import Path
 
 from .catalog import iter_indexer_tsv
@@ -59,31 +58,30 @@ def copy_tail_window(source: Path, destination: Path, *, tail_rows: int, skip_la
     take = int(tail_rows) - int(skip_last)
     if take < 1 or skip_last < 0:
         raise ValueError("rows")
-    source = Path(source)
-    if not source.is_file():
-        raise FileNotFoundError(source)
-    tail = subprocess.Popen(["tail", "-n", str(tail_rows), str(source)], stdout=subprocess.PIPE)
-    try:
-        head = subprocess.run(
-            ["head", "-n", str(take)],
-            stdin=tail.stdout,
-            check=True,
-            capture_output=True,
-        )
-    finally:
-        if tail.stdout:
-            tail.stdout.close()
-        tail.wait()
-    if tail.returncode not in (0, None):
-        raise subprocess.CalledProcessError(tail.returncode or 1, "tail")
-    return _write_copied_tsv(destination, head.stdout)
+    tail = _tail_lines(source, tail_rows)
+    return _write_copied_tsv(destination, b"".join(tail.splitlines(keepends=True)[:take]))
 
 
 def _tail_lines(source: Path, rows: int) -> bytes:
     source = Path(source)
     if not source.is_file():
         raise FileNotFoundError(source)
-    return subprocess.run(["tail", "-n", str(rows), str(source)], check=True, capture_output=True).stdout
+    if rows < 1:
+        raise ValueError("rows")
+    # Seek backwards so a small reservation does not scan a multi-GB catalog.
+    # Python's binary reads preserve CRLF and UTF-8, including split characters.
+    chunks = []
+    newlines = 0
+    with source.open("rb") as handle:
+        position = handle.seek(0, 2)
+        while position and newlines <= rows:
+            size = min(position, 64 * 1024)
+            position -= size
+            handle.seek(position)
+            block = handle.read(size)
+            chunks.append(block)
+            newlines += block.count(b"\n")
+    return b"".join(b"".join(reversed(chunks)).splitlines(keepends=True)[-rows:])
 
 
 def _write_copied_tsv(destination: Path, payload: bytes) -> dict:

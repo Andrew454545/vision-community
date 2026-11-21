@@ -1,0 +1,211 @@
+{
+  "version": 1,
+  "date": "2026-10-11",
+  "scope": "private-saved-object-result-integrity",
+  "parentCommit": "af97eb15dcbfda61da0b7dccda03ec085e20dd83",
+  "platform": "Windows",
+  "sourceBytes": "actual Windows working files",
+  "sourceFiles": {
+    "community/native_object_verifier.py": {
+      "bytes": 31395,
+      "sha256": "f04a14c35709448ffbcf27257a1decb7b7ae2e38ec7338f5143b890945a1516a"
+    },
+    "community/object_audit_jobs.py": {
+      "bytes": 39514,
+      "sha256": "df957f0d551d4bb12e2fc2e9336403cd90299dad6e0424eb481d1a2205db45dd"
+    },
+    "community/tests/test_object_receipt_guard.py": {
+      "bytes": 18797,
+      "sha256": "7d5c84f38415197a3140bb864ebb5aecd3e156847fb8aadd2cee0177a61236ad"
+    },
+    "deploy/cloudflare/tools/check-local-object-audit-jobs.mjs": {
+      "bytes": 2284,
+      "sha256": "9eaa31054a19cf2d4dbb443a0c2ddbd37c66f28dcf31c9ed077c4938f7e034e7"
+    },
+    "deploy/cloudflare/tools/object-audit-jobs.fixture.mjs": {
+      "bytes": 3518,
+      "sha256": "b5fb6da1d9ba1628311426ba18a085f5ae7854faa1af8fc6b3a233acb9180eee"
+    },
+    "deploy/cloudflare/native-object-verifier-bridge/worker.js": {
+      "bytes": 9736,
+      "sha256": "7410e1ee9c3fac040a3df89edbba5a508614662b1271bfce5d2c5ebe869c3576"
+    },
+    "deploy/cloudflare/native-object-verifier-bridge/worker.test.mjs": {
+      "bytes": 12958,
+      "sha256": "f16a020cba38dbd59727161b179f14582a12e8e19f25e9d3aba084bf826c23f1"
+    },
+    "deploy/cloudflare/src/objectAdmission.js": {
+      "bytes": 842,
+      "sha256": "55917e88a5f107a51d49ff096c2cc2bf6a7343090edefcd86b3d3fa71869130e"
+    }
+  },
+  "checks": {
+    "regression-v2": {
+      "group": "regression",
+      "exitCode": 0,
+      "wallSeconds": 687.0619999999763,
+      "windowless": true,
+      "owned": true,
+      "syntheticInference": true,
+      "liveCalls": 0,
+      "tests": 103,
+      "passed": 101,
+      "skipped": 2
+    },
+    "supplement-v2": {
+      "group": "supplement",
+      "exitCode": 0,
+      "wallSeconds": 35.31200000003446,
+      "windowless": true,
+      "owned": true,
+      "syntheticInference": true,
+      "liveCalls": 0,
+      "tests": 2,
+      "passed": 2,
+      "skipped": 0
+    },
+    "http-final-v3": {
+      "group": "http-final",
+      "exitCode": 0,
+      "wallSeconds": 54.25,
+      "windowless": true,
+      "owned": true,
+      "syntheticInference": true,
+      "liveCalls": 0,
+      "tests": 5,
+      "passed": 5,
+      "skipped": 0
+    },
+    "javascript-v2": {
+      "group": "js",
+      "exitCode": 0,
+      "wallSeconds": 1.422000000020489,
+      "windowless": true,
+      "owned": true,
+      "syntheticInference": true,
+      "liveCalls": 0,
+      "tests": 101,
+      "passed": 101,
+      "skipped": 0,
+      "outerHelperExitCode": 1,
+      "outerHelperError": "UnicodeEncodeError while printing successful child log; original child exit receipt is 0"
+    },
+    "worker-v2": {
+      "group": "worker",
+      "exitCode": 0,
+      "wallSeconds": 0.9369999999762513,
+      "windowless": true,
+      "owned": true,
+      "syntheticInference": true,
+      "liveCalls": 0,
+      "status": "ACTUAL_WORKERD_OBJECT_JOB_TRANSPORT_PASSED",
+      "cases": 17,
+      "syntheticProvider": true,
+      "objectAdmissionReady": false,
+      "nativeInferences": 0,
+      "creditsCreated": 0
+    }
+  },
+  "distinctPythonChecksPassed": 105,
+  "newPythonChecksPassed": 16,
+  "unresolvedSkippedChecks": 0,
+  "passedPythonCheckNamesSha256": "b32e2aca7a20d80d8e52e0824e83ceb5c110fb03c36ae443b92f750101ea033b",
+  "broadRunJobSourceSha256": "92c867f2fb4299786b86a0fa1782ff8ffd2373ce4c0bd3060bb860e4ae0f7bda",
+  "finalSourceFollowup": "One HTTP exception mapping added after broad suite; four HTTP checks plus actual Node-to-Python backup recovery passed afterward.",
+  "privateArtifacts": {
+    "regression-v2.receipt.json": {
+      "bytes": 151,
+      "sha256": "e8bd42c3fe77e3ac06d64e49104f1102a505474cd5abce28124ad4448c6f522e"
+    },
+    "regression-v2.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "regression-v2.stderr.log": {
+      "bytes": 21058,
+      "sha256": "2072aca33ab493ca0a85349a3ac999e065155962d70c6ffb5bcd2d9763d6166f"
+    },
+    "supplement-v2.receipt.json": {
+      "bytes": 151,
+      "sha256": "423c35203429e088a138dcda9573b4e8761232b2326874be9fa26c5e38580651"
+    },
+    "supplement-v2.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "supplement-v2.stderr.log": {
+      "bytes": 513,
+      "sha256": "2e34fc05331892454eab9c76d6c57b70c73c20bed505505693203d779f62487b"
+    },
+    "http-final-v3.receipt.json": {
+      "bytes": 139,
+      "sha256": "99c1c9a34c82a0c105f821ba16a8d250c244a6cf2f11f2fea3b7a5c4948ca699"
+    },
+    "http-final-v3.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "http-final-v3.stderr.log": {
+      "bytes": 1215,
+      "sha256": "03d4540013eaa3c12070b1633e73890b525eef9f5729d648120b93cb053cf3b3"
+    },
+    "javascript-v2.receipt.json": {
+      "bytes": 143,
+      "sha256": "21c32dcdadddbbe494db66391a98b04107a10df07ea9cddd924e515e66e02591"
+    },
+    "javascript-v2.stdout.log": {
+      "bytes": 10128,
+      "sha256": "4292af5c4fe962f2d1aaa2507899141ab40775cbdb37563e3fb1544b152d79c4"
+    },
+    "javascript-v2.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "worker-v2.receipt.json": {
+      "bytes": 148,
+      "sha256": "3cee835fa201245961319a74e56faf7836d1f9311c32e4832ebb0f30600d33d1"
+    },
+    "worker-v2.stdout.log": {
+      "bytes": 161,
+      "sha256": "a3615d048b8e7c56e2abf5d79433a557cf320f3cc0a457482482f21758f3d31a"
+    },
+    "worker-v2.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "focused-v1.receipt.json": {
+      "bytes": 149,
+      "sha256": "1023a5448b012680d86347a1c0ac5d3a1fcdd9431377581ec7ff2fd53ec715ec"
+    },
+    "focused-v1.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "focused-v1.stderr.log": {
+      "bytes": 6148,
+      "sha256": "83d5f1661112397f95e3bd73e93cd1fa1f54ccbd512b607e0dc99d8ca33b7ec0"
+    }
+  },
+  "preservedFirstRun": {
+    "tests": 11,
+    "errors": 2,
+    "reasons": [
+      "uncaught damaged-feature VisionIndexError",
+      "receipt revalidation blocked cancellation"
+    ]
+  },
+  "syntheticInference": true,
+  "syntheticCoverage": true,
+  "serverAuthorization": false,
+  "productionQualified": false,
+  "objectAdmissionReady": false,
+  "genuineContributionsCreated": 0,
+  "genuineSearchCreditsCreated": 0,
+  "liveCloudflareCalls": 0,
+  "privateUploads": 0,
+  "githubActionsTriggered": false,
+  "frozenScenePilotChanged": false,
+  "frozenSceneRefresherChanged": false,
+  "macAcceptance": false,
+  "controlledRolloutApproved": false
+}

@@ -121,6 +121,8 @@ class AllLocationsFullCatalogTest(unittest.TestCase):
     def test_lease_keeps_generation_and_saved_pan_for_four_view(self):
         from community.pano import view_plan
         from community.service import CommunityService
+        from community.tests.test_scene_quality import references_from_fixture_lines
+        from community.tests.catalog_fixture import remaining_fixture
 
         line = format_indexer_line(
             location_id=126295778,
@@ -139,7 +141,8 @@ class AllLocationsFullCatalogTest(unittest.TestCase):
             dest = root / "shards"
             manifest = build_catalog(dest, lines=[line], rows_per_shard=10)
             service = CommunityService(root / "db.sqlite", search_cost=4, artifacts=root / "artifacts", operational=True)
-            service.append_pose_catalog(manifest, source_dir=dest, lanes=("scene",))
+            service.append_pose_catalog(remaining_fixture(manifest), source_dir=dest, lanes=("scene",))
+            service.scene_references = references_from_fixture_lines([line])
             account = service.create_account()["accountId"]
             item = service.lease(account, "scene", 1)["items"][0]
             self.assertEqual(item["cameraGeneration"], "gen4")

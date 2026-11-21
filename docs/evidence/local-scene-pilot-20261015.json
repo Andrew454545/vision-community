@@ -1,0 +1,96 @@
+{
+  "date": "2026-10-15",
+  "scope": "invited-local-only-scene-pilot-source",
+  "verification": {
+    "sourceSyntheticChecksPassed": 17,
+    "actualLoopbackHTTPChecksPassed": 2,
+    "skips": 0,
+    "sourceCases": [
+      "concurrent disjoint issue",
+      "idempotent retained packet delivery",
+      "catalog change cannot reissue panorama",
+      "preserved country/generation/pan/source index",
+      "modified packet refusal",
+      "pause at 16 and resume without recomputing completed part",
+      "changed saved index refusal",
+      "incomplete views refusal",
+      "orphan preservation",
+      "runtime change refusal",
+      "model-only setup contract and cached reuse",
+      "wrong bundled native refusal",
+      "public source inventory coverage"
+    ],
+    "loopbackCases": [
+      "Host/token/Origin/body fences and no token in HTML",
+      "existing window reopen and remote URL refusal"
+    ],
+    "windowsLauncher": "PowerShell 7 parser and private source selection check; no GUI install or downloads",
+    "existingRuntime": {
+      "existingRuntimeFilesVerified": true,
+      "runtimeProfileSha256": "de1ed392dfebd25a1a4e6d08d59fdeeabee9bed9a26015978f1fee50e8f64a86",
+      "layout": {
+        "bytesPerLocation": 3080,
+        "completeViewMask": 15,
+        "feature": "four-view-index",
+        "version": 4,
+        "viewsPerLocation": 4
+      },
+      "imageryCalls": 0,
+      "inferenceRuns": 0,
+      "cloudCalls": 0,
+      "modelsDownloaded": false,
+      "hardlinkedExistingFiles": true
+    }
+  },
+  "limitations": {
+    "freshPilotInference": false,
+    "actualParticipantInstallation": false,
+    "macPilotExecution": false,
+    "currentServerQualification": false,
+    "signedDistribution": false,
+    "acceptedContribution": false,
+    "earnedCredit": false,
+    "modelDownloadTest": "synthetic downloader; no actual download"
+  },
+  "preservedFailures": [
+    "first local HTTP fixture blocked by sandbox WinError10013; exact changed loopback checks passed outside sandbox",
+    "existing model hardlink blocked by sandbox WinError5; approved local hardlink/hash/layout preflight passed without another model copy",
+    "initial kit command used parent-traversal relative paths rejected by regular-path guard; absolute-path clean build succeeded; failed log preserved"
+  ],
+  "operationalEffects": {
+    "cloudCalls": 0,
+    "actionsRuns": 0,
+    "ownerCloudCompute": 0,
+    "providerImageryCalls": 0,
+    "oldTasksRestarted": 0,
+    "privateUploads": 0,
+    "newAccounts": 0
+  },
+  "schedule": {
+    "status": "ACTIVE",
+    "intervalHours": 1,
+    "priority": "local-only Scenes"
+  },
+  "futureAdmission": "Local provisional results; no pool membership, credit or authentic inference claimed from fixtures",
+  "windowsMaintainerKit": {
+    "sourceRevision": "c458155efbc7d733377ad120c637343bd0b4c4b0",
+    "sourceWorktreeDirty": false,
+    "platform": "windows-x86_64",
+    "inventorySha256": "56a24f86dced0287650d1c5994ed13617577d56d6b1faf4ac75064a43ddb48a9",
+    "sha256": "d9dcd0c853d891abd487db1fd723b2791243b631ec867ee324d23e74251eb936",
+    "artifact": "VISION-Local-Scenes-windows-x86_64-MAINTAINER.zip",
+    "modelFilesBundled": false,
+    "packetsBundled": false,
+    "publicDistributionReady": false,
+    "signed": false,
+    "cloudCalls": 0,
+    "actionsRuns": 0,
+    "archiveInventoryVerified": true,
+    "bytes": 23172891,
+    "cachedExistingModelSetupVerified": true,
+    "existingWindowsProfileSha256": "de1ed392dfebd25a1a4e6d08d59fdeeabee9bed9a26015978f1fee50e8f64a86",
+    "isolatedPrivateSnapshotImportsVerified": true,
+    "freshParticipantInstall": false,
+    "freshPilotInference": false
+  }
+}

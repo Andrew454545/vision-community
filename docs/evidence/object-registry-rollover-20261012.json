@@ -1,0 +1,173 @@
+{
+  "version": 1,
+  "scope": "bounded-append-only-native-object-registry-rollover",
+  "recordedAt": "2026-10-12T05:42:00.775117+00:00",
+  "parentCommit": "ef109c749acd8ee5849e766e3abfbc2fab55d5c9",
+  "platform": "Windows",
+  "syntheticInference": true,
+  "realAcceptedContributions": 0,
+  "realEarnedCredits": 0,
+  "liveCalls": 0,
+  "deployed": false,
+  "productionQualified": false,
+  "publicObjectAdmission": false,
+  "githubActionsRunsStarted": 0,
+  "installedNativeRuntimePolicyOrSpoolChanged": false,
+  "frozenScenePilotChanged": false,
+  "verification": [
+    {
+      "group": "native",
+      "exitCode": 0,
+      "wallSeconds": 111.56299999996554,
+      "windowless": true,
+      "owned": true,
+      "syntheticInference": true,
+      "liveCalls": 0,
+      "realAcceptedContributions": 0,
+      "realEarnedCredits": 0,
+      "tests": 15,
+      "pass": 15,
+      "fail": 0,
+      "skipped": 0,
+      "privateEvidenceSha256": {
+        "stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr": "fe55d734a83eb34c60b2a1824e88885fd34d9603bb4f3284b2b9c67a6997e72f",
+        "receipt": "b4de7b72e81db5fdd249dfa34977c9914b75cefdfa003fb6376ab71ffdf68379"
+      },
+      "phase": "Full focused selection before the final startup registry re-pin guard."
+    },
+    {
+      "group": "strengthened-node-python-prefix-interop",
+      "exitCode": 0,
+      "wallSeconds": 2.125,
+      "windowless": true,
+      "owned": true,
+      "syntheticInference": true,
+      "liveCalls": 0,
+      "realAcceptedContributions": 0,
+      "realEarnedCredits": 0,
+      "tests": 1,
+      "pass": 1,
+      "fail": 0,
+      "skipped": 0,
+      "privateEvidenceSha256": {
+        "stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr": "639ab92fa89d9f76fc56fa3bd5ea2caa77f68830a15b5561ea59625d839617fd",
+        "receipt": "4414397e0207080446387b2fde8748b784ac11925c6aee239a3586978a9fe49e"
+      },
+      "phase": "Strengthened fixture additionally proves a legitimate unchanged historical prefix."
+    },
+    {
+      "group": "transition-guard",
+      "exitCode": 0,
+      "wallSeconds": 18.719000000040978,
+      "windowless": true,
+      "owned": true,
+      "syntheticInference": true,
+      "liveCalls": 0,
+      "realAcceptedContributions": 0,
+      "realEarnedCredits": 0,
+      "tests": 3,
+      "pass": 3,
+      "fail": 0,
+      "skipped": 0,
+      "privateEvidenceSha256": {
+        "stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr": "bad3e490ed6c7487170cef476605c7cdc563cdbb3644126e9ed03d71c9d227ab",
+        "receipt": "388b2606d8aa65b744e34eab19a5627df16ecdfbb415c1cd3cca17a187369ae1"
+      },
+      "phase": "Final startup guard plus saved-receipt/deletion/idempotency and transaction rollback checks."
+    },
+    {
+      "group": "recovery-js",
+      "exitCode": 0,
+      "wallSeconds": 17.07799999997951,
+      "windowless": true,
+      "owned": true,
+      "syntheticInference": true,
+      "liveCalls": 0,
+      "realAcceptedContributions": 0,
+      "realEarnedCredits": 0,
+      "tests": 81,
+      "pass": 80,
+      "fail": 0,
+      "skipped": 1,
+      "cancelled": 0,
+      "privateEvidenceSha256": {
+        "stdout": "8eb4719961074c4ed2198b879ac42e5656affd182ef9843730486f5670998445",
+        "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "receipt": "756e9c177177ddb9e3314430ba1dc16ebf0f817093ce56686da0e624aea451fd"
+      }
+    }
+  ],
+  "verificationGroupsOverlap": true,
+  "distinctTargetedPythonChecks": 16,
+  "javascriptSkip": "One existing Windows file-symlink privilege check is unavailable.",
+  "preservedFailures": [
+    {
+      "group": "native",
+      "exitCode": 1,
+      "wallSeconds": 84.375,
+      "windowless": true,
+      "owned": true,
+      "syntheticInference": true,
+      "liveCalls": 0,
+      "realAcceptedContributions": 0,
+      "realEarnedCredits": 0,
+      "tests": 14,
+      "pass": 13,
+      "fail": 1,
+      "reason": "The negative fixture copied an identical profile/source value and incorrectly expected a change refusal.",
+      "correction": "Use actually different profile/source hashes; the full 15-check followup passes. Original logs and receipt retained.",
+      "privateEvidenceSha256": {
+        "stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr": "59208d6a1c8bff0720297c25b182dacc6c1bf0dab830d549e3cfbfd597a70093",
+        "receipt": "ed26bf3465b9a2e8aa9273dcb56a09614b2f442ab0446d66db36655bc3379c32"
+      }
+    }
+  ],
+  "results": {
+    "realSqliteFilesystemUsed": true,
+    "twoSequentialRegistryExtensions": true,
+    "syntheticJobsRetained": 66,
+    "existingFailureAndApprovalReportsPreservedAcrossExtension": true,
+    "oldRetryNonceStillOnceOnly": true,
+    "oldLeaseDeletionAndTombstonesSurviveExtensionAndRestart": true,
+    "lateIdentityUpdateFailureRollsBackExtensionJournalAndIdentity": true,
+    "registryChangedDuringValidationCannotCommit": true,
+    "rollbackForkAndHistoricalMutationRefused": true,
+    "runtimePolicyChangeEvenWithSameNameRefused": true,
+    "oldRecoveryRegistryPinRefused": true,
+    "actualNodeExportPythonConsumerCover70Leases": true,
+    "newAssignmentsGrantNoQualificationPublicationOrCredit": true
+  },
+  "bounds": {
+    "legacyRegistryAssignmentsAndJobs": 64,
+    "extendedRegistryAssignmentsAndJobs": 4096,
+    "registryBytes": 8388608,
+    "newAssignmentsPerBuilderCall": 64,
+    "queuedNativeJobs": 8,
+    "retainedInputBytes": 536870912,
+    "minimumFreeBytes": 1073741824,
+    "nativeAttempts": 3,
+    "privateHttpConnections": 2,
+    "recoveryAuthorityBytes": 1048576,
+    "recoveryAuthorityAgeSeconds": 600
+  },
+  "sourceSha256": {
+    "community/object_audit_registry.py": "2ef0703312bd490d29e3f837db9248ce6898df5556f8e29ebd65803815f65ec8",
+    "community/object_audit_jobs.py": "1874a7c812f5eec84f40542e9d10d2d6b073eeb9592eca6c3d19a7fca2e669e7",
+    "community/object_audit_recovery.py": "c9d7c5a2b54f8a62721af5d0bb21d15a5ebd38ee6a5dbc7ec54b61ffb50c87b5",
+    "community/tests/test_object_audit_registry.py": "0150da9423149736d19de276eb90665befb73ec502b8abd87fc14e31eccb1ae3",
+    "community/tests/test_object_registry_rollover.py": "71d98c5eb6dbb465207e75ede75f532975b6a3ec58c0231ccf6aeecc791ca691",
+    "deploy/cloudflare/tools/object-erasure-recovery.mjs": "ae7f6343b12fd9c4f07dc3c3d8690bdea463760113d0de8b2beb44a0c03c92b5",
+    "deploy/cloudflare/src/objectErasureRecovery.test.mjs": "110ea889f427c29c8b50af4250d866e93a69e1609b076b8d0c77f8e2d39d77d9"
+  },
+  "limits": [
+    "No automatic terminal evidence deletion or indefinite storage is implemented.",
+    "Trusted assignment delivery, native retention/capacity and portable live protection remain launch work.",
+    "Source policy hashes must be repinned for any future new runtime; this does not migrate an older policy/spool.",
+    "Actual Mac execution, authentic qualification, real accepted Object work/search and production recovery are not established.",
+    "No installed host, frozen pilot, provider binding or live admission changed."
+  ]
+}

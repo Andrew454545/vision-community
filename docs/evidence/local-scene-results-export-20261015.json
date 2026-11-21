@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-15",
+  "scope": "Local-only Scene portable backup and saved Mac runtime pin update",
+  "status": "SOURCE_VERIFIED_OFFLINE",
+  "sourceBase": "7788a0e64c851f0c1967e5b614dae4d0fa768d2b",
+  "checks": {
+    "python": {
+      "total": 12,
+      "passed": 12,
+      "skipped": 0,
+      "includesActualAuthenticatedLoopbackZipDownload": true
+    },
+    "javascriptVm": {
+      "total": 2,
+      "passed": 2,
+      "cases": [
+        "save-download",
+        "refusal-preserves-controls"
+      ]
+    }
+  },
+  "semantics": {
+    "completedGroupsOnly": true,
+    "fullAndPartialManifests": true,
+    "exactOriginalBytes": true,
+    "profileAndPacketHashesChecked": true,
+    "completeIndexMasksChecked": true,
+    "deterministicIdempotentArchive": true,
+    "conflictingDestinationPreserved": true,
+    "sourceMutationRefused": true,
+    "sourceFilesPreserved": true,
+    "sessionTokensExcluded": true
+  },
+  "limits": {
+    "allIndexDataAndAuthoritySynthetic": true,
+    "authenticPilotInference": false,
+    "participantInstallation": false,
+    "macExecution": false,
+    "signing": false,
+    "upload": false,
+    "cloudCalls": 0,
+    "actionsRuns": 0,
+    "newModelDownloads": 0
+  },
+  "mac": {
+    "ownerReply": "https://github.com/Andrew454545/VISION/pull/17#issuecomment-6188354978",
+    "ownerCheckedSource": "c458155efbc7d733377ad120c637343bd0b4c4b0",
+    "ownerReportedChecks": {
+      "passed": 11,
+      "skips": 0,
+      "firstErrors": 7,
+      "firstFailures": 2,
+      "correction": "Canonical private temporary directory, unchanged path guards"
+    },
+    "oldNativeSha256": "be0d98af2fab5e96f3cd6397365cfb2523dad66a93612a2b23358a8ae91419f2",
+    "oldNativeIncompatible": true,
+    "existingArtifactId": 11322461099,
+    "existingArtifactSha256": "86a0344513ba2272c5188951e075156f316c97e6e0adabf7b71054b2f38cd3a4",
+    "candidateSha256": "b48e9e020e5e052c9c8c5fe91d0643551be255eeeaa36cba74f975dd801394a9",
+    "candidateBytes": 35526000,
+    "downloadedExistingBuildNotNewRun": true,
+    "localArchiveAndBinaryHashesVerified": true,
+    "explicitFp32GraphMarkerPresent": true,
+    "threadMarkerPrefixPresent": true,
+    "sceneFp32JsonFieldPresent": true,
+    "sceneFp32CliOptionTokenPresent": false,
+    "cliOptionNotUsedByPilot": true,
+    "priorComparisonEvidence": "docs/MAC_CPU_NATIVE_CHECK_20261004.md",
+    "newPlatformExecution": false
+  },
+  "remaining": [
+    "Approved fresh packet source still requires complete exclusion of prior service assignments, including paused/abandoned reservations.",
+    "Changed Mac package needs narrow existing-runtime startup/layout check; no new matrix is needed.",
+    "Real participant indexing and trusted distribution are not claimed."
+  ],
+  "privateLogSha256": {
+    "targeted-checks.log": "aaaaa83b1afcee2a41af60172aefca221399168aedb2fe09dbda34c8593e09cf",
+    "save-ui.log": "06cbcaa4b63afa530d39504e61260bb45f23a3340ec31ee529b44a4c0a3abd36"
+  }
+}

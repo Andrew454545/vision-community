@@ -1,0 +1,91 @@
+{
+  "version": 1,
+  "status": "CURRENT_OFFICIAL_GEN4_COHORT_VERIFIED",
+  "recordedLocalDate": "2026-10-09",
+  "platform": "Windows x64",
+  "resource": {
+    "accountId": "272760294910ef0b246980278aeb36e2",
+    "bucket": "vision-community"
+  },
+  "source": {
+    "manifestSha256": "97809710d4af2ae870d8e72a8c17775af926842d394e5e2e48df76bfee2fd8fc",
+    "pinnedShards": 3,
+    "rowsScanned": 1500000,
+    "bytesDownloaded": 172736297
+  },
+  "selection": {
+    "candidateRows": 294,
+    "candidateCountries": 26,
+    "officialAllCameras": 266,
+    "rejectedRows": 28,
+    "otherCameraRows": 67,
+    "gen4Rows": 199,
+    "gen4Countries": 22
+  },
+  "cohort": {
+    "rows": 100,
+    "countries": 22,
+    "maximumCountryRows": 5,
+    "protectedRows": 0,
+    "inputSha256": "694fda1a037c4b7a6b122e22e7364a2e4c38624765a2f1026c1e1fd6be8a1058",
+    "nativeInputSha256": "8f089f92b2e95690cb84b47cd452cc5e6af1bddfa3c2c9681120833e0b10cf18",
+    "mapSha256": "49b19f6d333d150ee0f3c9b138786df56cbd4dc305041c90da8aa954c8806a8e"
+  },
+  "validator": {
+    "policy": "strict-google-official-historical-v7-exact-pano-2026-10-06",
+    "binarySha256": "12457f707865f1fd3464311b60488f5e4cff1a9cd0e7397bfe841ccb2602eb89",
+    "countryNamesSha256": "93dec25e8ccc001db7856175259e12018e6b603b3e5af4f5d87e10bdc123a2b0",
+    "manifestSha256": "21df7e5bc06428f91fca9801e93447966a89e7c512f88305c98af9ad92684049",
+    "completedAt": "2026-10-10T04:25:31.870267200+00:00",
+    "cacheMaxAgeDays": 1,
+    "counts": {
+      "inputRows": 100,
+      "officialRows": 100,
+      "rejectedRows": 0,
+      "cacheHits": 0,
+      "cacheMisses": 100,
+      "metadataRequests": 1,
+      "metadataRetries": 0
+    }
+  },
+  "rawMetadata": {
+    "rows": 100,
+    "bytes": 553073,
+    "requestSha256": "5e13c890d38470733bac8a8c4821ca1fa8733d1743a09fe3a5c59bc5185bf292",
+    "responseSha256": "f6fcf6a19380da053d3cea5351aab4d99be50acada85fb28efbda329e1c5f5f4",
+    "exactNativeFieldsMatch": true,
+    "redirectedPanoramas": 0,
+    "nonGen4": 0
+  },
+  "protectedSnapshotSha256": "a058b89012fa36836138ca88943770ca0a4497dda9476eb63c3a6f45b1d1b932",
+  "coveragePlan": {
+    "statements": 8,
+    "records": 100,
+    "batchSha256": "4959cec0123ed3dd21dff90f501394a27f8875dc3253a4f294b466ffd9382f80",
+    "applied": false
+  },
+  "privateHandoff": {
+    "releaseId": 407402399,
+    "assetId": 626998074,
+    "bytes": 779280,
+    "sha256": "008af954bca02fbd55f1bb12b7a36ff39521df8a55c57310ca4acafaae70c071",
+    "verifiedFiles": 40,
+    "repositoryPrivate": true,
+    "releaseDraft": true,
+    "freshDownloadSha256": "008af954bca02fbd55f1bb12b7a36ff39521df8a55c57310ca4acafaae70c071"
+  },
+  "originalFailuresPreserved": [
+    "connector_get_object_error_200",
+    "restricted_saved_sign_in_unavailable",
+    "restricted_native_output_access_denied_after_metadata_cache_populated"
+  ],
+  "sceneCompletionMembershipVerified": false,
+  "runtimeImportSealed": false,
+  "modelInference": false,
+  "imageryRetrieved": false,
+  "acceptedContributions": 0,
+  "creditsCreated": 0,
+  "cloudDataChanged": false,
+  "productionQualified": false,
+  "acceptedWorkClockStarted": false
+}

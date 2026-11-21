@@ -135,6 +135,10 @@ class VisualPipelineTest(unittest.TestCase):
         self.assertGreater(result["results"][0]["score"], 0.99)
         self.assertEqual(self.service.search(first_id, None, "visual-first-001", query_faces=query), result)
         self.assertEqual(self.service.status(first_id)["units"], 4)
+        with self.service._connection() as connection:
+            ids = [row[0] for row in connection.execute("SELECT id FROM locations WHERE lane='object'")]
+            connection.execute("UPDATE locations SET camera_generation='gen4' WHERE lane='object'")
+        self.service.certify_official_gen4_objects(ids, "e" * 64)
         other_lease = self.service.lease(second_id, "object", 1)
         manifest, files, tsv = contract_bundle(
             other_lease["items"], other_lease["leaseId"], self.folder / "locations.tsv"
@@ -212,7 +216,7 @@ class VisualPipelineTest(unittest.TestCase):
         }
         added = self.service.import_jobs(near)
         self.assertEqual(added, 1)
-        with sqlite3.connect(self.service.database) as connection:
+        with self.service._connection() as connection:
             state = connection.execute(
                 "SELECT queue_state FROM locations WHERE asset_id=?", ("synthetic:visual:near",)
             ).fetchone()[0]

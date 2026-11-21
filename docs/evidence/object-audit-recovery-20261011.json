@@ -1,0 +1,164 @@
+{
+  "version": 1,
+  "date": "2026-10-11",
+  "scope": "private-object-explicit-recovery-component",
+  "platform": "Windows x64",
+  "javascript": {
+    "tests": 213,
+    "passed": 210,
+    "failed": 0,
+    "skipped": 3,
+    "skipReason": "Windows file-symlink permission unavailable",
+    "newRecoveryCases": 14,
+    "newRetryBridgeCases": 2
+  },
+  "actualLocalCloudflare": {
+    "status": "ACTUAL_WORKERD_OBJECT_RECOVERY_PASSED",
+    "cases": 12,
+    "separateProcesses": 4,
+    "syntheticInference": true,
+    "nativeInferences": 0,
+    "earnedCredits": 0,
+    "liveCalls": 0
+  },
+  "python": {
+    "regressionTests": 42,
+    "regressionPassed": 42,
+    "finalRetryTests": 5,
+    "finalRetryPassed": 5,
+    "groupsOverlap": true,
+    "skipped": 0,
+    "actualNodePythonProtocolTests": 2
+  },
+  "actualRetryProtocol": {
+    "status": "NODE_PYTHON_OBJECT_RECOVERY_INTEROP_PASSED",
+    "retryPosts": 2,
+    "nativeAttempts": 2,
+    "originalFailedAttemptObserved": true,
+    "erased": true,
+    "syntheticInference": true,
+    "nativeInferences": 0,
+    "earnedCredits": 0
+  },
+  "preservedFailures": [
+    {
+      "label": "focused-v1",
+      "meaning": "Optional schema parser omitted UNIQUE INDEX; module loading failed.",
+      "correction": "Exact schema parser includes UNIQUE INDEX; subsequent checks pass."
+    }
+  ],
+  "runs": [
+    {
+      "label": "focused-v1",
+      "exitCode": 1,
+      "wallSeconds": 1.125,
+      "receiptSha256": "3df906556cd25525ebcd2545a44189ce9ff096dbaee14acccfac34672ef3be3e",
+      "stdoutSha256": "7b29c98c6106dc88c5232e7f1cb2daf594f45bd5a23421c1747286440cff0da0",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "focused-v2",
+      "exitCode": 0,
+      "wallSeconds": 1.1089999999967404,
+      "receiptSha256": "d4f20758495146dc3045e8a07fdc3dd19836a670c590ab00f6f89ea3ad0140d3",
+      "stdoutSha256": "ca173984a29475ab3cb3fc7df2d565f0e87b78633ae60954062d96aa443120e6",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "python-v1",
+      "exitCode": 0,
+      "wallSeconds": 19.48399999999674,
+      "receiptSha256": "97545c52a5274781b580ec47d6def80f2c27a923c9c8e8296fd8d62df5730f26",
+      "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSha256": "4c2fe89aa3a9a67d5ad31c9d571d99e8c8916dbc87e877dc4d8fed6598d1e332"
+    },
+    {
+      "label": "worker-v1",
+      "exitCode": 0,
+      "wallSeconds": 5.76600000000326,
+      "receiptSha256": "a6d44436aa7c3f401dc9ba4ec7d4ff24324ae00f3349a3ae86137a7e78390326",
+      "stdoutSha256": "829b64eb23f48fb35f4758615fcdebe034f4a155e7c416f0b0d392e8b99f6e7c",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "python-interop-v1",
+      "exitCode": 0,
+      "wallSeconds": 10.65600000001723,
+      "receiptSha256": "bd686bbbe354306f60152cd84217fafe94d684ae1ecd5c665cff4bc9a18611e5",
+      "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSha256": "39228c4269865965fdff80b74cf6d7adfb044f00bb3c31a41e3d8cd4c449fd4c"
+    },
+    {
+      "label": "regression-v1",
+      "exitCode": 0,
+      "wallSeconds": 26.29699999996228,
+      "receiptSha256": "ee5075a522401420b8f00260819756342cc30ff709b1065a372660d766108799",
+      "stdoutSha256": "5676ecd75b65e235dd4011a3b81a699171316c4036bd95ece00047f158bdc7d5",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "python-regression-v1",
+      "exitCode": 0,
+      "wallSeconds": 202.2029999999795,
+      "receiptSha256": "e34d417edb2eca3de05964e6169e943b9f1a81b3d1e8b42cc88fed327f39c1a8",
+      "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSha256": "e77d641e687053b744b152ec75bd7947d783b78d4683d9a3a92d1be5cfdc5a11"
+    },
+    {
+      "label": "regression-v2",
+      "exitCode": 0,
+      "wallSeconds": 28.530999999959022,
+      "receiptSha256": "626c16094e4c4edb38d794a879ed07228d87f4c3da2a9e51677644b6ff31768a",
+      "stdoutSha256": "3763a238a195d65050c8b7957b0e771b10cd8df4ca8b67984dc0f0482ed5d12e",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "worker-v2",
+      "exitCode": 0,
+      "wallSeconds": 7.25,
+      "receiptSha256": "539a91f8785fd66515c95390afbc0fe0d265f2f68acf95e1ce2c04d249bd5c6f",
+      "stdoutSha256": "829b64eb23f48fb35f4758615fcdebe034f4a155e7c416f0b0d392e8b99f6e7c",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "python-final-v1",
+      "exitCode": 0,
+      "wallSeconds": 32.70300000003772,
+      "receiptSha256": "d55596f1ee6e8adabf5ecd5d8a9be8d8164c644bbc80338fa197c81d2eb763dd",
+      "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSha256": "ca9a0e73096f1df427ed477899da0fecbe4efb3d6db1a9169b428fc64864ef8e"
+    }
+  ],
+  "sourcePins": {
+    "community/object_audit_jobs.py": "09a473a1a80fb350d6fa3b26b3a4b9a01508703035812cc6a6377d695e695c4c",
+    "community/tests/test_object_retry_intents.py": "cdcff3a50e6e890f101537c79136e4dc3d3caf694d20e775fd1254d97da91194",
+    "community/tests/test_object_recovery_interop.py": "8ec5df9bf3c305fd02d4ab3a3749b61077f97e630d71ac9b2b13337aef23874b",
+    "deploy/cloudflare/src/objectAuditDispatch.js": "ec502dc91414da05a0aba36674345be7b0630a7406c3665b5031aee7776715c0",
+    "deploy/cloudflare/src/objectAuditRecovery.js": "b9771f1a4ab31bff2264d21447e059bdc7d4c4b579f5b2b25f3e1fb015d717d4",
+    "deploy/cloudflare/src/objectAuditRecovery.test.mjs": "937be19d8a6b25225310bc2f9a97aeb2be761efe6556fe293d7d59d0c12c81cb",
+    "deploy/cloudflare/native-object-verifier-bridge/worker.js": "7410e1ee9c3fac040a3df89edbba5a508614662b1271bfce5d2c5ebe869c3576",
+    "deploy/cloudflare/native-object-verifier-bridge/worker.test.mjs": "f16a020cba38dbd59727161b179f14582a12e8e19f25e9d3aba084bf826c23f1",
+    "deploy/cloudflare/tools/prepare-object-audit-recovery.mjs": "b6f48e29e1000cbf2c9651eaf2f48fb0bc47301c0328e4071578c8f3749d3138",
+    "deploy/cloudflare/tools/object-recovery.fixture.mjs": "b34b093bd53ae49616fb78b08f1790d13f0ec1667445d546a98f5c1c5a9418ab",
+    "deploy/cloudflare/tools/check-local-object-recovery.mjs": "4d4543a860057618f3e77eb59a2d1030c99a5451440e26d4326f2ccf91e730d4",
+    "deploy/cloudflare/tools/object-recovery-interop.mjs": "53b9e932e538763ddcd5bfd6dfe14b1a91bd0723b69c911936cec9b57f0cea0b"
+  },
+  "liveCalls": 0,
+  "earnedCredits": 0,
+  "productionQualified": false,
+  "objectAdmissionReady": false,
+  "providerDeployment": false,
+  "actionsRuns": 0,
+  "frozenScenePilotChanged": false,
+  "originalOfflineDiagnosticUnchanged": true,
+  "remaining": [
+    "authentic current protection/runtime authority",
+    "exact Object canary qualification/trusted assignment registry",
+    "public route integration",
+    "atomic publication/once-only credit/real Object search",
+    "durable abandon/cancel and retention/capacity",
+    "full provider/secret recovery",
+    "Mac and clean-device signed acceptance",
+    "complete accepted-work soaks/rollout"
+  ]
+}

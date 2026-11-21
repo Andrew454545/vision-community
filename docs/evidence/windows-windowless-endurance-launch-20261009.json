@@ -1,0 +1,283 @@
+{
+  "version": 1,
+  "scope": "finite-offline-windowless-endurance-launch",
+  "communityRevision": "ad666f17378285a8155f27806a551227349fe80c",
+  "nativeSourceRevision": "954b1b823d1d56b088c02c6fa4b85c0e349b9fcf",
+  "sealedSourceFiles": 551,
+  "nativeBinarySha256": "16491b3df64e8994c32d485a0917951d65b90df99e64f1b92d09d03dba2e2a4f",
+  "preliminary": {
+    "status": "COMPLETE_UNQUALIFIED",
+    "distinctLocations": 1,
+    "threads": 4,
+    "recovery": {
+      "tests": 131,
+      "failures": 0,
+      "errors": 0,
+      "skips": [
+        {
+          "id": "community.tests.test_storage_restore.StorageRestoreTest.test_linked_cache_file_is_not_followed",
+          "reason": "Filesystem does not permit unprivileged symlinks"
+        }
+      ],
+      "seconds": 122.85999999998603
+    },
+    "nativeSeconds": 53.204,
+    "elapsedSeconds": 178.855,
+    "queryHits": [
+      1,
+      0,
+      0,
+      1
+    ],
+    "comparisonSha256": "7b769e21e0abfd4ffe37ed00684ec0e4850f407a57f6b710bcc2c42b34e67eb5",
+    "sameComparisonAsPriorDiagnostic": true,
+    "nativeCommands": [
+      {
+        "command": 1,
+        "status": "MEASURED",
+        "cpuSeconds": 162.59375,
+        "wallSeconds": 47.435832599992864,
+        "peakJobCommittedBytes": 3590385664,
+        "completeAfterExit": false,
+        "completeAfterOwnedCleanup": true,
+        "workingSetObservation": {
+          "status": "SAMPLED",
+          "scope": "THIS_PRIVATE_JOB_ONLY",
+          "intervalSeconds": 0.25,
+          "samples": 185,
+          "observedProcesses": 4,
+          "accountedProcesses": 4,
+          "allAccountedProcessesObserved": true,
+          "maximumObservedWorkingSetBytes": 2911580160,
+          "maximumReportedProcessPeakWorkingSetBytes": 2882494464,
+          "sumReportedProcessPeaksBytes": 2912485376,
+          "samplerStopped": true,
+          "peakBetweenSamplesMayBeMissed": true,
+          "readsAcrossProcessesAreNotAtomic": true,
+          "exactSimultaneousPeakEstablished": false,
+          "sharedPagesMayBeCountedMoreThanOnce": true,
+          "processPeaksCoverObservedSamplesOnly": true,
+          "gpuMemoryMeasured": false
+        }
+      },
+      {
+        "command": 2,
+        "status": "MEASURED",
+        "cpuSeconds": 0.171875,
+        "wallSeconds": 0.35013499995693564,
+        "peakJobCommittedBytes": 13414400,
+        "completeAfterExit": false,
+        "completeAfterOwnedCleanup": true,
+        "workingSetObservation": {
+          "status": "SAMPLED_INCOMPLETE_PROCESS_COVERAGE",
+          "scope": "THIS_PRIVATE_JOB_ONLY",
+          "intervalSeconds": 0.25,
+          "samples": 2,
+          "observedProcesses": 2,
+          "accountedProcesses": 4,
+          "allAccountedProcessesObserved": false,
+          "maximumObservedWorkingSetBytes": 7880704,
+          "maximumReportedProcessPeakWorkingSetBytes": 14110720,
+          "sumReportedProcessPeaksBytes": 21999616,
+          "samplerStopped": true,
+          "peakBetweenSamplesMayBeMissed": true,
+          "readsAcrossProcessesAreNotAtomic": true,
+          "exactSimultaneousPeakEstablished": false,
+          "sharedPagesMayBeCountedMoreThanOnce": true,
+          "processPeaksCoverObservedSamplesOnly": true,
+          "gpuMemoryMeasured": false
+        }
+      },
+      {
+        "command": 3,
+        "status": "MEASURED",
+        "cpuSeconds": 1.28125,
+        "wallSeconds": 1.3888943000347354,
+        "peakJobCommittedBytes": 405778432,
+        "completeAfterExit": false,
+        "completeAfterOwnedCleanup": true,
+        "workingSetObservation": {
+          "status": "SAMPLED",
+          "scope": "THIS_PRIVATE_JOB_ONLY",
+          "intervalSeconds": 0.25,
+          "samples": 7,
+          "observedProcesses": 4,
+          "accountedProcesses": 4,
+          "allAccountedProcessesObserved": true,
+          "maximumObservedWorkingSetBytes": 145031168,
+          "maximumReportedProcessPeakWorkingSetBytes": 397447168,
+          "sumReportedProcessPeaksBytes": 427450368,
+          "samplerStopped": true,
+          "peakBetweenSamplesMayBeMissed": true,
+          "readsAcrossProcessesAreNotAtomic": true,
+          "exactSimultaneousPeakEstablished": false,
+          "sharedPagesMayBeCountedMoreThanOnce": true,
+          "processPeaksCoverObservedSamplesOnly": true,
+          "gpuMemoryMeasured": false
+        }
+      },
+      {
+        "command": 4,
+        "status": "MEASURED",
+        "cpuSeconds": 0.109375,
+        "wallSeconds": 0.2940210999804549,
+        "peakJobCommittedBytes": 13389824,
+        "completeAfterExit": false,
+        "completeAfterOwnedCleanup": true,
+        "workingSetObservation": {
+          "status": "SAMPLED_INCOMPLETE_PROCESS_COVERAGE",
+          "scope": "THIS_PRIVATE_JOB_ONLY",
+          "intervalSeconds": 0.25,
+          "samples": 2,
+          "observedProcesses": 2,
+          "accountedProcesses": 4,
+          "allAccountedProcessesObserved": false,
+          "maximumObservedWorkingSetBytes": 7880704,
+          "maximumReportedProcessPeakWorkingSetBytes": 14118912,
+          "sumReportedProcessPeaksBytes": 22007808,
+          "samplerStopped": true,
+          "peakBetweenSamplesMayBeMissed": true,
+          "readsAcrossProcessesAreNotAtomic": true,
+          "exactSimultaneousPeakEstablished": false,
+          "sharedPagesMayBeCountedMoreThanOnce": true,
+          "processPeaksCoverObservedSamplesOnly": true,
+          "gpuMemoryMeasured": false
+        }
+      }
+    ]
+  },
+  "scheduledLaunch": {
+    "statusAtReadback": "RUNNING",
+    "stageAtReadback": "recovery",
+    "actualStartVerified": true,
+    "checkedAt": "2026-10-09T23:59:20.8813573Z",
+    "startedAt": "2026-10-09T23:59:18.754714+00:00",
+    "deadlineAt": "2026-10-11T01:59:18.754714+00:00",
+    "maximumRounds": 24,
+    "intervalSeconds": 3600,
+    "threadCycle": [
+      1,
+      2,
+      4
+    ],
+    "expectedRecoveryTests": 131,
+    "maximumCommandSeconds": 900,
+    "evidenceLimitBytes": 536870912,
+    "freeDiskFloorBytes": 4294967296,
+    "availablePhysicalFloorBytes": 1073741824,
+    "currentUserLimited": true,
+    "hidden": true,
+    "recoveryMinutes": 15,
+    "logonRecovery": true,
+    "lateFailuresCannotOverwriteOlderRuns": true,
+    "bootstrapFailureCapture": true,
+    "completionClaimed": false
+  },
+  "registrationFailures": {
+    "initialMissingXmlDefault": true,
+    "secondNullDefaultCheck": true,
+    "beforeAnyTaskStart": true,
+    "failedCheckerSourcePreserved": true,
+    "effectiveLeastPrivilegeVerified": true,
+    "taskActionsAndOwnershipVerifiedBeforeEnable": true
+  },
+  "retainedEvidence": {
+    "source-pins.private.json": {
+      "bytes": 63626,
+      "sha256": "8ab963b1b5f16d9c5d987326461d3dd0d03a17c955df6e21d6e69710eae120e6"
+    },
+    "runner.py": {
+      "bytes": 12058,
+      "sha256": "46510d421ddaaed54ab40ac2163047ea5eb769a86871e4e28c2c6369ea557229"
+    },
+    "launch.py": {
+      "bytes": 977,
+      "sha256": "c7f26ba4947d66c74db89450afe8b3335fb9a6851d109521b2141b9b630edfe4"
+    },
+    "prepare.py": {
+      "bytes": 3248,
+      "sha256": "9c8a65c6b598823151d40169f6d15f42a84597c3eaf256d526fef3c5f4ed34f4"
+    },
+    "start-smoke.py": {
+      "bytes": 1817,
+      "sha256": "7a41e7dc596dda172d1799dcf6e28b8ae6c8c19e17f7c832e36d01f877f22386"
+    },
+    "register.ps1": {
+      "bytes": 5761,
+      "sha256": "033fa7bc0be66c5afe1a428882f67c791aa2213668796587509fa8fa69d2bb3e"
+    },
+    "enable-verified-task-rejected.ps1": {
+      "bytes": 5553,
+      "sha256": "48ce1b61312d01673865c4e17818dd9a9fb9eaf417cd96313086b186b8b118ce"
+    },
+    "enable-verified-task.ps1": {
+      "bytes": 5561,
+      "sha256": "d212baa85a3aaf9d9b332b5f4737aee50f4a1e3a53e630ad9b6172ab7f6a8626"
+    },
+    "registration-failure.private.json": {
+      "bytes": 315,
+      "sha256": "45c5ffddfd79662251b008362ba075cd6ae7f35c199f593f7f9a16c2c7b7c186"
+    },
+    "task-registration.private.xml": {
+      "bytes": 4530,
+      "sha256": "dc92ec907ee021f80cfc311e35d00ba556780026b2d5a657008219c4d8dee2ba"
+    },
+    "task-disabled-after-mismatch.private.xml": {
+      "bytes": 4590,
+      "sha256": "4f605cb5d13f9cca352b3cd562677d6c7e2b040347d4f4c8e68125ebb92e857e"
+    },
+    "task-enabled.private.xml": {
+      "bytes": 4530,
+      "sha256": "dc92ec907ee021f80cfc311e35d00ba556780026b2d5a657008219c4d8dee2ba"
+    },
+    "started-readback.private.json": {
+      "bytes": 813,
+      "sha256": "b57600166651c4f68b8852a70950d51d153402c2218001988fc024904870972a"
+    },
+    "smoke-start.private.json": {
+      "bytes": 155,
+      "sha256": "c0e38fb756e4831035b28d4769e4b46f955c331f28accb666232eb483d090e03"
+    },
+    "smoke-launch.stderr.private.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "smoke/summary.private.json": {
+      "bytes": 10073,
+      "sha256": "c4775f649ae553217b5ce4698d903e53e90bfddc0a4217d6c06826d289df8af3"
+    },
+    "smoke/round-01-attempt-1/recovery.private.json": {
+      "bytes": 252,
+      "sha256": "c6eee84c30ff3146157cd28dc2596e24b918dcc1e1a63000c3174ef218de007b"
+    },
+    "smoke/round-01-attempt-1/recovery.stderr.private.log": {
+      "bytes": 25385,
+      "sha256": "eea7c743c1cd491a78eb65d143addf55a83bbcae79008f591af90ee88b9861c8"
+    },
+    "smoke/round-01-attempt-1/cross-platform-comparison.private.json": {
+      "bytes": 47203,
+      "sha256": "7b769e21e0abfd4ffe37ed00684ec0e4850f407a57f6b710bcc2c42b34e67eb5"
+    }
+  },
+  "priorFailuresReclassified": false,
+  "officialCoverageVerified": false,
+  "providerPlacementAttested": false,
+  "numericalToleranceApproved": false,
+  "acceptedWorkSoak": false,
+  "acceptedContributions": 0,
+  "searchCreditsCreated": 0,
+  "rawDataUploaded": false,
+  "imageryRetrieved": false,
+  "githubActionsRun": false,
+  "productionDatabaseCopied": false,
+  "publicAdmissionOpened": false,
+  "productionQualified": false,
+  "limitations": [
+    "One saved-image location only",
+    "Fixed hourly diagnostics, not accepted production workload",
+    "No current official Gen4 admission or provider-placement attestation",
+    "Sampled working sets may miss peaks/short-lived processes and double-count shared pages",
+    "No physical sleep/restart or seven-day endurance claim",
+    "Scheduled completion remains pending"
+  ]
+}

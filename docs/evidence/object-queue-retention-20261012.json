@@ -1,0 +1,147 @@
+{
+  "version": 1,
+  "scope": "object-hosted-queue-retention-engineering",
+  "recordedAt": "2026-10-12T04:02:06.123470+00:00",
+  "parentCommit": "4323857eb8f6eaecc7fcb9c6172039c4c583ede7",
+  "dispatchContract": "private-object-dispatch-v2-20261012",
+  "platform": "Windows",
+  "syntheticInference": true,
+  "realAcceptedContributions": 0,
+  "realEarnedCredits": 0,
+  "liveCalls": 0,
+  "deployed": false,
+  "productionQualified": false,
+  "publicObjectAdmission": false,
+  "githubActionsRunsStarted": 0,
+  "nativeSourceOrSpoolChanged": false,
+  "frozenScenePilotChanged": false,
+  "verification": [
+    {
+      "group": "contribution",
+      "exitCode": 0,
+      "wallSeconds": 2.6089999999967404,
+      "privateEvidenceSha256": {
+        "stdout": "a83f2685bb3d8b9f6f2e96c9033aeab9b4d7074e163355da45fe53b4f59abd4d",
+        "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "receipt": "da010ea9ad329c976ce7a8a03f33c717adce0604b0237600f9d81b73a66437b6"
+      },
+      "tests": 148,
+      "pass": 148,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "skips": []
+    },
+    {
+      "group": "recovery",
+      "exitCode": 0,
+      "wallSeconds": 26.46899999998277,
+      "privateEvidenceSha256": {
+        "stdout": "25c005ce5c0f33080de16639d59c3c64a7fbfb89ad92239abb84d194ba0c347a",
+        "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "receipt": "54c8d2fd58d236414228723b84d9c489ce06f8293b998bcb5d57614c71a6bee6"
+      },
+      "tests": 275,
+      "pass": 269,
+      "fail": 0,
+      "skipped": 6,
+      "cancelled": 0,
+      "skips": [
+        "Four file-symlink and two directory-link privilege cases unavailable on this Windows host."
+      ]
+    },
+    {
+      "group": "cloudflare-upgrade-restart",
+      "exitCode": 0,
+      "wallSeconds": 10.061999999976251,
+      "privateEvidenceSha256": {
+        "stdout": "677eb4b32ad2ce27a7476efd19acc0236b7a4c76c154c3bcabc03a908f11b79d",
+        "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "receipt": "390b769cfe94d62079e9e7b995aacb6cbadbc67de752b26f53033beb92b19df9"
+      },
+      "localCloudflare": {
+        "status": "ACTUAL_WORKERD_OBJECT_ACCEPTANCE_PASSED",
+        "cases": 11,
+        "separateProcesses": 3,
+        "syntheticInference": true,
+        "syntheticAcceptedLocations": 2,
+        "syntheticCreditAward": 20,
+        "publicAdmission": false,
+        "realAcceptedContributions": 0,
+        "realEarnedCredits": 0,
+        "liveCalls": 0
+      }
+    },
+    {
+      "group": "cloudflare-sql-recovery",
+      "exitCode": 0,
+      "wallSeconds": 9.047000000020489,
+      "privateEvidenceSha256": {
+        "stdout": "c8864bf876c1ef468a771861c5d76432bd2d47b8bb760956e70f93fd650fef49",
+        "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "receipt": "f0597bba7f7c696de7182c69d7d8026ebf40f95eb751b69ad37220089619242b"
+      },
+      "localCloudflare": {
+        "status": "ACTUAL_WORKERD_OBJECT_SQL_RESTORE_PASSED",
+        "cases": 37,
+        "separateProcesses": 3,
+        "repairedCopies": 2,
+        "backupBeforeLease": true,
+        "oldApprovalRevoked": true,
+        "failedBatchRolledBack": true,
+        "lateSqlWritesBlocked": true,
+        "lateR2Writes": 0,
+        "retainedBundlePreserved": true,
+        "originalBackupsPreserved": true,
+        "syntheticInference": true,
+        "nativeInferences": 0,
+        "earnedCredits": 0,
+        "liveCalls": 0,
+        "nativeCleanupAttested": false,
+        "productionQualified": false,
+        "exactCoordinates": true,
+        "exactNulBlobAndHighWater": true,
+        "populatedDestinationRollback": true,
+        "repeatedImportOnceOnlyUnits": true
+      }
+    }
+  ],
+  "verificationGroupsOverlap": true,
+  "results": {
+    "unfinishedHostedSlots": 8,
+    "terminalSyntheticBatchesRetainedWithoutSlots": 70,
+    "hostedHistoricalRowLimitRemoved": true,
+    "nativeRetainedJobLimitUnchanged": 64,
+    "nativeApprovalAloneCannotFreeSlot": true,
+    "slotReleaseAtomicWithPublicationAndOnceOnlyCredit": true,
+    "originalCandidateAndAcceptanceValuesSurviveV1Upgrade": true,
+    "optionalAcceptanceJournalAndCreditSurviveSqlRestore": true,
+    "alteredLegacyFencesRefusedWithoutPartialUpgrade": true
+  },
+  "sourceSha256": {
+    "deploy/cloudflare/src/objectAuditDispatch.js": "8b4abc8296a33702d66a0502ef06cd9da260a77b668ceb8ec53d818782d7720b",
+    "deploy/cloudflare/src/objectAuditDispatch.test.mjs": "36a8f89f3c1256459c4264a69f509dc32a3981ce1f1aeaebb771d1955860ec71",
+    "deploy/cloudflare/src/objectSettlement.js": "cd4c9574e7fcdb700b24a89a8484401d0a27af5530608d09826bed1ac9d54580",
+    "deploy/cloudflare/src/objectSettlement.test.mjs": "29ba2ce5b2758d440d07c63f30f421a53c29c91469562156271dc1b56210b1c0",
+    "deploy/cloudflare/src/objectSettlementCheck.js": "2950f5749b11df8d188714c469c4cde818c43c4a50baebf32c0a291f781f0ebf",
+    "deploy/cloudflare/src/objectAuditCancellation.js": "5213a2939d65bc09962a05f0efe153a1172827fe88593ea736f48140602021df",
+    "deploy/cloudflare/src/objectAuditRecovery.js": "a843359a513407ce52bf4bf5ab83cb463cb5ce8234d791101897cbba2953576c",
+    "deploy/cloudflare/src/objectCancellationRestore.test.mjs": "6db1caff61797b4da1ee4579955dae1016f7e5b8abb15cd2df4ae2a8504ea685",
+    "deploy/cloudflare/src/objectRestoreSql.fixture.mjs": "a3e5e8901ae78a9f3401e639d61a4c6d53935bafd0f17c66cffafb76985b3175",
+    "deploy/cloudflare/src/objectRestoreSql.test.mjs": "d2cfeedea6177193db8b699d67334082e8ede88a8084b12f17c916b07a02f5ed",
+    "deploy/cloudflare/tools/prepare-object-audit-dispatch.mjs": "01eb1490c43c42bceb83ea94ebac153d4f1ad58ca64284dd0fa463da665145cf",
+    "deploy/cloudflare/tools/object-cancellation-restore.mjs": "0c356cb735f080753b059bf1c9247af360d5749b2adde15285ad9f34c970830a",
+    "deploy/cloudflare/tools/object-cancellation-restore-sql.mjs": "8a11d93782930f84fecf574ef191553b988aac4aff4247ce088ea8d55f1dc047",
+    "deploy/cloudflare/tools/check-local-object-acceptance.mjs": "f4885a6511cb3fe17306a7e54f970badae2da05a2256d6c442db115c6af903b0",
+    "deploy/cloudflare/tools/object-acceptance.fixture.mjs": "a33db0d002400ab30a9bc4d2bcb751ff324e43bee1c48987c1e841c645390fe5",
+    "deploy/cloudflare/tools/check-local-object-restore-sql.mjs": "71a6eb1be80767db25e7d5700e06917c4ff371d671bdd2d245afffc76a64e9ec"
+  },
+  "remaining": [
+    "Trusted assignment and native registry rotation/terminal-job retention.",
+    "Fresh authentic protected-source handoff and measured Mac/Windows Object score qualification.",
+    "First real accepted Object batch and genuinely earned-credit search.",
+    "Measured long-term storage/provider capacity, full platform soaks, trusted signing and clean-device/user acceptance.",
+    "Production recovery/rollout gates and deployment."
+  ],
+  "limits": "Synthetic fixtures establish coordination, preservation and recovery behavior only; no visual object labels or actual model parity are claimed."
+}

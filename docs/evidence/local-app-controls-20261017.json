@@ -1,0 +1,60 @@
+{
+  "date": "2026-10-17",
+  "scope": "DIRECT_LOCAL_PERSONAL_QUEUE_CONTROLS",
+  "checks": {
+    "queueRestoreExclusiveOwnershipApiAndStartupRouting": "PASS (one focused loopback case)",
+    "actualPinnedRuntimeOpen": {
+      "cloudCalls": 0,
+      "communityApprovalGranted": false,
+      "googleRequests": 0,
+      "locationsPrepared": 2,
+      "nativeInferenceCommands": 0,
+      "newQualificationRuns": 0,
+      "openedPaused": true,
+      "ownedPreparationChild": true,
+      "personalQueueZip": true,
+      "queueOpenedInsideApp": true,
+      "realPinnedRuntimeCheckedOnOpen": true,
+      "savedCheckProfiles": [
+        1,
+        2,
+        4
+      ],
+      "scope": "SAVED_CANARY_EVIDENCE_AND_TWO_SYNTHETIC_PERSONAL_POSES",
+      "status": "PASS",
+      "wallSeconds": 3.966,
+      "windowsExecuted": false
+    },
+    "shippedScript": {
+      "status": "PASS",
+      "scope": "SHIPPED_SCRIPT_VM_DOM_FLOW",
+      "directOpening": true,
+      "savedQueueSelection": true,
+      "settingsReloadedOnSwitch": true,
+      "openDoesNotStart": true,
+      "explicitStartRouted": true,
+      "realBrowserExecuted": false,
+      "inferenceCommands": 0,
+      "externalRequests": 0
+    }
+  },
+  "operations": {
+    "nativeInferenceCommands": 0,
+    "googleRequests": 0,
+    "cloudflareCalls": 0,
+    "actionsDispatched": 0,
+    "loginRegistrationInstalled": false
+  },
+  "limits": {
+    "windowsExecuted": false,
+    "realBrowserExecuted": false,
+    "livePersonalProcessing": false,
+    "nativeWebViewImplemented": false
+  },
+  "sourceFiles": {
+    "community/local_scene_app.py": "6fffbbad30a2cda82fa032fc99c3fe074ee92c0846401c5d1f65c0fc69c9b76f",
+    "community/local_scene_library_ui.py": "2334a4bf02aef832411a6a0db737093b40be845733e01a43306e55ef814cc5c0",
+    "community/local_scene_ui.py": "fa81abf832cbd149b5208dc280883d1368ad82ea6f6646f810dd5f2d80fb338a",
+    "community/local_scene_personal.py": "7f7fc32540f9671022e6ac6ff25065701eaadb3249807c07a0dce5ac09eb15a8"
+  }
+}

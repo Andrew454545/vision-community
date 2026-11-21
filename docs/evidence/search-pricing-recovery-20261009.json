@@ -1,0 +1,122 @@
+{
+  "date": "2026-10-09",
+  "platform": "Windows",
+  "scope": "synthetic-browser-and-local-workerd-D1-search-price-recovery",
+  "historicalDefaultUnits": 100000,
+  "historicalPriceChanged": false,
+  "productionPriceChosen": false,
+  "browser": {
+    "status": "BROWSER_PRICE_REVIEW_RESTART_AND_PAID_RECOVERY_PASSED",
+    "complete": true,
+    "syntheticOnly": true,
+    "deliveries": 4,
+    "quotedMaximumUnits": [
+      100,
+      100,
+      200,
+      200
+    ],
+    "debitsUnits": [
+      200
+    ],
+    "originalRequestKeyAndPromptPreserved": true,
+    "reviewDisplayedUnits": 200,
+    "cancellationPreservedRequest": true,
+    "reloadPreservedRequest": true,
+    "displayedAmountApproval": true,
+    "paidReplyRecoveryAtLaterPriceWasFree": true,
+    "pendingRequestClearedAfterRecovery": true,
+    "safeDefaultFocusVerified": true,
+    "finishReceiptSavedBeforeClosedEndpointNavigation": true,
+    "earlierIncompleteAttemptsPreserved": true
+  },
+  "focusedServiceTests": {
+    "total": 39,
+    "passed": 39,
+    "skipped": 0,
+    "failed": 0
+  },
+  "recordedCompleteServiceTests": {
+    "total": 451,
+    "passed": 448,
+    "skipped": 3,
+    "failed": 0,
+    "skipReason": "Windows file-symlink permission",
+    "restrictedRunSeparatelyRetained": true
+  },
+  "pythonInterfaceTests": {
+    "total": 11,
+    "passed": 11,
+    "skipped": 0,
+    "failed": 0
+  },
+  "localWorkerdD1": {
+    "status": "LOCAL_SEARCH_PRICE_RECOVERY_PASSED",
+    "scenarios": [
+      "historical-default-and-actual-debit",
+      "disk-restart-preserves-historic-paid-reply-and-balance",
+      "stale-quotes-refused-and-six-concurrent-reviewed-deliveries-debit-once",
+      "invalid-operator-price-closes-new-work-but-preserves-paid-recovery",
+      "raised-price-fences-legacy-clients-and-keeps-original-paid-result"
+    ],
+    "actualWorkerd": true,
+    "actualD1": true,
+    "durableRestarts": 3,
+    "syntheticPublicationsAndBalance": true,
+    "nativeInference": false,
+    "providerWrites": false,
+    "productionQualified": false
+  },
+  "retainedEvidence": {
+    "browser": {
+      "bytes": 693,
+      "sha256": "d79c19cafd62d044c3677fb562a3e03e92d22a9b56557dcf31e17ba3380f0947"
+    },
+    "browserFixture": {
+      "bytes": 3997,
+      "sha256": "a992513aca529356693782f8c68cf01e8bf81186cdbebb5d72686920cd3ebbf6"
+    },
+    "earlierBrowserAttempt": {
+      "bytes": 254,
+      "sha256": "1eff667f87bbbf38123254db0fef8252761161ed34e7f80a6cf82904bf5911f6"
+    },
+    "intermediateBrowserAttempt": {
+      "bytes": 254,
+      "sha256": "cc01ea65a280742c93c7314b94f6680bb6e273db269a92cff712afa20116b771"
+    },
+    "focusedLog": {
+      "bytes": 3836,
+      "sha256": "a34d353a02bdc05d74d66eb94936282eb896cf22b71b91a4cef498e1234cf2e5"
+    },
+    "fullServiceLog": {
+      "bytes": 37735,
+      "sha256": "e0f307ff6035579fa447d525925cd7923f83b59b68ce34a034e68372a2794821"
+    },
+    "interfaceLog": {
+      "bytes": 115,
+      "sha256": "f189c0338dfa50f770db5d50562e54eb861798ededee3f0102911e1f37316bfd"
+    },
+    "workerdLog": {
+      "bytes": 620,
+      "sha256": "2e9696ac0b020f10ac6515506f69a0de17c92cb2606b4c628d5589ef4a50d665"
+    },
+    "browserApp": {
+      "bytes": 68314,
+      "sha256": "ece296774f8f2822e65a33279d49fc194ce457d858d05b1a7c87d28cd82743c0"
+    },
+    "browserHTML": {
+      "bytes": 22041,
+      "sha256": "85f1041a47a1f28fe28c12e68a57310ffb3ad4f5cd96599caf53ff0577322505"
+    }
+  },
+  "providerCalls": 0,
+  "providerWrites": false,
+  "nativeInference": false,
+  "imageryRetrieved": false,
+  "productionDatabaseCopied": false,
+  "acceptedContributions": 0,
+  "earnedCreditSearchQualified": false,
+  "acceptedWorkSoakStarted": false,
+  "publicAdmissionOpened": false,
+  "productionQualified": false
+}

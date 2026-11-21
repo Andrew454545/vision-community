@@ -1,0 +1,118 @@
+{
+  "date": "2026-10-19",
+  "scope": "Windows local Scene preview package startup and launcher diagnostics",
+  "sourceBase": "cb0bd1b4e91a4069bccdf9afa1b6ac04292b71e0",
+  "publishedPreview": {
+    "releaseTag": "local-vision-app-preview-20261017",
+    "sourceRevision": "6eacf523fa317cf6b51962673c605245bb7b137a",
+    "archiveSha256": "c221580c9c9db53de8be590458e10ffc52af7680d94e3d5a23521cf56d0cec89",
+    "archiveBytes": 23737980,
+    "checksumAndReceiptDownloadsVerified": true,
+    "archiveInventoryFiles": 116,
+    "archiveVerified": true,
+    "actualWindowsSelfChecks": [
+      {
+        "name": "launcher",
+        "exitCode": 0,
+        "markerPresent": true
+      },
+      {
+        "name": "desktop-window",
+        "exitCode": 0,
+        "markerPresent": true
+      }
+    ],
+    "visibleGui": false,
+    "nativeFilePanels": false,
+    "inference": false,
+    "downloadsDuringChecks": false,
+    "googleRequests": 0,
+    "cloudflareCalls": 0,
+    "actionsRuns": 0
+  },
+  "windowsNativeBuild": {
+    "nativeWindowBuildExitCode": 0,
+    "selfCheckExitCode": 0,
+    "selfCheckMarker": true,
+    "compilerSelection": "existing-Windows-Framework",
+    "macCompilerEnvironmentAbsent": true,
+    "hiddenOwnedChildren": true,
+    "visibleGui": false,
+    "inference": false,
+    "network": false
+  },
+  "launcherDiagnostics": {
+    "status": "PASS",
+    "checks": 6,
+    "actualWindowsChildren": true,
+    "boundedBytesPerStream": 65536,
+    "hiddenChildren": true,
+    "nativeInference": false,
+    "modelDownloads": false,
+    "providerCalls": false,
+    "taskRegistration": false,
+    "participantAcceptance": false,
+    "cases": [
+      "pre-server nonzero exit",
+      "orderly zero exit",
+      "both oversized streams drained",
+      "missing executable",
+      "receipt write refusal",
+      "completed child and pending reopen clicks"
+    ],
+    "bytesDrainedPerOversizedStream": 393216,
+    "bytesRetainedPerStream": 65536,
+    "reapAfterDrainAndReceipt": true,
+    "currentSupervisorReadinessLibraryPathsPreserved": true,
+    "workerLogRetentionChanged": false
+  },
+  "sourceHashes": {
+    "packaging/windows/LocalScenes.cs": "6fd8594c60ef90abcf2530d3978675d5fa8968d602fc709504274a1e13976774",
+    "packaging/check_local_scene_launch.py": "246f9a6cf249d1dce34a5e78a4d50d275783ab4b4a75483c2f6ed47b90530f11",
+    "packaging/native_scene_window.py": "43d64041c4e1eb021798de5c907ba11122adf401d7e9ff7bec4adcaebeadf672"
+  },
+  "preservedEvidence": [
+    "Interrupted 15 October untested source saved byte-for-byte before fast-forward to current handoff; not claimed as tested",
+    "Original Windows native-window build KeyError for missing VISION_LOCAL_CSC preserved before correction",
+    "First six-check passing run retained; final six-check run includes pending-reopen guard"
+  ],
+  "limits": {
+    "interactiveInstallation": false,
+    "visibleDesktopWindow": false,
+    "webViewRuntimeInitialized": false,
+    "nativeFileDialogs": false,
+    "newNumericalQualification": false,
+    "nativeInference": false,
+    "liveProcessing": false,
+    "providerAccessRecovered": false,
+    "signed": false,
+    "publicProductionReady": false,
+    "publishedAssetsUpdated": false
+  },
+  "operations": {
+    "existingPublicReleaseAssetsDownloaded": 3,
+    "modelDownloads": 0,
+    "googleRequests": 0,
+    "cloudflareCalls": 0,
+    "actionsDispatched": 0,
+    "oldJobsRestarted": 0,
+    "loginTasksRegistered": 0
+  },
+  "privateReceiptHashes": {
+    "launcher-checks": "42ca960daabc0e9afbb6f2346505f7ba61c29a6642ff856ab755743142b6c741",
+    "published-selfchecks": "36dc36ef380466773de6fa39d693f32f6818188d785b43edafeadc5522563f36",
+    "fixed-build": "d82ca221dfcb2d1f0d332f2dfa7700296fe457f978118ca003e0c9c6eadf49dd",
+    "original-build-failure": "ed01a93c61883d1a01598aa944a3b2d7936549875fb14ea9b0c4cddc0a39949b"
+  },
+  "cleanLocalKit": {
+    "sourceRevision": "77fbedee28ae100b84e6949a7ed76d0b0ad3ec2f",
+    "sha256": "914f551c42a860158759b04273d36005d15cbe9429c65d3be2f2001cc6fd5da4",
+    "bytes": 23743246,
+    "allArchiveMembersVerified": 125,
+    "nativeLauncherSelfCheck": true,
+    "signed": false,
+    "published": false,
+    "inference": false,
+    "downloads": false
+  }
+}

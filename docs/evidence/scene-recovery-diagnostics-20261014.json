@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "date": "2026-10-14",
+  "status": "OFFLINE_BOUNDED_REDACTED_RECOVERY_DIAGNOSTICS_VERIFIED",
+  "cloudCalls": 0,
+  "hostedRetry": false,
+  "directDatabaseChecksExecuted": false,
+  "directDatabasePacketUnchanged": true,
+  "historical403AndClosureUnchanged": true,
+  "historicalRefusalCauseKnown": false,
+  "checks": {
+    "python": 14,
+    "newDiagnosticTests": 3,
+    "skips": 0,
+    "httpRefusalsSynthetic": true,
+    "actualOwnedChildOfflinePreparation": true
+  },
+  "diagnostics": {
+    "maxBodyBytesRead": 4097,
+    "bodyTextRetained": false,
+    "arbitraryHeaderValuesRetained": false,
+    "unknownErrorValuesRetained": false,
+    "exceptionMessagesRetained": false,
+    "contentTypesAllowlisted": true,
+    "gatewayErrorCodesAllowlisted": true,
+    "responseOriginProven": false,
+    "extraRequests": 0,
+    "retries": 0,
+    "existingUsageStopPreserved": true,
+    "expiredDeadlinePreventsBodyRead": true,
+    "existingOwnedChildDeadlineSeconds": 120
+  },
+  "privateLogSha256": "06963809f7496142a983ba9389f8bcb18f7e897441fb2e249eb878aad5c7ae09",
+  "productionQualified": false
+}

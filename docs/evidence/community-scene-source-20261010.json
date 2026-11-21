@@ -1,0 +1,165 @@
+{
+  "version": 1,
+  "date": "2026-10-10",
+  "scope": "audited-community-scene-source-producer",
+  "parentCommit": "053f2ec8ef680ce00fa110d341e957b34440d703",
+  "platform": "Windows",
+  "python": "3.12.14",
+  "sourceBytes": "actual Windows working files",
+  "sourceFiles": {
+    "community/community_scene_source.py": {
+      "bytes": 7401,
+      "sha256": "ce428eaba85f22ec218e45ad92a174684ec0bf87aee8daa005fe7c7ff2eb53cb"
+    },
+    "community/tests/test_community_scene_source.py": {
+      "bytes": 6511,
+      "sha256": "62c101b7663454d58a532a5856cbed124d09c097c4e9303224efa082d9021d2f"
+    },
+    "community/scene_publication_snapshot.py": {
+      "bytes": 12923,
+      "sha256": "f37a0000a674c5e4488e04d383b2ea10321fce44f64950099317d4366045297b"
+    },
+    "community/native_scene_verifier.py": {
+      "bytes": 21978,
+      "sha256": "bd64544809a177a6f53d614dab36416bb38c5e6fe3346198227fe6274f81ead8"
+    },
+    "community/native_object_verifier.py": {
+      "bytes": 25568,
+      "sha256": "6e2125ba51132c665543662c9011f13eefa028ef3b57002cafe9c7fd11bab62a"
+    }
+  },
+  "checks": {
+    "finalPublicationAndSource": {
+      "action": "scene-source",
+      "exitCode": 0,
+      "wallSeconds": 3.672,
+      "platform": "win32",
+      "liveCalls": 0,
+      "nativeInference": false,
+      "tests": 29,
+      "passed": 29,
+      "failed": 0,
+      "skipped": 0,
+      "privateReceipt": {
+        "bytes": 147,
+        "sha256": "4cd5ded084136bb9e54be51b0507b1a1a1940067a861e6c86bd7f07f060cc944"
+      },
+      "privateStderr": {
+        "bytes": 6348,
+        "sha256": "132fa22505b4d1f27c90cc9b43f4fe443806325c4eeea05ef95927c93ec357bb"
+      }
+    },
+    "sceneObjectVerifierRegression": {
+      "action": "source-policy",
+      "exitCode": 0,
+      "wallSeconds": 81.594,
+      "platform": "win32",
+      "liveCalls": 0,
+      "nativeInference": false,
+      "tests": 41,
+      "passed": 41,
+      "failed": 0,
+      "skipped": 0,
+      "privateReceipt": {
+        "bytes": 149,
+        "sha256": "dfb2d03a4bb830e5c071f1d99a4ca7c4b9db86e71fe0f541bb0361b72f5ddf18"
+      },
+      "privateStderr": {
+        "bytes": 8502,
+        "sha256": "2188333340358391924387c58904212e03ff49f87999040a1cde26bfec5402ef"
+      }
+    },
+    "finalPolicySourcePins": {
+      "action": "source-policy-pin",
+      "exitCode": 0,
+      "wallSeconds": 1.328,
+      "platform": "win32",
+      "liveCalls": 0,
+      "nativeInference": false,
+      "tests": 2,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "privateReceipt": {
+        "bytes": 152,
+        "sha256": "32ee2f3bcdfba1f14e3b5f6dba65d4f701c620f237e92e37e0f97de739d02a7c"
+      },
+      "privateStderr": {
+        "bytes": 498,
+        "sha256": "9621a593ebf0c2a1a5dc187cca198b7e1600f35c9f7e29f400958e62a7ce53c5"
+      }
+    },
+    "objectSpoolRecoveryAfterModuleAddition": {
+      "action": "python",
+      "exitCode": 0,
+      "wallSeconds": 35.625,
+      "platform": "win32",
+      "liveCalls": 0,
+      "nativeInference": false,
+      "tests": 11,
+      "passed": 11,
+      "failed": 0,
+      "skipped": 0,
+      "privateReceipt": {
+        "bytes": 142,
+        "sha256": "2adf5f7462ad628e2541c25c08b1c9fe7f2d9cbc7d8097116cf1299452253f50"
+      },
+      "privateStderr": {
+        "bytes": 2335,
+        "sha256": "4f0ca7eba5721587664cc627d5cb62c8a3484281acb1eba9f6e9bd6bce9eba54"
+      }
+    }
+  },
+  "overlappingSelections": true,
+  "fixtureInference": "synthetic only",
+  "authenticSavedData": {
+    "version": 1,
+    "status": "AUDITED_COMMUNITY_SCENE_SOURCE_EXPORTED",
+    "locations": 8,
+    "catalogSha256": "05598f77f40642ea1482c0c9a0414a07d6465c8748883bb2c971d31fae403aef",
+    "sourceSha256": "dc764d58895e03b2dec7a54a7b78072e83790c270e4a9db37ec7ed0d00946e54",
+    "snapshotSha256": "b0b7b8a298209fc16d61a4373dc92e5e5bbc5e29ae4b556a57641c189e3bbf59",
+    "ownerMmaMembershipAsserted": false,
+    "sourceDialect": "community-hyphen-road-labels-v1",
+    "objectImportApproved": false,
+    "productionQualified": false,
+    "networkUsed": false,
+    "newCreditGranted": 0,
+    "originalLocations": 100,
+    "originalSource": {
+      "bytes": 11368,
+      "sha256": "8f089f92b2e95690cb84b47cd452cc5e6af1bddfa3c2c9681120833e0b10cf18"
+    },
+    "privateCatalog": {
+      "bytes": 2951,
+      "sha256": "05598f77f40642ea1482c0c9a0414a07d6465c8748883bb2c971d31fae403aef"
+    },
+    "privateReceipt": {
+      "bytes": 572,
+      "sha256": "75aa08cf6595c3e95a5397dd8bfa989246838e7a37f9c1242aa36caa108d6816"
+    },
+    "selectedRowsAreExactOriginalBytes": true,
+    "allSelectedRowsHaveAuditedEarnedPublication": true,
+    "sourceOrigin": "all pins verified owner-supplied source packet; original Community cohort",
+    "nativeInferenceRepeated": false,
+    "currentMembershipClaimed": false
+  },
+  "preservedInitialDialectFailure": {
+    "bytes": 94,
+    "sha256": "7c333a5d8b561f92f2590e767f7af77a55144cc456da11b01f667fc63626a1b2"
+  },
+  "limits": [
+    "producer only; native catalog consumer and explicit road-label transformation not implemented",
+    "no owner MMA membership assertion",
+    "no current official Gen4 or protected authority approval",
+    "no Object quality/runtime/admission/publication/search/credit approval",
+    "saved exports are not a fresh admission cutoff",
+    "actual Mac execution required",
+    "future source/runtime policies must be resealed and qualified"
+  ],
+  "liveCalls": 0,
+  "liveResourceChanges": false,
+  "newCreditGranted": 0,
+  "productionQualified": false,
+  "frozenScenePilotOrRefresherChanged": false
+}

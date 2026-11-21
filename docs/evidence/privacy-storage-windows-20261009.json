@@ -1,0 +1,19 @@
+{
+  "scope": "offline-community-privacy-storage",
+  "platform": "Windows x64",
+  "focusedTests": {"passed": 53, "failed": 0, "skipped": 2},
+  "serviceTests": {"passed": 386, "failed": 0, "skipped": 2},
+  "skips": [
+    "File-symlink cached-payload rejection: this Windows account lacks file-symlink privilege",
+    "File-symlink source rejection: this Windows account lacks file-symlink privilege"
+  ],
+  "directoryJunctionSourceAndCacheRejectionTested": true,
+  "databaseSidecarRejectionTestedSeparately": true,
+  "actualWorkerDeletionArchiveAndCleanupBytesTested": true,
+  "originalUnskippedPrivilegeFailuresPreserved": true,
+  "cloudflareContacted": false,
+  "githubActionsRun": false,
+  "liveReady": false,
+  "productionQualified": false,
+  "creditRecoveryVerified": false
+}

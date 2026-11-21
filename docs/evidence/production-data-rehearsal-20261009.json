@@ -1,0 +1,102 @@
+{
+  "version": 1,
+  "status": "FULL_PRODUCTION_DATA_UPGRADE_AND_ROLLBACK_PASSED",
+  "recordedLocalDate": "2026-10-09",
+  "platform": "Windows x64",
+  "specificPrivateTransferConsentGranted": true,
+  "resource": {
+    "accountId": "272760294910ef0b246980278aeb36e2",
+    "bucket": "vision-community",
+    "databaseId": "ed4705fa-1190-41fa-86a0-02d755db1b2a"
+  },
+  "export": {
+    "bytes": 117624324,
+    "sha256": "3a7a48592e8e96e2e0a721e70bd9466cb393b0ec882831b682c000476b6129ef",
+    "complete": true
+  },
+  "conversion": {
+    "complete": true,
+    "seconds": 12.375,
+    "foreignKeysChecked": true,
+    "databaseSha256": "d58f0b7d9cece51f211726e105f5ffc8ca96726c5689219ecd95579944245eb2"
+  },
+  "upgrade": {
+    "statements": 45,
+    "historicalTables": 9,
+    "historicalRows": 364056,
+    "tableCounts": {
+      "accounts": 18,
+      "index_shards": 0,
+      "lease_items": 167718,
+      "leases": 18946,
+      "ledger": 4154,
+      "locations": 105520,
+      "pose_catalog": 1236,
+      "published_index": 66464,
+      "searches": 0
+    },
+    "sourceSchemaSha256": "0ebb3cf183cd48840d12078b8cc75e4841c600217cb391ddfd7475c00845a978",
+    "planSha256": "966f71c6722deb9921470ebfeded0faa562846d8c767e45ac2c55db775e52bd5",
+    "preservedAutoincrement": true,
+    "generatedBatchApplied": true,
+    "injectedLateFailureReached": true,
+    "fullCopyRollbackVerified": true,
+    "seconds": 30.48399999999674
+  },
+  "independentSourceSchema": {
+    "objects": 11,
+    "matchesProviderExactly": true
+  },
+  "accounting": {
+    "accounts": 18,
+    "balanceLedgerDiscrepancies": 0,
+    "offlineSnapshotExportPassed": true,
+    "realPaidSearchRowsInBackup": 0,
+    "realPaidReplyRecoveryProven": false
+  },
+  "localTests": {
+    "converter": {
+      "tests": 16,
+      "passed": 16,
+      "skipped": 0,
+      "failed": 0
+    },
+    "schemaUpgradePlanRevision": {
+      "tests": 14,
+      "passed": 12,
+      "skipped": 2,
+      "failed": 0,
+      "skipReason": "Windows directory-link privileges unavailable"
+    },
+    "actualWorkerd": {
+      "passed": true,
+      "fixture": "synthetic-deployed-20261009-schema",
+      "runtime": "existing-miniflare-5.20260926.1-alpha",
+      "shortPrivateTemp": true,
+      "fullProductionData": false
+    }
+  },
+  "codeSha256": {
+    "community/d1_export.py": "4fe41ae938ef4b0e819372d375b733abf204c540a974c67b5ac71fc4b67ffa17",
+    "community/tests/test_d1_export.py": "fed4f2e98a06fdf31bbcb6aafc079003f78346a42fc60353547b1f34c7073ef2",
+    "deploy/cloudflare/tools/upgrade-schema.mjs": "e3cf9494091b196ae7631d7c8e6a7e88162120c8a98b5a71b3a5f4b1d1a4a75b",
+    "deploy/cloudflare/src/schemaUpgrade.test.mjs": "dd3f0b680c37b5f3a71bab99287789106f846a8f086cdcb9be8c8cab669cbaaa"
+  },
+  "originalFailuresPreserved": [
+    "initial_provider_export_expired_before_download",
+    "initial_autocommit_conversion_exceeded_300_seconds",
+    "restricted_financial_path_access_denied",
+    "automatic_review_usage_failure_action_not_executed",
+    "simulator_helper_version_mismatch",
+    "alpha_simulator_internal_error_with_long_temp_path",
+    "stable_simulator_refused_unchanged_compatibility_date"
+  ],
+  "limits": {
+    "fullProviderRestore": false,
+    "currentDeletionAndFinancialCutoffRehearsed": false,
+    "liveMigration": false,
+    "cloudDataChanged": false,
+    "realPaidReplyRecovery": false,
+    "productionQualified": false
+  }
+}

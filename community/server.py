@@ -12,6 +12,7 @@ from urllib.parse import parse_qs, urlsplit
 
 from .service import CommunityService, ServiceError
 from .source import SourceError
+from .scene_pipeline import ScenePipelineError
 
 
 ROOT = Path(__file__).resolve().parent
@@ -19,7 +20,11 @@ WEB = ROOT / "web"
 STATIC = {
     "/": (WEB / "index.html", "text/html; charset=utf-8"),
     "/app.js": (WEB / "app.js", "text/javascript; charset=utf-8"),
+    "/search-journal.js": (WEB / "search-journal.js", "text/javascript; charset=utf-8"),
+    "/account-deletion.js": (WEB / "account-deletion.js", "text/javascript; charset=utf-8"),
+    "/service-readiness.js": (WEB / "service-readiness.js", "text/javascript; charset=utf-8"),
     "/visual.js": (WEB / "visual.js", "text/javascript; charset=utf-8"),
+    "/mma.js": (WEB / "mma.js", "text/javascript; charset=utf-8"),
     "/style.css": (WEB / "style.css", "text/css; charset=utf-8"),
     "/sample-query.json": (WEB / "sample-query.json", "application/json"),
     "/prototype-query.json": (WEB / "prototype-query.json", "application/json"),
@@ -104,11 +109,16 @@ def handler_for(service: CommunityService):
             parsed = urlsplit(self.path)
             route = parsed.path
             try:
+                if route == "/api/capabilities":
+                    return self._json(200, service.capabilities())
                 if route == "/api/status":
                     return self._json(200, service.status())
                 if route == "/api/me":
                     query = {key: values[-1] for key, values in parse_qs(parsed.query, keep_blank_values=True).items()}
                     return self._json(200, service.status(self._account(), lite=query.get("lite") == "1"))
+                if route == "/api/scene-qualifications":
+                    query = {key: values[-1] for key, values in parse_qs(parsed.query, keep_blank_values=True).items()}
+                    return self._json(200, service.scene_qualification_status(self._account(), query.get("profileId")))
                 if route == "/api/views":
                     self._same_origin()
                     query = {key: values[-1] for key, values in parse_qs(parsed.query, keep_blank_values=True).items()}
@@ -180,7 +190,7 @@ def handler_for(service: CommunityService):
                 if static is None:
                     raise ServiceError("not_found", 404)
                 return self._send(200, static[0].read_bytes(), static[1])
-            except ServiceError as error:
+            except (ServiceError, ScenePipelineError) as error:
                 self._json(error.status, {"error": error.code})
 
         def do_POST(self):
@@ -205,6 +215,10 @@ def handler_for(service: CommunityService):
                     )
                     return self._json(200, {"accountId": account["accountId"]}, cookie=session_cookie)
                 account_id = self._account()
+                if route == "/api/scene-qualifications":
+                    return self._json(200, service.qualify_scene_device(account_id, data.get("profileId"), data.get("canary")))
+                if route == "/api/scene-audits":
+                    return self._json(200, service.audit_scene_submission(account_id, data.get("submissionId")))
                 if route == "/api/leases/release":
                     return self._json(
                         200,
@@ -225,6 +239,7 @@ def handler_for(service: CommunityService):
                             pace=data.get("pace"),
                             client=data.get("client") if data.get("client") in {"browser", "cli"} else None,
                             part=data.get("part"),
+                            profile_id=data.get("profileId"),
                         ),
                     )
                 if route == "/api/submissions":
@@ -270,7 +285,7 @@ def handler_for(service: CommunityService):
                         ),
                     )
                 raise ServiceError("not_found", 404)
-            except ServiceError as error:
+            except (ServiceError, ScenePipelineError) as error:
                 self._json(error.status, {"error": error.code})
 
     return Handler

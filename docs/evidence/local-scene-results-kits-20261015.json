@@ -1,0 +1,55 @@
+{
+  "date": "2026-10-15",
+  "sourceRevision": "d3c467a0ce076120971407620ba4fe5c0c24a729",
+  "kits": [
+    {
+      "sourceRevision": "d3c467a0ce076120971407620ba4fe5c0c24a729",
+      "sourceWorktreeDirty": false,
+      "platform": "windows-x86_64",
+      "inventorySha256": "c3d0fee40c65a001c17ba10222ab009c24d2d13d00340777a35342db180a8fc0",
+      "sha256": "07f25bae9064998cfdd1408ebb0508a499a126083c671355f7a32de497564818",
+      "artifact": "VISION-Local-Scenes-windows-x86_64-MAINTAINER.zip",
+      "modelFilesBundled": false,
+      "packetsBundled": false,
+      "publicDistributionReady": false,
+      "signed": false,
+      "cloudCalls": 0,
+      "actionsRuns": 0,
+      "nativeLauncherSha256": "48b187431256e857d45e4e477eede1cd8adcd0db96f6576a0133aa030a47d721",
+      "nativeLauncherSelfCheck": true,
+      "powershellRequired": false,
+      "bytes": 23202653,
+      "completeInventoryVerified": true,
+      "archiveModesVerified": false
+    },
+    {
+      "sourceRevision": "d3c467a0ce076120971407620ba4fe5c0c24a729",
+      "sourceWorktreeDirty": false,
+      "platform": "darwin-arm64",
+      "inventorySha256": "0f28cf508fa6454eb1f9b42bc6d19337d213e929118a5694c95e49f5ae77e9b0",
+      "sha256": "64ee5266e69d41d4218ab047734d6311f61803be197234edffe225185c493417",
+      "artifact": "VISION-Local-Scenes-darwin-arm64-MAINTAINER.zip",
+      "modelFilesBundled": false,
+      "packetsBundled": false,
+      "publicDistributionReady": false,
+      "signed": false,
+      "cloudCalls": 0,
+      "actionsRuns": 0,
+      "bytes": 14604230,
+      "completeInventoryVerified": true,
+      "archiveModesVerified": true
+    }
+  ],
+  "privatePythonPackagedExport": {
+    "passed": true,
+    "pythonVersion": "3.14.7",
+    "syntheticLocations": 2,
+    "nativeInference": false,
+    "downloaded": false
+  },
+  "macExecutedOnThisComputer": false,
+  "signed": false,
+  "participantInstallation": false,
+  "cloudCalls": 0,
+  "actionsRuns": 0
+}

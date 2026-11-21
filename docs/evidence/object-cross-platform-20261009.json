@@ -1,0 +1,63 @@
+{
+  "scope": "exploratory-object-mac-windows-saved-input-comparison",
+  "status": "COMPLETE_UNQUALIFIED",
+  "completedCrossPlatformDistinctLocations": 3,
+  "oneLocationMacCases": 27,
+  "canonicalWindowsOneLocationCases": 1,
+  "oneLocationComparisonPairs": 54,
+  "twoLocationWindowsCases": 1,
+  "twoLocationMacCases": 1,
+  "sameSourceBytesAndPinnedInputsVerified": true,
+  "nativeWindowsTestsPassed": 64,
+  "oneLocation": {
+    "missingDetections": 0,
+    "extraDetections": 0,
+    "discreteDetectionDifferences": 0,
+    "qualityMaskDifferences": 0,
+    "maximumDetectionScoreDifference": 1.720339059829712e-05,
+    "maximumQueryScoreDifference": 1.0299999999609233e-08,
+    "missingSearchHits": 0,
+    "extraSearchHits": 0,
+    "rankInversions": 0,
+    "pqCodesIdentical": true
+  },
+  "twoLocations": {
+    "windowsIndexSeconds": 126.531,
+    "queryHits": [
+      2,
+      1,
+      1,
+      2
+    ],
+    "missingDetections": 0,
+    "extraDetections": 0,
+    "discreteDetectionDifferences": 0,
+    "qualityMaskDifferences": 0,
+    "maximumDetectionScoreDifference": 3.369152545928955e-05,
+    "maximumQueryScoreDifference": 1.5270000000011663e-05,
+    "sameSearchHitOrder": true,
+    "pqCodesIdentical": true
+  },
+  "largerWindowsAttempt": {
+    "locations": 16,
+    "status": "FAILED",
+    "indexTimeoutSeconds": 900,
+    "lastLoggedIndexedLocations": 10
+  },
+  "macIndexTransferAttempt": {
+    "status": "FAILED",
+    "originalSourcePathBindingPreserved": true
+  },
+  "nativeSourceLineEndingsFixed": true,
+  "productionToleranceAssigned": false,
+  "productionQualified": false,
+  "referenceIsAndrewInstalledGold": false,
+  "officialCoverageVerified": false,
+  "protectedAuthorityVerified": false,
+  "tunnelAuthorityVerified": false,
+  "humanHotPositiveLabelsVerified": false,
+  "acceptedContributions": 0,
+  "searchCreditsCreated": 0,
+  "freshImageryRetrieved": false,
+  "githubActionsRun": false
+}

@@ -1,0 +1,61 @@
+{
+  "date": "2026-10-15",
+  "scope": "INVITED_LOCAL_SCENE_LIBRARY",
+  "sourceFiles": {
+    "community/local_scene_library.py": "1ef91c2c79b42d4f67f34830fbddc9b7d5b79a870474ced98d5665df5d40196b",
+    "community/local_scene_library_ui.py": "c012793598804b2bc248547a57c48c2b270253146dbadafb91d9fb0bdfdffbe3",
+    "community/local_scene_import.py": "59cdaca1598105cbea468b744fd3ba4b4d581ae78d751b480d5d0f5bdabd220f",
+    "community/local_scene_ui.py": "ca51424953126c0e4377c2c46be1a6b381c41a2bd872b4f1ebdea7ab9e4d3b31",
+    "community/local_scene_unattended.py": "5a5247311dad013751ac4eb68330526071744ac2349beea0048992a80fe631f2",
+    "community/local_scene_pilot.py": "fb2b78f743eaa48b9a729a16de396c9c934f459618762810a418cf722c713530",
+    "community/mac_starter.py": "72b05d4ebef2b246a9adcfff925c02e989e3e16fb791bd5ab0cc74eec8d55c03",
+    "packaging/windows/LocalScenes.cs": "463f3b4a9cb0cc25b277e25bb97cc874315b6dbbea3ce08b6ccd7db308b0f7b1",
+    "Start Local Scenes.command": "19262b46f7336d826221fd8fa006a69241b72c97f7cc985b7aa7a08e14cf15a0"
+  },
+  "focusedTests": {
+    "passed": 4,
+    "ownerCollectionFollowupPassed": true,
+    "broadSuiteOrMatrixRerun": false
+  },
+  "shippedJavaScriptFlow": "PASS; VM DOM harness, not a real browser-engine certification",
+  "nativeUse": {
+    "cloudCalls": 0,
+    "liveImageryRequests": 0,
+    "locations": 112,
+    "nativeTextQueries": 1,
+    "newIndexInference": false,
+    "originalInputsUnchanged": true,
+    "packedVectorBytesIdentical": true,
+    "results": 20,
+    "scope": "REUSED_FROZEN_SYNTHETIC_FIXTURE_NOT_LIVE_LOCATIONS",
+    "status": "PASS",
+    "wallSeconds": 1.019
+  },
+  "actualStandaloneCLI": {
+    "actualCLI": true,
+    "authenticatedExitCode": 0,
+    "cloudCalls": 0,
+    "newInferenceRuns": 0,
+    "savedLocationsVisible": 112,
+    "standaloneLibraryOpened": true,
+    "status": "PASS"
+  },
+  "ownerImportScope": "QUALIFIED_DEVICE_OUTPUT_NOT_RECOMPUTED",
+  "limits": {
+    "newLiveLocationsCompleted": 0,
+    "windowsLauncherExecuted": false,
+    "liveReferenceImageryTested": false,
+    "arbitraryPhotoUpload": false,
+    "ownerCatalogRegistration": false,
+    "selectableStorage": false,
+    "directMMAConnection": false,
+    "signed": false,
+    "publicProductionApproved": false
+  },
+  "costAndOperations": {
+    "newCloudflareRequests": 0,
+    "actionsDispatched": 0,
+    "oldJobsRestarted": 0,
+    "automaticUploads": false
+  }
+}

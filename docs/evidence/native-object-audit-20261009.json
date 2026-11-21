@@ -1,0 +1,53 @@
+{
+  "scope": "native-object-audit-component-and-unattended-defaults",
+  "platform": "Windows",
+  "fullApplicationRegressionBeforeScheduleCorrection": {
+    "tests": 745,
+    "passed": 737,
+    "skipped": 8,
+    "failures": 0,
+    "errors": 0,
+    "seconds": 560.852,
+    "logSha256": "b6f724ecc4ce0acddc5171969047db2a737ad6f505c700fe234c76009c5057b7"
+  },
+  "finalScheduleRecoveryRegression": {
+    "tests": 87,
+    "passed": 86,
+    "skipped": 1,
+    "failures": 0,
+    "errors": 0,
+    "seconds": 182.969,
+    "logSha256": "2d06f679badfc204eba95756b32436d0a7ee4e71195ab3d169d5b294f292f64a"
+  },
+  "syntheticAuditorTests": 21,
+  "runtimeContract": {
+    "status": "COMPLETE",
+    "pinnedModelFiles": 11,
+    "binarySha256": "16491b3df64e8994c32d485a0917951d65b90df99e64f1b92d09d03dba2e2a4f",
+    "runtimeProfileSha256": "e84189ce568d2ec2f8aafda22ef10052364c6523de49d93cca867411d27b92a3",
+    "qualityImplementationIdentity": "8671596d0ec7f63e18f84e2c09082a7a3ea0afaedf2756ecbe04812e9e28dd42",
+    "runtimeIdentity": "58ee8c307523d3ac06da85d18fd3ad303d6a0442d4edc071918be5e2890b9353"
+  },
+  "objectDefaultBatchLocations": 1,
+  "objectAuditMaximumLocations": 4,
+  "objectAuditMaximumSeconds": 900,
+  "defaultSchedule": {
+    "dayPace": "medium",
+    "dayStart": "06:00",
+    "nightPace": "max",
+    "nightStart": "00:00",
+    "clock": "computer-local"
+  },
+  "savedCustomSchedulesSupported": true,
+  "priorFailureEvidencePreserved": true,
+  "macExecutionEstablishedByTheseRuns": false,
+  "realModelInferenceInTheseRuns": false,
+  "imageryRetrieved": false,
+  "hostedObjectAdmissionOpened": false,
+  "installedContributorChanged": false,
+  "productionToleranceAssigned": false,
+  "productionQualified": false,
+  "acceptedContributions": 0,
+  "searchCreditsCreated": 0,
+  "githubActionsRun": false
+}

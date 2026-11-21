@@ -1,0 +1,94 @@
+{
+  "version": 1,
+  "date": "2026-10-10",
+  "scope": "authentic-native-source-handoff-and-v7-windows-compatibility",
+  "communityParentCommit": "8e9f86a6e52248d753160ebe6eed2f7bd70846fa",
+  "ownerCommentId": "6096093912",
+  "privateReleaseAssetId": "627535163",
+  "archiveBytes": 2543488,
+  "status": "SOURCE_PACKET_VERIFIED_HISTORICAL_IMPORT_REFUSED",
+  "verifiedFiles": 76,
+  "archiveSha256": "f712173e11279f365a764f883b66b0b71f4fa7543b2e4cf4e4514e441e6bcb87",
+  "exactCohortRows": 100,
+  "exactPanoPolicyRecognized": true,
+  "historicalCandidateAccepted": false,
+  "newSealWritten": false,
+  "liveCalls": 0,
+  "nativeInference": false,
+  "productionQualified": false,
+  "exactCohortOwnerSceneMatches": 0,
+  "ownerMembershipScanRows": {
+    "legacy": 6493572,
+    "oneView": 7961872,
+    "consumedFourViewPrefix": 10585616
+  },
+  "nativePullRequest": "https://github.com/Andrew454545/VISION/pull/16",
+  "nativeCommit": "47c99c8663bf93c6db9c5f97f06fa349309155f4",
+  "nativeBranch": "codex/gen4-exact-pano-authority",
+  "remoteVerified": true,
+  "regression": {
+    "exitCode": 0,
+    "wallSeconds": 1.796,
+    "platform": "win32",
+    "nativeInference": false,
+    "liveCalls": 0,
+    "sourcePins": {
+      "automation/runtime-source/scripts/gen4-validator-policy.mjs": "c365039e7fd93cc1ae4486bf51799a612c991b632b2b6c3b6cc5590dc0948f2c",
+      "automation/runtime-source/scripts/pool-storage-durability.mjs": "dbd1c6cbebec03c5725a195f540bd143ec98be83414845c6989e94f452aba1de",
+      "automation/runtime-source/scripts/build-vision-gen4-object-pool.mjs": "e15daf269a3c050001680a3cfb7f614c451684423ad61b5117f24f2ad4e1ee0d",
+      "automation/runtime-source/scripts/seal-vision-gen4-inline-pool.mjs": "3ee417f97fd596ba3bdd612c3b5b6fcae2dab9aaf2df845d4509cff91011814b",
+      "automation/runtime-source/scripts/run-vision-object-indexer.mjs": "31df46f75bb165f55dfed846213ad7f90204c743cdb32df21393cdc9cf11a43c"
+    },
+    "tests": 40,
+    "passed": 39,
+    "skipped": 1,
+    "failed": 0,
+    "skipReason": "POSIX executable fixture; actual Mac check still needed",
+    "privateReceipt": {
+      "bytes": 843,
+      "sha256": "68d52253f2971ee3b4d6c3fce52c3692206d73277744a9b16bbe3ae01bbb1fe9"
+    },
+    "privateStdout": {
+      "bytes": 3880,
+      "sha256": "9e022e05ff9965efadd86840579c8ed458a76ed945c7319064d076e3d7056f6a"
+    },
+    "privateStderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "privatePacketCheck": {
+    "bytes": 385,
+    "sha256": "fba6d9d95100aee724a861b76d39b42a41697444a42a2ece8480291caaf145e2"
+  },
+  "privateRemoteReceipt": {
+    "bytes": 149,
+    "sha256": "e1d64c6ff2be960a9c7dccf17ba9c56b3afc195803d27ea1e6d63a1228bfd7f8"
+  },
+  "preservedFailures": {
+    "initialLongPathExtraction": {
+      "bytes": 297,
+      "sha256": "e27a9b6d13c357a667276b4b12c289be314d4364c099f4f6e63d63143bcaf989"
+    },
+    "initialRestrictedCheck": {
+      "bytes": 705,
+      "sha256": "8957addfc5fd0918933f281a191055f05d43719df1b4c84130ac3b7aadbb7f10"
+    },
+    "originalWindowsReadOnlyFlushRegression": {
+      "bytes": 705,
+      "sha256": "10b4ce0f49efb806b7d69b9be91c2f1491fb94720e72ea4a93dc1831659c928f"
+    }
+  },
+  "originalOwnerFailures": [
+    "candidate lacks strict official-Google proof",
+    "Main/WAL differ from original protected import seal"
+  ],
+  "limits": [
+    "no large source/model/database bytes in source packet",
+    "v7 recognition does not repair missing historical strict proof",
+    "fresh matching protected authority and distinct audited Community Scene route still required",
+    "Windows records file flush and rename without directory flush or power-loss guarantee",
+    "no actual Mac execution or Object inference in these checks"
+  ],
+  "liveResourceChanges": false
+}

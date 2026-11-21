@@ -7,6 +7,8 @@ from community.all_locations_full import format_indexer_line, build_catalog
 from community.all_locations_tail import split_shards
 from community.parts import family_for_key, parse_part
 from community.service import CommunityService, ServiceError
+from community.tests.test_scene_quality import references_from_fixture_lines
+from community.tests.catalog_fixture import remaining_fixture
 
 
 def write_lines(path: Path, rows: list[str]) -> None:
@@ -30,6 +32,7 @@ def catalog_line(index: int, pano: str, heading: float = 90, country: str = "Ita
 
 class CorpusPartHelpersTest(unittest.TestCase):
     def test_tail_is_preferred_over_full_corpus(self):
+        self.assertEqual(family_for_key("catalog/official-remaining-v1/date/part-00/shard-0.tsv"), "new-places")
         self.assertEqual(family_for_key("catalog/all-locations-tail-v1/shard-19.tsv"), "new-places")
         self.assertEqual(family_for_key("catalog/all-locations-full-v1/shard--20000.tsv"), "whole-map")
         self.assertEqual(parse_part("12"), 12)
@@ -52,9 +55,10 @@ class ExclusiveCatalogPartsTest(unittest.TestCase):
                 ],
             )
             shards = root / "shards"
-            manifest = split_shards(source, shards, rows_per_shard=2, row_start=0)
+            manifest = remaining_fixture(split_shards(source, shards, rows_per_shard=2, row_start=0))
             service = CommunityService(root / "db.sqlite", search_cost=4, artifacts=root / "artifacts", operational=True)
             service.append_pose_catalog(manifest, source_dir=shards, lanes=("scene",))
+            service.scene_references = references_from_fixture_lines(source.read_text().splitlines())
             first = service.create_account()["accountId"]
             second = service.create_account()["accountId"]
             a = service.lease(first, "scene", 1)
@@ -78,19 +82,21 @@ class ExclusiveCatalogPartsTest(unittest.TestCase):
             line = catalog_line(9, "ClPNSqYQCEm2Mow-ZQD6PA", heading=257.38, country="Greece")
             manifest = build_catalog(dest, lines=[line + "\n"], rows_per_shard=10)
             self.assertTrue(manifest["shards"][0]["key"].startswith(FULL_PREFIX))
+            manifest = remaining_fixture(manifest)
             service = CommunityService(root / "db.sqlite", search_cost=4, artifacts=root / "artifacts", operational=True)
             service.append_pose_catalog(manifest, source_dir=dest, lanes=("scene",))
+            service.scene_references = references_from_fixture_lines([line])
             account = service.create_account()["accountId"]
             lease = service.lease(account, "scene", 1, part=1)
             item = lease["items"][0]
-            self.assertEqual(lease["work"]["family"], "whole-map")
+            self.assertEqual(lease["work"]["family"], "new-places")
             self.assertEqual(item["cameraGeneration"], "gen4")
             self.assertAlmostEqual(item["heading"], 257.38, places=5)
             self.assertEqual(item["country"], "Greece")
 
 
 class ObjectAndSceneProcessingTest(unittest.TestCase):
-    def test_object_and_scene_keep_separate_batches(self):
+    def test_generic_pose_catalog_never_releases_unverified_object_batches(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             source = root / "tail.tsv"
@@ -102,20 +108,18 @@ class ObjectAndSceneProcessingTest(unittest.TestCase):
                 ],
             )
             shards = root / "shards"
-            manifest = split_shards(source, shards, rows_per_shard=2, row_start=0)
+            manifest = remaining_fixture(split_shards(source, shards, rows_per_shard=2, row_start=0))
             service = CommunityService(root / "db.sqlite", search_cost=4, artifacts=root / "artifacts", operational=True)
             service.append_pose_catalog(manifest, source_dir=shards, lanes=("scene", "object"))
+            service.scene_references = references_from_fixture_lines(source.read_text().splitlines())
             account = service.create_account()["accountId"]
             scene = service.lease(account, "scene", 1)
-            objects = service.lease(account, "object", 1)
             self.assertEqual(scene["items"][0]["lane"], "scene")
-            self.assertEqual(objects["items"][0]["lane"], "object")
-            self.assertEqual(scene["items"][0]["assetId"], objects["items"][0]["assetId"])
             self.assertIn("same places", scene["work"]["summary"])
-            self.assertIn("same objects", objects["work"]["summary"])
+            with self.assertRaisesRegex(ServiceError, "no_available_work"):
+                service.lease(account, "object", 1)
             status = service.status(account)
             self.assertEqual(status["workByLane"]["scene"]["lane"], "scene")
-            self.assertEqual(status["workByLane"]["object"]["lane"], "object")
 
 
 if __name__ == "__main__":

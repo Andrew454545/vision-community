@@ -1,0 +1,120 @@
+{
+  "version": 1,
+  "date": "2026-10-11",
+  "scope": "offline-object-cancellation-d1-sql-preparation",
+  "sourceBaseCommit": "1f8a271de49f0529dc0956435c5895856f5d1bbb",
+  "platform": "Windows x64",
+  "javascript": {
+    "tests": 269,
+    "passed": 265,
+    "failed": 0,
+    "skipped": 4,
+    "newObjectSqlCases": 25,
+    "skipReason": "Windows file-symlink privilege unavailable: three existing cases and one new input-link case"
+  },
+  "actualLocalCloudflare": {
+    "status": "ACTUAL_WORKERD_OBJECT_SQL_RESTORE_PASSED",
+    "cases": 37,
+    "separateProcesses": 3,
+    "repairedCopies": 2,
+    "backupBeforeLease": true,
+    "oldApprovalRevoked": true,
+    "failedBatchRolledBack": true,
+    "lateSqlWritesBlocked": true,
+    "lateR2Writes": 0,
+    "retainedBundlePreserved": true,
+    "originalBackupsPreserved": true,
+    "syntheticInference": true,
+    "nativeInferences": 0,
+    "earnedCredits": 0,
+    "liveCalls": 0,
+    "nativeCleanupAttested": false,
+    "productionQualified": false,
+    "exactCoordinates": true,
+    "exactNulBlobAndHighWater": true,
+    "populatedDestinationRollback": true,
+    "repeatedImportOnceOnlyUnits": true
+  },
+  "runs": [
+    {
+      "label": "javascript-final-v2-regression",
+      "exitCode": 0,
+      "wallSeconds": 29.73399999999674,
+      "receiptSha256": "bf8628dbbd8721a37b52b862fb5b749986684cb6cceeb9730796b8b0136500a4",
+      "stdoutSha256": "5870d3c31f69a6d6fb8b2b189e360768dd8e406fff08d7e3db25295b28e488c3",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "javascript-final-v3-regression",
+      "exitCode": 0,
+      "wallSeconds": 29.93800000002375,
+      "receiptSha256": "c7a6d0939b0bf8516a614c05b658c2acd0eae7b2b08c17a8d6bcc38dcb361dd3",
+      "stdoutSha256": "28b8841ddbc602db6b6816c1ac5b53ad54a59e06c5791df04c5fc3b805c286b9",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "javascript-focused-v1",
+      "exitCode": 0,
+      "wallSeconds": 14.96799999999348,
+      "receiptSha256": "c9d9400b5d092d35008c1a9056c4b2dc82545ee5e65b648ca70bff284fe2e520",
+      "stdoutSha256": "26289f7c4ea26e1f63f9136e8ea575f9e5b96d0ea85eb84471948643e5f80f59",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "worker-final-v2",
+      "exitCode": 1,
+      "wallSeconds": 10.15600000001723,
+      "receiptSha256": "fb97508e9d17cede678fbcd91a393cce0a6b76906257379cac48b668a7c9bf8b",
+      "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSha256": "5dfa9f45336bd9723ca9db3d37e2e20351254788fa5ba8e4d75a0ffa45c65056"
+    },
+    {
+      "label": "worker-final-v3",
+      "exitCode": 0,
+      "wallSeconds": 8.936999999976251,
+      "receiptSha256": "63300c8a23eb695e3872dc2422253df1891bd235b12a99b56493f7467d271a92",
+      "stdoutSha256": "c8864bf876c1ef468a771861c5d76432bd2d47b8bb760956e70f93fd650fef49",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "worker-v1",
+      "exitCode": 0,
+      "wallSeconds": 8.76500000001397,
+      "receiptSha256": "e586ba5668af41d62fcc2a6aa990439a8c9341f1caadcafe1daee86e7ad34f25",
+      "stdoutSha256": "30618566d8dc988671771599fe3ff09255a6f94c85e407d64513912bdc2eb41f",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "sourcePins": {
+    "deploy/cloudflare/tools/account-restore-sql.mjs": "6bd66944ca0ed61724d94fd5cf041b54b773f06a561931f4c3d7170b7fdd65a0",
+    "deploy/cloudflare/src/accountRestoreSql.test.mjs": "92d1bd5bb78b1b7d0faf1cb4e71b2b0e412839cd3b7f76f995d45e0bf6dec110",
+    "deploy/cloudflare/tools/sqlite-value-literals.mjs": "9db06f443a046d352985db6b05b532a7f20f4ce16f9d802b2ac63264ca31a284",
+    "deploy/cloudflare/tools/object-cancellation-restore-sql.mjs": "85d361fea9286f9a4b140968af4f805a8d41c4a90a8c308003b153e1c7955f45",
+    "deploy/cloudflare/src/objectRestoreSql.fixture.mjs": "19700839d555f279a4ca2b7002f6e1f0333c7c7477da8a6e6b0374ef73b56c60",
+    "deploy/cloudflare/src/objectRestoreSql.test.mjs": "b52b1cac15d5452211e3175d05acab5fb4fb938b8509757bee4b2d99351819a7",
+    "deploy/cloudflare/tools/check-local-object-restore-sql.mjs": "fc1c8a9aff7cf3b2d5f8045e8a5dcac77ecd6c5e7dc0c8c215334b56e99337de"
+  },
+  "preservedFailure": {
+    "label": "worker-final-v2",
+    "exitCode": 1,
+    "reason": "New restart assertion expected zero accounts after the existing late-upload fixture deliberately registered one; corrected assertion verifies zero units and no revived lease.",
+    "originalLogsRetained": true,
+    "originalDiagnosticSha256": "ef082f14d1cda17056cc15bb52601cfc9cff3f24822155f861e60f94649f916d"
+  },
+  "limits": {
+    "syntheticIdentitiesAndUnits": true,
+    "nativeInferences": 0,
+    "earnedCredits": 0,
+    "liveProviderCalls": 0,
+    "deployment": false,
+    "privateUpload": false,
+    "githubActions": false,
+    "frozenPilotChanged": false,
+    "nativeCleanupAttested": false,
+    "destinationAuthorityRequired": true,
+    "accountDeletionReconciled": false,
+    "financialReconciled": false,
+    "productionQualified": false,
+    "liveReady": false
+  }
+}

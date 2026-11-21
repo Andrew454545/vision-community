@@ -1,0 +1,58 @@
+{
+  "date": "2026-10-16",
+  "scope": "LOCAL_PHOTO_QUERY_ONLY",
+  "nativeUse": {
+    "status": "PASS",
+    "scope": "QUERY_ONLY_SYNTHETIC_RGB_AND_TWO_SYNTHETIC_SAVED_RECORDS",
+    "nativePhotoEncoding": true,
+    "nativeRankingUsedPhotoCache": true,
+    "photoAndTextWeight": 50,
+    "nativeCommands": 2,
+    "locationsSearched": 2,
+    "results": 1,
+    "originalFilesUnchanged": true,
+    "temporaryPhotoFilesRemoved": true,
+    "googleRequests": 0,
+    "cloudCalls": 0,
+    "qualificationRuns": 0,
+    "newContributorLocations": 0,
+    "wallSeconds": 2.473,
+    "windowsExecuted": false
+  },
+  "checks": {
+    "privatePixelBoundary": "PASS",
+    "loopbackTokenOriginMemoryClearAndForwarding": "PASS",
+    "shippedJavaScriptDOMHarness": "PASS; not real browser certification"
+  },
+  "preservedFailures": [
+    "Initial unit fixture used a linked OS temp path; rerun used the private canonical test temp root",
+    "First native temporary encoder row used a noncanonical placeholder country; corrected only the query container, then native use passed"
+  ],
+  "privacy": {
+    "requestBytes": 150528,
+    "requestContainsFilenameOrExif": false,
+    "originalPhotoUploadedExternally": false,
+    "ordinaryExitRemovesTemporaryPixelsAndVectors": true
+  },
+  "compatibility": {
+    "nativeBinaryChanged": false,
+    "savedLocationEmbeddingsChanged": false,
+    "fixed112MatrixRepeated": false,
+    "queriesUsePinnedFP32Encoder": true,
+    "queryOnlyContainerIsNotAContribution": true
+  },
+  "limits": {
+    "realWindowsExecution": false,
+    "realPhotoQualityBenchmark": false,
+    "liveGoogleRequests": 0,
+    "cloudflareCalls": 0,
+    "actionsDispatched": 0,
+    "includedInPublishedA3402cbKits": false
+  },
+  "sourceFiles": {
+    "community/local_scene_photo.py": "8c52150b5fb749662ee680b65f6f9460e686720cde18abf2fe280deb0c15a863",
+    "community/local_scene_library.py": "101d3b0ad2f95e5e96c05e97913c7fc167326034b06bb2dc55967a376fe377ce",
+    "community/local_scene_library_ui.py": "68d6c6eedad43bb872d87ef46ec1d8bd727fc1f7158eacbeadd0c1b95af5a1cf",
+    "community/local_scene_ui.py": "927e8222919edf80346c5951ce902d518ec4741ff2a87f937147e1bc0b88bf77"
+  }
+}
